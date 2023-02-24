@@ -41,7 +41,7 @@ class InputMatrix(keras.initializers.Initializer):
         self.sigma = sigma
         super().__init__(**kwargs)
 
-    def __call__(self, shape, dtype=tf.float64):
+    def __call__(self, shape, dtype=tf.float64, **kwargs):
         """Generate the matrix.
 
         Args:
@@ -143,7 +143,7 @@ class RegularOwn(keras.initializers.Initializer):
         self.ones = ones
         super().__init__(**kwargs)
 
-    def __call__(self, shape, dtype=tf.float32):
+    def __call__(self, shape, dtype=tf.float32, **kwargs):
         """Generate the matrix.
 
         Args:
@@ -263,7 +263,7 @@ class RegularNX(keras.initializers.Initializer):
         self.ones = ones
         super().__init__(**kwargs)
 
-    def __call__(self, shape, dtype=tf.float32):
+    def __call__(self, shape, dtype=tf.float32, **kwargs):
         """Generate the matrix.
 
         Args:
@@ -289,7 +289,7 @@ class RegularNX(keras.initializers.Initializer):
         graph = nx.random_regular_graph(degree, rows)
 
         # Making non zero elements random uniform between -sigma and sigma
-        if not self.ones:  # TODO: make this more efficient
+        if not self.ones:  # Make this more efficient
             # Converting to numpy array to be able to change the values
             graph_matrix = nx.to_numpy_array(graph).astype(np.float32)
 
@@ -365,7 +365,7 @@ class ErdosRenyi(keras.initializers.Initializer):
         self.ones = ones
         super().__init__(**kwargs)
 
-    def __call__(self, shape, dtype=tf.float32):
+    def __call__(self, shape, dtype=tf.float32, **kwargs):
         """Generate the matrix.
 
         Args:
@@ -404,7 +404,7 @@ class ErdosRenyi(keras.initializers.Initializer):
 
         graph = nx.erdos_renyi_graph(rows, probab, directed=True)
 
-        if not self.ones:  # TODO: Make this more efficient
+        if not self.ones:  # Make this more efficient
             # Convert to dense matrix to make non zero values random uniform
             graph_matrix = nx.to_numpy_array(graph).astype(np.float32)
             # make non zero values randomly uniform in [-sigma, sigma]
@@ -451,7 +451,8 @@ class WattsStrogatzOwn(keras.initializers.Initializer):
     The degree of each node is K, where K is even, otherwise it is rounded
     up to the nearest even number.
     When the probability of rewiring is 0, the graph is regular.
-    On the other hand, when the probability of rewiring is 1, the graph is closer to an Erdos-Renyi graph.
+    On the other hand, when the probability of rewiring is 1, the graph is closer
+    to an Erdos-Renyi graph.
 
     Args:
         degree (int): The degree of each node.
@@ -489,7 +490,6 @@ class WattsStrogatzOwn(keras.initializers.Initializer):
         Returns:
             (np.array): The adjacency matrix.
         """
-
         # if degree > nodes - 1 set degree to nodes - 1
         degree = nodes if degree > nodes - 1 else degree
 
@@ -555,7 +555,6 @@ class WattsStrogatzOwn(keras.initializers.Initializer):
         ones=False,
     ) -> None:
         """Initialize the initializer."""
-
         if degree % 2 != 0:
             degree += 1
             print(
@@ -569,7 +568,7 @@ class WattsStrogatzOwn(keras.initializers.Initializer):
         self.ones = ones
         super().__init__()
 
-    def __call__(self, shape, dtype=tf.float32):
+    def __call__(self, shape, dtype=tf.float32, **kwargs):
         """Generate a Watts Strogatz graph adjacency matrix.
 
         Args:
@@ -595,15 +594,15 @@ class WattsStrogatzOwn(keras.initializers.Initializer):
         ws_graph = self.watts_strogatz(graph, self.rewiring_p)
 
         # Guarantee that the graph is connected
-        nx_graph = nx.from_numpy_matrix(ws_graph)
+        nx_graph = nx.from_numpy_array(ws_graph)
         connected = nx.is_connected(nx_graph)
 
-        # TODO: Make this a parameter later
+        # Make this a parameter later
         iterations = 0
         while not connected:
             ws_graph = self.watts_strogatz(graph, self.rewiring_p)
 
-            nx_graph = nx.from_numpy_matrix(ws_graph)
+            nx_graph = nx.from_numpy_array(ws_graph)
             connected = nx.is_connected(nx_graph)
 
             iterations += 1
@@ -679,7 +678,7 @@ class WattsStrogatzNX(tf.keras.initializers.Initializer):
         self.ones = ones
         super().__init__()
 
-    def __call__(self, shape, dtype=tf.float32):
+    def __call__(self, shape, dtype=tf.float32, **kwargs):
         """Generate a Watts Strogatz graph adjacency matrix.
 
         Uses networkx to generate the graph and extract the adjacency matrix.
