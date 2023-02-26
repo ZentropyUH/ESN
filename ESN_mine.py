@@ -1,5 +1,6 @@
 """Do main stuff here. Correct docstring later."""
 import timeit
+
 import numpy as np
 
 # from scipy.signal import (  # This is to have relative maximums and minimums.
@@ -8,11 +9,10 @@ import numpy as np
 # )
 from tensorflow import keras
 
-from custom_initializers import WattsStrogatzOwn, RegularNX
-from utils import load_data, lyap_ks, forecast, plot_contourf_forecast
-
-from model_instantiators import get_simple_esn, get_parallel_esn
+from custom_initializers import RegularNX, WattsStrogatzOwn
+from model_instantiators import get_parallel_esn, get_simple_esn
 from readout_generators import linear_readout
+from utils import forecast, load_data, lyap_ks, plot_contourf_forecast
 
 # To avoid tensorflow verbosity
 # os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
@@ -44,7 +44,7 @@ def main():
 
     forecast_len = 1000
 
-    regularization = 1e-4  # KS
+    regularization = 1e-5  # KS
     # regularization = 1e-8  # Mackey-Glass/Lorenz
 
     L = 22  # KS
@@ -55,7 +55,7 @@ def main():
 
     print("Max Lyapunov exponent: ", max_lyap)
 
-    load_path = f"data/KS/L{L}_dt0.25/"
+    load_path = f"../data/KS/L{L}_dt0.25/"
 
     name = f"KS_L{L}_N{N}_dt0.25_steps160000_diffusion-k1_run0.csv"
     # name = "mackey_alpha-0.2_beta-10_gamma-0.1_tau-17_n-150000.csv"
@@ -161,11 +161,11 @@ def main():
         "Training finished, number of parameters: ", final_model.count_params()
     )
 
-    keras.utils.plot_model(
-        final_model.build_graph(),
-        # show_shapes=True,
-        to_file="parallel_model.png",
-    )
+    # keras.utils.plot_model(
+    #     final_model.build_graph(),
+    #     # show_shapes=True,
+    #     to_file="parallel_model.png",
+    # )
 
     # final_model.save(
     #     "./Models/Parallel_ESN_KS_L22_N64_dt0.25_steps160000_diffusion-k1"
@@ -236,6 +236,3 @@ def main():
 
 if __name__ == "__main__":
     print(timeit.timeit(main, number=1))
-
-
-# help me organize this module in a better way
