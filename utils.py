@@ -6,6 +6,8 @@ import pandas as pd
 import tqdm
 from matplotlib.animation import FuncAnimation
 from tqdm import trange
+from typing import Tuple
+
 
 #### Parameters ####
 
@@ -26,7 +28,7 @@ def load_data(
     train_length: int = 5000,
     init_transient: int = 0,
     step: int = 1,
-) -> tuple:
+):
     """Load the data from the given path. Returns a dataset for training a NN.
 
     Data is supposed to be stored in a .csv and has a shape of (T, D), (T)ime and (D)imensions.
@@ -555,7 +557,6 @@ def rms_error(predictions, target):
     Returns:
         (float): The RMS error.
     """
-
     return np.sqrt(np.mean((predictions - target) ** 2))
 
 
