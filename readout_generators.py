@@ -19,7 +19,7 @@ def linear_readout(
     regularization=1e-8,
     method="ridge",
     solver="svd",  # This solver is the best
-):
+) -> keras.Model:
     """Train a linear readout for the given model.
 
     We are using the Ridge regression from sklearn instead of the keras
@@ -139,7 +139,7 @@ def sgd_linear_readout(
     learning_rate=0.001,
     epochs=200,
     regularization=1e-8,
-):
+) -> keras.Model:
     """Generate an SGD readout layer.
 
     Args:

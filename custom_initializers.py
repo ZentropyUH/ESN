@@ -1,10 +1,12 @@
 """Custom Initializers."""
+from typing import Dict
+
+import networkx as nx
 import numpy as np
 import tensorflow as tf
 from scipy import sparse
 from scipy.sparse import linalg
 from tensorflow import keras
-import networkx as nx
 
 ###############################################
 ################## Initializers ###############
@@ -34,14 +36,14 @@ class InputMatrix(keras.initializers.Initializer):
     >>> w is a 5x10 matrix with values in [-1, 1]
     """
 
-    def __init__(self, sigma=0.5, **kwargs):
+    def __init__(self, sigma=0.5, **kwargs) -> None:
         """Initialize the initializer."""
         assert sigma > 0, "sigma must be positive"
 
         self.sigma = sigma
         super().__init__(**kwargs)
 
-    def __call__(self, shape, dtype=tf.float64, **kwargs):
+    def __call__(self, shape, dtype=tf.float64, **kwargs) -> tf.Tensor:
         """Generate the matrix.
 
         Args:
@@ -100,7 +102,7 @@ class InputMatrix(keras.initializers.Initializer):
         w_in = tf.sparse.to_dense(w_in)
         return tf.cast(w_in, dtype)
 
-    def get_config(self):
+    def get_config(self) -> Dict:
         """Get the config dictionary of the initializer for serialization."""
         base_config = super().get_config()
         config = {"sigma": self.sigma}
@@ -143,7 +145,7 @@ class RegularOwn(keras.initializers.Initializer):
         self.ones = ones
         super().__init__(**kwargs)
 
-    def __call__(self, shape, dtype=tf.float32, **kwargs):
+    def __call__(self, shape, dtype=tf.float32, **kwargs) -> tf.Tensor:
         """Generate the matrix.
 
         Args:
@@ -212,7 +214,7 @@ class RegularOwn(keras.initializers.Initializer):
         # Casting to dtype
         return tf.cast(ans, dtype)
 
-    def get_config(self):
+    def get_config(self) -> Dict:
         """Get the config dictionary of the initializer for serialization."""
         base_config = super().get_config()
         config = {
@@ -263,7 +265,7 @@ class RegularNX(keras.initializers.Initializer):
         self.ones = ones
         super().__init__(**kwargs)
 
-    def __call__(self, shape, dtype=tf.float32, **kwargs):
+    def __call__(self, shape, dtype=tf.float32, **kwargs) -> tf.Tensor:
         """Generate the matrix.
 
         Args:
@@ -323,7 +325,7 @@ class RegularNX(keras.initializers.Initializer):
 
         return kernel
 
-    def get_config(self):
+    def get_config(self) -> Dict:
         """Get the config dictionary of the initializer for serialization."""
         base_config = super().get_config()
         config = {
@@ -365,7 +367,7 @@ class ErdosRenyi(keras.initializers.Initializer):
         self.ones = ones
         super().__init__(**kwargs)
 
-    def __call__(self, shape, dtype=tf.float32, **kwargs):
+    def __call__(self, shape, dtype=tf.float32, **kwargs) -> tf.Tensor:
         """Generate the matrix.
 
         Args:
@@ -431,7 +433,7 @@ class ErdosRenyi(keras.initializers.Initializer):
 
         return tf.convert_to_tensor(kernel, dtype=dtype)
 
-    def get_config(self):
+    def get_config(self) -> Dict:
         """Get the config dictionary of the initializer for serialization."""
         base_config = super().get_config()
         config = {
@@ -476,7 +478,7 @@ class WattsStrogatzOwn(keras.initializers.Initializer):
     """
 
     @staticmethod
-    def regular_graph(nodes, degree, sigma=0.5):
+    def regular_graph(nodes, degree, sigma=0.5) -> np.ndarray:
         """
         Generate a regular graph adjacency matrix.
 
@@ -507,7 +509,7 @@ class WattsStrogatzOwn(keras.initializers.Initializer):
         return graph
 
     @staticmethod
-    def watts_strogatz(graph, rewiring_p, sigma=0.5):
+    def watts_strogatz(graph, rewiring_p, sigma=0.5) -> nx.Graph:
         """
         Generate a Watts Strogatz graph adjacency matrix from a regular graph adjacency matrix.
 
@@ -568,7 +570,7 @@ class WattsStrogatzOwn(keras.initializers.Initializer):
         self.ones = ones
         super().__init__()
 
-    def __call__(self, shape, dtype=tf.float32, **kwargs):
+    def __call__(self, shape, dtype=tf.float32, **kwargs) -> tf.Tensor:
         """Generate a Watts Strogatz graph adjacency matrix.
 
         Args:
@@ -590,8 +592,10 @@ class WattsStrogatzOwn(keras.initializers.Initializer):
         else:
             raise ValueError("Shape must be int or tuple")
 
-        graph = self.regular_graph(rows, self.degree)
-        ws_graph = self.watts_strogatz(graph, self.rewiring_p)
+        graph = self.regular_graph(rows, self.degree, sigma=self.sigma)
+        ws_graph = self.watts_strogatz(
+            graph, self.rewiring_p, sigma=self.sigma
+        )
 
         # Guarantee that the graph is connected
         nx_graph = nx.from_numpy_array(ws_graph)
@@ -608,7 +612,7 @@ class WattsStrogatzOwn(keras.initializers.Initializer):
             iterations += 1
 
             if iterations > 100:
-                raise ValueError(
+                raise StopIteration(
                     "Could not generate a connected graph. "
                     "Try increasing the number of nodes or decreasing the rewiring probability."
                 )
@@ -635,7 +639,7 @@ class WattsStrogatzOwn(keras.initializers.Initializer):
 
         return tf.convert_to_tensor(kernel, dtype=dtype)
 
-    def get_config(self):
+    def get_config(self) -> Dict:
         """Get the configuration of the initializer."""
         return {
             "degree": self.degree,
@@ -678,7 +682,7 @@ class WattsStrogatzNX(tf.keras.initializers.Initializer):
         self.ones = ones
         super().__init__()
 
-    def __call__(self, shape, dtype=tf.float32, **kwargs):
+    def __call__(self, shape, dtype=tf.float32, **kwargs) -> tf.Tensor:
         """Generate a Watts Strogatz graph adjacency matrix.
 
         Uses networkx to generate the graph and extract the adjacency matrix.
@@ -734,7 +738,7 @@ class WattsStrogatzNX(tf.keras.initializers.Initializer):
 
         return tf.convert_to_tensor(kernel, dtype=dtype)
 
-    def get_config(self):
+    def get_config(self) -> Dict:
         """Get the config dictionary of the initializer for serialization."""
         base_config = super().get_config()
         config = {
