@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 import pandas as pd
+from tqdm import trange
 
 
 class MackeyGlass:
@@ -75,7 +76,7 @@ class MackeyGlass:
         X = np.zeros(n + 1)
         T = np.zeros(n + 1)
 
-        for i in range(n + 1):
+        for i in trange(n + 1):
             Y[i] = y_t
             X[i] = y_t_
             time = time + delta_t
@@ -114,10 +115,10 @@ class MackeyGlass:
         plt.show()
 
 
-mc = MackeyGlass()
-n = 150000
+mc = MackeyGlass(tau=22)
+n = 250000
 y, t, x = mc.gen(delta_t=1, n=n)
-# #mc.plot()
+mc.plot()
 # print((np.max(y) - np.min(y))/100, np.std(y), 0.03*np.std(y))
 # print(np.max(y))
 

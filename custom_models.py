@@ -3,7 +3,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 
-from custom_layers import *
+from custom_layers import EsnCell, PowerIndex, InputSplitter, ReservoirCell
 
 
 ###############################################
@@ -108,20 +108,11 @@ class ESN(keras.Model):
         np.random.seed(seed)
         tf.random.set_seed(seed)
 
-    def build(self, input_shape):
-        """Build the model.
+        self.inputshape = None
 
-        Saves the input shape in inputshape.
-
-        Args:
-            input_shape (tf.TensorShape): Input shape of the model.
-        """
         ###############################################
         ################## Layers #####################
         ###############################################
-
-        # Input layer
-        self.input_layer = keras.layers.InputLayer(input_shape=input_shape)
 
         # Recurrent cell
         esn_cell = EsnCell(
@@ -151,6 +142,14 @@ class ESN(keras.Model):
             name="Concat_ESN_input"
         )
 
+    def build(self, input_shape):
+        """Build the model.
+
+        Saves the input shape in inputshape.
+
+        Args:
+            input_shape (tf.TensorShape): Input shape of the model.
+        """
         self.inputshape = (None, input_shape[-1])
         super().build(input_shape)
 
@@ -165,8 +164,7 @@ class ESN(keras.Model):
         Returns:
             tf.Tensor: Output tensor of shape (batch_size, time_steps, units)
         """
-        output = self.input_layer(inputs)
-        output = self.esn(output)
+        output = self.esn(inputs)
         output = self.power_index(output)
         if self.raw is False:
             output = self.input_reservoir_concatenation([inputs, output])
@@ -285,20 +283,26 @@ class ESN(keras.Model):
 
     def get_config(self):
         """Get the config dictionary of the model for serialization."""
-        base_config = super().get_config()
+        config = super().get_config().copy()
 
-        config = {
-            "units": self.units,
-            "leak_rate": self.leak_rate,
-            "input_reservoir_init": self.input_reservoir_init,
-            "input_bias_init": self.input_bias_init,
-            "reservoir_kernel_init": self.reservoir_kernel_init,
-            "esn_activation": self.esn_activation,
-            "exponent": self.exponent,
-            "seed": self.seed,
-        }
+        config.update(
+            {
+                "units": self.units,
+                "leak_rate": self.leak_rate,
+                "input_reservoir_init": self.input_reservoir_init,
+                "input_bias_init": self.input_bias_init,
+                "reservoir_kernel_init": self.reservoir_kernel_init,
+                "esn_activation": self.esn_activation,
+                "exponent": self.exponent,
+                "seed": self.seed,
+                "raw": self.raw,
+            }
+        )
+        return config
 
-        return dict(list(base_config.items()) + list(config.items()))
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
 
 
 @tf.keras.utils.register_keras_serializable(package="custom")
@@ -351,7 +355,6 @@ class ParallelESN(keras.Model):
         input_reservoir_init="InputMatrix",
         input_bias_init="random_uniform",
         reservoir_kernel_init="ErdosRenyi",
-        reservoir_bias_init="zeros",  # TODO Delete this, is redundant
         esn_activation="tanh",
         # Exponent of the power index (Augmented Hidden ESN state)
         exponent=2,
@@ -391,15 +394,11 @@ class ParallelESN(keras.Model):
         np.random.seed(seed)
         tf.random.set_seed(seed)
 
-    def build(self, input_shape):
-        """Build the model."""
+        self.inputshape = None
 
         ###############################################
         ################## Layers #####################
         ###############################################
-
-        # Input layer
-        self.input_layer = keras.layers.InputLayer(input_shape=input_shape)
 
         # Input split layer
         self.input_split = InputSplitter(self.reservoir_amount, self.overlap)
@@ -427,6 +426,8 @@ class ParallelESN(keras.Model):
         # Concatenate the overall output of the ESN cells with the input
         self.concat_input_layer = keras.layers.Concatenate()
 
+    def build(self, input_shape):
+        """Build the model."""
         esn_input_shape = (
             input_shape[0],
             input_shape[1],
@@ -435,7 +436,6 @@ class ParallelESN(keras.Model):
         # Build the ESN layers
         for esn_layer in self.esn_layers:
             esn_layer.build(esn_input_shape)
-
         self.inputshape = (None, input_shape[-1])
         super().build(input_shape)
 
@@ -549,7 +549,6 @@ class ParallelESN(keras.Model):
         Returns:
             bool: True if the ESP is verified, False otherwise.
         """
-
         if not self.built:
             print("Model is not built yet, building model...")
             self.build(transient_data.shape)
@@ -598,6 +597,10 @@ class ParallelESN(keras.Model):
         )
         return config
 
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+
 
 # Generic model with readout layer
 @tf.keras.utils.register_keras_serializable(package="custom")
@@ -631,6 +634,11 @@ class ModelWithReadout(keras.Model):
         return self.readout(output)
 
     def build_graph(self):
+        """Generate dummy model for plotting.
+
+        Returns:
+            keras.Model: dummy model for plotting and summary
+        """
         assert self.built, "Model must be built before calling build_graph()"
 
         model = self.model.build_graph()
@@ -641,15 +649,22 @@ class ModelWithReadout(keras.Model):
 
     def get_config(self):
         """Get the config dictionary of the model for serialization."""
-        base_config = super().get_config()
-        config = {
-            "model": self.model,
-            "readout": self.readout,
-        }
-        return dict(list(base_config.items()) + list(config.items()))
+        config = super().get_config().copy()
+        config.update(
+            {
+                "model": self.model,
+                "readout": self.readout,
+            }
+        )
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
 
 
-# A model similar to ESN model, with an input-to-reservoir layer, but instead of using an EsnCell it uses a ReservoirCell in the recurrent layer
+# A model similar to ESN model, with an input-to-reservoir layer, but instead of using an EsnCell
+# it uses a ReservoirCell in the recurrent layer
 class ReservoirModel(keras.Model):
     """
     A simple ESN model.
@@ -715,13 +730,6 @@ class ReservoirModel(keras.Model):
         self.exponent = exponent
         self.seed = seed
 
-    def build(self, input_shape):
-        """Build the model.
-
-        Args:
-            input_shape (tuple): Shape of the input data.
-        """
-        self.input_layer = keras.layers.InputLayer(input_shape=input_shape)
         self.input_to_reservoir = keras.layers.Dense(
             self.units,
             kernel_initializer=self.input_reservoir_init,
@@ -743,6 +751,12 @@ class ReservoirModel(keras.Model):
             name="reservoir_layer",
         )
 
+    def build(self, input_shape):
+        """Build the model.
+
+        Args:
+            input_shape (tuple): Shape of the input data.
+        """
         super().build(input_shape)
 
     def call(self, inputs):
@@ -778,18 +792,24 @@ class ReservoirModel(keras.Model):
 
     def get_config(self):
         """Get the config dictionary of the model for serialization."""
-        base_config = super().get_config()
-        config = {
-            "units": self.units,
-            "leak_rate": self.leak_rate,
-            "input_reservoir_init": self.input_reservoir_init,
-            "input_bias_init": self.input_bias_init,
-            "reservoir_function": self.reservoir_function,
-            "esn_activation": self.esn_activation,
-            "exponent": self.exponent,
-            "seed": self.seed,
-        }
-        return dict(list(base_config.items()) + list(config.items()))
+        config = super().get_config().copy()
+        config.update(
+            {
+                "units": self.units,
+                "leak_rate": self.leak_rate,
+                "input_reservoir_init": self.input_reservoir_init,
+                "input_bias_init": self.input_bias_init,
+                "reservoir_function": self.reservoir_function,
+                "esn_activation": self.esn_activation,
+                "exponent": self.exponent,
+                "seed": self.seed,
+            }
+        )
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
 
 
 custom_models = {

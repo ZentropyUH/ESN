@@ -46,7 +46,7 @@ def linear_readout(
             The solver to be used for the linear readout. Defaults to "svd".
 
     Returns:
-        model (keras.Model): The model with the linear readout.
+        model (keras.Model): The model with the readout layer attached.
     """
     print("Training linear readout.")
     print()
@@ -126,7 +126,7 @@ def linear_readout(
 
     # Calling the model in order to be able to save it. Check if
     # this is necessary or better ways to do it
-    model.predict(transient_data[:, :1, :], verbose=0)
+    model(transient_data[:, :1, :])
 
     return model
 

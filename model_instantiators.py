@@ -82,8 +82,8 @@ def get_simple_esn(  # Check how to improve this
         seed=seed,
         exponent=exponent,
         input_reservoir_init=input_initializer,
-        reservoir_kernel_init=reservoir_initializer,
         input_bias_init=bias_initializer,
+        reservoir_kernel_init=reservoir_initializer,
     )
 
     return model
@@ -167,8 +167,8 @@ def get_parallel_esn(
         seed=seed,
         exponent=exponent,
         input_reservoir_init=input_initializer,
-        reservoir_kernel_init=reservoir_initializer,
         input_bias_init=bias_initializer,
+        reservoir_kernel_init=reservoir_initializer,
     )
 
     return model

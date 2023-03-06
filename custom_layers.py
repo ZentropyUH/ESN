@@ -105,7 +105,7 @@ class EsnCell(keras.layers.Layer):
         # Input bias
         self.input_bias = self.add_weight(
             name="input_bias",
-            shape=(self.units,),
+            shape=(1, self.units),
             initializer=self.input_bias_initializer,
             trainable=False,
             dtype=self.dtype,
@@ -155,18 +155,22 @@ class EsnCell(keras.layers.Layer):
 
     def get_config(self) -> Dict:
         """Get the config dictionary of the layer for serialization."""
-        config = {
-            "units": self.units,
-            "activation": self.activation,
-            "leak_rate": self.leak_rate,
-            "input_initializer": self.input_initializer,
-            "input_bias_initializer": self.input_bias_initializer,
-            "reservoir_initializer": self.reservoir_initializer,
-        }
+        config = super().get_config()
+        config.update(
+            {
+                "units": self.units,
+                "activation": self.activation,
+                "leak_rate": self.leak_rate,
+                "input_initializer": self.input_initializer,
+                "input_bias_initializer": self.input_bias_initializer,
+                "reservoir_initializer": self.reservoir_initializer,
+            }
+        )
+        return config
 
-        base_config = super().get_config()
-
-        return dict(list(base_config.items()) + list(config.items()))
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
 
 
 @tf.keras.utils.register_keras_serializable(package="custom")
@@ -236,9 +240,13 @@ class PowerIndex(keras.layers.Layer):
 
     def get_config(self) -> Dict:
         """Get the config dictionary of the layer for serialization."""
-        config = {"index": self.index, "exponent": self.exponent}
-        base_config = super().get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+        config = super().get_config()
+        config.update({"index": self.index, "exponent": self.exponent})
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
 
     def get_weights(self) -> List:
         """Return the weights of the layer."""
@@ -329,13 +337,13 @@ class InputSplitter(keras.layers.Layer):
 
     def get_config(self) -> Dict:
         """Get the config dictionary of the layer for serialization."""
-        config = {"partitions": self.partitions, "overlap": self.overlap}
-        base_config = super().get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+        config = super().get_config()
+        config.update({"partitions": self.partitions, "overlap": self.overlap})
+        return config
 
-    def get_weights(self) -> List:
-        """Return the weights of the layer."""
-        return []
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
 
 
 @tf.keras.utils.register_keras_serializable(package="custom")
@@ -451,15 +459,21 @@ class ReservoirCell(keras.layers.Layer):
 
     def get_config(self) -> Dict:
         """Get the config dictionary of the layer for serialization."""
-        config = {
-            "reservoir_function": self.reservoir_function,
-            "input_initializer": self.input_initializer,
-            "input_bias_initializer": self.input_bias_initializer,
-            "activation": self.activation,
-            "leak_rate": self.leak_rate,
-        }
-        base_config = super().get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+        config = super().get_config()
+        config.update(
+            {
+                "reservoir_function": self.reservoir_function,
+                "input_initializer": self.input_initializer,
+                "input_bias_initializer": self.input_bias_initializer,
+                "activation": self.activation,
+                "leak_rate": self.leak_rate,
+            }
+        )
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
 
 
 custom_layers = {

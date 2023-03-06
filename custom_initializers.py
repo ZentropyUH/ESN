@@ -41,7 +41,7 @@ class InputMatrix(keras.initializers.Initializer):
         assert sigma > 0, "sigma must be positive"
 
         self.sigma = sigma
-        super().__init__(**kwargs)
+        super().__init__()
 
     def __call__(self, shape, dtype=tf.float64, **kwargs) -> tf.Tensor:
         """Generate the matrix.
@@ -110,6 +110,57 @@ class InputMatrix(keras.initializers.Initializer):
 
 
 @tf.keras.utils.register_keras_serializable(package="custom")
+class RandomUniform(keras.initializers.Initializer):
+    """Random uniform matrix Initializer
+
+    Args:
+        sigma (float): Standard deviation of the uniform distribution.
+
+    Returns:
+        keras.initializers.Initializer: The initializer.
+    """
+
+    def __init__(self, sigma=0.5, **kwargs) -> None:
+        """Initialize the initializer."""
+        assert sigma > 0, "sigma must be positive"
+
+        self.sigma = sigma
+        super().__init__()
+
+    def __call__(self, shape, dtype=tf.float64, **kwargs) -> tf.Tensor:
+        """Generate the matrix.
+
+        Args:
+            shape (tuple): Shape of the matrix.
+            dtype (tf.dtype): Data type of the matrix.
+
+        Returns:
+            tf.Tensor: The matrix.
+        """
+        if isinstance(shape, int):
+            rows, cols = shape, shape
+
+        elif isinstance(shape, tuple):
+            if len(shape) == 1:
+                rows, cols = shape[0], shape[0]
+            elif len(shape) == 2:
+                rows, cols = shape
+        else:
+            raise ValueError("Shape must be int or tuple")
+
+        w = tf.random.uniform(
+            (rows, cols), minval=-self.sigma, maxval=self.sigma, dtype=dtype
+        )
+        return w
+
+    def get_config(self) -> Dict:
+        """Get the config dictionary of the initializer for serialization."""
+        base_config = super().get_config()
+        config = {"sigma": self.sigma}
+        return dict(list(base_config.items()) + list(config.items()))
+
+
+@tf.keras.utils.register_keras_serializable(package="custom")
 class RegularOwn(keras.initializers.Initializer):
     """Regular graph adjacency matrix initializer.
 
@@ -143,7 +194,7 @@ class RegularOwn(keras.initializers.Initializer):
         self.spectral_radius = spectral_radius
         self.sigma = sigma
         self.ones = ones
-        super().__init__(**kwargs)
+        super().__init__()
 
     def __call__(self, shape, dtype=tf.float32, **kwargs) -> tf.Tensor:
         """Generate the matrix.
@@ -163,9 +214,7 @@ class RegularOwn(keras.initializers.Initializer):
                 rows, cols = shape[0], 1
             elif len(shape) == 2:
                 rows, cols = shape
-            assert (
-                rows == cols
-            ), "The number of rows and columns must be equal."
+            assert rows == cols, "Matrix must be square"
         else:
             raise ValueError("Shape must be int or tuple")
 
@@ -263,7 +312,7 @@ class RegularNX(keras.initializers.Initializer):
         self.spectral_radius = spectral_radius
         self.sigma = sigma
         self.ones = ones
-        super().__init__(**kwargs)
+        super().__init__()
 
     def __call__(self, shape, dtype=tf.float32, **kwargs) -> tf.Tensor:
         """Generate the matrix.
@@ -281,9 +330,7 @@ class RegularNX(keras.initializers.Initializer):
                 rows, cols = shape[0], 1
             elif len(shape) == 2:
                 rows, cols = shape
-            assert (
-                rows == cols
-            ), "The number of rows and columns must be equal."
+            assert rows == cols, "Matrix must be square"
         else:
             raise ValueError("Shape must be int or tuple")
 
@@ -365,7 +412,7 @@ class ErdosRenyi(keras.initializers.Initializer):
         self.spectral_radius = spectral_radius
         self.sigma = sigma
         self.ones = ones
-        super().__init__(**kwargs)
+        super().__init__()
 
     def __call__(self, shape, dtype=tf.float32, **kwargs) -> tf.Tensor:
         """Generate the matrix.
@@ -389,7 +436,7 @@ class ErdosRenyi(keras.initializers.Initializer):
         else:
             raise ValueError("Shape must be int or tuple")
 
-        assert rows == cols, "The number of rows and columns must be equal."
+        assert rows == cols, "Matrix must be square"
 
         # The average degree in this model is n * p, where p is the probability of connection
         # and n is the number of nodes.
@@ -550,7 +597,7 @@ class WattsStrogatzOwn(keras.initializers.Initializer):
 
     def __init__(
         self,
-        degree=3,
+        degree=4,
         spectral_radius=0.99,
         rewiring_p=0.5,
         sigma=0.5,
@@ -586,9 +633,7 @@ class WattsStrogatzOwn(keras.initializers.Initializer):
                 rows = shape[0]
             elif len(shape) == 2:
                 rows, cols = shape
-            assert (
-                rows == cols
-            ), "The number of rows and columns must be equal."
+            assert rows == cols, "Matrix must be square"
         else:
             raise ValueError("Shape must be int or tuple")
 
@@ -668,7 +713,7 @@ class WattsStrogatzNX(tf.keras.initializers.Initializer):
 
     def __init__(
         self,
-        degree=2,
+        degree=4,
         spectral_radius=0.99,
         rewiring_p=0.5,
         sigma=0.5,
@@ -700,9 +745,7 @@ class WattsStrogatzNX(tf.keras.initializers.Initializer):
                 rows = shape[0]
             elif len(shape) == 2:
                 rows, cols = shape
-            assert (
-                rows == cols
-            ), "The number of rows and columns must be equal."
+            assert rows == cols, "Matrix must be square"
         else:
             raise ValueError("Shape must be int or tuple")
 
@@ -751,11 +794,13 @@ class WattsStrogatzNX(tf.keras.initializers.Initializer):
 
 custom_initializers = {
     "InputMatrix": InputMatrix,
+    "RandomUniform": RandomUniform,
     "RegularOwn": RegularOwn,
     "RegularNX": RegularNX,
     "ErdosRenyi": ErdosRenyi,
     "WattsStrogatzOwn": WattsStrogatzOwn,
     "WattsStrogatzNX": WattsStrogatzNX,
+    "Zeros": keras.initializers.Zeros,
 }
 
 keras.utils.get_custom_objects().update(custom_initializers)
