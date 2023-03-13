@@ -5,7 +5,6 @@ import os
 # To avoid tensorflow verbosity
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 from pathlib import Path
-from pprint import pprint
 
 import click
 import numpy as np
@@ -26,14 +25,12 @@ from custom_initializers import (
     WattsStrogatzOwn,
 )
 from custom_models import ESN, ParallelESN, ReservoirModel
-
-
 from forecasters import classic_forecast, section_forecast
-
 from plotters import (
     plot_contourf_forecast,
-    plot_cumulative_rmse,
     plot_linear_forecast,
+    plot_rmse,
+    render_video,
 )
 from readout_generators import linear_readout, sgd_linear_readout
 from utils import get_name_from_dict, get_range, load_data
@@ -283,7 +280,7 @@ def train(
     leak_rate,
     reservoir_activation,
     # Classic Cases
-    spectral_radius,=
+    spectral_radius,
     reservoir_initializer,
     rewiring,
     reservoir_degree,
@@ -471,14 +468,6 @@ def train(
 
                                         ############### CHOOSE THE READOUT LAYER ###############
 
-                                        print(
-                                            # transient_data.shape,
-                                            # train_data.shape,
-                                            # train_target.shape,
-                                            # _regularization,
-                                        )
-                                        # exit(0)
-
                                         match readout_layer:
                                             case "linear":
                                                 model = linear_readout(
@@ -582,6 +571,28 @@ def train(
     else None,
 )
 
+################ PARAMETERS TO EXTRACT THE VALIDATION DATA/TARGET ################
+
+
+@click.option(
+    "--init-transient",
+    "-it",
+    type=click.INT,
+    help="The number of transient points that were discarded at the beginning of the data.",
+)
+@click.option(
+    "--transient",
+    "-tr",
+    type=click.INT,
+    help="The number of transient points discarded in the training of the model.",
+)
+@click.option(
+    "--train-length",
+    "-tl",
+    type=click.INT,
+    help="The number of points used for the training of the model.",
+)
+
 #################################################################
 
 
@@ -603,28 +614,6 @@ def train(
     "-df",
     type=click.Path(exists=True),
     help="The data file to be used for training the model",
-)
-
-################ PARAMETERS TO EXTRACT THE VALIDATION DATA ################
-
-
-@click.option(
-    "--init-transient",
-    "-it",
-    type=click.INT,
-    help="The number of transient points that were discarded at the beginning of the data.",
-)
-@click.option(
-    "--transient",
-    "-tr",
-    type=click.INT,
-    help="The number of transient points discarded in the training of the model.",
-)
-@click.option(
-    "--train-length",
-    "-tl",
-    type=click.INT,
-    help="The number of points used for the training of the model.",
 )
 def forecast(
     forecast_method: str,
@@ -651,13 +640,12 @@ def forecast(
 
     """
 
-    print(trained_model)
 
     # Load the data
     (
-        transient_data,
-        train_data,
-        train_target,
+        _,
+        _,
+        _,
         forecast_transient_data,
         val_data,
         val_target,
@@ -670,9 +658,6 @@ def forecast(
 
     # Load the model
     model = load_model(trained_model, compile=False)
-    print("Model loaded")
-    print(type(model))
-    # exit(0)
 
     ############### CHOOSE THE FORECAST METHOD AND FORECAST ###############
 
@@ -686,7 +671,7 @@ def forecast(
                 forecast_length=forecast_length,
             )
             # this will be of shape (1, forecast_length, features) I need to reshape it to (forecast_length, features)
-            predictions = predictions.reshape(forecast_length, -1)
+            predictions = predictions[0]
 
         case "section":
             predictions = section_forecast(
@@ -699,9 +684,7 @@ def forecast(
                 number_of_sections=number_of_sections,
             )
             # this will be of shape (1, number_of_sections * forecast_length, features) I need to reshape it to (number_of_sections * forecast_length, features)
-            predictions = predictions.reshape(
-                number_of_sections * forecast_length, -1
-            )
+            predictions = predictions[0]
 
     ############### SAVING FORECASTED DATA ###############
 
@@ -713,12 +696,21 @@ def forecast(
 
     # Save the forecasted data as csv using pandas
     pd.DataFrame(predictions).to_csv(
-        f"{output_dir}/{data_file_name}_{trained_model_name}_{forecast_method}_forecasted.csv"
+        f"{output_dir}/{trained_model_name}_{forecast_method}_forecasted.csv",
+        index=False,
+        header=None,
     )
 
 
 # plot command that receives a plot_type, prediction file and a data file and makes the plot
 @cli.command()
+@click.option(
+    "--lyapunov-exponent",
+    "-le",
+    type=click.FLOAT,
+    default=1,
+    help="The lyapunov exponent of the data. The default is 1. It is used to scale the time to the lyapunov time units.",
+)
 @click.option(
     "--plot-type",
     "-pt",
@@ -796,59 +788,49 @@ def forecast(
     type=click.INT,
     help="The number of points used for the training of the model.",
 )
-@click.argument("predictions", type=click.Path(exists=True))
-@click.argument("data_file", type=click.Path(exists=True))
+@click.option(
+    "predictions",
+    "-pr",
+    type=click.Path(exists=True),
+    help="The path to the file containing the predictions.",
+)
+@click.option(
+    "--data_file",
+    "-df",
+    type=click.Path(exists=True),
+    help="The path to the file containing the data.",
+)
 def plot(
     plot_type,
     predictions,
     data_file,
-    dt,
+    lyapunov_exponent,
+    delta_time,
     title,
     save_path,
     show,
-    ylabels,
-    yvalues,
-    xlabel,
+    y_labels,
+    y_values,
+    x_label,
     init_transient,
     transient,
     train_length,
 ):
-    """Load a model and forecast the data.
+    # Scale time to lyapunov time units
+    delta_time = delta_time * lyapunov_exponent
 
-    Args:
-        plot_type (str): The type of plot to be made. The default is linear.
-
-        predictions (str): The path to the file containing the predictions.
-
-        val_target (str): The path to the file containing the true data.
-
-        dt (float): The time step between each point in the data. The default is 1.
-
-        title (str): The title of the plot. The default is empty.
-
-        save_path (str): The path where the plot will be saved. The default is None.
-
-        show (bool): Whether to show the plot or not. The default is True.
-
-        ylabels (str): The labels of the y axis. The default is None. Value should be a string with the labels separated by commas.
-
-        xlabel (str): The label of the x axis. The default is time (t).
-
-    Returns:
-        None
-    """
     # Load predictions
-    predictions = pd.read_csv(predictions, header=None).to_csv()
+    predictions = pd.read_csv(predictions).to_numpy()
 
     features = predictions.shape[-1]
 
     # Load the data
     (
-        transient_data,
-        train_data,
-        train_target,
-        forecast_transient_data,
-        val_data,
+        _,
+        _,
+        _,
+        _,
+        _,
         val_target,
     ) = load_data(
         data_file,
@@ -857,55 +839,62 @@ def plot(
         init_transient=init_transient,
     )
 
-    # Convert ylabels to a list
-    if ylabels:
-        ylabels = ylabels.split(",")
+    # Convert y_labels to a list
+    if y_labels:
+        y_labels = y_labels.split(",")
 
-    # Convert yvalues to a list
-    if yvalues:
-        yvalues = [float(i) for i in yvalues.split(",")]
-        yvalues = np.linspace(yvalues[0], yvalues[1], features)
+    # Convert y_values to a list
+    if y_values:
+        y_values = [float(i) for i in y_values.split(",")]
+        y_values = np.linspace(y_values[0], y_values[1], features)
 
     # Plot the data
     match plot_type:
         case "linear":
             plot_linear_forecast(
-                predictions,
-                val_target,
-                dt,
-                title,
-                save_path,
-                show,
-                ylabels,
-                xlabel,
+                predictions=predictions,
+                val_target=val_target,
+                dt=delta_time,
+                title=title,
+                save_path=save_path,
+                show=show,
+                ylabels=y_labels,
+                xlabel=x_label,
             )
 
         case "contourf":
             plot_contourf_forecast(
-                predictions,
-                val_target,
-                dt,
-                title,
-                save_path,
-                yvalues,
-                show,
-                xlabel,
+                predictions=predictions,
+                val_target=val_target,
+                dt=delta_time,
+                title=title,
+                save_path=save_path,
+                show=show,
+                xlabel=x_label,
+                yvalues=y_values,
             )
 
         case "rmse":
-            plot_cumulative_rmse(
-                predictions,
-                val_target,
-                dt,
-                title,
-                save_path,
-                show,
-                ylabels,
-                xlabel,
+            plot_rmse(
+                predictions=predictions,
+                val_target=val_target,
+                dt=delta_time,
+                title=title,
+                save_path=save_path,
+                show=show,
+                ylabels=y_labels,
+                xlabel=x_label,
             )
 
         case "video":
-            pass
+            render_video(
+                predictions=predictions,
+                val_target=val_target,
+                dt=delta_time,
+                title=title,
+                save_path=save_path,
+                xlabel=x_label,
+            )
 
 
 if __name__ == "__main__":
