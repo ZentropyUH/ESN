@@ -23,9 +23,9 @@ def plot_linear_forecast(
     Plot the predictions and the target in a linear fashion.
 
     Args:
-        predictions (np.array): The predictions of the model.
+        predictions (np.array): The predictions of the model. (T, D)
 
-        val_target (np.array): The target values.
+        val_target (np.array): The target values. (N, T, D)
 
         dt (float): The time step between each prediction.
 
@@ -42,10 +42,10 @@ def plot_linear_forecast(
     Returns:
         None
     """
-    forecast_length = predictions.shape[1]
+    forecast_length = predictions.shape[0]
     features = predictions.shape[-1]
 
-    val_target = val_target[:, :forecast_length, :]
+    val_target = val_target[:, :forecast_length, :][0]
 
     xvalues = np.arange(0, forecast_length) * dt
 
@@ -59,15 +59,15 @@ def plot_linear_forecast(
 
     # Make this if-else better TODO
     if features == 1:
-        axs.plot(xvalues, predictions[0, :, 0], label="prediction")
-        axs.plot(xvalues, val_target[0, :, 0], label="target")
+        axs.plot(xvalues, predictions[:, 0], label="prediction")
+        axs.plot(xvalues, val_target[:, 0], label="target")
         if ylabels is not None:
             axs.set_ylabel(ylabels[0])
         axs.legend()
     else:
         for i in range(features):
-            axs[i].plot(xvalues, predictions[0, :, i], label="prediction")
-            axs[i].plot(xvalues, val_target[0, :, i], label="target")
+            axs[i].plot(xvalues, predictions[:, i], label="prediction")
+            axs[i].plot(xvalues, val_target[:, i], label="target")
             if ylabels is not None:
                 axs[i].set_ylabel(ylabels[i])
             axs[i].legend()
@@ -93,9 +93,9 @@ def plot_contourf_forecast(
     Plot the predictions and the target in a contourf fashion.
 
     Args:
-        predictions (np.array): The predictions of the model.
+        predictions (np.array): The predictions of the model. (T, D)
 
-        val_target (np.array): The target values.
+        val_target (np.array): The target values. (N, T, D)
 
         dt (float): The time step between each prediction.
 
@@ -112,9 +112,9 @@ def plot_contourf_forecast(
     Returns:
         None
     """
-    forecast_length = predictions.shape[1]
+    forecast_length = predictions.shape[0]
 
-    val_target = val_target[:, :forecast_length, :]
+    val_target = val_target[:, :forecast_length, :][0]
 
     xvalues = np.arange(0, forecast_length) * dt
 
@@ -129,15 +129,15 @@ def plot_contourf_forecast(
     fig.suptitle(title, fontsize=16)
     fig.supxlabel(xlabel)
 
-    model_plot = axs[0].contourf(xvalues, yvalues, val_target[0].T, levels=50)
+    model_plot = axs[0].contourf(xvalues, yvalues, val_target.T, levels=50)
     axs[0].set_title("Original model")
 
     prediction_plot = axs[1].contourf(
-        xvalues, yvalues, predictions[0].T, levels=50
+        xvalues, yvalues, predictions.T, levels=50
     )
     axs[1].set_title("Predicted model")
 
-    error = abs(predictions[0] - val_target[0])
+    error = abs(predictions - val_target)
 
     error_plot = axs[2].contourf(xvalues, yvalues, error.T, levels=20)
     axs[2].set_title("Error")
@@ -157,7 +157,7 @@ def plot_contourf_forecast(
         plt.show()
 
 
-def plot_cumulative_rmse(
+def plot_rmse(
     predictions,
     val_target,
     dt=1,
@@ -168,12 +168,12 @@ def plot_cumulative_rmse(
     xlabel="t",
 ):
     """
-    Plot the cumulative RMSE of the predictions and the target.
+    Plot the RMSE of the predictions and the target. Calculates the RMSE at every step and plots it over time.
 
     Args:
-        predictions (np.array): The predictions of the model.
+        predictions (np.array): The predictions of the model. (T, D)
 
-        val_target (np.array): The target values.
+        val_target (np.array): The target values. (N, T, D)
 
         dt (float): The time step between each prediction.
 
@@ -190,39 +190,36 @@ def plot_cumulative_rmse(
     Returns:
         None
     """
-    forecast_length = predictions.shape[1]
-    features = predictions.shape[-1]
+    forecast_length = predictions.shape[0]
 
-    val_target = val_target[:, :forecast_length, :]
+    val_target = val_target[:, :forecast_length, :][0]
 
     xvalues = np.arange(0, forecast_length) * dt
 
-    # Make each plot on a different axis
-    fig, axs = plt.subplots(features, 1, sharey=True, figsize=(20, 9.6))
+    # print("SHAPES: ")
+    # print(predictions.shape)
+    # print(val_target.shape)
+    # exit(0)
+
+    # Normalized rmse
+    rmse = np.sqrt(np.mean((predictions - val_target) ** 2, axis=1))
+
+    print("RMSE shape: ")
+    print(rmse.shape)
+    # exit(0)
+
+    fig, axs = plt.subplots(1, 1, figsize=[20, 9.6])
     fig.tight_layout()
     fig.subplots_adjust(top=0.9, bottom=0.08, hspace=0.3)
 
     fig.suptitle(title, fontsize=16)
     fig.supxlabel(xlabel)
 
-    # Make this if-else better TODO
-    if features == 1:
-        axs.plot(xvalues, np.cumsum(predictions[0, :, 0]), label="prediction")
-        axs.plot(xvalues, np.cumsum(val_target[0, :, 0]), label="target")
-        if ylabels is not None:
-            axs.set_ylabel(ylabels[0])
+    axs.plot(xvalues, rmse, label="RMSE")
+
+    if ylabels is not None:
+        axs.set_ylabel(ylabels[0])
         axs.legend()
-    else:
-        for i in range(features):
-            axs[i].plot(
-                xvalues, np.cumsum(predictions[0, :, i]), label="prediction"
-            )
-            axs[i].plot(
-                xvalues, np.cumsum(val_target[0, :, i]), label="target"
-            )
-            if ylabels is not None:
-                axs[i].set_ylabel(ylabels[i])
-            axs[i].legend()
 
     if save_path is not None:
         plt.savefig("".join([save_path, "_cumulative_rmse.png"]))
@@ -232,7 +229,7 @@ def plot_cumulative_rmse(
 
 
 def render_video(
-    data,
+    val_target,
     predictions=None,
     title="",
     xlabel=r"N",
@@ -244,9 +241,9 @@ def render_video(
     Render a video of the predictions and the target.
 
     Args:
-        predictions (N x T x D np.array): The predictions of the model.
-
         val_target (N x T x D np.array) [Optional]: The target values. Real Data.
+
+        predictions (T x D np.array): The predictions of the model.
 
         title (str): The title of the plots.
 
@@ -259,11 +256,7 @@ def render_video(
     Returns:
         None
     """
-    data = data.reshape(-1, data.shape[-1])
-
-    if predictions is not None:
-        # reshape the predictions and the target to 2D
-        predictions = predictions.reshape(predictions.shape[1], -1)
+    data = val_target[0]  # make it a 2 dimensional (T,D) array
 
     # Set the number of frames to the number of predictions
     if frames is None and predictions is not None:
