@@ -131,20 +131,19 @@ class MackeyGlass:
 #     index=False,
 # )
 
+from random import randint
 
 def generate_data(times:int, l_tau:list, dt:float, n:int):
     for tau_i in l_tau:
         for i in range(times):
             mc = MackeyGlass(tau = tau_i)
-            y, t, x = mc.gen(delta_t = dt, n = n)
+            y0=randint(0,100)/100
+            y, t, x = mc.gen(y0 = y0,delta_t = dt, n = n)
             df = pd.DataFrame({"x": x, "y": y})
             df.to_csv(
             f"data/MG/tau_{tau_i}/mackey_alpha{mc.alpha}_beta{mc.beta}_gamma{mc.gamma}_tau{mc.tau}_n{n}_{i}.csv",
             index=False,)
             # mc.plot()   
 
-
-
-    # save to pandas dataframe
 
 generate_data(times = 30, l_tau = [16,16.8,17,30], dt = 0.05, n = 250000)
