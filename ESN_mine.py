@@ -1,5 +1,6 @@
 """Do main stuff here. Correct docstring later."""
 import timeit
+
 import numpy as np
 
 # from scipy.signal import (  # This is to have relative maximums and minimums.
@@ -8,11 +9,16 @@ import numpy as np
 # )
 from tensorflow import keras
 
-from custom_initializers import WattsStrogatzOwn, RegularNX
-from utils import load_data, lyap_ks, forecast, plot_contourf_forecast
+from custom_initializers import *
+from custom_models import *
+from custom_layers import *
+from readout_generators import *
+from utils import *
 
-from model_instantiators import get_simple_esn, get_parallel_esn
-from readout_generators import linear_readout
+
+from model_instantiators import *
+from forecasters import *
+from plotters import *
 
 # To avoid tensorflow verbosity
 # os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
@@ -25,14 +31,14 @@ def main():
     """Tryout many things."""
     init_transient = 1000
     transient = 1000
-    train = 20000
+    train = 10000
 
-    units = 5000
+    units = 4000
     spectral_radius = 0.45  # KS
     # spectral_radius = 1.21 # Mackey-Glass
 
-    reservoir_amount = 16
-    overlap = 6
+    reservoir_amount = 8
+    overlap = 3
 
     degree = 3  # KS
     # degree = 2  # Mackey-Glass
@@ -42,7 +48,7 @@ def main():
     sigma = 0.5  # KS
     # sigma = 0.1  # Lorenz
 
-    forecast_len = 1000
+    forecast_len = 350
 
     regularization = 1e-4  # KS
     # regularization = 1e-8  # Mackey-Glass/Lorenz
@@ -55,7 +61,7 @@ def main():
 
     print("Max Lyapunov exponent: ", max_lyap)
 
-    load_path = f"data/KS/L{L}_dt0.25/"
+    load_path = f"../data/KS/L{L}_dt0.25/"
 
     name = f"KS_L{L}_N{N}_dt0.25_steps160000_diffusion-k1_run0.csv"
     # name = "mackey_alpha-0.2_beta-10_gamma-0.1_tau-17_n-150000.csv"
@@ -92,21 +98,21 @@ def main():
     bias_init = None
 
     # input_init = keras.initializers.RandomUniform(minval=-sigma, maxval=sigma)
-    bias_init = keras.initializers.RandomUniform(minval=-sigma, maxval=sigma)
-    reservoir_init = WattsStrogatzOwn(
-        degree=degree,
-        spectral_radius=spectral_radius,
-        sigma=sigma,
-        rewiring_p=0.5,
-    )
+    # bias_init = keras.initializers.RandomUniform(minval=-sigma, maxval=sigma)
+    # reservoir_init = WattsStrogatzOwn(
+    #     degree=degree,
+    #     spectral_radius=spectral_radius,
+    #     sigma=sigma,
+    #     rewiring_p=0.5,
+    # )
 
-    reservoir_init = RegularNX(
-        degree=degree, spectral_radius=spectral_radius, sigma=sigma
-    )
+    # reservoir_init = RegularNX(
+    #     degree=degree, spectral_radius=spectral_radius, sigma=sigma
+    # )
 
-    reservoir_init = WattsStrogatzOwn(
-        degree=degree, spectral_radius=spectral_radius, sigma=sigma
-    )
+    # reservoir_init = WattsStrogatzOwn(
+    #     degree=degree, spectral_radius=spectral_radius, sigma=sigma
+    # )
 
     # Simple ESN
     model = get_simple_esn(
@@ -115,9 +121,9 @@ def main():
         spectral_radius=spectral_radius,
         degree=degree,
         sigma=sigma,
-        input_initializer=input_init,
-        bias_initializer=bias_init,
-        reservoir_initializer=reservoir_init,
+        # input_initializer=input_init,
+        # bias_initializer=bias_init,
+        # reservoir_initializer=reservoir_init,
         leak_rate=1,
     )
 
@@ -164,36 +170,40 @@ def main():
     keras.utils.plot_model(
         final_model.build_graph(),
         # show_shapes=True,
-        to_file="parallel_model.png",
+        to_file="model.png",
     )
+    exit(0)
 
-    # final_model.save(
-    #     "./Models/Parallel_ESN_KS_L22_N64_dt0.25_steps160000_diffusion-k1"
-    # )
-    # final_model = keras.models.load_model(
-    #     "./Models/Parallel_ESN_KS_L22_N64_dt0.25_steps160000_diffusion-k1"
-    # )
-    # print("Model loaded")
-
-    # exit(0)
-
-    predictions, _ = forecast(
-        final_model,
-        forecast_transient_data,
-        val_data,
-        val_target,
-        forecast_length=forecast_len,
-    )
-
-    # predictions, monitored = section_forecast(
+    # predictions = classic_forecast(
     #     final_model,
     #     forecast_transient_data,
     #     val_data,
     #     val_target,
-    #     section_initialization_length=50,
-    #     section_length=100,
-    #     number_of_sections=10,
+    #     forecast_length=forecast_len,
     # )
+
+    final_model.save("caca")
+
+    print("saved the fucking model")
+
+    final_model = keras.models.load_model(
+        "caca",
+        # custom_objects=custom_objects,
+    )
+    print("Model loaded")
+
+    predictions = section_forecast(
+        final_model,
+        forecast_transient_data,
+        val_data,
+        val_target,
+        section_initialization_length=50,
+        section_length=100,
+        number_of_sections=10,
+    )
+
+    print(predictions.shape)
+    exit(0)
 
     # plt.plot(monitored["rms_error"])
     # plt.show()
@@ -236,6 +246,3 @@ def main():
 
 if __name__ == "__main__":
     print(timeit.timeit(main, number=1))
-
-
-# help me organize this module in a better way

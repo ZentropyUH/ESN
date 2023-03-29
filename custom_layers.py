@@ -1,7 +1,10 @@
 """Custom keras layers."""
+from typing import Dict, List, Tuple
+
 import tensorflow as tf
 from tensorflow import keras
-from custom_initializers import InputMatrix, ErdosRenyi
+
+from custom_initializers import ErdosRenyi, InputMatrix
 
 ###############################################
 ################## Layers #####################
@@ -55,7 +58,7 @@ class EsnCell(keras.layers.Layer):
         input_bias_initializer=keras.initializers.random_uniform(),
         reservoir_initializer=ErdosRenyi(),
         **kwargs,
-    ):
+    ) -> None:
         """Initialize the ESN cell."""
         self.input_initializer = input_initializer
         self.input_bias_initializer = input_bias_initializer
@@ -81,7 +84,7 @@ class EsnCell(keras.layers.Layer):
 
         super().__init__(**kwargs)
 
-    def build(self, input_shape):
+    def build(self, input_shape) -> None:
         """
         Build the ESN cell.
 
@@ -102,7 +105,7 @@ class EsnCell(keras.layers.Layer):
         # Input bias
         self.input_bias = self.add_weight(
             name="input_bias",
-            shape=(self.units,),
+            shape=(1, self.units),
             initializer=self.input_bias_initializer,
             trainable=False,
             dtype=self.dtype,
@@ -119,7 +122,7 @@ class EsnCell(keras.layers.Layer):
 
         super().build(input_shape)
 
-    def call(self, inputs, states):
+    def call(self, inputs, states) -> Tuple[tf.Tensor, List[tf.Tensor]]:
         """
         Combine the input and the states into a single output.
 
@@ -150,20 +153,24 @@ class EsnCell(keras.layers.Layer):
 
         return output, [output]
 
-    def get_config(self):
+    def get_config(self) -> Dict:
         """Get the config dictionary of the layer for serialization."""
-        config = {
-            "units": self.units,
-            "activation": self.activation,
-            "leak_rate": self.leak_rate,
-            "input_initializer": self.input_initializer,
-            "input_bias_initializer": self.input_bias_initializer,
-            "reservoir_initializer": self.reservoir_initializer,
-        }
+        config = super().get_config()
+        config.update(
+            {
+                "units": self.units,
+                "activation": self.activation,
+                "leak_rate": self.leak_rate,
+                "input_initializer": self.input_initializer,
+                "input_bias_initializer": self.input_bias_initializer,
+                "reservoir_initializer": self.reservoir_initializer,
+            }
+        )
+        return config
 
-        base_config = super().get_config()
-
-        return dict(list(base_config.items()) + list(config.items()))
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
 
 
 @tf.keras.utils.register_keras_serializable(package="custom")
@@ -189,13 +196,13 @@ class PowerIndex(keras.layers.Layer):
     <tf.Tensor: shape=(4,), dtype=int32, numpy=array([ 1,  4,  3, 16], dtype=int32)>
     """
 
-    def __init__(self, index, exponent, **kwargs):
+    def __init__(self, index, exponent, **kwargs) -> None:
         """Initialize the layer."""
         self.index = (index) % 2
         self.exponent = exponent
         super().__init__(**kwargs)
 
-    def call(self, inputs):
+    def call(self, inputs) -> tf.Tensor:
         """Compute the output tensor.
 
         Args:
@@ -220,7 +227,7 @@ class PowerIndex(keras.layers.Layer):
 
         return output
 
-    def compute_output_shape(self, input_shape):
+    def compute_output_shape(self, input_shape) -> tf.TensorShape:
         """Compute the output shape.
 
         Args:
@@ -231,13 +238,17 @@ class PowerIndex(keras.layers.Layer):
         """
         return tf.TensorShape(input_shape)
 
-    def get_config(self):
+    def get_config(self) -> Dict:
         """Get the config dictionary of the layer for serialization."""
-        config = {"index": self.index, "exponent": self.exponent}
-        base_config = super().get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+        config = super().get_config()
+        config.update({"index": self.index, "exponent": self.exponent})
+        return config
 
-    def get_weights(self):
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+
+    def get_weights(self) -> List:
         """Return the weights of the layer."""
         return []
 
@@ -247,13 +258,13 @@ class PowerIndex(keras.layers.Layer):
 class InputSplitter(keras.layers.Layer):
     """Splits the input tensor into partitions with overlap on both sides."""
 
-    def __init__(self, partitions, overlap, **kwargs):
+    def __init__(self, partitions, overlap, **kwargs) -> None:
         """Initialize the layer."""
         self.partitions = partitions
         self.overlap = overlap
         super().__init__(**kwargs)
 
-    def call(self, inputs):
+    def call(self, inputs) -> tf.Tensor:
         """Compute the output tensor.
 
         Args:
@@ -302,7 +313,7 @@ class InputSplitter(keras.layers.Layer):
 
         return input_clusters
 
-    def compute_output_shape(self, input_shape):
+    def compute_output_shape(self, input_shape) -> tf.TensorShape:
         """Compute the output shape.
 
         Args:
@@ -324,15 +335,15 @@ class InputSplitter(keras.layers.Layer):
 
         return tf.TensorShape(shape)
 
-    def get_config(self):
+    def get_config(self) -> Dict:
         """Get the config dictionary of the layer for serialization."""
-        config = {"partitions": self.partitions, "overlap": self.overlap}
-        base_config = super().get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+        config = super().get_config()
+        config.update({"partitions": self.partitions, "overlap": self.overlap})
+        return config
 
-    def get_weights(self):
-        """Return the weights of the layer."""
-        return []
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
 
 
 @tf.keras.utils.register_keras_serializable(package="custom")
@@ -361,7 +372,7 @@ class ReservoirCell(keras.layers.Layer):
         activation="tanh",
         leak_rate=1,
         **kwargs,
-    ):
+    ) -> None:
         """Initialize the layer."""
         # Initialize the Reservoir
         self.reservoir_function = tf.function(
@@ -381,7 +392,7 @@ class ReservoirCell(keras.layers.Layer):
 
         super().__init__(self, **kwargs)
 
-    def build(self, input_shape):
+    def build(self, input_shape) -> None:
         """Build the reservoir.
 
         Args:
@@ -408,7 +419,7 @@ class ReservoirCell(keras.layers.Layer):
 
         super().build(input_shape)
 
-    def call(self, inputs, states):
+    def call(self, inputs, states) -> Tuple[tf.Tensor, List[tf.Tensor]]:
         """
         Combine the input and the states into a single output.
 
@@ -435,7 +446,7 @@ class ReservoirCell(keras.layers.Layer):
 
         return output, [output]
 
-    def compute_output_shape(self, input_shape):
+    def compute_output_shape(self, input_shape) -> tf.TensorShape:
         """Compute the output shape.
 
         Args:
@@ -446,17 +457,23 @@ class ReservoirCell(keras.layers.Layer):
         """
         return tf.TensorShape(input_shape)
 
-    def get_config(self):
+    def get_config(self) -> Dict:
         """Get the config dictionary of the layer for serialization."""
-        config = {
-            "reservoir_function": self.reservoir_function,
-            "input_initializer": self.input_initializer,
-            "input_bias_initializer": self.input_bias_initializer,
-            "activation": self.activation,
-            "leak_rate": self.leak_rate,
-        }
-        base_config = super().get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+        config = super().get_config()
+        config.update(
+            {
+                "reservoir_function": self.reservoir_function,
+                "input_initializer": self.input_initializer,
+                "input_bias_initializer": self.input_bias_initializer,
+                "activation": self.activation,
+                "leak_rate": self.leak_rate,
+            }
+        )
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
 
 
 custom_layers = {

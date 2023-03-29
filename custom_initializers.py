@@ -1,10 +1,12 @@
 """Custom Initializers."""
+from typing import Dict
+
+import networkx as nx
 import numpy as np
 import tensorflow as tf
 from scipy import sparse
 from scipy.sparse import linalg
 from tensorflow import keras
-import networkx as nx
 
 ###############################################
 ################## Initializers ###############
@@ -34,14 +36,14 @@ class InputMatrix(keras.initializers.Initializer):
     >>> w is a 5x10 matrix with values in [-1, 1]
     """
 
-    def __init__(self, sigma=0.5, **kwargs):
+    def __init__(self, sigma=0.5, **kwargs) -> None:
         """Initialize the initializer."""
         assert sigma > 0, "sigma must be positive"
 
         self.sigma = sigma
-        super().__init__(**kwargs)
+        super().__init__()
 
-    def __call__(self, shape, dtype=tf.float64, **kwargs):
+    def __call__(self, shape, dtype=tf.float64, **kwargs) -> tf.Tensor:
         """Generate the matrix.
 
         Args:
@@ -100,7 +102,58 @@ class InputMatrix(keras.initializers.Initializer):
         w_in = tf.sparse.to_dense(w_in)
         return tf.cast(w_in, dtype)
 
-    def get_config(self):
+    def get_config(self) -> Dict:
+        """Get the config dictionary of the initializer for serialization."""
+        base_config = super().get_config()
+        config = {"sigma": self.sigma}
+        return dict(list(base_config.items()) + list(config.items()))
+
+
+@tf.keras.utils.register_keras_serializable(package="custom")
+class RandomUniform(keras.initializers.Initializer):
+    """Random uniform matrix Initializer
+
+    Args:
+        sigma (float): Standard deviation of the uniform distribution.
+
+    Returns:
+        keras.initializers.Initializer: The initializer.
+    """
+
+    def __init__(self, sigma=0.5, **kwargs) -> None:
+        """Initialize the initializer."""
+        assert sigma > 0, "sigma must be positive"
+
+        self.sigma = sigma
+        super().__init__()
+
+    def __call__(self, shape, dtype=tf.float64, **kwargs) -> tf.Tensor:
+        """Generate the matrix.
+
+        Args:
+            shape (tuple): Shape of the matrix.
+            dtype (tf.dtype): Data type of the matrix.
+
+        Returns:
+            tf.Tensor: The matrix.
+        """
+        if isinstance(shape, int):
+            rows, cols = shape, shape
+
+        elif isinstance(shape, tuple):
+            if len(shape) == 1:
+                rows, cols = shape[0], shape[0]
+            elif len(shape) == 2:
+                rows, cols = shape
+        else:
+            raise ValueError("Shape must be int or tuple")
+
+        w = tf.random.uniform(
+            (rows, cols), minval=-self.sigma, maxval=self.sigma, dtype=dtype
+        )
+        return w
+
+    def get_config(self) -> Dict:
         """Get the config dictionary of the initializer for serialization."""
         base_config = super().get_config()
         config = {"sigma": self.sigma}
@@ -141,9 +194,9 @@ class RegularOwn(keras.initializers.Initializer):
         self.spectral_radius = spectral_radius
         self.sigma = sigma
         self.ones = ones
-        super().__init__(**kwargs)
+        super().__init__()
 
-    def __call__(self, shape, dtype=tf.float32, **kwargs):
+    def __call__(self, shape, dtype=tf.float32, **kwargs) -> tf.Tensor:
         """Generate the matrix.
 
         Args:
@@ -161,9 +214,7 @@ class RegularOwn(keras.initializers.Initializer):
                 rows, cols = shape[0], 1
             elif len(shape) == 2:
                 rows, cols = shape
-            assert (
-                rows == cols
-            ), "The number of rows and columns must be equal."
+            assert rows == cols, "Matrix must be square"
         else:
             raise ValueError("Shape must be int or tuple")
 
@@ -212,7 +263,7 @@ class RegularOwn(keras.initializers.Initializer):
         # Casting to dtype
         return tf.cast(ans, dtype)
 
-    def get_config(self):
+    def get_config(self) -> Dict:
         """Get the config dictionary of the initializer for serialization."""
         base_config = super().get_config()
         config = {
@@ -261,9 +312,9 @@ class RegularNX(keras.initializers.Initializer):
         self.spectral_radius = spectral_radius
         self.sigma = sigma
         self.ones = ones
-        super().__init__(**kwargs)
+        super().__init__()
 
-    def __call__(self, shape, dtype=tf.float32, **kwargs):
+    def __call__(self, shape, dtype=tf.float32, **kwargs) -> tf.Tensor:
         """Generate the matrix.
 
         Args:
@@ -279,9 +330,7 @@ class RegularNX(keras.initializers.Initializer):
                 rows, cols = shape[0], 1
             elif len(shape) == 2:
                 rows, cols = shape
-            assert (
-                rows == cols
-            ), "The number of rows and columns must be equal."
+            assert rows == cols, "Matrix must be square"
         else:
             raise ValueError("Shape must be int or tuple")
 
@@ -323,7 +372,7 @@ class RegularNX(keras.initializers.Initializer):
 
         return kernel
 
-    def get_config(self):
+    def get_config(self) -> Dict:
         """Get the config dictionary of the initializer for serialization."""
         base_config = super().get_config()
         config = {
@@ -363,9 +412,9 @@ class ErdosRenyi(keras.initializers.Initializer):
         self.spectral_radius = spectral_radius
         self.sigma = sigma
         self.ones = ones
-        super().__init__(**kwargs)
+        super().__init__()
 
-    def __call__(self, shape, dtype=tf.float32, **kwargs):
+    def __call__(self, shape, dtype=tf.float32, **kwargs) -> tf.Tensor:
         """Generate the matrix.
 
         Args:
@@ -387,7 +436,7 @@ class ErdosRenyi(keras.initializers.Initializer):
         else:
             raise ValueError("Shape must be int or tuple")
 
-        assert rows == cols, "The number of rows and columns must be equal."
+        assert rows == cols, "Matrix must be square"
 
         # The average degree in this model is n * p, where p is the probability of connection
         # and n is the number of nodes.
@@ -431,7 +480,7 @@ class ErdosRenyi(keras.initializers.Initializer):
 
         return tf.convert_to_tensor(kernel, dtype=dtype)
 
-    def get_config(self):
+    def get_config(self) -> Dict:
         """Get the config dictionary of the initializer for serialization."""
         base_config = super().get_config()
         config = {
@@ -476,7 +525,7 @@ class WattsStrogatzOwn(keras.initializers.Initializer):
     """
 
     @staticmethod
-    def regular_graph(nodes, degree, sigma=0.5):
+    def regular_graph(nodes, degree, sigma=0.5) -> np.ndarray:
         """
         Generate a regular graph adjacency matrix.
 
@@ -507,7 +556,7 @@ class WattsStrogatzOwn(keras.initializers.Initializer):
         return graph
 
     @staticmethod
-    def watts_strogatz(graph, rewiring_p, sigma=0.5):
+    def watts_strogatz(graph, rewiring_p, sigma=0.5) -> nx.Graph:
         """
         Generate a Watts Strogatz graph adjacency matrix from a regular graph adjacency matrix.
 
@@ -548,7 +597,7 @@ class WattsStrogatzOwn(keras.initializers.Initializer):
 
     def __init__(
         self,
-        degree=3,
+        degree=4,
         spectral_radius=0.99,
         rewiring_p=0.5,
         sigma=0.5,
@@ -568,7 +617,7 @@ class WattsStrogatzOwn(keras.initializers.Initializer):
         self.ones = ones
         super().__init__()
 
-    def __call__(self, shape, dtype=tf.float32, **kwargs):
+    def __call__(self, shape, dtype=tf.float32, **kwargs) -> tf.Tensor:
         """Generate a Watts Strogatz graph adjacency matrix.
 
         Args:
@@ -584,14 +633,14 @@ class WattsStrogatzOwn(keras.initializers.Initializer):
                 rows = shape[0]
             elif len(shape) == 2:
                 rows, cols = shape
-            assert (
-                rows == cols
-            ), "The number of rows and columns must be equal."
+            assert rows == cols, "Matrix must be square"
         else:
             raise ValueError("Shape must be int or tuple")
 
-        graph = self.regular_graph(rows, self.degree)
-        ws_graph = self.watts_strogatz(graph, self.rewiring_p)
+        graph = self.regular_graph(rows, self.degree, sigma=self.sigma)
+        ws_graph = self.watts_strogatz(
+            graph, self.rewiring_p, sigma=self.sigma
+        )
 
         # Guarantee that the graph is connected
         nx_graph = nx.from_numpy_array(ws_graph)
@@ -608,7 +657,7 @@ class WattsStrogatzOwn(keras.initializers.Initializer):
             iterations += 1
 
             if iterations > 100:
-                raise ValueError(
+                raise StopIteration(
                     "Could not generate a connected graph. "
                     "Try increasing the number of nodes or decreasing the rewiring probability."
                 )
@@ -635,7 +684,7 @@ class WattsStrogatzOwn(keras.initializers.Initializer):
 
         return tf.convert_to_tensor(kernel, dtype=dtype)
 
-    def get_config(self):
+    def get_config(self) -> Dict:
         """Get the configuration of the initializer."""
         return {
             "degree": self.degree,
@@ -664,7 +713,7 @@ class WattsStrogatzNX(tf.keras.initializers.Initializer):
 
     def __init__(
         self,
-        degree=2,
+        degree=4,
         spectral_radius=0.99,
         rewiring_p=0.5,
         sigma=0.5,
@@ -678,7 +727,7 @@ class WattsStrogatzNX(tf.keras.initializers.Initializer):
         self.ones = ones
         super().__init__()
 
-    def __call__(self, shape, dtype=tf.float32, **kwargs):
+    def __call__(self, shape, dtype=tf.float32, **kwargs) -> tf.Tensor:
         """Generate a Watts Strogatz graph adjacency matrix.
 
         Uses networkx to generate the graph and extract the adjacency matrix.
@@ -696,9 +745,7 @@ class WattsStrogatzNX(tf.keras.initializers.Initializer):
                 rows = shape[0]
             elif len(shape) == 2:
                 rows, cols = shape
-            assert (
-                rows == cols
-            ), "The number of rows and columns must be equal."
+            assert rows == cols, "Matrix must be square"
         else:
             raise ValueError("Shape must be int or tuple")
 
@@ -734,7 +781,7 @@ class WattsStrogatzNX(tf.keras.initializers.Initializer):
 
         return tf.convert_to_tensor(kernel, dtype=dtype)
 
-    def get_config(self):
+    def get_config(self) -> Dict:
         """Get the config dictionary of the initializer for serialization."""
         base_config = super().get_config()
         config = {
@@ -747,11 +794,13 @@ class WattsStrogatzNX(tf.keras.initializers.Initializer):
 
 custom_initializers = {
     "InputMatrix": InputMatrix,
+    "RandomUniform": RandomUniform,
     "RegularOwn": RegularOwn,
     "RegularNX": RegularNX,
     "ErdosRenyi": ErdosRenyi,
     "WattsStrogatzOwn": WattsStrogatzOwn,
     "WattsStrogatzNX": WattsStrogatzNX,
+    "Zeros": keras.initializers.Zeros,
 }
 
 keras.utils.get_custom_objects().update(custom_initializers)

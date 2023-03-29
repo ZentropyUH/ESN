@@ -21,7 +21,7 @@ def get_simple_esn(  # Check how to improve this
     input_initializer=None,
     reservoir_initializer=None,
     bias_initializer=None,
-):
+) -> keras.Model:
     """Get an Ott model. This is an instantiator for the ESN class.
 
     It is used to make the code more readable.
@@ -82,8 +82,8 @@ def get_simple_esn(  # Check how to improve this
         seed=seed,
         exponent=exponent,
         input_reservoir_init=input_initializer,
-        reservoir_kernel_init=reservoir_initializer,
         input_bias_init=bias_initializer,
+        reservoir_kernel_init=reservoir_initializer,
     )
 
     return model
@@ -104,7 +104,7 @@ def get_parallel_esn(
     input_initializer=None,
     reservoir_initializer=None,
     bias_initializer=None,
-):
+) -> keras.Model:
     """Get a parallel ESN model. This is an instantiator for the ParallelESN class.
 
     It is used to make the code more readable. It is also used to make the code more flexible.
@@ -167,8 +167,8 @@ def get_parallel_esn(
         seed=seed,
         exponent=exponent,
         input_reservoir_init=input_initializer,
-        reservoir_kernel_init=reservoir_initializer,
         input_bias_init=bias_initializer,
+        reservoir_kernel_init=reservoir_initializer,
     )
 
     return model
