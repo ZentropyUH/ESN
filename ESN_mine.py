@@ -33,7 +33,7 @@ from plotters import *
 
 from os.path import realpath, join, dirname
 
-def generation(data_path, units, train, init_transient, transient, degree, sigma,
+def generation(data_path, training_name, units, train, init_transient, transient, degree, sigma,
                spectral_radius, regularization, rewiring_p):
 
     (
@@ -80,16 +80,10 @@ def generation(data_path, units, train, init_transient, transient, degree, sigma
 
     print("Training finished, number of parameters: ", final_model.count_params())
 
-    final_model.save("model")
-
-    keras.utils.plot_model(
-        final_model.build_graph(),
-        # show_shapes=True,
-        to_file="model.png",
-    )
+    final_model.save(training_name)
 
 
-def predict(data_path, output_name, L, N, init_transient, transient, train, forecast_len):
+def predict(data_path, output_name, training_name, L, N, init_transient, transient, train, forecast_len):
     (
         transient_data,
         train_data,
@@ -105,8 +99,8 @@ def predict(data_path, output_name, L, N, init_transient, transient, train, fore
     )
 
 
-    final_model = keras.models.load_model("model")
-    # final_model = load_model("model")
+    final_model = keras.models.load_model(training_name)
+    # final_model = load_model(training_name)
 
     predictions = classic_forecast(
         final_model,
@@ -117,10 +111,10 @@ def predict(data_path, output_name, L, N, init_transient, transient, train, fore
         save_name= output_name
     )
 
-    ylabels = ["X", "Y", "z"]
-    yvalues = np.linspace(0, L, train_data.shape[-1])
+    # ylabels = ["X", "Y", "z"]
+    # yvalues = np.linspace(0, L, train_data.shape[-1])
 
-    plot(L, predictions, val_target, yvalues, ylabels)
+    # plot(L, predictions, val_target, yvalues, ylabels)
 
 
 def plot(L, predictions, val_target, yvalues, ylabels):
@@ -189,11 +183,11 @@ def stuff():
     forecast_len = 350
 
     # variate
-    spectral_radius = 0.9
-    degree = 4
-    sigma = 0.5
-    regularization = 10e-4
-    rewiring_p= 0.5
+    spectral_radius_list = np.arange(0.9, 1.06, 0.01)
+    degree_list = np.arange(2,9,2)
+    sigma_list = np.arange(0.2, 1.1, 0.2)
+    regularization_list = [10**(-4), 10**(-5), 10**(-6), 10**(-7), 10**(-8)]
+    rewiring_p_list= np.arange(0.2, 1.1, 0.2)
 
     seed= 1000
 
@@ -209,14 +203,27 @@ def stuff():
 
     title = f"Forecasting of the Kuramoto-Sivashinsky model with {units} units"
 
-    generation(join(path, name), units, train, init_transient, transient, degree, sigma,
-               spectral_radius, regularization, rewiring_p)
-    
+    for spectral_radius in spectral_radius_list:
+        for degree in degree_list:
+            for sigma in sigma_list:
+                for regularization in regularization_list:
+                    for rewiring_p in rewiring_p_list:
 
-    for n in range(0, 30):
-        name = f"KS_L{L}_N{N}_dt0.25_steps160000_diffusion-k1_run{n}.csv"
-        output_name= f'D:\\data\\out\\output{n}'
-        predict(join(path, name), output_name, L, N, init_transient, transient, train, forecast_len)
+                        training_name= (f'model_spectral_'
+                                        f'radius{spectral_radius}_'
+                                        f'degree{degree}_'
+                                        f'sigma{sigma}_'
+                                        f'regularization{regularization}_'
+                                        f'rewiring_p{rewiring_p}'
+                                        )
+
+                        generation(join(path, name), training_name, units, train, init_transient, transient, degree, sigma,
+                                spectral_radius, regularization, rewiring_p)
+                        
+                        for n in range(0, 30):
+                            name = f"KS_L{L}_N{N}_dt0.25_steps160000_diffusion-k1_run{n}.csv"
+                            output_name= join('D:\\data\\out\\', training_name + f'___output{n}')
+                            predict(join(path, name), output_name, training_name, L, N, init_transient, transient, train, forecast_len)
     
 
 
