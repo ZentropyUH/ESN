@@ -1,7 +1,16 @@
+import os
+import pickle
+
+import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import tqdm
+from matplotlib.animation import FuncAnimation
+from matplotlib.pyplot import cm
+from tqdm import trange
 
 try:  # pyfftw is *much* faster
-    from pyfftw.interfaces import numpy_fft, cache
+    from pyfftw.interfaces import cache, numpy_fft
 
     # print('# using pyfftw...')
     cache.enable()
@@ -43,7 +52,6 @@ class KS(object):
         initial_conditions=None,
         rs=None,
     ):
-
         self.L = L
         self.n = N
         self.dt = dt
@@ -103,3 +111,96 @@ class KS(object):
                 1.0 - 0.5 * self.lin * dt
             )
         self.x = irfft(self.xspec, axis=-1)
+
+
+def generate_data(
+    L=22,
+    N=64,
+    dt=0.25,
+    cond0=None,
+    steps=2000,
+    t_end=None,
+    diffusion=1,
+    plot=False,
+    plotpnts=2000,
+    show=False,
+    save=False,
+    seed=None,
+    name=None,
+):
+    # Overwiting the steps if t_end is given
+    if t_end is not None:
+        steps = int(t_end / dt)
+        print("Total steps: ", steps)
+
+    if seed is None:
+        seed = np.random.randint(0, 1000000)
+
+    rnd = np.random.default_rng(seed)
+
+    y_discretization = np.linspace(0, L, N)
+
+    match cond0:
+        case "random":
+            # Randomly choose the initial condition (These are close to 0, TODO Study this)
+            state = 0.01 * rnd.random((1, N))
+        case "zeroes":
+            state = np.zeros((1, N))
+
+    system = KS(
+        L, N, dt, diffusion=diffusion, initial_conditions=state, rs=rnd
+    )
+
+    # system.xspec[0] = np.fft.rfft(state)
+
+    timeseries = []
+    timesteps = []
+
+    for _ in trange(steps):
+        system.advance()
+        state = system.x.squeeze()
+        timeseries.append(state)
+        timesteps.append(_ * dt)
+
+    timeseries = np.array(timeseries)
+    timesteps = np.array(timesteps)
+
+    name = f"KS_L{L}_N{N}_diffusion-k{diffusion}_dt{dt}_steps{steps}_seed{seed}.csv"
+
+    if save:
+        if not os.path.exists(f"data/KS/{L}"):
+            os.makedirs(f"data/KS/{L}")
+
+        df = pd.DataFrame(timeseries)
+
+        df.to_csv(
+            os.path.join(f"./data/KS/{L}", name), index=False, header=False
+        )
+
+    if plot:
+        if not os.path.exists(f"data/KS/{L}"):
+            os.makedirs(f"data/KS/{L}")
+
+        fig = plt.figure()
+        ax = fig.add_subplot()
+
+        ax.contourf(
+            timesteps[:plotpnts],
+            y_discretization,
+            timeseries.T[:, :plotpnts],
+            levels=30,
+        )
+
+        with open(f"data/KS/{L}/" + name + ".pickle", "wb") as saved_plot:
+            pickle.dump(fig, saved_plot)
+
+        if show:
+            plt.show()
+
+
+def main():
+    generate_data(plot=True, show=True)
+
+
+if __name__ == "__main__":
+    main()
