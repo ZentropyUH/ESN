@@ -2,8 +2,6 @@
 import json
 import os
 
-# To avoid tensorflow verbosity
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 from pathlib import Path
 
 import click
@@ -11,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 # This is because they still conserve the old API for tf 1.x
-from keras.initializers.initializers_v2 import Zeros
+from keras.initializers.initializers import Zeros
 from keras.models import load_model
 from tqdm import tqdm
 
@@ -33,27 +31,16 @@ from plotters import (
     render_video,
 )
 from readout_generators import linear_readout, sgd_linear_readout
-from utils import get_name_from_dict, get_range, load_data
+from utils import get_name_from_dict, get_range, load_data, load_model_json
 
-
-class Config:
-    def __init__(self):
-        self.verbose = False
-
-
-pass_config = click.make_pass_decorator(Config, ensure=True)
+# To avoid tensorflow verbosity
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 
 @click.group()
-@click.option("--verbose", "-v", is_flag=True, help="Enable verbose mode.")
 @click.version_option(version="1.0.0")
-@click.pass_context
-def cli(ctx, verbose):
-    """
-    A command line for training and making predictions with general ESN-like models from provided dynamical systems timeseries.
-    """
-    ctx.obj = Config()
-    ctx.obj.verbose = verbose
+def cli():
+    """A command line for training and making predictions with general ESN-like models from provided dynamical systems timeseries."""
 
 
 # Train command
@@ -494,21 +481,19 @@ def train(
                                             -1
                                         ]
 
-                                        # Choose only the mos important parameters to name the model
+                                        # Choose only the most important parameters to name the model
                                         name_dict = {
-                                            "mdl": ctx.__dict__["params"][
+                                            "0mdl": ctx.__dict__["params"][
                                                 "model"
                                             ],
                                             "units": _units,
-                                            "inp_scl": _input_scaling,
-                                            "lr": _leak_rate,
-                                            "sp_rad": _spectral_radius,
-                                            "res_deg": _reservoir_degree,
-                                            "res_std": _reservoir_sigma,
+                                            "sigma": _input_scaling,
+                                            "sr": _spectral_radius,
+                                            "degr": _reservoir_degree,
+                                            "resigma": _reservoir_sigma,
                                             "rw": _rewiring,
                                             "reg": _regularization,
-                                            "train_len": _train_length,
-                                            "rdout": readout_layer,
+                                            "readl": readout_layer,
                                             "dta": data_file_name,
                                         }
 
@@ -517,7 +502,9 @@ def train(
                                             + f"/{get_name_from_dict(name_dict)}"
                                         )
                                         # Save the model and save the parameters dictionary in a json file inside the model folder
-                                        model.save(model_name)
+                                        model.save(
+                                            model_name
+                                        )
                                         with open(
                                             model_name + "/params.json",
                                             "w",
@@ -571,27 +558,6 @@ def train(
     else None,
 )
 
-################ PARAMETERS TO EXTRACT THE VALIDATION DATA/TARGET ################
-
-
-@click.option(
-    "--init-transient",
-    "-it",
-    type=click.INT,
-    help="The number of transient points that were discarded at the beginning of the data.",
-)
-@click.option(
-    "--transient",
-    "-tr",
-    type=click.INT,
-    help="The number of transient points discarded in the training of the model.",
-)
-@click.option(
-    "--train-length",
-    "-tl",
-    type=click.INT,
-    help="The number of points used for the training of the model.",
-)
 
 #################################################################
 
@@ -620,9 +586,6 @@ def forecast(
     forecast_length: int,
     section_initialization_length: int,
     number_of_sections: int,
-    init_transient: int,
-    transient: int,
-    train_length: int,
     output_dir: str,
     trained_model: str,
     data_file: str,
@@ -640,6 +603,8 @@ def forecast(
 
     """
 
+    # Load the param json from the model location
+    params = load_model_json(trained_model)
 
     # Load the data
     (
@@ -651,9 +616,9 @@ def forecast(
         val_target,
     ) = load_data(
         data_file,
-        transient=transient,
-        train_length=train_length,
-        init_transient=init_transient,
+        transient=int(params["transient"]),
+        train_length=int(params["train_length"]),
+        init_transient=int(params["init_transient"]),
     )
 
     # Load the model
