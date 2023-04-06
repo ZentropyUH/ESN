@@ -23,7 +23,7 @@ def grid(hyperparameters_to_adjust:dict, data_file_path, output_file, u=6000, th
 
 
 
-def train(params, data_file_path,output_file):
+def train(params, data_file_path, output_file):
     p=Parameters
     instruction=f"python3 ./main.py train \
             -m ESN \
