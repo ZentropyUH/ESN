@@ -20,7 +20,12 @@ def forecast(instruction:str):
 
 
 
-hyperparameters_to_adjust={"sigma":(0,5,0.2,lambda x,y: x+y),"degree_k":(2,4,2,lambda x,y: x+y),"ritch_regularization":(10e-4,10,4,lambda x,y: x*y)}
+hyperparameters_to_adjust={"sigma":(0,5,0.2,lambda x,y: x+y),
+                        "degree_k":(2,4,2,lambda x,y: x+y),
+                        "ritch_regularization":(10e-4,10,4,lambda x,y: x*y),
+                        "spectral_radio": (0.9, 10 ,0.02, lambda x,y,i: x+y*i),
+                        "reconection_prob": (0, 5, 0.2, lambda x,y,i: x+y*i)}
+
 # gred(hyperparameters_to_adjust=hyperparameters_to_adjust)
 
 params=[]
