@@ -1,10 +1,10 @@
 import os
 
 
-def gred(model, hyperparameters_to_adjust:dict, spectral_ratio=1.21,p=0.5,u=6000, threshold=0.1):   
+def grid(model, hyperparameters_to_adjust:dict, spectral_ratio=1.21,p=0.5,u=6000, threshold=0.1):   
     params=[]
-    for elem in hyperparameters_to_adjust.values():
-        params.append([ round(elem[3](elem[0],i*elem[2]),10) for i in range(elem[1])])
+    for elem in hyperparameters_to_adjust.values():# crea una lista de listas de los valores que puede tomar cada hiperparametro
+        params.append([elem[3](elem[0],elem[2],i) for i in range(elem[1])])
 
 
    
@@ -19,13 +19,14 @@ def forecast(instruction:str):
     os.system(instruction)
 
 
-
-hyperparameters_to_adjust={"sigma":(0,5,0.2,lambda x,y: x+y),"degree_k":(2,4,2,lambda x,y: x+y),"ritch_regularization":(10e-4,10,4,lambda x,y: x*y)}
-# gred(hyperparameters_to_adjust=hyperparameters_to_adjust)
+# los hiperparametros van a ser de la forma: nombre:(valor_inicial,numero_de_valores,incremento,funcion_de_incremento)'
+# los parametros de la funcion de incremento son: valor_inicial,incremento,valor_actual_de_la_iteracion
+hyperparameters_to_adjust={"sigma":(0,5,0.2,lambda x,y,z: x+y*z),"degree_k":(2,4,2,lambda x,y,z: x+y*z),"ritch_regularization":(10e-5,5,0.1,lambda x,y,z: x*y**z)}
+# grid(hyperparameters_to_adjust=hyperparameters_to_adjust)
 
 params=[]
 for elem in hyperparameters_to_adjust.values():
-    params.append([ round(elem[3](elem[0],i*elem[2]),10) for i in range(elem[1])])
+    params.append([(elem[3](elem[0],elem[2],i),10) for i in range(elem[1])])
 
 print(params)
 
