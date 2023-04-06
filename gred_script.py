@@ -6,11 +6,6 @@ def gred(model, hyperparameters_to_adjust:dict, spectral_ratio=1.21,p=0.5,u=6000
     for elem in hyperparameters_to_adjust.values():
         params.append([ round(elem[3](elem[0],i*elem[2]),10) for i in range(elem[1])])
 
-
-   
-
-
-
 def train(instruction:str):
     os.system(instruction)
 
