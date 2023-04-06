@@ -12,13 +12,14 @@ class Parameters(Enum):
 
 
 
-def grid(hyperparameters_to_adjust:dict, spectral_ratio=1.21,p=0.5,u=6000, threshold=0.1):   
+def grid(hyperparameters_to_adjust:dict, data_file_path, output_file, u=6000, threshold=0.1):   
     params=[]
     for elem in hyperparameters_to_adjust.values():# crea una lista de listas de los valores que puede tomar cada hiperparametro
         params.append([elem[3](elem[0],elem[2],i) for i in range(elem[1])])
-    for i in product(*params):# crea todas las combinaciones de los hiperparametros
-        train(i)
-        forecast(i)
+    for combination in product(*params):# crea todas las combinaciones de los hiperparametros
+        train(combination,data_file_path, output_file)
+        
+        forecast(combination)
 
 
 
@@ -29,13 +30,12 @@ def train(params, data_file_path,output_file):
             -ri WattsStrogatzOwn\
             -df {data_file_path} \
             -o {output_file} \
-            -rs {params[p.REGULARIZATION]} \
-            -sr 1.21 \
-            -rw {params[]} \
+            -rs {params[p.SIGMA]} \
+            -sr {params[p.SPECTRAL_RATIO]} \
+            -rw {params[p.RECONECTION_PROB]} \
             -u 6000 \
-            -rd 2 \
-            -rg 10e-4"
-
+            -rd {params[p.DEGREE]} \
+            -rg {params[p.REGULARIZATION]}"
 
     os.system(instruction)
 
@@ -53,12 +53,12 @@ hyperparameters_to_adjust= {"sigma":(0,5,0.2,lambda x,y,i: x+y*i),
                         "reconection_prob": (0, 5, 0.2, lambda x,y,i: x+y*i)}
 
 
-params=[]
-for elem in hyperparameters_to_adjust.values():
-    params.append([round(elem[3](elem[0],elem[2],i),10) for i in range(elem[1])])
+# params=[]
+# for elem in hyperparameters_to_adjust.values():
+#     params.append([round(elem[3](elem[0],elem[2],i),10) for i in range(elem[1])])
 
-for i in product(*params):  
-    print(i)
+# for i in product(*params):  
+#     print(i)
 
 
 
