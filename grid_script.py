@@ -1,10 +1,17 @@
 import os
+from itertools import product
+
 
 
 def grid(model, hyperparameters_to_adjust:dict, spectral_ratio=1.21,p=0.5,u=6000, threshold=0.1):   
     params=[]
     for elem in hyperparameters_to_adjust.values():# crea una lista de listas de los valores que puede tomar cada hiperparametro
         params.append([elem[3](elem[0],elem[2],i) for i in range(elem[1])])
+    for i in product(*params):# crea todas las combinaciones de los hiperparametros
+        train(i)
+        forecast(i)
+
+
 
 
    
@@ -26,9 +33,10 @@ hyperparameters_to_adjust={"sigma":(0,5,0.2,lambda x,y,z: x+y*z),"degree_k":(2,4
 
 params=[]
 for elem in hyperparameters_to_adjust.values():
-    params.append([(elem[3](elem[0],elem[2],i),10) for i in range(elem[1])])
+    params.append([round(elem[3](elem[0],elem[2],i),10) for i in range(elem[1])])
 
-print(params)
+for i in product(*params):  
+    print(i)
 
 
  ##Example
