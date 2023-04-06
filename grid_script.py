@@ -1,9 +1,18 @@
 import os
 from itertools import product
+from enum import Enum
+
+class Parameters(Enum):
+    SIGMA=1
+    DEGREE=2
+    REGULARIZATION=3
+    SPECTRAL_RATIO=4
+    RECONECTION_PROB=5
 
 
 
-def grid(model, hyperparameters_to_adjust:dict, spectral_ratio=1.21,p=0.5,u=6000, threshold=0.1):   
+
+def grid(hyperparameters_to_adjust:dict, spectral_ratio=1.21,p=0.5,u=6000, threshold=0.1):   
     params=[]
     for elem in hyperparameters_to_adjust.values():# crea una lista de listas de los valores que puede tomar cada hiperparametro
         params.append([elem[3](elem[0],elem[2],i) for i in range(elem[1])])
@@ -13,12 +22,21 @@ def grid(model, hyperparameters_to_adjust:dict, spectral_ratio=1.21,p=0.5,u=6000
 
 
 
+def train(params, data_file_path,output_file):
+    p=Parameters
+    instruction=f"python3 ./main.py train \
+            -m ESN \
+            -ri WattsStrogatzOwn\
+            -df {data_file_path} \
+            -o {output_file} \
+            -rs {params[p.REGULARIZATION]} \
+            -sr 1.21 \
+            -rw {params[]} \
+            -u 6000 \
+            -rd 2 \
+            -rg 10e-4"
 
-   
 
-
-
-def train(instruction:str):
     os.system(instruction)
 
 
@@ -26,10 +44,14 @@ def forecast(instruction:str):
     os.system(instruction)
 
 
-# los hiperparametros van a ser de la forma: nombre:(valor_inicial,numero_de_valores,incremento,funcion_de_incremento)'
+# los hiperparametros van a ser de la forma: nombre:(valor_inicial,numero_de_valores,incremento,funcion_de_incremento)
 # los parametros de la funcion de incremento son: valor_inicial,incremento,valor_actual_de_la_iteracion
-hyperparameters_to_adjust={"sigma":(0,5,0.2,lambda x,y,z: x+y*z),"degree_k":(2,4,2,lambda x,y,z: x+y*z),"ritch_regularization":(10e-5,5,0.1,lambda x,y,z: x*y**z)}
-# grid(hyperparameters_to_adjust=hyperparameters_to_adjust)
+hyperparameters_to_adjust= {"sigma":(0,5,0.2,lambda x,y,i: x+y*i),
+                        "degree":(2,4,2,lambda x,y,i: x+y*i),
+                        "ritch_regularization":(10e-5,5,0.1,lambda x,y,i: x*y**i),
+                        "spectral_radio": (0.9, 10 ,0.02, lambda x,y,i: x+y*i),
+                        "reconection_prob": (0, 5, 0.2, lambda x,y,i: x+y*i)}
+
 
 params=[]
 for elem in hyperparameters_to_adjust.values():
