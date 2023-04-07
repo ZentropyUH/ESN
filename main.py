@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 
 # This is because they still conserve the old API for tf 1.x
-from keras.initializers.initializers_v2 import Zeros
+from keras.initializers.initializers import Zeros
 from keras.models import load_model
 from tqdm import tqdm
 
@@ -283,7 +283,7 @@ def train(
     leak_rate,
     reservoir_activation,
     # Classic Cases
-    spectral_radius,=
+    spectral_radius,
     reservoir_initializer,
     rewiring,
     reservoir_degree,

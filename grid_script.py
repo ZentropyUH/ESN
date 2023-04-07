@@ -1,15 +1,13 @@
 import os
 from itertools import product
-from enum import Enum
+# from enum import Enum
 
-class Parameters(Enum):
-    SIGMA=0
-    DEGREE=1
-    REGULARIZATION=2
-    SPECTRAL_RATIO=3
-    RECONECTION_PROB=4
-
-
+# class Parameters(Enum):
+#     SIGMA=0
+#     DEGREE=1
+#     REGULARIZATION=2
+#     SPECTRAL_RATIO=3
+#     RECONECTION_PROB=4
 
 
 def grid(hyperparameters_to_adjust:dict, data_file_path, output_file, u=6000, threshold=0.1):   
@@ -22,18 +20,18 @@ def grid(hyperparameters_to_adjust:dict, data_file_path, output_file, u=6000, th
 
 
 
-def train(params, data_file_path,output_file,u):
+def train(params, data_file_path,output_file,u):    
     instruction=f"python3 ./main.py train \
             -m ESN \
             -ri WattsStrogatzOwn\
             -df {data_file_path} \
             -o {output_file} \
-            -rs {params[Parameters[SIGMA]]} \
-            -sr {params[Parameters.SPECTRAL_RATIO]} \
-            -rw {params[Parameters.RECONECTION_PROB]} \
+            -rs {params[0]} \
+            -sr {params[3]} \
+            -rw {params[4]} \
             -u {u} \
-            -rd {params[Parameters.DEGREE]} \
-            -rg {params[Parameters.REGULARIZATION]}"
+            -rd {params[1]} \
+            -rg {params[2]}"
 
     os.system(instruction)
 
@@ -48,7 +46,7 @@ hyperparameters_to_adjust = {"sigma":(0,5,0.2,lambda x,y,i: x+y*i),
                         "degree":(2,4,2,lambda x,y,i: x+y*i),
                         "ritch_regularization":(10e-5,5,0.1,lambda x,y,i: x*y**i),
                         "spectral_radio": (0.9, 10 ,0.02, lambda x,y,i: x+y*i),
-                        "reconection_prob": (0, 5, 0.2, lambda x,y,i: x+y*i)}
+                        "reconection_prob": (0.2, 5, 0.2, lambda x,y,i: x+y*i)}
 
 
 
