@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 
 # This is because they still conserve the old API for tf 1.x
-from keras.initializers.initializers_v2 import Zeros
+from keras.initializers.initializers import Zeros
 from keras.models import load_model
 from tqdm import tqdm
 
@@ -899,3 +899,4 @@ def plot(
 
 if __name__ == "__main__":
     cli()
+
