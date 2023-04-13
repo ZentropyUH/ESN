@@ -1,15 +1,13 @@
 import os
 from itertools import product
-from enum import Enum
+# from enum import Enum
 
-class Parameters(Enum):
-    SIGMA=1
-    DEGREE=2
-    REGULARIZATION=3
-    SPECTRAL_RATIO=4
-    RECONECTION_PROB=5
-
-
+# class Parameters(Enum):
+#     SIGMA=0
+#     DEGREE=1
+#     REGULARIZATION=2
+#     SPECTRAL_RATIO=3
+#     RECONECTION_PROB=4
 
 
 def grid(hyperparameters_to_adjust:dict, data_file_path, output_file, u=6000, threshold=0.1):   
@@ -17,25 +15,23 @@ def grid(hyperparameters_to_adjust:dict, data_file_path, output_file, u=6000, th
     for elem in hyperparameters_to_adjust.values():# crea una lista de listas de los valores que puede tomar cada hiperparametro
         params.append([elem[3](elem[0],elem[2],i) for i in range(elem[1])])
     for combination in product(*params):# crea todas las combinaciones de los hiperparametros
-        train(combination,data_file_path, output_file)
-        
-        forecast(combination)
+        train(combination,data_file_path, output_file,u)
+        break
 
 
 
-def train(params, data_file_path, output_file):
-    p=Parameters
+def train(params, data_file_path,output_file,u):    
     instruction=f"python3 ./main.py train \
             -m ESN \
             -ri WattsStrogatzOwn\
             -df {data_file_path} \
             -o {output_file} \
-            -rs {params[p.SIGMA]} \
-            -sr {params[p.SPECTRAL_RATIO]} \
-            -rw {params[p.RECONECTION_PROB]} \
-            -u 6000 \
-            -rd {params[p.DEGREE]} \
-            -rg {params[p.REGULARIZATION]}"
+            -rs {params[0]} \
+            -sr {params[3]} \
+            -rw {params[4]} \
+            -u {u} \
+            -rd {params[1]} \
+            -rg {params[2]}"
 
     os.system(instruction)
 
@@ -46,20 +42,17 @@ def forecast(instruction:str):
 
 # los hiperparametros van a ser de la forma: nombre:(valor_inicial,numero_de_valores,incremento,funcion_de_incremento)
 # los parametros de la funcion de incremento son: valor_inicial,incremento,valor_actual_de_la_iteracion
-hyperparameters_to_adjust= {"sigma":(0,5,0.2,lambda x,y,i: x+y*i),
+hyperparameters_to_adjust = {"sigma":(0,5,0.2,lambda x,y,i: x+y*i),
                         "degree":(2,4,2,lambda x,y,i: x+y*i),
                         "ritch_regularization":(10e-5,5,0.1,lambda x,y,i: x*y**i),
                         "spectral_radio": (0.9, 10 ,0.02, lambda x,y,i: x+y*i),
-                        "reconection_prob": (0, 5, 0.2, lambda x,y,i: x+y*i)}
+                        "reconection_prob": (0.2, 5, 0.2, lambda x,y,i: x+y*i)}
 
 
-# params=[]
-# for elem in hyperparameters_to_adjust.values():
-#     params.append([round(elem[3](elem[0],elem[2],i),10) for i in range(elem[1])])
 
-# for i in product(*params):  
-#     print(i)
-
+grid(hyperparameters_to_adjust, 
+        data_file_path="/home/lauren/Documentos/ESN/data/MG/16.8/MG_tau16.8_dt0.05_n250000_t-end12500.0_seed2636.csv",         
+        output_file="/home/lauren/Documentos/ESN/forecasting") 
 
 
 
