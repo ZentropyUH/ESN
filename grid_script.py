@@ -12,25 +12,23 @@ from itertools import product
 ---- ---- <name>
 ---- ---- ---- trained_model
 ---- ---- ---- predictions
-
 '''
 
 # TODO: Paralelizar el proceso de ejecucion de todos los casos con mismo set de hiperparametros
-# TODO: Entrenar un caso random y guardar su modelo
 # TODO: Luego de tener las predicciones del set de parametros se halla la media entre todas
 # TODO: Se lleva una lista con los n mejores casos
 # TODO: Se elimina el caso que deja de pertenecer a la lista
 # TODO: Modelar para permitir diferentes hiperparametros a ajustar
 
 
-def grid(hyperparameters_to_adjust:dict, data_path, output_path, u=1000, threshold=0.1):
+def grid(hyperparameters_to_adjust:dict, data_path, output_path, u=5000, tl=1000, threshold=0.1):
 
     # List all the files on the data folder
     data: list[str] = [join(data_path, p) for p in listdir(data_path)]
 
     # Create the output folder
     output_path = join(output_path, 'output')
-    # makedirs(output_path)
+    makedirs(output_path, exist_ok=True)
 
     
     #Create a list[list] with the values of every hyperparameter
@@ -44,29 +42,29 @@ def grid(hyperparameters_to_adjust:dict, data_path, output_path, u=1000, thresho
         train_data_path = data[train_index]
 
         # Create the output folders
-        current_path = join(output_path, ''.join([str(x) for x in combination]))
+        current_path = join(output_path, '_'.join([str(x) for x in combination]))
         trained_model_path = join(current_path, 'trained_model')
-        makedirs(trained_model_path)
         prediction_path = join(current_path, 'predictions')
-        makedirs(prediction_path)
+        makedirs(prediction_path, exist_ok=True)
 
         # Train
-        train(combination, train_data_path, trained_model_path, u)
+        train(combination, train_data_path, current_path, u, tl, 'trained_model')
 
         # List of Threads
         prediction_list: list[Thread] = []
         
-        for current_data in data: 
+        for fn, current_data in enumerate(data[:3]): 
             current = Thread(
                 target = forecast,
-                args=(
-                    1000,
-                    1000,
-                    u,
-                    trained_model_path,
-                    prediction_path,
-                    current_data == train_data_path
-                )
+                kwargs={
+                    "prediction_steps": 1000,
+                    "train_transient": tl,
+                    "trained_model_path": trained_model_path,
+                    "prediction_path": prediction_path,
+                    "data_file": current_data,
+                    "forecast_name": fn,
+                    "trained": current_data == train_data_path,
+                }
             )
             
             prediction_list.append(current)
@@ -78,7 +76,7 @@ def grid(hyperparameters_to_adjust:dict, data_path, output_path, u=1000, thresho
 
 
 
-def train(params, data_file_path, output_file, u):    
+def train(params, data_file_path, output_file, u, tl, tn):    
     instruction = f"python3 ./main.py train \
             -m ESN \
             -ri WattsStrogatzOwn\
@@ -88,43 +86,52 @@ def train(params, data_file_path, output_file, u):
             -sr {params[3]} \
             -rw {params[4]} \
             -u {u} \
+            -tl {tl} \
             -rd {params[1]} \
+            -tn {tn} \
             -rg {params[2]}"
 
     system(instruction)
 
 
-def forecast(prediction_steps: int, init_transient: int, train_transient: int, trained_model_path: str, prediction_path: str, trained: bool):
+def forecast(prediction_steps: int, train_transient: int, trained_model_path: str, prediction_path: str, data_file, forecast_name, trained: bool):    
     if trained:
         instruction = f"python3 ./main.py forecast \
                 -fm classic \
                 -fl {prediction_steps} \
-                -it {init_transient} \
+                -it {1000} \
+                -tr {train_transient} \
                 -tl {train_transient} \
                 -tm {trained_model_path} \
-                -o {prediction_path}"
+                -df {data_file} \
+                -o {prediction_path} \
+                -fn {forecast_name}"
     else:
         instruction = f"python3 ./main.py forecast \
                 -fm classic \
                 -fl {prediction_steps} \
-                -it {init_transient} \
+                -it {1000} \
+                -tr {0} \
+                -tl {train_transient}\
                 -tm {trained_model_path} \
-                -o {prediction_path}"
+                -df {data_file} \
+                -o {prediction_path} \
+                -fn {forecast_name}"
 
     system(instruction)
 
 
-# los hiperparametros van a ser de la forma: nombre:(valor_inicial,numero_de_valores,incremento,funcion_de_incremento)
-# los parametros de la funcion de incremento son: valor_inicial,incremento,valor_actual_de_la_iteracion
-hyperparameters_to_adjust = {"sigma": (0, 5, 0.2, lambda x,y,i: x+y*i),
-                        "degree": (2, 4, 2, lambda x,y,i: x+y*i),
-                        "ritch_regularization": (10e-5, 5, 0.1,lambda x,y,i: x*y**i),
-                        "spectral_radio": (0.9, 10 ,0.02, lambda x,y,i: x+y*i),
-                        "reconection_prob": (0.2, 5, 0.2, lambda x,y,i: x+y*i)
+# The hyperparameters will be of the form: name: (initial_value, number_of_values, increment, function_of_increment)
+# The parameters of the increment function are: initial_value, increment, current_value_of_the_iteration
+hyperparameters_to_adjust = {"sigma": (0.2, 5, 0.2, lambda x, y, i: round(x + y * i, 2)),
+                        "degree": (2, 4, 2, lambda x, y, i: round(x + y * i, 2)),
+                        "ritch_regularization": (10e-5, 5, 0.1, lambda x, y, i: round(x * y**i, 8)),
+                        "spectral_radio": (0.9, 16 , 0.01, lambda x, y, i: round(x + y * i, 2)),
+                        "reconection_prob": (0, 6, 0.2, lambda x, y, i: round(x + y*i, 2))
                     }
 
 
-
 grid(hyperparameters_to_adjust, 
-        data_path = '/media/dionisio35/Windows/_new/22/',         
-        output_path = '/media/dionisio35/Windows/_new/') 
+        data_path = '/media/dionisio35/Windows/_folders/_new/22/',         
+        output_path = '/media/dionisio35/Windows/_folders/_new/') 
+
