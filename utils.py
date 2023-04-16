@@ -1,8 +1,10 @@
 """Define some general utility functions."""
 
+import re
+import json
+
 import numpy as np
 import pandas as pd
-import re
 
 #### Parameters ####
 
@@ -36,7 +38,8 @@ def get_range(rng, method="linear", step=None, base=10, dtype=float):
         rng (str): The range of the parameter. Can be a list of comma separated values or a range
             of the form 'start:end'.
 
-        method (int): The method to be used to generate the range. It can be either 'linear' or 'log'.
+        method (int): The method to be used to generate the range.
+            It can be either 'linear' or 'log'.
             It will generate a range of values between the start and end values,
             linearly with a step of the lowest significant digit of the start value or
             logarithmically spaced with base 10.
@@ -81,6 +84,7 @@ def get_range(rng, method="linear", step=None, base=10, dtype=float):
             )
 
 
+# pylint: disable=invalid-name
 def lyap_ks(i, l):
     """Estimation of the i-th largest Lyapunov Time of the KS model.
 
@@ -215,3 +219,19 @@ def load_data(
         val_data,
         val_target,
     )
+
+
+def load_model_json(model_path):
+    with open(model_path + "/params.json", encoding="utf-8") as f:
+        data = json.load(f)
+    return data
+
+
+def generalized_binary_to_decimal(digit_array):
+    n = len(digit_array)
+    
+    ans = 0
+    
+    for i in range(1, n+1):
+        ans += digit_array[i] * 2**i
+    return ans

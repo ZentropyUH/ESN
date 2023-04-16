@@ -6,7 +6,7 @@ import numpy as np
 import tensorflow as tf
 from scipy import sparse
 from scipy.sparse import linalg
-from tensorflow import keras
+import keras
 
 ###############################################
 ################## Initializers ###############
@@ -41,7 +41,7 @@ class InputMatrix(keras.initializers.Initializer):
         assert sigma > 0, "sigma must be positive"
 
         self.sigma = sigma
-        super().__init__()
+        super().__init__(**kwargs)
 
     def __call__(self, shape, dtype=tf.float64, **kwargs) -> tf.Tensor:
         """Generate the matrix.
@@ -111,7 +111,7 @@ class InputMatrix(keras.initializers.Initializer):
 
 @tf.keras.utils.register_keras_serializable(package="custom")
 class RandomUniform(keras.initializers.Initializer):
-    """Random uniform matrix Initializer
+    """Random uniform matrix Initializer.
 
     Args:
         sigma (float): Standard deviation of the uniform distribution.
@@ -125,7 +125,7 @@ class RandomUniform(keras.initializers.Initializer):
         assert sigma > 0, "sigma must be positive"
 
         self.sigma = sigma
-        super().__init__()
+        super().__init__(**kwargs)
 
     def __call__(self, shape, dtype=tf.float64, **kwargs) -> tf.Tensor:
         """Generate the matrix.
@@ -148,10 +148,10 @@ class RandomUniform(keras.initializers.Initializer):
         else:
             raise ValueError("Shape must be int or tuple")
 
-        w = tf.random.uniform(
+        matr = tf.random.uniform(
             (rows, cols), minval=-self.sigma, maxval=self.sigma, dtype=dtype
         )
-        return w
+        return matr
 
     def get_config(self) -> Dict:
         """Get the config dictionary of the initializer for serialization."""
@@ -194,7 +194,7 @@ class RegularOwn(keras.initializers.Initializer):
         self.spectral_radius = spectral_radius
         self.sigma = sigma
         self.ones = ones
-        super().__init__()
+        super().__init__(**kwargs)
 
     def __call__(self, shape, dtype=tf.float32, **kwargs) -> tf.Tensor:
         """Generate the matrix.
@@ -312,7 +312,7 @@ class RegularNX(keras.initializers.Initializer):
         self.spectral_radius = spectral_radius
         self.sigma = sigma
         self.ones = ones
-        super().__init__()
+        super().__init__(**kwargs)
 
     def __call__(self, shape, dtype=tf.float32, **kwargs) -> tf.Tensor:
         """Generate the matrix.
@@ -412,7 +412,7 @@ class ErdosRenyi(keras.initializers.Initializer):
         self.spectral_radius = spectral_radius
         self.sigma = sigma
         self.ones = ones
-        super().__init__()
+        super().__init__(**kwargs)
 
     def __call__(self, shape, dtype=tf.float32, **kwargs) -> tf.Tensor:
         """Generate the matrix.
@@ -602,6 +602,7 @@ class WattsStrogatzOwn(keras.initializers.Initializer):
         rewiring_p=0.5,
         sigma=0.5,
         ones=False,
+        **kwargs,
     ) -> None:
         """Initialize the initializer."""
         if degree % 2 != 0:
@@ -615,7 +616,7 @@ class WattsStrogatzOwn(keras.initializers.Initializer):
         self.rewiring_p = rewiring_p
         self.sigma = sigma
         self.ones = ones
-        super().__init__()
+        super().__init__(**kwargs)
 
     def __call__(self, shape, dtype=tf.float32, **kwargs) -> tf.Tensor:
         """Generate a Watts Strogatz graph adjacency matrix.
@@ -694,7 +695,7 @@ class WattsStrogatzOwn(keras.initializers.Initializer):
 
 
 @tf.keras.utils.register_keras_serializable(package="Custom")
-class WattsStrogatzNX(tf.keras.initializers.Initializer):
+class WattsStrogatzNX(keras.initializers.Initializer):
     """Watts Strogatz graph initializer.
 
     Uses networkx to generate the graph and extract the adjacency matrix of a
@@ -718,6 +719,7 @@ class WattsStrogatzNX(tf.keras.initializers.Initializer):
         rewiring_p=0.5,
         sigma=0.5,
         ones=False,
+        **kwargs,
     ) -> None:
         """Initialize the initializer."""
         self.degree = degree
@@ -725,7 +727,7 @@ class WattsStrogatzNX(tf.keras.initializers.Initializer):
         self.rewiring_p = rewiring_p
         self.sigma = sigma
         self.ones = ones
-        super().__init__()
+        super().__init__(**kwargs)
 
     def __call__(self, shape, dtype=tf.float32, **kwargs) -> tf.Tensor:
         """Generate a Watts Strogatz graph adjacency matrix.

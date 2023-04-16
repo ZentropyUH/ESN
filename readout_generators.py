@@ -3,7 +3,7 @@ import time
 
 import numpy as np
 from sklearn.linear_model import ElasticNet, Lasso, Ridge
-from tensorflow import keras
+import keras
 
 from custom_models import ModelWithReadout
 
@@ -119,14 +119,14 @@ def linear_readout(
     # Adding the readout layer to the model
     # Obscure way to do it but it circumvents the problem of the input
     # being of fixed size. Maybe look into it later.
-    model = ModelWithReadout(model, readout_layer)
+    out_model = ModelWithReadout(model, readout_layer)
 
     # Have to build for some reason TODO
-    model.build(transient_data.shape)
+    out_model.build(transient_data.shape)
 
     # Calling the model in order to be able to save it. Check if
     # this is necessary or better ways to do it
-    model(transient_data[:, :1, :])
+    out_model(transient_data[:, :1, :])
 
     return model
 
