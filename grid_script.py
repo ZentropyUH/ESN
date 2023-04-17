@@ -5,6 +5,11 @@ from threading import Thread
 from random import randint
 from itertools import product
 
+import csv
+import pandas as pd
+from utils import load_data
+import numpy as np
+
 
 '''
 <output dir>
@@ -44,35 +49,64 @@ def grid(hyperparameters_to_adjust:dict, data_path, output_path, u=5000, tl=1000
         # Create the output folders
         current_path = join(output_path, '_'.join([str(x) for x in combination]))
         trained_model_path = join(current_path, 'trained_model')
-        prediction_path = join(current_path, 'predictions')
-        makedirs(prediction_path, exist_ok=True)
+        forecast_path = join(current_path, 'forecast')
+        makedirs(forecast_path, exist_ok=True)
 
         # Train
         train(combination, train_data_path, current_path, u, tl, 'trained_model')
 
         # List of Threads
-        prediction_list: list[Thread] = []
+        forecast_list: list[Thread] = []
         
-        for fn, current_data in enumerate(data[:3]): 
+        for fn, current_data in enumerate(data[:2]): # Delete [:2]
+            
+            # Thread for forecast
             current = Thread(
                 target = forecast,
                 kwargs={
                     "prediction_steps": 1000,
                     "train_transient": tl,
                     "trained_model_path": trained_model_path,
-                    "prediction_path": prediction_path,
+                    "prediction_path": forecast_path,
                     "data_file": current_data,
                     "forecast_name": fn,
                     "trained": current_data == train_data_path,
                 }
             )
             
-            prediction_list.append(current)
+            # Add Thread to queue
+            forecast_list.append(current)
+            # Start Thread
             current.start()
         
-        for thread in prediction_list:
+        # Wait for all Threads to finish
+        for thread in forecast_list:
             thread.join()
+        
+        # Sum all the forecasts
+        mean = []
+        for fc in [join(forecast_path, x) for x in listdir(forecast_path)]:
             
+            forecast_data = pd.read_csv(fc).to_numpy()
+            if mean == []:
+                mean = forecast_data
+            else:
+                mean = list(map(lambda x, y: x+y, mean, forecast_data))
+        
+        # Calculate the mean
+        mean = [[y / len(data[:2]) for y in x] for x in mean]  # Delete [:2]
+        
+        # Create the folder mean
+        mean_path = join(current_path, 'mean')
+        makedirs(mean_path, exist_ok=True)
+
+        # Save the csv
+        pd.DataFrame(mean).to_csv(
+        join(mean_path, "mean.csv"),
+        index=False,
+        header=None,
+    )
+        
 
 
 
@@ -134,4 +168,3 @@ hyperparameters_to_adjust = {"sigma": (0.2, 5, 0.2, lambda x, y, i: round(x + y 
 grid(hyperparameters_to_adjust, 
         data_path = '/media/dionisio35/Windows/_folders/_new/22/',         
         output_path = '/media/dionisio35/Windows/_folders/_new/') 
-
