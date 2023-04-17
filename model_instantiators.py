@@ -1,6 +1,6 @@
 """Instantiate the different models using function wrappers."""
 
-import keras
+from tensorflow import keras
 
 from custom_initializers import ErdosRenyi, InputMatrix
 from custom_models import ESN, ParallelESN

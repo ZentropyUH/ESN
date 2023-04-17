@@ -1,6 +1,6 @@
 """Custom keras callbacks."""
 import tensorflow as tf
-import keras
+from tensorflow import keras
 
 
 ###############################################
@@ -82,3 +82,9 @@ class CustomCallback(keras.callbacks.Callback):
         """Call at the end of prediction a batch."""
         keys = list(logs.keys())
         print(f"...Predicting: end of batch {batch}; got log keys: {keys}")
+
+    def get_config(self):
+        """Get the config to save the callback."""
+        base_config = super().get_config()
+        config = {}
+        return dict(list(base_config.items()) + list(config.items()))

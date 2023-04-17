@@ -1,145 +1,64 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from scipy.integrate import odeint, solve_ivp
-import pickle
-from tqdm import tqdm
-import os
-
-from functools import partial
+from scipy.integrate import odeint
 
 
-############################ MONKEY PATCH FOR PBAR ############################
-
-from scipy.integrate._ivp.base import (
-    OdeSolver,
-)  # this is the class we will monkey patch
-from tqdm import tqdm
-
-### monkey patching the ode solvers with a progress bar
-
-# save the old methods - we still need them
-old_init = OdeSolver.__init__
-old_step = OdeSolver.step
+rho = 28.0
+sigma = 10.0
+beta = 8.0 / 3.0
 
 
-# define our own methods
-def new_init(self, fun, t0, y0, t_bound, vectorized, support_complex=False):
-    # define the progress bar
-    self.pbar = tqdm(
-        total=t_bound - t0, unit="ut", initial=t0, ascii=False, desc="IVP"
-    )
-    self.last_t = t0
-
-    # call the old method - we still want to do the old things too!
-    old_init(self, fun, t0, y0, t_bound, vectorized, support_complex)
+def f(state, t):
+    """Return the time-derivative of a Lorenz system."""
+    x, y, z = state  # Unpack the state vector
+    return sigma * (y - x), x * (rho - z) - y, x * y - beta * z  # Derivatives
 
 
-def new_step(self):
-    # call the old method
-    old_step(self)
+state0 = [2, 2, 2]
+dt = 0.02
+steps = 3200
+t = np.arange(0.0, steps, dt)
 
-    # update the bar
-    tst = self.t - self.last_t
-    self.pbar.update(tst)
-    self.last_t = self.t
+states = odeint(f, state0, t)
 
-    # close the bar if the end is reached
-    if self.t >= self.t_bound:
-        self.pbar.close()
+print(states.shape)
 
+x = states[:, 0]
+y = states[:, 1]
+z = states[:, 2]
 
-# overwrite the old methods with our customized ones
-OdeSolver.__init__ = new_init
-OdeSolver.step = new_step
-
-############################ MONKEY PATCH FOR PBAR ############################
-
-
-SIGMA = 10.0
-RHO = 28.0
-BETA = 8.0 / 3.0
-
-
-# def lorenz_f(state, _t):
-#     """Return the time-derivative of a Lorenz system."""
-#     x, y, z = state  # Unpack the state vector
-#     return SIGMA * (y - x), x * (RHO - z) - y, x * y - BETA * z  # Derivatives
+# # Plot x,y,z on different subplots
+# fig, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True)
+# ax1.plot(t, x)
+# ax1.set_ylabel("x")
+# ax2.plot(t, y)
+# ax2.set_ylabel("y")
+# ax3.plot(t, z)
+# ax3.set_ylabel("z")
+# ax3.set_xlabel("t")
+# plt.show()
 
 
-def lorenz_dydt(_t, y, sigma=10, rho=28, beta=2.667):
-    xp = sigma * (y[1] - y[0])
-    yp = y[0] * (rho - y[2]) - y[1]
-    zp = y[0] * y[1] - beta * y[2]
+# Export the data as a Dataframe
+df = pd.DataFrame({"x": x, "y": y, "z": z})
+df.to_csv(
+    f"data/Lorenz_initcond{state0}_rho{rho}_sigma{sigma}_beta{beta}_dt{dt}_steps{steps}.csv",
+    index=False,
+)
 
-    return np.asarray([xp, yp, zp])
-
-
-lorenz_f = partial(lorenz_dydt, sigma=SIGMA, rho=RHO, beta=BETA)
-
-
-def integrate(
-    cond0=None,
-    dt=0.02,
-    steps=30000,
-    t_end=None,
-    save=False,
-    plot=False,
-    show=False,
-    plotpnts=2500,
-    seed=None,
-):
-    if seed is None:
-        seed = np.random.randint(1000000)
-
-    rnd = np.random.default_rng(seed=seed)
-
-    if t_end != None:
-        steps = int(t_end / dt)
-
-    t_end = steps * dt
-
-    if cond0 is None:
-        cond0 = (rnd.random(3) - 0.5) * 2
-
-    state0 = cond0
-
-    timesteps = np.arange(0.0, t_end, dt)
-
-    states = solve_ivp(
-        lorenz_f, [0, t_end], state0, t_eval=timesteps, rtol=1e-12
-    )
-
-    states = states["y"]
-
-    name = f"Lorenz_dt{dt}_steps{steps}_t-end{t_end}_seed{seed}"
-
-    if save:
-        x = states[0, :]
-        y = states[1, :]
-        z = states[2, :]
-
-        if not os.path.exists("data/Lorenz"):
-            os.makedirs("data/Lorenz")
-        df = pd.DataFrame({"x": x, "y": y, "z": z})
-        df.to_csv("data/Lorenz/" + name + ".csv", index=False, header=False)
-
-    if plot:
-        fig = plt.figure()
-        ax = fig.add_subplot(projection="3d")
-
-        ax.plot3D(
-            states[0, :plotpnts], states[1, :plotpnts], states[2, :plotpnts]
-        )
-
-        with open("data/Lorenz/" + name + ".pickle", "wb") as saved_plot:
-            pickle.dump(fig, saved_plot)
-
-        if show:
-            plt.show()
-
-    # return x, y, z
+# # return map for z_t and z_t+1
+# fig, ax = plt.subplots()
+# ax.scatter(z[:-1], z[1:], s=0.5)
+# ax.set_xlabel("z_t")
+# ax.set_ylabel("z_t+1")
+# plt.show()
 
 
-if __name__ == "__main__":
-    print("caca")
+pnts = 2500
+
+fig = plt.figure()
+ax = fig.gca(projection="3d")
+ax.plot(states[:pnts, 0], states[:pnts, 1], states[:pnts, 2])
+plt.draw()
+plt.show()

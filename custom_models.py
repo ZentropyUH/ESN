@@ -1,7 +1,7 @@
 """Custom keras models."""
 import numpy as np
 import tensorflow as tf
-import keras
+from tensorflow import keras
 
 from custom_layers import EsnCell, PowerIndex, InputSplitter, ReservoirCell
 
@@ -302,14 +302,6 @@ class ESN(keras.Model):
 
     @classmethod
     def from_config(cls, config):
-        """Load from serialized configuration.
-
-        Args:
-            config (dict): The configuration of the __init__ args and their values.
-
-        Returns:
-            ESN: The instance of the class with the specified configuration.
-        """
         return cls(**config)
 
 
@@ -457,8 +449,7 @@ class ParallelESN(keras.Model):
 
         Returns:
             tf.Tensor: Output timeseries of shape
-                (batch_size, time_steps, input_dim + reservoir_amount *
-                 (units_per_reservoir + 2*overlap)).
+            (batch_size, time_steps, input_dim + reservoir_amount * (units_per_reservoir + 2*overlap)).
 
         """
         # Make sure the reservoir amount divides the input dimension
@@ -608,14 +599,6 @@ class ParallelESN(keras.Model):
 
     @classmethod
     def from_config(cls, config):
-        """Load from serialized configuration.
-
-        Args:
-            config (dict): The configuration of the __init__ args and their values.
-
-        Returns:
-            ParallelESN: The instance of the class with the specified configuration.
-        """
         return cls(**config)
 
 
@@ -677,14 +660,6 @@ class ModelWithReadout(keras.Model):
 
     @classmethod
     def from_config(cls, config):
-        """Load from serialized configuration.
-
-        Args:
-            config (dict): The configuration of the __init__ args and their values.
-
-        Returns:
-            ModelWithReadout: The instance of the class with the specified configuration.
-        """
         return cls(**config)
 
 
@@ -705,8 +680,7 @@ class ReservoirModel(keras.Model):
         input_bias_init: Initializer for the input bias.
             Defaults to RandomUniform()
 
-        reservoir_function: The function to be used as reservoir in the recurrent layer.
-            This is used in the ReservoirCell
+        reservoir_function: The function to be used as reservoir in the recurrent layer. This is used in the ReservoirCell
 
         esn_activation: Activation function of the reservoir.
             Defaults to tanh.
@@ -835,14 +809,6 @@ class ReservoirModel(keras.Model):
 
     @classmethod
     def from_config(cls, config):
-        """Load from serialized configuration.
-
-        Args:
-            config (dict): The configuration of the __init__ args and their values.
-
-        Returns:
-            ReservoirModel: The instance of the class with the specified configuration.
-        """
         return cls(**config)
 
 

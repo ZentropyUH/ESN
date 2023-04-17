@@ -1,15 +1,14 @@
-"""
-Define the plotting functions for the data.
- 
-This includes the plotting of the predictions and the target data.
-"""
+"""Define the plotting functions for the data. This includes the plotting of the predictions and the target data."""
 import matplotlib.pyplot as plt
 import numpy as np
 import tqdm
 from matplotlib.animation import FuncAnimation
 
+# TODO: Change the plotting functions to read the predictions and the target from files.
 
-# pylint: disable=invalid-name
+#### Plotting functions ####
+
+
 def plot_linear_forecast(
     predictions: np.ndarray,
     val_target: np.ndarray,
@@ -80,7 +79,6 @@ def plot_linear_forecast(
         plt.show()
 
 
-# pylint: disable=invalid-name
 def plot_contourf_forecast(
     predictions,
     val_target,
@@ -159,7 +157,6 @@ def plot_contourf_forecast(
         plt.show()
 
 
-# pylint: disable=invalid-name
 def plot_rmse(
     predictions,
     val_target,
@@ -171,9 +168,7 @@ def plot_rmse(
     xlabel="t",
 ):
     """
-    Plot the RMSE of the predictions and the target.
-
-    Calculates the RMSE at every step and plots it over time.
+    Plot the RMSE of the predictions and the target. Calculates the RMSE at every step and plots it over time.
 
     Args:
         predictions (np.array): The predictions of the model. (T, D)

@@ -2,7 +2,7 @@
 from typing import Dict, List, Tuple
 
 import tensorflow as tf
-import keras
+from tensorflow import keras
 
 from custom_initializers import ErdosRenyi, InputMatrix
 
@@ -170,14 +170,6 @@ class EsnCell(keras.layers.Layer):
 
     @classmethod
     def from_config(cls, config):
-        """Load from serialized configuration.
-
-        Args:
-            config (dict): The configuration of the __init__ args and their values.
-
-        Returns:
-            EsnCell: The instance of the class with the specified configuration.
-        """
         return cls(**config)
 
 
@@ -254,14 +246,6 @@ class PowerIndex(keras.layers.Layer):
 
     @classmethod
     def from_config(cls, config):
-        """Load from serialized configuration.
-
-        Args:
-            config (dict): The configuration of the __init__ args and their values.
-
-        Returns:
-            PowerIndex: The instance of the class with the specified configuration.
-        """
         return cls(**config)
 
     def get_weights(self) -> List:
@@ -359,23 +343,15 @@ class InputSplitter(keras.layers.Layer):
 
     @classmethod
     def from_config(cls, config):
-        """Load from serialized configuration.
-
-        Args:
-            config (dict): The configuration of the __init__ args and their values.
-
-        Returns:
-            InputSplitter: The instance of the class with the specified configuration.
-        """
         return cls(**config)
 
 
 @tf.keras.utils.register_keras_serializable(package="custom")
 class ReservoirCell(keras.layers.Layer):
-    """Calculates the next internal states attending to reservoir_kernel.
+    """Calculates the next internal states attending to reservoir_function.
 
     Args:
-        reservoir_kernel: A function that determines the internal dynamics of the state updates.
+        reservoir_function: A reservoir that determines the internal dynamics of the state updates.
             Can be an oscillator or a cellular automaton, or any other complex system that
             takes a state and returns a new state.
 
@@ -390,7 +366,7 @@ class ReservoirCell(keras.layers.Layer):
 
     def __init__(
         self,
-        reservoir_kernel,
+        reservoir_function,
         input_initializer=InputMatrix(),
         input_bias_initializer=keras.initializers.random_uniform(),
         activation="tanh",
@@ -399,8 +375,8 @@ class ReservoirCell(keras.layers.Layer):
     ) -> None:
         """Initialize the layer."""
         # Initialize the Reservoir
-        self.reservoir_kernel = tf.function(
-            reservoir_kernel
+        self.reservoir_function = tf.function(
+            reservoir_function
         )  # WARNING: This is experimental
 
         self.input_initializer = input_initializer
@@ -422,6 +398,7 @@ class ReservoirCell(keras.layers.Layer):
         Args:
             input_shape (tf.TensorShape): Input shape.
         """
+
         # Input to reservoir matrix
         self.w_input = self.add_weight(
             name="input_to_Reservoir",
@@ -434,7 +411,7 @@ class ReservoirCell(keras.layers.Layer):
         # Input bias
         self.input_bias = self.add_weight(
             name="input_bias",
-            shape=(1, self.units,),
+            shape=(self.units,),
             initializer=self.input_bias_initializer,
             trainable=False,
             dtype=self.dtype,
@@ -461,7 +438,7 @@ class ReservoirCell(keras.layers.Layer):
         input_part = keras.backend.dot(inputs, self.w_input) + self.input_bias
 
         # The reservoir term.
-        state_part = self.reservoir_kernel(prev_state)
+        state_part = self.reservoir_function(prev_state)
 
         new_state = self.activation(input_part + state_part)
 
@@ -485,7 +462,7 @@ class ReservoirCell(keras.layers.Layer):
         config = super().get_config()
         config.update(
             {
-                "reservoir_kernel": self.reservoir_kernel,
+                "reservoir_function": self.reservoir_function,
                 "input_initializer": self.input_initializer,
                 "input_bias_initializer": self.input_bias_initializer,
                 "activation": self.activation,
@@ -496,14 +473,6 @@ class ReservoirCell(keras.layers.Layer):
 
     @classmethod
     def from_config(cls, config):
-        """Load from serialized configuration.
-
-        Args:
-            config (dict): The configuration of the __init__ args and their values.
-
-        Returns:
-            ReservoirCell: The instance of the class with the specified configuration.
-        """
         return cls(**config)
 
 

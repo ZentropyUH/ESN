@@ -1,7 +1,10 @@
 #!/usr/bin/python3
 import json
 import os
+from os.path import join
 
+# To avoid tensorflow verbosity
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 from pathlib import Path
 
 import click
@@ -31,16 +34,27 @@ from plotters import (
     render_video,
 )
 from readout_generators import linear_readout, sgd_linear_readout
-from utils import get_name_from_dict, get_range, load_data, load_model_json
+from utils import get_name_from_dict, get_range, load_data
 
-# To avoid tensorflow verbosity
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+
+class Config:
+    def __init__(self):
+        self.verbose = False
+
+
+pass_config = click.make_pass_decorator(Config, ensure=True)
 
 
 @click.group()
+@click.option("--verbose", "-v", is_flag=True, help="Enable verbose mode.")
 @click.version_option(version="1.0.0")
-def cli():
-    """A command line for training and making predictions with general ESN-like models from provided dynamical systems timeseries."""
+@click.pass_context
+def cli(ctx, verbose):
+    """
+    A command line for training and making predictions with general ESN-like models from provided dynamical systems timeseries.
+    """
+    ctx.obj = Config()
+    ctx.obj.verbose = verbose
 
 
 # Train command
@@ -254,6 +268,13 @@ def cli():
     type=click.Path(exists=True),
     help="Data file to be used for training.",
 )
+@click.option(
+    "--trained-name",
+    "-tn",
+    type=click.STRING,
+    default=None,
+    help="Training folder name.",
+)
 @click.pass_context
 ##################################################################################################################
 def train(
@@ -284,6 +305,7 @@ def train(
     train_length,
     data_file,
     output_dir,
+    trained_name,
 ):
     """
     Trains an Echo State Network on the data provided in the data file.
@@ -481,19 +503,21 @@ def train(
                                             -1
                                         ]
 
-                                        # Choose only the most important parameters to name the model
+                                        # Choose only the mos important parameters to name the model
                                         name_dict = {
-                                            "0mdl": ctx.__dict__["params"][
+                                            "mdl": ctx.__dict__["params"][
                                                 "model"
                                             ],
                                             "units": _units,
-                                            "sigma": _input_scaling,
-                                            "sr": _spectral_radius,
-                                            "degr": _reservoir_degree,
-                                            "resigma": _reservoir_sigma,
+                                            "inp_scl": _input_scaling,
+                                            "lr": _leak_rate,
+                                            "sp_rad": _spectral_radius,
+                                            "res_deg": _reservoir_degree,
+                                            "res_std": _reservoir_sigma,
                                             "rw": _rewiring,
                                             "reg": _regularization,
-                                            "readl": readout_layer,
+                                            "train_len": _train_length,
+                                            "rdout": readout_layer,
                                             "dta": data_file_name,
                                         }
 
@@ -501,16 +525,20 @@ def train(
                                             output_dir
                                             + f"/{get_name_from_dict(name_dict)}"
                                         )
+
+                                        from os.path import join
+                                        if trained_name is not None:
+                                            model_name = join(output_dir, trained_name)
+
                                         # Save the model and save the parameters dictionary in a json file inside the model folder
-                                        model.save(
-                                            model_name
-                                        )
+                                        model.save(model_name)
                                         with open(
                                             model_name + "/params.json",
                                             "w",
                                             encoding="utf-8",
                                         ) as _f_:
                                             json.dump(params, _f_)
+
 
 
 ################ FORECAST PARAMETERS ################
@@ -558,6 +586,27 @@ def train(
     else None,
 )
 
+################ PARAMETERS TO EXTRACT THE VALIDATION DATA/TARGET ################
+
+
+@click.option(
+    "--init-transient",
+    "-it",
+    type=click.INT,
+    help="The number of transient points that were discarded at the beginning of the data.",
+)
+@click.option(
+    "--transient",
+    "-tr",
+    type=click.INT,
+    help="The number of transient points discarded in the training of the model.",
+)
+@click.option(
+    "--train-length",
+    "-tl",
+    type=click.INT,
+    help="The number of points used for the training of the model.",
+)
 
 #################################################################
 
@@ -581,14 +630,25 @@ def train(
     type=click.Path(exists=True),
     help="The data file to be used for training the model",
 )
+@click.option(
+    "--forecast-name",
+    "-fn",
+    type=click.STRING,
+    default=None,
+    help="Forecast file name.",
+)
 def forecast(
     forecast_method: str,
     forecast_length: int,
     section_initialization_length: int,
     number_of_sections: int,
+    init_transient: int,
+    transient: int,
+    train_length: int,
     output_dir: str,
     trained_model: str,
     data_file: str,
+    forecast_name: str,
 ):
     """Load a model and forecast the data.
 
@@ -603,9 +663,6 @@ def forecast(
 
     """
 
-    # Load the param json from the model location
-    params = load_model_json(trained_model)
-
     # Load the data
     (
         _,
@@ -616,9 +673,9 @@ def forecast(
         val_target,
     ) = load_data(
         data_file,
-        transient=int(params["transient"]),
-        train_length=int(params["train_length"]),
-        init_transient=int(params["init_transient"]),
+        transient=transient,
+        train_length=train_length,
+        init_transient=init_transient,
     )
 
     # Load the model
@@ -656,12 +713,16 @@ def forecast(
     # save in the output directory with the name of the data file (without the path) and the model name attached
     # Prune path from data_file
     data_file_name = data_file.split("/")[-1]
+    
     # Prune path from trained_model
-    trained_model_name = trained_model.split("/")[-1]
+    if forecast_name is None:
+        trained_model_name = trained_model.split("/")[-1] + f"_{forecast_method}_forecasted"
+    else:
+        trained_model_name = forecast_name
 
     # Save the forecasted data as csv using pandas
     pd.DataFrame(predictions).to_csv(
-        f"{output_dir}/{trained_model_name}_{forecast_method}_forecasted.csv",
+        join(output_dir, trained_model_name + ".csv"),
         index=False,
         header=None,
     )
@@ -864,3 +925,4 @@ def plot(
 
 if __name__ == "__main__":
     cli()
+
