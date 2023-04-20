@@ -80,11 +80,9 @@ def grid(hyperparameters_to_adjust:dict, data_path, output_path, u=5000, tl=1000
 
 
         forecast_data = [join(forecast_path, x) for x in listdir(forecast_path)]
-
-
+        
         mse = [[np.square(np.subtract(f, d)).mean()
-                # for f1, d1 in zip(f, d)]
-                for f, d in zip(pd.read_csv(forecast_file).to_numpy(), pd.read_csv(data_file).to_numpy())]
+                for f, d in zip(pd.read_csv(forecast_file).to_numpy(), pd.read_csv(data_file).to_numpy()[(1000 + 1000 + tl):])]
                 for forecast_file, data_file in zip(forecast_data, data)]
 
         # Sum all the mse
@@ -170,3 +168,4 @@ hyperparameters_to_adjust = {"sigma": (0.2, 5, 0.2, lambda x, y, i: round(x + y 
 grid(hyperparameters_to_adjust, 
         data_path = '/media/dionisio35/Windows/_folders/_new/22/',         
         output_path = '/media/dionisio35/Windows/_folders/_new/') 
+
