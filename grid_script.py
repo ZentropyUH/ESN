@@ -5,9 +5,7 @@ from threading import Thread
 from random import randint
 from itertools import product
 
-import csv
 import pandas as pd
-from utils import load_data
 import numpy as np
 
 
@@ -17,6 +15,7 @@ import numpy as np
 ---- ---- <name>
 ---- ---- ---- trained_model
 ---- ---- ---- predictions
+---- ---- ---- mse_mean
 '''
 
 # TODO: Paralelizar el proceso de ejecucion de todos los casos con mismo set de hiperparametros
@@ -58,7 +57,7 @@ def grid(hyperparameters_to_adjust:dict, data_path, output_path, u=5000, tl=1000
         # List of Threads
         forecast_list: list[Thread] = []
         
-        for fn, current_data in enumerate(data[:2]): # Delete [:2]
+        for fn, current_data in enumerate(data):
             
             # Thread for forecast
             current = Thread(
@@ -83,29 +82,37 @@ def grid(hyperparameters_to_adjust:dict, data_path, output_path, u=5000, tl=1000
         for thread in forecast_list:
             thread.join()
         
-        # Sum all the forecasts
+
+
+        forecast_data = [join(forecast_path, x) for x in listdir(forecast_path)]
+
+
+        mse = [[np.square(np.subtract(f, d)).mean()
+                # for f1, d1 in zip(f, d)]
+                for f, d in zip(pd.read_csv(forecast_file).to_numpy(), pd.read_csv(data_file).to_numpy())]
+                for forecast_file, data_file in zip(forecast_data, data)]
+
+        # Sum all the mse
         mean = []
-        for fc in [join(forecast_path, x) for x in listdir(forecast_path)]:
-            
-            forecast_data = pd.read_csv(fc).to_numpy()
+        for current in mse:
             if mean == []:
-                mean = forecast_data
+                mean = current
             else:
-                mean = list(map(lambda x, y: x+y, mean, forecast_data))
-        
-        # Calculate the mean
-        mean = [[y / len(data[:2]) for y in x] for x in mean]  # Delete [:2]
+                mean = np.add(mean, current)
+                # list(map(lambda x, y: x+y, mean, current))
+
+        mean = [x / len(data) for x in mean]
         
         # Create the folder mean
-        mean_path = join(current_path, 'mean')
+        mean_path = join(current_path, 'mse_mean')
         makedirs(mean_path, exist_ok=True)
 
         # Save the csv
         pd.DataFrame(mean).to_csv(
-        join(mean_path, "mean.csv"),
+        join(mean_path, "mse_mean.csv"),
         index=False,
         header=None,
-    )
+        )
         
 
 
