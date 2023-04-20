@@ -19,8 +19,46 @@ import numpy as np
 '''
 
 
+def save_csv(data, name:str, path:str):
+    pd.DataFrame(data).to_csv(
+    join(path, name),
+    index=False,
+    header=None,
+    )
 
-def grid(hyperparameters_to_adjust:dict, data_path, output_path, u=5000, tl=1000, threshold=0.1):
+
+class Queue:
+    def __init__(self, max_size:int):
+        self.queue = []
+        self.max_size = max_size
+    
+
+    def add(self, val, data):
+        if self.queue == []:
+            self.queue.append((val, data))
+        else:
+            for i, v in enumerate(self.queue):
+                if val >= v[0]:
+                    self.queue.insert(i, (val, data))
+                    break
+            
+            if len(self.queue) > self.max_size:
+                self.queue.pop()
+    
+    
+    def decide(self, l:list, combination, threshold):
+        for i, x in enumerate(l):
+            if x > threshold:
+                self.add(i, combination)
+                break
+            elif i == len(l) - 1:
+                self.add(i, combination)
+                break
+
+            
+
+
+def grid(hyperparameters_to_adjust:dict, data_path, output_path, queue_size:int, u=5000, tl=1000, threshold=0.01):
 
     # List all the files on the data folder
     data: list[str] = [join(data_path, p) for p in listdir(data_path)]
@@ -33,6 +71,9 @@ def grid(hyperparameters_to_adjust:dict, data_path, output_path, u=5000, tl=1000
     #Create a list[list] with the values of every hyperparameter
     params: list[list] = [[elem[3](elem[0], elem[2], i) for i in range(elem[1])] for elem in hyperparameters_to_adjust.values()]
     
+    # Queue for best cases, n is the max number of cases
+    best = Queue(queue_size)
+
     #Create all the combinations of hyperparameters
     for combination in product(*params):
         
@@ -101,11 +142,15 @@ def grid(hyperparameters_to_adjust:dict, data_path, output_path, u=5000, tl=1000
         makedirs(mean_path, exist_ok=True)
 
         # Save the csv
-        pd.DataFrame(mean).to_csv(
-        join(mean_path, "mse_mean.csv"),
-        index=False,
-        header=None,
-        )
+        save_csv(mean, "mse_mean.csv", mean_path)
+
+        best.decide(mean, combination, threshold)
+
+    return best.queue
+        
+
+        
+        
         
 
 
@@ -166,6 +211,8 @@ hyperparameters_to_adjust = {"sigma": (0.2, 5, 0.2, lambda x, y, i: round(x + y 
 
 
 grid(hyperparameters_to_adjust, 
-        data_path = '/media/dionisio35/Windows/_folders/_new/22/',         
-        output_path = '/media/dionisio35/Windows/_folders/_new/') 
+    data_path = '/media/dionisio35/Windows/_folders/_new/22/',         
+    output_path = '/media/dionisio35/Windows/_folders/_new/',
+    queue_size= 5,
+) 
 
