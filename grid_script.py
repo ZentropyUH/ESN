@@ -1,12 +1,4 @@
-from os import makedirs, listdir, system
-from os.path import join, isdir
-
-from threading import Thread
-from random import randint
-from itertools import product
-
-import pandas as pd
-import numpy as np
+from grid_tools import *
 
 
 '''
@@ -16,46 +8,7 @@ import numpy as np
 ---- ---- ---- trained_model
 ---- ---- ---- predictions
 ---- ---- ---- mse_mean
-'''
-
-
-def save_csv(data, name:str, path:str):
-    pd.DataFrame(data).to_csv(
-    join(path, name),
-    index=False,
-    header=None,
-    )
-
-
-class Queue:
-    def __init__(self, max_size:int):
-        self.queue = []
-        self.max_size = max_size
-    
-
-    def add(self, val, data):
-        if self.queue == []:
-            self.queue.append((val, data))
-        else:
-            for i, v in enumerate(self.queue):
-                if val >= v[0]:
-                    self.queue.insert(i, (val, data))
-                    break
-            
-            if len(self.queue) > self.max_size:
-                self.queue.pop()
-    
-    
-    def decide(self, l:list, combination, threshold):
-        for i, x in enumerate(l):
-            if x > threshold:
-                self.add(i, combination)
-                break
-            elif i == len(l) - 1:
-                self.add(i, combination)
-                break
-
-            
+'''      
 
 
 def grid(hyperparameters_to_adjust:dict, data_path, output_path, queue_size:int, u=5000, tl=1000, threshold=0.01):
@@ -147,57 +100,13 @@ def grid(hyperparameters_to_adjust:dict, data_path, output_path, queue_size:int,
         best.decide(mean, combination, threshold)
 
     return best.queue
-        
-
-        
-        
-        
 
 
 
-def train(params, data_file_path, output_file, u, tl, tn):    
-    instruction = f"python3 ./main.py train \
-            -m ESN \
-            -ri WattsStrogatzOwn\
-            -df {data_file_path} \
-            -o {output_file} \
-            -rs {params[0]} \
-            -sr {params[3]} \
-            -rw {params[4]} \
-            -u {u} \
-            -tl {tl} \
-            -rd {params[1]} \
-            -tn {tn} \
-            -rg {params[2]}"
-
-    system(instruction)
+def grid_search():
+    ...
 
 
-def forecast(prediction_steps: int, train_transient: int, trained_model_path: str, prediction_path: str, data_file, forecast_name, trained: bool):    
-    if trained:
-        instruction = f"python3 ./main.py forecast \
-                -fm classic \
-                -fl {prediction_steps} \
-                -it {1000} \
-                -tr {train_transient} \
-                -tl {train_transient} \
-                -tm {trained_model_path} \
-                -df {data_file} \
-                -o {prediction_path} \
-                -fn {forecast_name}"
-    else:
-        instruction = f"python3 ./main.py forecast \
-                -fm classic \
-                -fl {prediction_steps} \
-                -it {1000} \
-                -tr {0} \
-                -tl {train_transient}\
-                -tm {trained_model_path} \
-                -df {data_file} \
-                -o {prediction_path} \
-                -fn {forecast_name}"
-
-    system(instruction)
 
 
 # The hyperparameters will be of the form: name: (initial_value, number_of_values, increment, function_of_increment)
@@ -208,6 +117,7 @@ hyperparameters_to_adjust = {"sigma": (0.2, 5, 0.2, lambda x, y, i: round(x + y 
                         "spectral_radio": (0.9, 16 , 0.01, lambda x, y, i: round(x + y * i, 2)),
                         "reconection_prob": (0, 6, 0.2, lambda x, y, i: round(x + y*i, 2))
                     }
+
 
 
 grid(hyperparameters_to_adjust, 
