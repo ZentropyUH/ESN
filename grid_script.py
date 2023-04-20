@@ -18,11 +18,6 @@ import numpy as np
 ---- ---- ---- mse_mean
 '''
 
-# TODO: Paralelizar el proceso de ejecucion de todos los casos con mismo set de hiperparametros
-# TODO: Luego de tener las predicciones del set de parametros se halla la media entre todas
-# TODO: Se lleva una lista con los n mejores casos
-# TODO: Se elimina el caso que deja de pertenecer a la lista
-# TODO: Modelar para permitir diferentes hiperparametros a ajustar
 
 
 def grid(hyperparameters_to_adjust:dict, data_path, output_path, u=5000, tl=1000, threshold=0.1):
