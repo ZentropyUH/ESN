@@ -71,7 +71,7 @@ def grid(combinations:list[list], data:list[str], data_path:str, output_path:str
         # Sum all the mse
         mean = []
         for current in mse:
-            if mean == []:
+            if len(mean) == 0:
                 mean = current
             else:
                 mean = np.add(mean, current)
@@ -156,10 +156,10 @@ def grid_search(hyperparameters_to_adjust:dict, data_path, output_path, depth:in
         }
         
         for key in params.keys():
-            initial_value, number_of_values, increment, function_of_increment= params[key]
+            initial_value, number_of_values, increment, function_of_increment = params[key]
             if initial_value < 0 :
                 initial_value = 0
-                params[key]=(initial_value, number_of_values, increment, function_of_increment)
+                params[key] = (initial_value, number_of_values, increment, function_of_increment)
 
         best_results = grid(generate_combinations(params),
                             data=data, 
@@ -168,7 +168,7 @@ def grid_search(hyperparameters_to_adjust:dict, data_path, output_path, depth:in
                             queue_size= queue_size
                         )
         
-        better.append((iteration+1,elem) for  elem in best_results)
+        better += [(iteration + 1, elem) for elem in best_results]
 
     return all_the_best
 
