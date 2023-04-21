@@ -95,20 +95,10 @@ def grid(combinations:list[list], data:list[str], data_path:str, output_path:str
 
 
 
-def get_param_tuple(value, param , iteration,step,function_of_increment):    
+def get_param_tuple(value, param , step,function_of_increment):    
     initial_value, number_of_values, increment, function_of_increment = param
-    # step = steps[iteration][param_name]
     initial_value=value-int(number_of_values/2)*step
-    # return (value-(number_of_values/2)*(increment/(iteration*2)),number_of_values,increment/(iteration*2),function_of_increment)
     return initial_value,number_of_values,step,function_of_increment
-
-
-# def get_neighbor_value(steps:dict,iteration:int,count:int,param:str):
-#     # init=steps[iteration-1][param][0]
-#     step=steps[iteration-1][param]
-#     new_step = steps[iteration-1][param]/count+1
-#     return 
-
 
 def grid_search(hyperparameters_to_adjust:dict, data_path, output_path, depth:int, queue_size:int, u=5000, tl=1000, threshold=0.01):
     
@@ -139,12 +129,7 @@ def grid_search(hyperparameters_to_adjust:dict, data_path, output_path, depth:in
                     "spectral_radio":hyperparameters_to_adjust["spectral_radio"][2],
                     "reconection_prob":hyperparameters_to_adjust["reconection_prob"][2]
                    }
-    # steps[0]={"sigma":(hyperparameters_to_adjust["sigma"][0],hyperparameters_to_adjust["sigma"][2]),
-    #                 "degree":(hyperparameters_to_adjust["degree"][0],hyperparameters_to_adjust["degree"][2]),
-    #                 "ritch_regularization":(hyperparameters_to_adjust["ritch_regularization"][0],hyperparameters_to_adjust["ritch_regularization"][2]),
-    #                 "spectral_radio":(hyperparameters_to_adjust["spectral_radio"][0],hyperparameters_to_adjust["spectral_radio"][2]),
-    #                 "reconection_prob":(hyperparameters_to_adjust["reconection_prob"][0],hyperparameters_to_adjust["reconection_prob"][2])
-    #                }
+
     all_the_best=[]
     while True:
         if not len(better):
@@ -156,13 +141,6 @@ def grid_search(hyperparameters_to_adjust:dict, data_path, output_path, depth:in
             continue
         
         if not steps.get(iteration):
-            # steps[iteration]={"sigma":get_neighbor_value(steps,iteration,hyperparameters_to_adjust["sigma"][1],"sigma",combination[0]),
-            #         "degree": get_neighbor_value(steps,iteration,hyperparameters_to_adjust["degree"][1],"degree",combination[1]),
-            #         "ritch_regularization":get_neighbor_value(steps,iteration,hyperparameters_to_adjust["ritch_regularization"][1],"ritch_regularization",combination[2]),
-            #         "spectral_radio":get_neighbor_value(steps,iteration,hyperparameters_to_adjust["spectral_radio"][1],"spectral_radio",combination[3]),
-            #         "reconection_prob":get_neighbor_value(steps,iteration,hyperparameters_to_adjust["reconection_prob"][1],"reconection_prob",combination[4])
-            #     }
-            # steps[iteration-1][param]/count+1
             steps[iteration]={"sigma":(steps[iteration-1]["sigma"]/hyperparameters_to_adjust["sigma"][1]+1),
                     "degree":(steps[iteration-1]["degree"]/hyperparameters_to_adjust["degree"][1]+1),
                     "ritch_regularization":(steps[iteration-1]["ritch_regularization"]/hyperparameters_to_adjust["ritch_regularization"][1]+1),
