@@ -11,24 +11,13 @@ from grid_tools import *
 '''      
 
 
-def grid(hyperparameters_to_adjust:dict, data_path, output_path, queue_size:int, u=5000, tl=1000, threshold=0.01):
-
-    # List all the files on the data folder
-    data: list[str] = [join(data_path, p) for p in listdir(data_path)]
-
-    # Create the output folder
-    output_path = join(output_path, 'output')
-    makedirs(output_path, exist_ok=True)
-
-    
-    #Create a list[list] with the values of every hyperparameter
-    params: list[list] = [[elem[3](elem[0], elem[2], i) for i in range(elem[1])] for elem in hyperparameters_to_adjust.values()]
+def grid(combinations:list[list], data:list[str], data_path:str, output_path:str, queue_size:int, u:int=5000, tl:int=1000, threshold:float=0.01):
     
     # Queue for best cases, n is the max number of cases
     best = Queue(queue_size)
 
     #Create all the combinations of hyperparameters
-    for combination in product(*params):
+    for combination in product(*combinations):
         
         # Select the data to train
         train_index = randint(0, len(data) - 1)
@@ -46,7 +35,7 @@ def grid(hyperparameters_to_adjust:dict, data_path, output_path, queue_size:int,
         # List of Threads
         forecast_list: list[Thread] = []
         
-        for fn, current_data in enumerate(data):
+        for fn, current_data in enumerate(data[:3]): # Delete [:3]
             
             # Thread for forecast
             current = Thread(
@@ -88,7 +77,7 @@ def grid(hyperparameters_to_adjust:dict, data_path, output_path, queue_size:int,
                 mean = np.add(mean, current)
                 # list(map(lambda x, y: x+y, mean, current))
 
-        mean = [x / len(data) for x in mean]
+        mean = [x / len(data[:3]) for x in mean] # Delete [:3]
         
         # Create the folder mean
         mean_path = join(current_path, 'mse_mean')
@@ -102,9 +91,29 @@ def grid(hyperparameters_to_adjust:dict, data_path, output_path, queue_size:int,
     return best.queue
 
 
+def grid_search(hyperparameters_to_adjust:dict, data_path, output_path, queue_size:int, u=5000, tl=1000, threshold=0.01):
+    
+    # List all the files on the data folder
+    data: list[str] = [join(data_path, p) for p in listdir(data_path)]
 
-def grid_search():
-    ...
+    # Create the output folder
+    output_path = join(output_path, 'output')
+    makedirs(output_path, exist_ok=True)
+    
+    #Create a list[list] with the values of every hyperparameter
+    combinations = generate_combinations(hyperparameters_to_adjust)
+
+    best = Queue(queue_size)
+
+    # TODO: Definir la busqueda por las mejores combinaciones
+
+    grid(combinations,
+        data=data, 
+        data_path = data_path,         
+        output_path = output_path,
+        queue_size= queue_size,
+    )
+
 
 
 
@@ -119,10 +128,9 @@ hyperparameters_to_adjust = {"sigma": (0.2, 5, 0.2, lambda x, y, i: round(x + y 
                     }
 
 
-
-grid(hyperparameters_to_adjust, 
-    data_path = '/media/dionisio35/Windows/_folders/_new/22/',         
-    output_path = '/media/dionisio35/Windows/_folders/_new/',
-    queue_size= 5,
-) 
-
+grid_search(
+    hyperparameters_to_adjust,
+    '/media/dionisio35/Windows/_folders/_new/22/',
+    '/media/dionisio35/Windows/_folders/_new/',
+    5,
+)
