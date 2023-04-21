@@ -11,7 +11,7 @@ import numpy as np
 # Priority Queue with limited size, sorted from max to min
 class Queue:
     def __init__(self, max_size:int):
-        self.queue = [(-1, None)]
+        self.queue = []
         self.max_size = max_size
     
 

@@ -88,6 +88,8 @@ def grid(combinations:list[list], data:list[str], data_path:str, output_path:str
 
         best.decide(mean, combination, threshold)
 
+        break # Fucking delete later
+
     return best.queue
 
 
@@ -118,28 +120,35 @@ def grid_search(hyperparameters_to_adjust:dict, data_path, output_path, depth:in
         queue_size= queue_size,
     )
 
-    better = [(1,elem) for  elem in best_results]
+    better = [(1, elem) for  elem in best_results]
+    
     all_betters=[]
     while True:
         if not len(better):
             break
+        
         iteration, combination = better.pop(0)
-        if iteration>=depth:
+        
+        if iteration >= depth:
             continue
+        
         all_betters.append(combination)
-        params={"sigma": get_param_tuple(combination[1][0],hyperparameters_to_adjust["sigma"],iteration),
-                    "degree":get_param_tuple(combination[1][1],hyperparameters_to_adjust["degree"],iteration),
-                    "ritch_regularization": get_param_tuple(combination[1][2],hyperparameters_to_adjust["ritch_regularization"],iteration),
-                    "spectral_radio": get_param_tuple(combination[1][3],hyperparameters_to_adjust["spectral_radio"],iteration),
-                    "reconection_prob": get_param_tuple(combination[1][4],hyperparameters_to_adjust["reconection_prob"],iteration)
-                    }
+        
+        params = {
+            "sigma": get_param_tuple(combination[1][0], hyperparameters_to_adjust["sigma"], iteration),
+            "degree":get_param_tuple(combination[1][1], hyperparameters_to_adjust["degree"], iteration),
+            "ritch_regularization": get_param_tuple(combination[1][2], hyperparameters_to_adjust["ritch_regularization"], iteration),
+            "spectral_radio": get_param_tuple(combination[1][3], hyperparameters_to_adjust["spectral_radio"], iteration),
+            "reconection_prob": get_param_tuple(combination[1][4], hyperparameters_to_adjust["reconection_prob"], iteration)
+        }
         
         best_results = grid(generate_combinations(params),
-        data=data, 
-        data_path = data_path,         
-        output_path = output_path,
-        queue_size= queue_size
-        )
+                            data=data, 
+                            data_path = data_path,         
+                            output_path = output_path,
+                            queue_size= queue_size
+                        )
+        
         better.append((iteration+1,elem) for  elem in best_results)
 
     return all_betters
@@ -149,49 +158,27 @@ def grid_search(hyperparameters_to_adjust:dict, data_path, output_path, depth:in
 
 # The hyperparameters will be of the form: name: (initial_value, number_of_values, increment, function_of_increment)
 # The parameters of the increment function are: initial_value, increment, current_value_of_the_iteration
-hyperparameters_to_adjust = {"sigma": (0.2, 5, 0.2, lambda x, y, i: round(x + y * i, 2)),
-                        "degree": (2, 4, 2, lambda x, y, i: round(x + y * i, 2)),
-                        "ritch_regularization": (10e-5, 5, 0.1, lambda x, y, i: round(x * y**i, 8)),
-                        "spectral_radio": (0.9, 16 , 0.01, lambda x, y, i: round(x + y * i, 2)),
-                        "reconection_prob": (0, 6, 0.2, lambda x, y, i: round(x + y*i, 2))
-                    }
+hyperparameters_to_adjust = {
+    "sigma": (0.2, 5, 0.2, lambda x, y, i: round(x + y * i, 2)),
+    "degree": (2, 4, 2, lambda x, y, i: round(x + y * i, 2)),
+    "ritch_regularization": (10e-5, 5, 0.1, lambda x, y, i: round(x * y**i, 8)),
+    "spectral_radio": (0.9, 16 , 0.01, lambda x, y, i: round(x + y * i, 2)),
+    "reconection_prob": (0, 6, 0.2, lambda x, y, i: round(x + y*i, 2))
+}
 
 
-# grid_search(
-#     hyperparameters_to_adjust,
-#     '/media/dionisio35/Windows/_folders/_new/22/',
-#     '/media/dionisio35/Windows/_folders/_new/',
-#     5,5
-# )
-grid_search(hyperparameters_to_adjust, 
-            data_path="/home/lauren/Documentos/ESN/data/MG",         
-            output_path="/home/lauren/Documentos/ESN/forecasting",
-            depth=5,
-            queue_size = 3) 
+grid_search(
+    hyperparameters_to_adjust,
+    '/media/dionisio35/Windows/_folders/_new/22/',
+    '/media/dionisio35/Windows/_folders/_new/',
+    5,
+    5,
+)
 
 
+# grid_search(hyperparameters_to_adjust, 
+#             data_path="/home/lauren/Documentos/ESN/data/MG",         
+#             output_path="/home/lauren/Documentos/ESN/forecasting",
+#             depth=5,
+#             queue_size = 3) 
 
-
-
-
-
-
-
-
-# The hyperparameters will be of the form: name: (initial_value, number_of_values, increment, function_of_increment)
-# The parameters of the increment function are: initial_value, increment, current_value_of_the_iteration
-# hyperparameters_to_adjust = {"sigma": (0.2, 5, 0.2, lambda x, y, i: round(x + y * i, 2)),
-#                         "degree": (2, 4, 2, lambda x, y, i: round(x + y * i, 2)),
-#                         "ritch_regularization": (10e-5, 5, 0.1, lambda x, y, i: round(x * y**i, 8)),
-#                         "spectral_radio": (0.9, 16 , 0.01, lambda x, y, i: round(x + y * i, 2)),
-#                         "reconection_prob": (0.2, 5, 0.2, lambda x, y, i: round(x + y*i, 2))
-                    # }
-
-
-
-
-
-
-    # grid(hyperparameters_to_adjust, 
-    #         data_path = '/media/dionisio35/Windows/_folders/_new/22/',         
-    #         output_path = '/media/dionisio35/Windows/_folders/_new/') 
