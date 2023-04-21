@@ -94,16 +94,8 @@ def grid(combinations:list[list], data:list[str], data_path:str, output_path:str
 
 
 def get_param_tuple(value, param, iteration):    
-    # The hyperparameters will be of the form: name: (initial_value, number_of_values, increment, function_of_increment)
-    # The parameters of the increment function are: initial_value, increment, current_value_of_the_iteration
-    initial_value, number_of_values, increment, function_of_increment=param
-    # inc = [param[3](value, param[2], i) for i in range(param[1])]
+    initial_value, number_of_values, increment, function_of_increment = param
     return (value-(number_of_values/2)*(increment/(iteration*2)),number_of_values,increment/(iteration*2),function_of_increment)
-
-    # return [[elem[3](elem[0], elem[2], i) for i in range(elem[1])] for elem in params.values()]
-
-
-
 
 
 def grid_search(hyperparameters_to_adjust:dict, data_path, output_path, depth:int, queue_size:int, u=5000, tl=1000, threshold=0.01):
@@ -151,36 +143,6 @@ def grid_search(hyperparameters_to_adjust:dict, data_path, output_path, depth:in
         better.append((iteration+1,elem) for  elem in best_results)
 
     return all_betters
-
-
-                
-        
-
-
-
-    # for iteration in range(1,depth):
-    #     for combination in best_results:
-    #         param={"sigma": get_param_tuple(combination[1][0],hyperparameters_to_adjust["sigma"],iteration),
-    #                 "degree":get_param_tuple(combination[1][1],hyperparameters_to_adjust["degree"],iteration),
-    #                 "ritch_regularization": get_param_tuple(combination[1][2],hyperparameters_to_adjust["ritch_regularization"],iteration),
-    #                 "spectral_radio": get_param_tuple(combination[1][3],hyperparameters_to_adjust["spectral_radio"],iteration),
-    #                 "reconection_prob": get_param_tuple(combination[1][4],hyperparameters_to_adjust["reconection_prob"],iteration)
-    #         }
-            # best_results=grid(param)
-            # better.append(best_results)
-
-
-
-
-
-
-    grid(combinations,
-        data=data, 
-        data_path = data_path,         
-        output_path = output_path,
-        queue_size= queue_size,
-    )
-
 
 
 
