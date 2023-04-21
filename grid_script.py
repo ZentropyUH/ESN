@@ -95,7 +95,7 @@ def grid(combinations:list[list], data:list[str], data_path:str, output_path:str
 
 
 
-def get_param_tuple(value, param , step,function_of_increment):    
+def get_param_tuple(value, param , step):    
     initial_value, number_of_values, increment, function_of_increment = param
     initial_value=value-int(number_of_values/2)*step
     return initial_value,number_of_values,step,function_of_increment
@@ -192,9 +192,9 @@ hyperparameters_to_adjust = {
 # )
 
 
-# grid_search(hyperparameters_to_adjust, 
-#             data_path="/home/lauren/Documentos/ESN/data/MG",         
-#             output_path="/home/lauren/Documentos/ESN/forecasting",
-#             depth=5,
-#             queue_size = 3) 
+grid_search(hyperparameters_to_adjust, 
+            data_path="/home/lauren/Documentos/ESN/data/MG",         
+            output_path="/home/lauren/Documentos/ESN/forecasting",
+            depth=5,
+            queue_size = 3) 
 
