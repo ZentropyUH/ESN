@@ -123,12 +123,13 @@ def grid_search(hyperparameters_to_adjust:dict, data_path, output_path, depth:in
     better = [(1, elem) for  elem in best_results]
     steps={}
 
-    steps[0]={"sigma":hyperparameters_to_adjust["sigma"][2],
-                    "degree":hyperparameters_to_adjust["degree"][2],
-                    "ritch_regularization":hyperparameters_to_adjust["ritch_regularization"][2],
-                    "spectral_radio":hyperparameters_to_adjust["spectral_radio"][2],
-                    "reconection_prob":hyperparameters_to_adjust["reconection_prob"][2]
-                   }
+    steps[0]= {
+        "sigma":hyperparameters_to_adjust["sigma"][2],
+        "degree":hyperparameters_to_adjust["degree"][2],
+        "ritch_regularization":hyperparameters_to_adjust["ritch_regularization"][2],
+        "spectral_radio":hyperparameters_to_adjust["spectral_radio"][2],
+        "reconection_prob":hyperparameters_to_adjust["reconection_prob"][2]
+    }
 
     all_the_best=[]
     while True:
@@ -141,12 +142,13 @@ def grid_search(hyperparameters_to_adjust:dict, data_path, output_path, depth:in
             continue
         
         if not steps.get(iteration):
-            steps[iteration]={"sigma":(steps[iteration-1]["sigma"]/hyperparameters_to_adjust["sigma"][1]+1),
-                    "degree":(steps[iteration-1]["degree"]/hyperparameters_to_adjust["degree"][1]+1),
-                    "ritch_regularization":(steps[iteration-1]["ritch_regularization"]/hyperparameters_to_adjust["ritch_regularization"][1]+1),
-                    "spectral_radio":(steps[iteration-1]["spectral_radio"]/hyperparameters_to_adjust["spectral_radio"][1]+1),
-                    "reconection_prob":(steps[iteration-1]["reconection_prob"]/hyperparameters_to_adjust["reconection_prob"][1]+1)
-                }
+            steps[iteration]={
+                "sigma": (steps[iteration-1]["sigma"] / hyperparameters_to_adjust["sigma"][1] + 1),
+                "degree": (steps[iteration-1]["degree"] / hyperparameters_to_adjust["degree"][1] + 1),
+                "ritch_regularization": (steps[iteration-1]["ritch_regularization"] / hyperparameters_to_adjust["ritch_regularization"][1] + 1),
+                "spectral_radio": (steps[iteration-1]["spectral_radio"] / hyperparameters_to_adjust["spectral_radio"][1] + 1),
+                "reconection_prob": (steps[iteration-1]["reconection_prob"] / hyperparameters_to_adjust["reconection_prob"][1] + 1)
+            }
 
         all_the_best.append(combination)
         
@@ -183,18 +185,18 @@ hyperparameters_to_adjust = {
 }
 
 
-# grid_search(
-#     hyperparameters_to_adjust,
-#     '/media/dionisio35/Windows/_folders/_new/22/',
-#     '/media/dionisio35/Windows/_folders/_new/',
-#     5,
-#     5,
-# )
+grid_search(
+    hyperparameters_to_adjust,
+    '/media/dionisio35/Windows/_folders/_new/22/',
+    '/media/dionisio35/Windows/_folders/_new/',
+    5,
+    5,
+)
 
 
-grid_search(hyperparameters_to_adjust, 
-            data_path="/home/lauren/Documentos/ESN/data/MG",         
-            output_path="/home/lauren/Documentos/ESN/forecasting",
-            depth=5,
-            queue_size = 3) 
+# grid_search(hyperparameters_to_adjust, 
+#             data_path="/home/lauren/Documentos/ESN/data/MG",         
+#             output_path="/home/lauren/Documentos/ESN/forecasting",
+#             depth=5,
+#             queue_size = 3) 
 
