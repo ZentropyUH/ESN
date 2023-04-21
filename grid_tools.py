@@ -11,21 +11,21 @@ import numpy as np
 # Priority Queue with limited size, sorted from max to min
 class Queue:
     def __init__(self, max_size:int):
-        self.queue = []
+        self.queue = [(-1, None)]
         self.max_size = max_size
     
 
     def add(self, val, data):
-        if self.queue == []:
+        if not self.queue:
             self.queue.append((val, data))
         else:
             for i, v in enumerate(self.queue):
                 if val >= v[0]:
                     self.queue.insert(i, (val, data))
                     break
-            
-            if len(self.queue) > self.max_size:
-                self.queue.pop()
+                
+        if len(self.queue) > self.max_size:
+            self.queue.pop()
     
     
     def decide(self, l:list, combination, threshold):
@@ -45,6 +45,10 @@ def save_csv(data, name:str, path:str):
     index=False,
     header=None,
     )
+
+
+def generate_combinations(params:dict):
+    return [[elem[3](elem[0], elem[2], i) for i in range(elem[1])] for elem in params.values()]
 
 
 
