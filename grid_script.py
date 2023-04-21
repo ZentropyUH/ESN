@@ -143,21 +143,21 @@ def grid_search(hyperparameters_to_adjust:dict, data_path, output_path, depth:in
         
         if not steps.get(iteration):
             steps[iteration]={
-                "sigma": (steps[iteration-1]["sigma"] / hyperparameters_to_adjust["sigma"][1] + 1),
-                "degree": (steps[iteration-1]["degree"] / hyperparameters_to_adjust["degree"][1] + 1),
-                "ritch_regularization": (steps[iteration-1]["ritch_regularization"] / hyperparameters_to_adjust["ritch_regularization"][1] + 1),
-                "spectral_radio": (steps[iteration-1]["spectral_radio"] / hyperparameters_to_adjust["spectral_radio"][1] + 1),
-                "reconection_prob": (steps[iteration-1]["reconection_prob"] / hyperparameters_to_adjust["reconection_prob"][1] + 1)
+                "sigma": (steps[iteration-1]["sigma"] / (hyperparameters_to_adjust["sigma"][1] + 1)),
+                "degree": (steps[iteration-1]["degree"] / (hyperparameters_to_adjust["degree"][1] + 1)),
+                "ritch_regularization": (steps[iteration-1]["ritch_regularization"] / (hyperparameters_to_adjust["ritch_regularization"][1] + 1)),
+                "spectral_radio": (steps[iteration-1]["spectral_radio"] / (hyperparameters_to_adjust["spectral_radio"][1] + 1)),
+                "reconection_prob": (steps[iteration-1]["reconection_prob"] / (hyperparameters_to_adjust["reconection_prob"][1] + 1))
             }
 
         all_the_best.append(combination)
         
         params = {
-            "sigma": get_param_tuple(combination[1][0], hyperparameters_to_adjust["sigma"], iteration,steps[iteration]["sigma"]),
-            "degree":get_param_tuple(combination[1][1], hyperparameters_to_adjust["degree"], iteration,steps[iteration]["degree"]),
-            "ritch_regularization": get_param_tuple(combination[1][2], hyperparameters_to_adjust["ritch_regularization"], iteration,steps[iteration]["ritch_regularization"]),
-            "spectral_radio": get_param_tuple(combination[1][3], hyperparameters_to_adjust["spectral_radio"], iteration,steps[iteration]["spectral_radio"]),
-            "reconection_prob": get_param_tuple(combination[1][4], hyperparameters_to_adjust["reconection_prob"], iteration,steps[iteration]["reconection_prob"])
+            "sigma": get_param_tuple(combination[1][0], hyperparameters_to_adjust["sigma"], steps[iteration]["sigma"]),
+            "degree":get_param_tuple(combination[1][1], hyperparameters_to_adjust["degree"], steps[iteration]["degree"]),
+            "ritch_regularization": get_param_tuple(combination[1][2], hyperparameters_to_adjust["ritch_regularization"], steps[iteration]["ritch_regularization"]),
+            "spectral_radio": get_param_tuple(combination[1][3], hyperparameters_to_adjust["spectral_radio"], steps[iteration]["spectral_radio"]),
+            "reconection_prob": get_param_tuple(combination[1][4], hyperparameters_to_adjust["reconection_prob"], steps[iteration]["reconection_prob"])
         }
         
         best_results = grid(generate_combinations(params),
