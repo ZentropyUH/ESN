@@ -50,7 +50,15 @@ def save_csv(data, name:str, path:str):
 def generate_combinations(params:dict):
     return [[elem[3](elem[0], elem[2], i) for i in range(elem[1])] for elem in params.values()]
 
+def get_param_tuple(value, param , step):    
+    initial_value, number_of_values, _ , function_of_increment = param
+    initial_value=value-int(number_of_values/2)*step
+    return initial_value,number_of_values,step,function_of_increment
 
+def get_ritch_param_tuple(value, param , step):    
+    initial_value, number_of_values, _ , function_of_increment = param
+    initial_value=value/int(number_of_values/2)*step
+    return initial_value,number_of_values,step,function_of_increment
 
 # main train
 def train(params, data_file_path, output_file, u, tl, tn):    

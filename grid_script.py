@@ -95,16 +95,6 @@ def grid(combinations:list[list], data:list[str], data_path:str, output_path:str
 
 
 
-def get_param_tuple(value, param , step):    
-    initial_value, number_of_values, increment, function_of_increment = param
-    initial_value=value-int(number_of_values/2)*step
-    return initial_value,number_of_values,step,function_of_increment
-
-def get_ritch_param_tuple(value, param , step):    
-    initial_value, number_of_values, increment, function_of_increment = param
-    initial_value=value/int(number_of_values/2)*step
-    return initial_value,number_of_values,step,function_of_increment
-
 def grid_search(hyperparameters_to_adjust:dict, data_path, output_path, depth:int, queue_size:int, u=5000, tl=1000, threshold=0.01):
     
     # List all the files on the data folder
@@ -160,11 +150,17 @@ def grid_search(hyperparameters_to_adjust:dict, data_path, output_path, depth:in
         params = {
             "sigma": get_param_tuple(combination[1][0], hyperparameters_to_adjust["sigma"], steps[iteration]["sigma"]),
             "degree":get_param_tuple(combination[1][1], hyperparameters_to_adjust["degree"], steps[iteration]["degree"]),
-            "ritch_regularization": get_param_tuple(combination[1][2], hyperparameters_to_adjust["ritch_regularization"], steps[iteration]["ritch_regularization"]),
-            "spectral_radio": get_ritch_param_tuple(combination[1][3], hyperparameters_to_adjust["spectral_radio"], steps[iteration]["spectral_radio"]),
+            "ritch_regularization": get_ritch_param_tuple(combination[1][2], hyperparameters_to_adjust["ritch_regularization"], steps[iteration]["ritch_regularization"]),
+            "spectral_radio": get_param_tuple(combination[1][3], hyperparameters_to_adjust["spectral_radio"], steps[iteration]["spectral_radio"]),
             "reconection_prob": get_param_tuple(combination[1][4], hyperparameters_to_adjust["reconection_prob"], steps[iteration]["reconection_prob"])
         }
         
+        for key in params.keys():
+            initial_value, number_of_values, increment, function_of_increment= params[key]
+            if initial_value < 0 :
+                initial_value = 0
+                params[key]=(initial_value, number_of_values, increment, function_of_increment)
+
         best_results = grid(generate_combinations(params),
                             data=data, 
                             data_path = data_path,         
