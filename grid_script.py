@@ -35,7 +35,7 @@ def grid(combinations:list[list], data:list[str], data_path:str, output_path:str
         # List of Threads
         forecast_list: list[Thread] = []
         
-        for fn, current_data in enumerate(data[:3]): # Delete [:3]
+        for fn, current_data in enumerate(data):
             
             # Thread for forecast
             current = Thread(
@@ -77,7 +77,7 @@ def grid(combinations:list[list], data:list[str], data_path:str, output_path:str
                 mean = np.add(mean, current)
                 # list(map(lambda x, y: x+y, mean, current))
 
-        mean = [x / len(data[:3]) for x in mean] # Delete [:3]
+        mean = [x / len(data) for x in mean]
         
         # Create the folder mean
         mean_path = join(current_path, 'mse_mean')
@@ -87,8 +87,6 @@ def grid(combinations:list[list], data:list[str], data_path:str, output_path:str
         save_csv(mean, "mse_mean.csv", mean_path)
 
         best.decide(mean, combination, threshold)
-
-        break # Fucking delete later
 
     return best.queue
 
