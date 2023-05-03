@@ -97,7 +97,7 @@ def grid(combinations:list[list], data:list[str], data_path:str, output_path:str
         # Save the csv
         save_csv(mean, "mse_mean.csv", mean_path)
 
-        best.decide(mean, combination, threshold)
+        best.decide(mean, combination, current_path, threshold)
 
         break # DELETE
 
@@ -114,6 +114,9 @@ def grid_search(hyperparameters_to_adjust:dict, data_path, output_path, depth:in
     # Create the output folder
     output_path = join(output_path, 'output')
     makedirs(output_path, exist_ok=True)
+
+    results_path = join(output_path, 'results')
+    makedirs(results_path, exist_ok=True)
     
     #Create a list[list] with the values of every hyperparameter
     combinations = generate_combinations(hyperparameters_to_adjust)
@@ -139,14 +142,16 @@ def grid_search(hyperparameters_to_adjust:dict, data_path, output_path, depth:in
         "reconection_prob": hyperparameters_to_adjust["reconection_prob"][2]
     }
 
-    # FIX: all_the_best must be a queue
+
     all_the_best = Queue(queue_size)
     while True:
         if not len(best):
             break
         
-        iteration, combination = best.pop(0)
+        iteration, best_data = best.pop(0)
         
+        all_the_best.add(*best_data)
+
         if iteration >= depth:
             continue
         
@@ -159,14 +164,14 @@ def grid_search(hyperparameters_to_adjust:dict, data_path, output_path, depth:in
                 "reconection_prob": (steps[iteration-1]["reconection_prob"] / (hyperparameters_to_adjust["reconection_prob"][1] + 1))
             }
 
-        all_the_best.add(*combination)
+        
         
         params = {
-            "sigma": get_param_tuple(combination[1][0], hyperparameters_to_adjust["sigma"], steps[iteration]["sigma"]),
-            "degree":get_param_tuple(combination[1][1], hyperparameters_to_adjust["degree"], steps[iteration]["degree"]),
-            "ritch_regularization": get_ritch_param_tuple(combination[1][2], hyperparameters_to_adjust["ritch_regularization"], steps[iteration]["ritch_regularization"]),
-            "spectral_radio": get_param_tuple(combination[1][3], hyperparameters_to_adjust["spectral_radio"], steps[iteration]["spectral_radio"]),
-            "reconection_prob": get_param_tuple(combination[1][4], hyperparameters_to_adjust["reconection_prob"], steps[iteration]["reconection_prob"])
+            "sigma": get_param_tuple(best_data[1][0][0], hyperparameters_to_adjust["sigma"], steps[iteration]["sigma"]),
+            "degree":get_param_tuple(best_data[1][0][1], hyperparameters_to_adjust["degree"], steps[iteration]["degree"]),
+            "ritch_regularization": get_ritch_param_tuple(best_data[1][0][2], hyperparameters_to_adjust["ritch_regularization"], steps[iteration]["ritch_regularization"]),
+            "spectral_radio": get_param_tuple(best_data[1][0][3], hyperparameters_to_adjust["spectral_radio"], steps[iteration]["spectral_radio"]),
+            "reconection_prob": get_param_tuple(best_data[1][0][4], hyperparameters_to_adjust["reconection_prob"], steps[iteration]["reconection_prob"])
         }
         
         for key in params.keys():
@@ -183,9 +188,11 @@ def grid_search(hyperparameters_to_adjust:dict, data_path, output_path, depth:in
                         )
         
         best += [(iteration + 1, elem) for elem in first_results]
-
-    return all_the_best
-
+    
+    for i in all_the_best.queue:
+        folder = i[1][1]
+        folder_name = split(folder)[1]
+        shutil.copytree(folder, join(results_path, folder_name), dirs_exist_ok=True)
 
 
 
