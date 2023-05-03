@@ -7,11 +7,12 @@ from grid_tools import *
 ---- ---- <name>
 ---- ---- ---- trained_model
 ---- ---- ---- predictions
+---- ---- ---- mse
 ---- ---- ---- mse_mean
 '''      
 
 
-def grid(combinations:list[list], data:list[str], data_path:str, output_path:str, queue_size:int, u:int=5000, tl:int=20000, threshold:float=0.01):
+def grid(combinations:list[list], data:list[str], data_path:str, output_path:str, queue_size:int, u:int=5000, tl:int=1000, threshold:float=0.01):
     
     # Queue for best cases, n is the max number of cases
     best = Queue(queue_size)
@@ -23,11 +24,22 @@ def grid(combinations:list[list], data:list[str], data_path:str, output_path:str
         train_index = randint(0, len(data) - 1)
         train_data_path = data[train_index]
 
-        # Create the output folders
+        # Create the trained model folder
         current_path = join(output_path, '_'.join([str(x) for x in combination]))
         trained_model_path = join(current_path, 'trained_model')
+        
+        # Create forecast folder
         forecast_path = join(current_path, 'forecast')
         makedirs(forecast_path, exist_ok=True)
+        
+        # Create folder for the mse of predictions
+        mse_path = join(current_path, 'mse')
+        makedirs(mse_path, exist_ok=True)
+
+        # Create the folder mean
+        mean_path = join(current_path, 'mse_mean')
+        makedirs(mean_path, exist_ok=True)
+
 
         # Train
         train(combination, train_data_path, current_path, u, tl, 'trained_model')
@@ -35,7 +47,7 @@ def grid(combinations:list[list], data:list[str], data_path:str, output_path:str
         # List of Threads
         forecast_list: list[Thread] = []
         
-        for fn, current_data in enumerate(data):
+        for fn, current_data in enumerate(data[:3]): # DELETE
             
             # Thread for forecast
             current = Thread(
@@ -70,23 +82,24 @@ def grid(combinations:list[list], data:list[str], data_path:str, output_path:str
 
         # Sum all the mse
         mean = []
-        for current in mse:
+        for i, current in enumerate(mse):
+            
+            # Save current mse
+            save_csv(current, "{}.csv".format(i), mse_path)
+            
             if len(mean) == 0:
                 mean = current
             else:
                 mean = np.add(mean, current)
-                # list(map(lambda x, y: x+y, mean, current))
 
-        mean = [x / len(data) for x in mean]
-        
-        # Create the folder mean
-        mean_path = join(current_path, 'mse_mean')
-        makedirs(mean_path, exist_ok=True)
+        mean = [x / len(data[:3]) for x in mean] # DELETE
 
         # Save the csv
         save_csv(mean, "mse_mean.csv", mean_path)
 
         best.decide(mean, combination, threshold)
+
+        break # DELETE
 
     return best.queue
 
@@ -105,31 +118,34 @@ def grid_search(hyperparameters_to_adjust:dict, data_path, output_path, depth:in
     #Create a list[list] with the values of every hyperparameter
     combinations = generate_combinations(hyperparameters_to_adjust)
 
-
-    best_results = grid(combinations,
+    # First search
+    first_results = grid(combinations,
         data=data, 
         data_path = data_path,         
         output_path = output_path,
         queue_size= queue_size,
     )
 
-    better = [(1, elem) for  elem in best_results]
-    steps={}
-
+    # Get best results
+    best = [(1, elem) for elem in first_results]
+    
+    # Generate 
+    steps = {}
     steps[0]= {
-        "sigma":hyperparameters_to_adjust["sigma"][2],
-        "degree":hyperparameters_to_adjust["degree"][2],
-        "ritch_regularization":hyperparameters_to_adjust["ritch_regularization"][2],
-        "spectral_radio":hyperparameters_to_adjust["spectral_radio"][2],
-        "reconection_prob":hyperparameters_to_adjust["reconection_prob"][2]
+        "sigma": hyperparameters_to_adjust["sigma"][2],
+        "degree": hyperparameters_to_adjust["degree"][2],
+        "ritch_regularization": hyperparameters_to_adjust["ritch_regularization"][2],
+        "spectral_radio": hyperparameters_to_adjust["spectral_radio"][2],
+        "reconection_prob": hyperparameters_to_adjust["reconection_prob"][2]
     }
 
-    all_the_best=[]
+    # FIX: all_the_best must be a queue
+    all_the_best = Queue(queue_size)
     while True:
-        if not len(better):
+        if not len(best):
             break
         
-        iteration, combination = better.pop(0)
+        iteration, combination = best.pop(0)
         
         if iteration >= depth:
             continue
@@ -143,7 +159,7 @@ def grid_search(hyperparameters_to_adjust:dict, data_path, output_path, depth:in
                 "reconection_prob": (steps[iteration-1]["reconection_prob"] / (hyperparameters_to_adjust["reconection_prob"][1] + 1))
             }
 
-        all_the_best.append(combination)
+        all_the_best.add(*combination)
         
         params = {
             "sigma": get_param_tuple(combination[1][0], hyperparameters_to_adjust["sigma"], steps[iteration]["sigma"]),
@@ -159,14 +175,14 @@ def grid_search(hyperparameters_to_adjust:dict, data_path, output_path, depth:in
                 initial_value = 0
                 params[key] = (initial_value, number_of_values, increment, function_of_increment)
 
-        best_results = grid(generate_combinations(params),
+        first_results = grid(generate_combinations(params),
                             data=data, 
                             data_path = data_path,         
                             output_path = output_path,
                             queue_size= queue_size
                         )
         
-        better += [(iteration + 1, elem) for elem in best_results]
+        best += [(iteration + 1, elem) for elem in first_results]
 
     return all_the_best
 
@@ -184,18 +200,18 @@ hyperparameters_to_adjust = {
 }
 
 
-# grid_search(
-#     hyperparameters_to_adjust,
-#     '/media/dionisio35/Windows/_folders/_new/22/',
-#     '/media/dionisio35/Windows/_folders/_new/',
-#     5,
-#     5,
-# )
+grid_search(
+    hyperparameters_to_adjust,
+    '/media/dionisio35/Windows/_folders/_new/22/',
+    '/media/dionisio35/Windows/_folders/_new/',
+    5,
+    2,
+)
 
 
-grid_search(hyperparameters_to_adjust, 
-            data_path="/home/lauren/Documentos/ESN/data/MG/16.8",         
-            output_path="/home/lauren/Documentos/ESN/forecasting",
-            depth=5,
-            queue_size = 3) 
+# grid_search(hyperparameters_to_adjust, 
+#             data_path="/home/lauren/Documentos/ESN/data/MG/16.8",         
+#             output_path="/home/lauren/Documentos/ESN/forecasting",
+#             depth=5,
+#             queue_size = 3) 
 
