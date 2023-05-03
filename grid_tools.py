@@ -1,5 +1,5 @@
 from os import makedirs, listdir, system
-from os.path import join, isdir
+from os.path import join, isdir, split
 
 from threading import Thread
 from random import randint
@@ -28,13 +28,13 @@ class Queue:
             self.queue.pop()
     
     
-    def decide(self, l:list, combination, threshold):
+    def decide(self, l:list, combination: tuple, folder: str, threshold: int):
         for i, x in enumerate(l):
             if x > threshold:
-                self.add(i, combination)
+                self.add(i, (combination, folder))
                 break
             elif i == len(l) - 1:
-                self.add(i, combination)
+                self.add(i, (combination, folder))
                 break
 
 
