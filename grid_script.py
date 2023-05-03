@@ -1,8 +1,10 @@
 from grid_tools import *
+import shutil
 
 
 '''
 <output dir>
+---- results
 ---- output
 ---- ---- <name>
 ---- ---- ---- trained_model
@@ -12,7 +14,7 @@ from grid_tools import *
 '''      
 
 
-def grid(combinations:list[list], data:list[str], data_path:str, output_path:str, queue_size:int, u:int=5000, tl:int=1000, threshold:float=0.01):
+def grid(combinations:list[list], data:list[str], output_path:str, queue_size:int, u:int=5000, tl:int=20000, threshold:float=0.01):
     
     # Queue for best cases, n is the max number of cases
     best = Queue(queue_size)
@@ -106,7 +108,7 @@ def grid(combinations:list[list], data:list[str], data_path:str, output_path:str
 
 
 
-def grid_search(hyperparameters_to_adjust:dict, data_path, output_path, depth:int, queue_size:int, u=5000, tl=20000, threshold=0.01):
+def grid_search(hyperparameters_to_adjust: dict, data_path: str, output_path: str, depth: int, queue_size: int, u: int=5000, tl: int=1000, threshold: int=0.01):
     
     # List all the files on the data folder
     data: list[str] = [join(data_path, p) for p in listdir(data_path)]
@@ -123,13 +125,16 @@ def grid_search(hyperparameters_to_adjust:dict, data_path, output_path, depth:in
 
     # First search
     first_results = grid(combinations,
-        data=data, 
-        data_path = data_path,         
+        data=data,        
         output_path = output_path,
         queue_size= queue_size,
+        u=u,
+        tl=tl,
+        threshold=threshold
     )
 
     # Get best results
+    # data: (<mse index>, (<hyperparameters>, <path>))
     best = [(1, elem) for elem in first_results]
     
     # Generate 
@@ -181,10 +186,12 @@ def grid_search(hyperparameters_to_adjust:dict, data_path, output_path, depth:in
                 params[key] = (initial_value, number_of_values, increment, function_of_increment)
 
         first_results = grid(generate_combinations(params),
-                            data=data, 
-                            data_path = data_path,         
+                            data=data,         
                             output_path = output_path,
-                            queue_size= queue_size
+                            queue_size= queue_size,
+                            u=u,
+                            tl=tl,
+                            threshold=threshold
                         )
         
         best += [(iteration + 1, elem) for elem in first_results]
@@ -201,7 +208,7 @@ def grid_search(hyperparameters_to_adjust:dict, data_path, output_path, depth:in
 hyperparameters_to_adjust = {
     "sigma": (0.2, 5, 0.2, lambda x, y, i: round(x + y * i, 2)),
     "degree": (2, 4, 2, lambda x, y, i: round(x + y * i, 2)),
-    "ritch_regularization": (10e-5, 5, 0.1, lambda x, y, i: round(x * y**i, 8)),
+    "ritch_regularization": (10e-5, 5, 0.1, lambda x, y, i: x * y**i, 8),
     "spectral_radio": (0.9, 16 , 0.01, lambda x, y, i: round(x + y * i, 2)),
     "reconection_prob": (0, 6, 0.2, lambda x, y, i: round(x + y*i, 2))
 }
@@ -211,14 +218,6 @@ grid_search(
     hyperparameters_to_adjust,
     '/media/dionisio35/Windows/_folders/_new/22/',
     '/media/dionisio35/Windows/_folders/_new/',
-    5,
+    1,
     2,
 )
-
-
-# grid_search(hyperparameters_to_adjust, 
-#             data_path="/home/lauren/Documentos/ESN/data/MG/16.8",         
-#             output_path="/home/lauren/Documentos/ESN/forecasting",
-#             depth=5,
-#             queue_size = 3) 
-
