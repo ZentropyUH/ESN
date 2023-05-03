@@ -1,15 +1,8 @@
-import os
-from itertools import product
-# from enum import Enum
-
-# class Parameters(Enum):
-#     SIGMA=0
-#     DEGREE=1
-#     REGULARIZATION=2
-#     SPECTRAL_RATIO=3
-#     RECONECTION_PROB=4
+from grid_tools import *
+import shutil
 
 
+<<<<<<< HEAD
 def grid(hyperparameters_to_adjust:dict, data_file_path, output_file, u=6000, threshold=0.1):   
     """
     Generate grid of hiperparameters for grid search
@@ -20,42 +13,110 @@ def grid(hyperparameters_to_adjust:dict, data_file_path, output_file, u=6000, th
     for combination in product(*params):# crea todas las combinaciones de los hiperparametros
         train(combination,data_file_path, output_file,u)
         break
+=======
+'''
+<output dir>
+---- results
+---- output
+---- ---- <name>
+---- ---- ---- trained_model
+---- ---- ---- predictions
+---- ---- ---- mse
+---- ---- ---- mse_mean
+'''      
+>>>>>>> dev-df
 
 
+def grid(combinations:list[list], data:list[str], output_path:str, queue_size:int, u:int=5000, tl:int=20000, threshold:float=0.01):
+    
+    # Queue for best cases, n is the max number of cases
+    best = Queue(queue_size)
 
-def train(params, data_file_path,output_file,u):    
-    instruction=f"python3 ./main.py train \
-            -m ESN \
-            -ri WattsStrogatzOwn\
-            -df {data_file_path} \
-            -o {output_file} \
-            -rs {params[0]} \
-            -sr {params[3]} \
-            -rw {params[4]} \
-            -u {u} \
-            -rd {params[1]} \
-            -rg {params[2]}"
+    #Create all the combinations of hyperparameters
+    for combination in product(*combinations):
+        
+        # Select the data to train
+        train_index = randint(0, len(data) - 1)
+        train_data_path = data[train_index]
 
-    os.system(instruction)
+        # Create the trained model folder
+        current_path = join(output_path, '_'.join([str(x) for x in combination]))
+        trained_model_path = join(current_path, 'trained_model')
+        
+        # Create forecast folder
+        forecast_path = join(current_path, 'forecast')
+        makedirs(forecast_path, exist_ok=True)
+        
+        # Create folder for the mse of predictions
+        mse_path = join(current_path, 'mse')
+        makedirs(mse_path, exist_ok=True)
 
-
-def forecast(instruction:str):
-    os.system(instruction)
-
-
-# los hiperparametros van a ser de la forma: nombre:(valor_inicial,numero_de_valores,incremento,funcion_de_incremento)
-# los parametros de la funcion de incremento son: valor_inicial,incremento,valor_actual_de_la_iteracion
-hyperparameters_to_adjust = {"sigma":(0,5,0.2,lambda x,y,i: x+y*i),
-                        "degree":(2,4,2,lambda x,y,i: x+y*i),
-                        "ritch_regularization":(10e-5,5,0.1,lambda x,y,i: x*y**i),
-                        "spectral_radio": (0.9, 10 ,0.02, lambda x,y,i: x+y*i),
-                        "reconection_prob": (0.2, 5, 0.2, lambda x,y,i: x+y*i)}
-
+        # Create the folder mean
+        mean_path = join(current_path, 'mse_mean')
+        makedirs(mean_path, exist_ok=True)
 
 
-grid(hyperparameters_to_adjust, 
-        data_file_path="/home/lauren/Documentos/ESN/data/MG/16.8/MG_tau16.8_dt0.05_n250000_t-end12500.0_seed2636.csv",         
-        output_file="/home/lauren/Documentos/ESN/forecasting") 
+        # Train
+        train(combination, train_data_path, current_path, u, tl, 'trained_model')
+
+        # List of Threads
+        forecast_list: list[Thread] = []
+        
+        for fn, current_data in enumerate(data[:3]): # DELETE
+            
+            # Thread for forecast
+            current = Thread(
+                target = forecast,
+                kwargs={
+                    "prediction_steps": 1000,
+                    "train_transient": tl,
+                    "trained_model_path": trained_model_path,
+                    "prediction_path": forecast_path,
+                    "data_file": current_data,
+                    "forecast_name": fn,
+                    "trained": current_data == train_data_path,
+                }
+            )
+            
+            # Add Thread to queue
+            forecast_list.append(current)
+            # Start Thread
+            current.start()
+        
+        # Wait for all Threads to finish
+        for thread in forecast_list:
+            thread.join()
+        
+
+
+        forecast_data = [join(forecast_path, x) for x in listdir(forecast_path)]
+        
+        mse = [[np.square(np.subtract(f, d)).mean()
+                for f, d in zip(pd.read_csv(forecast_file).to_numpy(), pd.read_csv(data_file).to_numpy()[(1000 + 1000 + tl):])]
+                for forecast_file, data_file in zip(forecast_data, data)]
+
+        # Sum all the mse
+        mean = []
+        for i, current in enumerate(mse):
+            
+            # Save current mse
+            save_csv(current, "{}.csv".format(i), mse_path)
+            
+            if len(mean) == 0:
+                mean = current
+            else:
+                mean = np.add(mean, current)
+
+        mean = [x / len(data[:3]) for x in mean] # DELETE
+
+        # Save the csv
+        save_csv(mean, "mse_mean.csv", mean_path)
+
+        best.decide(mean, combination, current_path, threshold)
+
+        break # DELETE
+
+    return best.queue
 
 
 hyperparameters_to_adjust={"sigma":(0,5,0.2,lambda x,y: x+y),
@@ -65,30 +126,102 @@ hyperparameters_to_adjust={"sigma":(0,5,0.2,lambda x,y: x+y),
                   
 
 
- ##Example
-    # train("python3 ./main.py train \
-    #         -m ESN \
-    #         -ri WattsStrogatzOwn\
-    #         -df /home/lauren/Documentos/ESN/data/MG/16.8/MG_tau16.8_dt0.05_n250000_t-end12500.0_seed2636.csv \
-    #         -o /home/lauren/Documentos/ESN/trained \
-    #         -rs 0.2 \
-    #         -sr 1.21 \
-    #         -rw 0.5 \
-    #         -u 6000 \
-    #         -rd 2 \
-    #         -rg 10e-4")
+def grid_search(hyperparameters_to_adjust: dict, data_path: str, output_path: str, depth: int, queue_size: int, u: int=5000, tl: int=1000, threshold: int=0.01):
+    
+    # List all the files on the data folder
+    data: list[str] = [join(data_path, p) for p in listdir(data_path)]
 
-    # forecast("python3 ./main.py forecast \
-    #     -fm classic \
-    #     -fl 1000 \
-    #     -sil 50\
-    #     -tm /home/lauren/Documentos/ESN/trained/dta_'MG_tau16.8_dt0.05_n250000_t-end12500.0_seed2636.csv'-inp_scl_'0.5'-lr_'1.0'-mdl_'ESN'\
-    #     -rdout_'linear'-reg_'0.001'-res_deg_'2'-res_std_'0.2'-rw_'0.5'-sp_rad_'1.21'-train_len_'10000'-units_'6000'/saved_model.pb -it 1000 \
-    #     -df /home/lauren/Documentos/ESN/data/MG/16.8/MG_tau16.8_dt0.05_n250000_t-end12500.0_seed2636.csv -tr 1000 -tl 10000 \
-    #     -o /home/lauren/Documentos/ESN/forecasting")
+    # Create the output folder
+    output_path = join(output_path, 'output')
+    makedirs(output_path, exist_ok=True)
+
+    results_path = join(output_path, 'results')
+    makedirs(results_path, exist_ok=True)
+    
+    #Create a list[list] with the values of every hyperparameter
+    combinations = generate_combinations(hyperparameters_to_adjust)
+
+    # First search
+    first_results = grid(combinations,
+        data=data,        
+        output_path = output_path,
+        queue_size= queue_size,
+        u=u,
+        tl=tl,
+        threshold=threshold
+    )
+
+    # Get best results
+    # data: (<mse index>, (<hyperparameters>, <path>))
+    best = [(1, elem) for elem in first_results]
+    
+    # Generate 
+    steps = {}
+    steps[0]= {
+        "sigma": hyperparameters_to_adjust["sigma"][2],
+        "degree": hyperparameters_to_adjust["degree"][2],
+        "ritch_regularization": hyperparameters_to_adjust["ritch_regularization"][2],
+        "spectral_radio": hyperparameters_to_adjust["spectral_radio"][2],
+        "reconection_prob": hyperparameters_to_adjust["reconection_prob"][2]
+    }
+
+
+    all_the_best = Queue(queue_size)
+    while True:
+        if not len(best):
+            break
+        
+        iteration, best_data = best.pop(0)
+        
+        all_the_best.add(*best_data)
+
+        if iteration >= depth:
+            continue
+        
+        if not steps.get(iteration):
+            steps[iteration]={
+                "sigma": (steps[iteration-1]["sigma"] / (hyperparameters_to_adjust["sigma"][1] + 1)),
+                "degree": (steps[iteration-1]["degree"] / (hyperparameters_to_adjust["degree"][1] + 1)),
+                "ritch_regularization": (steps[iteration-1]["ritch_regularization"] / (hyperparameters_to_adjust["ritch_regularization"][1] + 1)),
+                "spectral_radio": (steps[iteration-1]["spectral_radio"] / (hyperparameters_to_adjust["spectral_radio"][1] + 1)),
+                "reconection_prob": (steps[iteration-1]["reconection_prob"] / (hyperparameters_to_adjust["reconection_prob"][1] + 1))
+            }
+
+        
+        
+        params = {
+            "sigma": get_param_tuple(best_data[1][0][0], hyperparameters_to_adjust["sigma"], steps[iteration]["sigma"]),
+            "degree":get_param_tuple(best_data[1][0][1], hyperparameters_to_adjust["degree"], steps[iteration]["degree"]),
+            "ritch_regularization": get_ritch_param_tuple(best_data[1][0][2], hyperparameters_to_adjust["ritch_regularization"], steps[iteration]["ritch_regularization"]),
+            "spectral_radio": get_param_tuple(best_data[1][0][3], hyperparameters_to_adjust["spectral_radio"], steps[iteration]["spectral_radio"]),
+            "reconection_prob": get_param_tuple(best_data[1][0][4], hyperparameters_to_adjust["reconection_prob"], steps[iteration]["reconection_prob"])
+        }
+        
+        for key in params.keys():
+            initial_value, number_of_values, increment, function_of_increment = params[key]
+            if initial_value < 0 :
+                initial_value = 0
+                params[key] = (initial_value, number_of_values, increment, function_of_increment)
+
+        first_results = grid(generate_combinations(params),
+                            data=data,         
+                            output_path = output_path,
+                            queue_size= queue_size,
+                            u=u,
+                            tl=tl,
+                            threshold=threshold
+                        )
+        
+        best += [(iteration + 1, elem) for elem in first_results]
+    
+    for i in all_the_best.queue:
+        folder = i[1][1]
+        folder_name = split(folder)[1]
+        shutil.copytree(folder, join(results_path, folder_name), dirs_exist_ok=True)
 
 
 
+<<<<<<< HEAD
 # os.system("python3 ./main.py forecast \
 #         -fm classic \
 #         -fl 1000 \
@@ -106,3 +239,23 @@ hyperparameters_to_adjust={"sigma":(0,5,0.2,lambda x,y: x+y),
 
 # "/home/lauren/Documentos/ESN/trained/dta_'MG_tau16.8_dt0.05_n250000_t-end12500.0_seed2636.csv'-inp_scl_'0.5'-lr_'1.0'-mdl_'ESN'-rdout_'linear'-reg_'0.001'-res_deg_'2'-res_std_'0.2'-rw_'0.5'-sp_rad_'1.21'-train_len_'10000'-units_'6000'"
 # os.system("python3 ./main.py forecast -fm classic  -fl 1000 -sil 50 -tm /home/lauren/Documentos/ESN/trained/dta_'MG_tau16.8_dt0.05_n250000_t-end12500.0_seed2636.csv'-inp_scl_'0.5'-lr_'1.0'-mdl_'ESN'-rdout_'linear'-reg_'0.001'-res_deg_'2'-res_std_'0.2'-rw_'0.5'-sp_rad_'1.21'-train_len_'10000'-units_'6000'/saved_model.pb -it 1000 -df /home/lauren/Documentos/ESN/data/MG/16.8/MG_tau16.8_dt0.05_n250000_t-end12500.0_seed2636.csv -tr 1000 -tl 10000  -o /home/lauren/Documentos/ESN/forecasting")
+=======
+# The hyperparameters will be of the form: name: (initial_value, number_of_values, increment, function_of_increment)
+# The parameters of the increment function are: initial_value, increment, current_value_of_the_iteration
+hyperparameters_to_adjust = {
+    "sigma": (0.2, 5, 0.2, lambda x, y, i: round(x + y * i, 2)),
+    "degree": (2, 4, 2, lambda x, y, i: round(x + y * i, 2)),
+    "ritch_regularization": (10e-5, 5, 0.1, lambda x, y, i: x * y**i, 8),
+    "spectral_radio": (0.9, 16 , 0.01, lambda x, y, i: round(x + y * i, 2)),
+    "reconection_prob": (0, 6, 0.2, lambda x, y, i: round(x + y*i, 2))
+}
+
+
+grid_search(
+    hyperparameters_to_adjust,
+    '/media/dionisio35/Windows/_folders/_new/22/',
+    '/media/dionisio35/Windows/_folders/_new/',
+    1,
+    2,
+)
+>>>>>>> dev-df

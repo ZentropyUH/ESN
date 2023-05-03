@@ -1,5 +1,8 @@
 """Do main stuff here. Correct docstring later."""
 import timeit
+from os.path import realpath, join, dirname
+
+from keras.models import load_model
 
 import numpy as np
 
@@ -27,13 +30,213 @@ from plotters import *
 # os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 
+
+from os.path import realpath, join, dirname
+
+def generation(data_path, training_name, units, train, init_transient, transient, degree, sigma,
+               spectral_radius, regularization, rewiring_p):
+
+    (
+        transient_data,
+        train_data,
+        train_target,
+        forecast_transient_data,
+        val_data,
+        val_target,
+    ) = load_data(
+        data_path,
+        transient=transient,
+        train_length=train,
+        init_transient=init_transient,
+    )
+    
+    reservoir_init = WattsStrogatzOwn(
+        degree=degree,
+        spectral_radius=spectral_radius,
+        sigma=sigma,
+        rewiring_p=rewiring_p,
+    )
+    
+    model:ESN = get_simple_esn(
+        units=units,
+        # seed=seed,
+        spectral_radius=spectral_radius,
+        degree=degree,
+        sigma=sigma,
+        reservoir_initializer=reservoir_init,
+        leak_rate=1,
+    )
+    
+    model.verify_esp(transient_data[:, :50, :], times=10)
+
+    final_model = linear_readout(
+        model,
+        transient_data,
+        train_data,
+        train_target,
+        regularization=regularization,
+        method="ridge",
+    )
+
+    print("Training finished, number of parameters: ", final_model.count_params())
+
+    final_model.save(training_name)
+
+
+def predict(data_path, output_name, training_name, L, N, init_transient, transient, train, forecast_len):
+    (
+        transient_data,
+        train_data,
+        train_target,
+        forecast_transient_data,
+        val_data,
+        val_target,
+    ) = load_data(
+        data_path,
+        transient=transient,
+        train_length=train,
+        init_transient=init_transient,
+    )
+
+
+    final_model = keras.models.load_model(training_name)
+    # final_model = load_model(training_name)
+
+    predictions = classic_forecast(
+        final_model,
+        forecast_transient_data,
+        val_data,
+        val_target,
+        forecast_length=forecast_len,
+        save_name= output_name
+    )
+
+    # ylabels = ["X", "Y", "z"]
+    # yvalues = np.linspace(0, L, train_data.shape[-1])
+
+    # plot(L, predictions, val_target, yvalues, ylabels)
+
+
+def plot(L, predictions, val_target, yvalues, ylabels):
+    max_lyap = lyap_ks(1, L)
+    dt = 0.25 * max_lyap
+    print("Max Lyapunov exponent: ", max_lyap)
+
+    # plot_linear_forecast(
+    #     predictions,
+    #     val_target,
+    #     dt=dt,
+    #     # title=title,
+    #     xlabel="t",
+    #     # ylabels=ylabels,
+    #     save_path="D:\\data\\" + 'a',
+    # )
+    
+    plot_contourf_forecast(
+        predictions,
+        val_target,
+        dt=dt,
+        # title=title,
+        save_path="plots/" + 'a',
+        show=True,
+        # yvalues=yvalues,
+    )
+
+    # try:
+    #     plot_linear_forecast(
+    #         predictions,
+    #         val_target,
+    #         dt=dt,
+    #         # title=title,
+    #         xlabel="t",
+    #         ylabels=ylabels,
+    #         save_path="D:\\data\\" + 'a',
+    #     )
+    #     print('successful plot_linear_forecast')
+    # except Exception as e:
+    #     print('failed plot_linear_forecast')
+    #     print(e)
+    
+
+    # try:
+    #     plot_contourf_forecast(
+    #         predictions,
+    #         val_target,
+    #         dt=dt,
+    #         # title=title,
+    #         save_path="plots/" + 'a',
+    #         show=True,
+    #         yvalues=yvalues,
+    #     )
+    #     print('successful plot_contourf_forecast')
+    # except Exception as e:
+    #     print('failed plot_contourf_forecast')
+    #     print(e)
+
+
+
+def stuff():
+    init_transient = 1000
+    transient = 1000
+    train = 20000
+    units = 6000
+    forecast_len = 350
+
+    # variate
+    spectral_radius_list = np.arange(0.9, 1.06, 0.01)
+    degree_list = np.arange(2,9,2)
+    sigma_list = np.arange(0.2, 1.1, 0.2)
+    regularization_list = [10**(-4), 10**(-5), 10**(-6), 10**(-7), 10**(-8)]
+    rewiring_p_list= np.arange(0.2, 1.1, 0.2)
+
+    seed= 1000
+
+    #for multi-reservoir
+    reservoir_amount = 8
+    overlap = 3
+
+    L = 22
+    N = 128
+
+    path= realpath(f"D:\data\KS\L{L}_N{N}_dt0.25")
+    name = f"KS_L{L}_N{N}_dt0.25_steps160000_diffusion-k1_run0.csv"
+
+    title = f"Forecasting of the Kuramoto-Sivashinsky model with {units} units"
+
+    for spectral_radius in spectral_radius_list:
+        for degree in degree_list:
+            for sigma in sigma_list:
+                for regularization in regularization_list:
+                    for rewiring_p in rewiring_p_list:
+
+                        training_name= (f'model_spectral_'
+                                        f'radius{spectral_radius}_'
+                                        f'degree{degree}_'
+                                        f'sigma{sigma}_'
+                                        f'regularization{regularization}_'
+                                        f'rewiring_p{rewiring_p}'
+                                        )
+
+                        generation(join(path, name), training_name, units, train, init_transient, transient, degree, sigma,
+                                spectral_radius, regularization, rewiring_p)
+                        
+                        for n in range(0, 30):
+                            name = f"KS_L{L}_N{N}_dt0.25_steps160000_diffusion-k1_run{n}.csv"
+                            output_name= join('D:\\data\\out\\', training_name + f'___output{n}')
+                            predict(join(path, name), output_name, training_name, L, N, init_transient, transient, train, forecast_len)
+    
+
+
+stuff()
+
+
 def main():
     """Tryout many things."""
     init_transient = 1000
     transient = 1000
-    train = 10000
+    train = 20000
 
-    units = 4000
+    units = 6000
     spectral_radius = 0.45  # KS
     # spectral_radius = 1.21 # Mackey-Glass
 
@@ -61,7 +264,7 @@ def main():
 
     print("Max Lyapunov exponent: ", max_lyap)
 
-    load_path = f"../data/KS/L{L}_dt0.25/"
+    load_path = realpath(f"D:\data\KS\L{L}_N{N}_dt0.25")
 
     name = f"KS_L{L}_N{N}_dt0.25_steps160000_diffusion-k1_run0.csv"
     # name = "mackey_alpha-0.2_beta-10_gamma-0.1_tau-17_n-150000.csv"
@@ -71,9 +274,9 @@ def main():
     # title = f"Forecasting of the Mackey-Glass model with {units} units"  # Mackey-Glass
     # title = f"Forecasting of the Lorenz model with {units} units"  # Lorenz
 
-    save_name = (
-        f"{name[:-4]}_units{units}_train{train}_inittransient{init_transient}"
-        f"_transient{transient}_degree{degree}_sigma{sigma}_spectral_radius{spectral_radius}"
+    save_name = join(
+        f"{name[:-4]}_units{units}_train{train}_inittransient{init_transient}",
+        f"_transient{transient}_degree{degree}_sigma{sigma}_spectral_radius{spectral_radius}",
         f"_regularization{regularization}_forecast_len{forecast_len}"
     )
 
@@ -85,13 +288,13 @@ def main():
         val_data,
         val_target,
     ) = load_data(
-        load_path + name,
+        join(load_path, name),
         transient=transient,
         train_length=train,
         init_transient=init_transient,
     )
 
-    # ylabels = ["X", "Y", "z"]  # For the linear plot of lorenz
+    ylabels = ["X", "Y", "z"]  # For the linear plot of lorenz
     yvalues = np.linspace(0, L, train_data.shape[-1])
 
     input_init = None
@@ -172,7 +375,6 @@ def main():
         # show_shapes=True,
         to_file="model.png",
     )
-    exit(0)
 
     # predictions = classic_forecast(
     #     final_model,
@@ -203,20 +405,19 @@ def main():
     )
 
     print(predictions.shape)
-    exit(0)
 
     # plt.plot(monitored["rms_error"])
     # plt.show()
 
-    # plot_linear_forecast(
-    #     predictions,
-    #     val_target,
-    #     dt=dt,
-    #     title=title,
-    #     xlabel="t",
-    #     ylabels=ylabels,
-    #     save_path="plots/" + save_name,
-    # )
+    plot_linear_forecast(
+        predictions,
+        val_target,
+        dt=dt,
+        title=title,
+        xlabel="t",
+        # ylabels=ylabels,
+        save_path="plots/" + save_name,
+    )
 
     plot_contourf_forecast(
         predictions,
@@ -244,5 +445,5 @@ def main():
 # # # # # # For hyperas
 
 
-if __name__ == "__main__":
-    print(timeit.timeit(main, number=1))
+# if __name__ == "__main__":
+#     print(timeit.timeit(main, number=1))

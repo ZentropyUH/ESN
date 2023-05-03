@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 import json
 import os
+from os.path import join
 
 # To avoid tensorflow verbosity
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
@@ -267,6 +268,13 @@ def cli(ctx, verbose):
     type=click.Path(exists=True),
     help="Data file to be used for training.",
 )
+@click.option(
+    "--trained-name",
+    "-tn",
+    type=click.STRING,
+    default=None,
+    help="Training folder name.",
+)
 @click.pass_context
 ##################################################################################################################
 def train(
@@ -297,6 +305,7 @@ def train(
     train_length,
     data_file,
     output_dir,
+    trained_name,
 ):
     """
     Trains an Echo State Network on the data provided in the data file.
@@ -516,6 +525,11 @@ def train(
                                             output_dir
                                             + f"/{get_name_from_dict(name_dict)}"
                                         )
+
+                                        from os.path import join
+                                        if trained_name is not None:
+                                            model_name = join(output_dir, trained_name)
+
                                         # Save the model and save the parameters dictionary in a json file inside the model folder
                                         model.save(model_name)
                                         with open(
@@ -524,6 +538,7 @@ def train(
                                             encoding="utf-8",
                                         ) as _f_:
                                             json.dump(params, _f_)
+
 
 
 ################ FORECAST PARAMETERS ################
@@ -615,6 +630,13 @@ def train(
     type=click.Path(exists=True),
     help="The data file to be used for training the model",
 )
+@click.option(
+    "--forecast-name",
+    "-fn",
+    type=click.STRING,
+    default=None,
+    help="Forecast file name.",
+)
 def forecast(
     forecast_method: str,
     forecast_length: int,
@@ -626,6 +648,7 @@ def forecast(
     output_dir: str,
     trained_model: str,
     data_file: str,
+    forecast_name: str,
 ):
     """Load a model and forecast the data.
 
@@ -639,7 +662,6 @@ def forecast(
         None
 
     """
-
 
     # Load the data
     (
@@ -691,12 +713,16 @@ def forecast(
     # save in the output directory with the name of the data file (without the path) and the model name attached
     # Prune path from data_file
     data_file_name = data_file.split("/")[-1]
+    
     # Prune path from trained_model
-    trained_model_name = trained_model.split("/")[-1]
+    if forecast_name is None:
+        trained_model_name = trained_model.split("/")[-1] + f"_{forecast_method}_forecasted"
+    else:
+        trained_model_name = forecast_name
 
     # Save the forecasted data as csv using pandas
     pd.DataFrame(predictions).to_csv(
-        f"{output_dir}/{trained_model_name}_{forecast_method}_forecasted.csv",
+        join(output_dir, trained_model_name + ".csv"),
         index=False,
         header=None,
     )
