@@ -1,19 +1,7 @@
 from grid_tools import *
 import shutil
+import time
 
-
-<<<<<<< HEAD
-def grid(hyperparameters_to_adjust:dict, data_file_path, output_file, u=6000, threshold=0.1):   
-    """
-    Generate grid of hiperparameters for grid search
-    """
-    params=[]
-    for elem in hyperparameters_to_adjust.values():# crea una lista de listas de los valores que puede tomar cada hiperparametro
-        params.append([elem[3](elem[0],elem[2],i) for i in range(elem[1])])
-    for combination in product(*params):# crea todas las combinaciones de los hiperparametros
-        train(combination,data_file_path, output_file,u)
-        break
-=======
 '''
 <output dir>
 ---- results
@@ -24,11 +12,13 @@ def grid(hyperparameters_to_adjust:dict, data_file_path, output_file, u=6000, th
 ---- ---- ---- mse
 ---- ---- ---- mse_mean
 '''      
->>>>>>> dev-df
 
 
 def grid(combinations:list[list], data:list[str], output_path:str, queue_size:int, u:int=5000, tl:int=20000, threshold:float=0.01):
     
+    train_time = np.array()
+    forecast_time = np.array()
+
     # Queue for best cases, n is the max number of cases
     best = Queue(queue_size)
 
@@ -57,13 +47,20 @@ def grid(combinations:list[list], data:list[str], output_path:str, queue_size:in
 
 
         # Train
+        start_train_time = time.time()
+
         train(combination, train_data_path, current_path, u, tl, 'trained_model')
+
+        end_train_time = time.time()
+        time.append(end_train_time - start_train_time)
+
 
         # List of Threads
         forecast_list: list[Thread] = []
         
         for fn, current_data in enumerate(data[:3]): # DELETE
             
+            start_forecast_time = time.time()
             # Thread for forecast
             current = Thread(
                 target = forecast,
@@ -77,6 +74,8 @@ def grid(combinations:list[list], data:list[str], output_path:str, queue_size:in
                     "trained": current_data == train_data_path,
                 }
             )
+            end_forecast_time = time.time()
+            forecast_time.append(end_forecast_time - start_forecast_time)
             
             # Add Thread to queue
             forecast_list.append(current)
@@ -111,8 +110,13 @@ def grid(combinations:list[list], data:list[str], output_path:str, queue_size:in
 
         # Save the csv
         save_csv(mean, "mse_mean.csv", mean_path)
+        
+
 
         best.decide(mean, combination, current_path, threshold)
+
+        calculate_aprox_time(train_time, "time_train", output_path)
+        calculate_aprox_time(forecast_time, "time_forecast", output_path)
 
         break # DELETE
 
@@ -221,7 +225,6 @@ def grid_search(hyperparameters_to_adjust: dict, data_path: str, output_path: st
 
 
 
-<<<<<<< HEAD
 # os.system("python3 ./main.py forecast \
 #         -fm classic \
 #         -fl 1000 \
@@ -239,7 +242,6 @@ def grid_search(hyperparameters_to_adjust: dict, data_path: str, output_path: st
 
 # "/home/lauren/Documentos/ESN/trained/dta_'MG_tau16.8_dt0.05_n250000_t-end12500.0_seed2636.csv'-inp_scl_'0.5'-lr_'1.0'-mdl_'ESN'-rdout_'linear'-reg_'0.001'-res_deg_'2'-res_std_'0.2'-rw_'0.5'-sp_rad_'1.21'-train_len_'10000'-units_'6000'"
 # os.system("python3 ./main.py forecast -fm classic  -fl 1000 -sil 50 -tm /home/lauren/Documentos/ESN/trained/dta_'MG_tau16.8_dt0.05_n250000_t-end12500.0_seed2636.csv'-inp_scl_'0.5'-lr_'1.0'-mdl_'ESN'-rdout_'linear'-reg_'0.001'-res_deg_'2'-res_std_'0.2'-rw_'0.5'-sp_rad_'1.21'-train_len_'10000'-units_'6000'/saved_model.pb -it 1000 -df /home/lauren/Documentos/ESN/data/MG/16.8/MG_tau16.8_dt0.05_n250000_t-end12500.0_seed2636.csv -tr 1000 -tl 10000  -o /home/lauren/Documentos/ESN/forecasting")
-=======
 # The hyperparameters will be of the form: name: (initial_value, number_of_values, increment, function_of_increment)
 # The parameters of the increment function are: initial_value, increment, current_value_of_the_iteration
 hyperparameters_to_adjust = {
@@ -253,9 +255,8 @@ hyperparameters_to_adjust = {
 
 grid_search(
     hyperparameters_to_adjust,
-    '/media/dionisio35/Windows/_folders/_new/22/',
-    '/media/dionisio35/Windows/_folders/_new/',
+    '/home/sheyla/tesis/ESN/data/Lorenz',
+    '/home/sheyla/tesis/grid_out/',
     1,
     2,
 )
->>>>>>> dev-df
