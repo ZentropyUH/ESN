@@ -49,7 +49,7 @@ def grid(combinations:list[list], data:list[str], output_path:str, queue_size:in
         # List of Threads
         forecast_list: list[Thread] = []
         
-        for fn, current_data in enumerate(data[:3]): # DELETE
+        for fn, current_data in enumerate(data):
             
             # Thread for forecast
             current = Thread(
@@ -94,14 +94,12 @@ def grid(combinations:list[list], data:list[str], output_path:str, queue_size:in
             else:
                 mean = np.add(mean, current)
 
-        mean = [x / len(data[:3]) for x in mean] # DELETE
+        mean = [x / len(data) for x in mean]
 
         # Save the csv
         save_csv(mean, "mse_mean.csv", mean_path)
 
         best.decide(mean, combination, current_path, threshold)
-
-        break # DELETE
 
     return best.queue
 
@@ -218,6 +216,6 @@ grid_search(
     hyperparameters_to_adjust,
     '/media/dionisio35/Windows/_folders/_new/22/',
     '/media/dionisio35/Windows/_folders/_new/',
-    1,
+    3,
     2,
 )
