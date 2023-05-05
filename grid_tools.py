@@ -74,21 +74,19 @@ def generate_combinations(params:dict):
 
 def get_param_tuple(value, param , step):    
     initial_value, number_of_values, _ , function_of_increment = param
-    initial_value=value-int(number_of_values/2)*step
-    return initial_value,number_of_values,step,function_of_increment
+    initial_value = value - int(number_of_values / 2) * step
+    return initial_value, number_of_values, step, function_of_increment
 
 def get_ritch_param_tuple(value, param , step):    
     initial_value, number_of_values, _ , function_of_increment = param
-    initial_value=value/int(number_of_values/2)*step
-    return initial_value,number_of_values,step,function_of_increment
+    initial_value = value / int(number_of_values / 2) * step
+    return initial_value, number_of_values, step, function_of_increment
 
-def calculate_aprox_time(time: list, name_file, output_path):
-    times_file = open(output_path + f'results/{name_file}.txt', 'x')
-    for t in range(len(time)):
-        mean = time.sum[:t+1] / len(time)-(t+1)
-        times_file.write(str(mean) + '\n')
+def calculate_aprox_time(time: list, file: str, text):
+    with open(file, 'a+') as f:
+        f.write('{}: {}\n'.format(text, str(np.mean(time))))
 
-
+print(np.mean([1,5,6]))
 # main train
 def train(params, data_file_path, output_file, u, tl, tn):    
     instruction = f"python3 ./main.py train \

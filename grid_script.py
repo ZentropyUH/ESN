@@ -14,10 +14,7 @@ import time
 '''      
 
 
-def grid(combinations:list[list], data:list[str], output_path:str, queue_size:int, u:int=5000, tl:int=20000, threshold:float=0.01):
-    
-    train_time = np.array()
-    forecast_time = np.array()
+def grid(combinations:list[list], data:list[str], output_path:str, queue_size:int, u:int=5000, tl:int=20000, threshold:float=0.01, train_time:list=[], forecast_time:list=[]):
 
     # Queue for best cases, n is the max number of cases
     best = Queue(queue_size)
@@ -48,11 +45,8 @@ def grid(combinations:list[list], data:list[str], output_path:str, queue_size:in
 
         # Train
         start_train_time = time.time()
-
         train(combination, train_data_path, current_path, u, tl, 'trained_model')
-
-        end_train_time = time.time()
-        time.append(end_train_time - start_train_time)
+        train_time.append(time.time() - start_train_time)
 
 
         # List of Threads
@@ -60,7 +54,6 @@ def grid(combinations:list[list], data:list[str], output_path:str, queue_size:in
         
         for fn, current_data in enumerate(data):
             
-            start_forecast_time = time.time()
             # Thread for forecast
             current = Thread(
                 target = forecast,
@@ -74,22 +67,25 @@ def grid(combinations:list[list], data:list[str], output_path:str, queue_size:in
                     "trained": current_data == train_data_path,
                 }
             )
-            end_forecast_time = time.time()
-            forecast_time.append(end_forecast_time - start_forecast_time)
-            
             # Add Thread to queue
             forecast_list.append(current)
-            # Start Thread
-            current.start()
+            
         
+        # Start Threads
+        start_forecast_time = time.time()
+        for thread in forecast_list:
+            thread.start()
+
         # Wait for all Threads to finish
         for thread in forecast_list:
             thread.join()
         
+        forecast_time.append((time.time() - start_forecast_time)/len(data))
 
-
+        # Get Forecast data files
         forecast_data = [join(forecast_path, x) for x in listdir(forecast_path)]
         
+        # Calculate MSE
         mse = [[np.square(np.subtract(f, d)).mean()
                 for f, d in zip(pd.read_csv(forecast_file).to_numpy(), pd.read_csv(data_file).to_numpy()[(1000 + 1000 + tl):])]
                 for forecast_file, data_file in zip(forecast_data, data)]
@@ -110,13 +106,8 @@ def grid(combinations:list[list], data:list[str], output_path:str, queue_size:in
 
         # Save the csv
         save_csv(mean, "mse_mean.csv", mean_path)
-        save_plots(data=mean,output_path=mean_path,name='mse_mean_plot.png')
+        save_plots(data=mean, output_path=mean_path, name='mse_mean_plot.png')
         best.decide(mean, combination, current_path, threshold)
-
-        calculate_aprox_time(train_time, "time_train", output_path)
-        calculate_aprox_time(forecast_time, "time_forecast", output_path)
-
-        break # DELETE
 
     return best.queue
 
@@ -139,6 +130,10 @@ def grid_search(hyperparameters_to_adjust: dict, data_path: str, output_path: st
 
     results_path = join(output_path, 'results')
     makedirs(results_path, exist_ok=True)
+
+    time_file = join(results_path, 'time.txt')
+    train_time = []
+    forecast_time = []
     
     #Create a list[list] with the values of every hyperparameter
     combinations = generate_combinations(hyperparameters_to_adjust)
@@ -150,7 +145,9 @@ def grid_search(hyperparameters_to_adjust: dict, data_path: str, output_path: st
         queue_size= queue_size,
         u=u,
         tl=tl,
-        threshold=threshold
+        threshold=threshold,
+        train_time=train_time,
+        forecast_time=forecast_time
     )
 
     # Get best results
@@ -211,11 +208,16 @@ def grid_search(hyperparameters_to_adjust: dict, data_path: str, output_path: st
                             queue_size= queue_size,
                             u=u,
                             tl=tl,
-                            threshold=threshold
+                            threshold=threshold,
+                            train_time=train_time,
+                            forecast_time=forecast_time
                         )
         
         best += [(iteration + 1, elem) for elem in first_results]
-    
+
+    calculate_aprox_time(train_time, time_file, 'Train Time')
+    calculate_aprox_time(forecast_time, time_file, 'Forecaast Time')
+
     for i in all_the_best.queue:
         folder = i[1][1]
         folder_name = split(folder)[1]
@@ -227,7 +229,7 @@ def grid_search(hyperparameters_to_adjust: dict, data_path: str, output_path: st
 hyperparameters_to_adjust = {
     "sigma": (0.2, 5, 0.2, lambda x, y, i: round(x + y * i, 2)),
     "degree": (2, 4, 2, lambda x, y, i: round(x + y * i, 2)),
-    "ritch_regularization": (10e-5, 5, 0.1, lambda x, y, i: x * y**i, 8),
+    "ritch_regularization": (10e-5, 5, 0.1, lambda x, y, i: x * y**i),
     "spectral_radio": (0.9, 16 , 0.01, lambda x, y, i: round(x + y * i, 2)),
     "reconection_prob": (0, 6, 0.2, lambda x, y, i: round(x + y*i, 2))
 }
