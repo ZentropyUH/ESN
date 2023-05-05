@@ -53,7 +53,7 @@ mkdir -p $ESN
 cp -r /data/tsa/destevez/ESN/ $ESN
 
 # TODO: data path
-data="$ESN/systems/data/"
+data="$ESN/systems/data/KS/35/N64/"
 
 srun python3 $ESN/grid_script.py -o $output -d $data -n 5 -m 2
 

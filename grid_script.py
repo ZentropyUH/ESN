@@ -119,7 +119,7 @@ hyperparameters_to_adjust={"sigma":(0,5,0.2,lambda x,y: x+y),
                   
 
 
-def grid_search(hyperparameters_to_adjust: dict, data_path: str, output_path: str, depth: int, queue_size: int, u: int=5000, tl: int=1000, threshold: int=0.01):
+def grid_search(hyperparameters_to_adjust: dict, data_path: str, output_path: str, depth: int, queue_size: int, u: int=9000, tl: int=20000, threshold: int=0.01):
     
     # List all the files on the data folder
     data: list[str] = [join(data_path, p) for p in listdir(data_path)]
@@ -131,6 +131,7 @@ def grid_search(hyperparameters_to_adjust: dict, data_path: str, output_path: st
     results_path = join(output_path, 'results')
     makedirs(results_path, exist_ok=True)
 
+    # Time
     time_file = join(results_path, 'time.txt')
     train_time = []
     forecast_time = []
