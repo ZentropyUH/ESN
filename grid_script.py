@@ -216,7 +216,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser("Hyperparametes")
     parser.add_argument('-o', '--output', help="Output path", type=str, required=True)
     parser.add_argument('-d', '--data', help="Data path", type=str, required=True)
-    parser.add_argument('-n', help="Search Tree depth", type=int, default=3)
+    parser.add_argument('-n', help="Search Tree depth", type=int, default=5)
     parser.add_argument('-m', help="Number of best to keep", type=int, default=2)
     args = parser.parse_args()
 
