@@ -246,4 +246,4 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
 
-    grid_search(hyperparameters_to_adjust, args.d, args.o, args.n, args.m)
+    grid_search(hyperparameters_to_adjust, args.data, args.output, args.n, args.m)

@@ -61,7 +61,9 @@ srun python3 $ESN/grid_script.py -o $output -d $data -n 5 -m 2
 # TODO: output directory
 # copy results to an accessable location
 # only copy things you really need
-cp -r $output /data/tsa/destevez/dennis/
+save="/data/tsa/destevez/dennis/"
+mkdir -p $save
+cp -r $output $save
 
 
 # Clean up after yourself
