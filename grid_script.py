@@ -98,7 +98,7 @@ def grid(combinations:list[list], data:list[str], output_path:str, queue_size:in
 
         # Save the csv
         save_csv(mean, "mse_mean.csv", mean_path)
-
+        save_plots(data=mean,output_path=mean_path,name='mse_mean_plot.png')
         best.decide(mean, combination, current_path, threshold)
 
     return best.queue
@@ -198,7 +198,6 @@ def grid_search(hyperparameters_to_adjust: dict, data_path: str, output_path: st
         folder = i[1][1]
         folder_name = split(folder)[1]
         shutil.copytree(folder, join(results_path, folder_name), dirs_exist_ok=True)
-
 
 
 # The hyperparameters will be of the form: name: (initial_value, number_of_values, increment, function_of_increment)

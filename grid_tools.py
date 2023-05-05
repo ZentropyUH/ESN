@@ -7,6 +7,8 @@ from itertools import product
 
 import pandas as pd
 import numpy as np
+import csv
+import matplotlib.pyplot as plt
 
 # Priority Queue with limited size, sorted from max to min
 class Queue:
@@ -37,6 +39,26 @@ class Queue:
                 self.add(i, (combination, folder))
                 break
 
+
+
+
+def save_plots(data, output_path,name):
+    plt.plot(data)
+    plt.xlabel('Time')
+    plt.ylabel('Mean square error')
+    plt.title('Plot of root mean square error')
+    plt.savefig(output_path + name)
+
+def save_plots_from_csv(input_path, output_path, name):
+    with open(input_path, 'r') as archivo:
+        data = list(csv.reader(archivo))
+
+    data = [float(date[0]) for date in data]
+    plt.plot(data)
+    plt.xlabel('Time')
+    plt.ylabel('Mean square error')
+    plt.title('Plot of root mean square error')
+    plt.savefig(output_path + name)
 
 
 def save_csv(data, name:str, path:str):
