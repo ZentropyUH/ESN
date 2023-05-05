@@ -38,7 +38,7 @@ mkdir -p $scratch
 cd $scratch
 
 
-# CHECK: outputs
+# Script output
 output="$scratch/out/"
 mkdir -p $output
 
@@ -47,7 +47,7 @@ mkdir -p $output
 
 
 
-# Copy your program (and maybe input files if you need them)
+# Copy all
 ESN="$scratch/ESN/"
 mkdir -p $ESN
 cp -r /data/tsa/destevez/ESN/ $ESN
@@ -58,16 +58,14 @@ data="$ESN/systems/data/KS/35/N64/"
 srun python3 $ESN/grid_script.py -o $output -d $data -n 5 -m 2
 
 
-# TODO: output directory
-# copy results to an accessable location
-# only copy things you really need
+# TODO: final path to save output
 save="/data/tsa/destevez/dennis/"
 mkdir -p $save
 cp -r $output $save
 
 
-# Clean up after yourself
+# Clean up all the shit
 rm -rf $scratch
 
-# exit gracefully
+# Exit gracefully
 exit 0
