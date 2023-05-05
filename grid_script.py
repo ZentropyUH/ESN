@@ -1,6 +1,6 @@
 from grid_tools import *
 import shutil
-
+import time
 
 '''
 <output dir>
@@ -16,6 +16,9 @@ import shutil
 
 def grid(combinations:list[list], data:list[str], output_path:str, queue_size:int, u:int=5000, tl:int=20000, threshold:float=0.01):
     
+    train_time = np.array()
+    forecast_time = np.array()
+
     # Queue for best cases, n is the max number of cases
     best = Queue(queue_size)
 
@@ -44,13 +47,20 @@ def grid(combinations:list[list], data:list[str], output_path:str, queue_size:in
 
 
         # Train
+        start_train_time = time.time()
+
         train(combination, train_data_path, current_path, u, tl, 'trained_model')
+
+        end_train_time = time.time()
+        time.append(end_train_time - start_train_time)
+
 
         # List of Threads
         forecast_list: list[Thread] = []
         
         for fn, current_data in enumerate(data):
             
+            start_forecast_time = time.time()
             # Thread for forecast
             current = Thread(
                 target = forecast,
@@ -64,6 +74,8 @@ def grid(combinations:list[list], data:list[str], output_path:str, queue_size:in
                     "trained": current_data == train_data_path,
                 }
             )
+            end_forecast_time = time.time()
+            forecast_time.append(end_forecast_time - start_forecast_time)
             
             # Add Thread to queue
             forecast_list.append(current)
@@ -101,9 +113,19 @@ def grid(combinations:list[list], data:list[str], output_path:str, queue_size:in
         save_plots(data=mean,output_path=mean_path,name='mse_mean_plot.png')
         best.decide(mean, combination, current_path, threshold)
 
+        calculate_aprox_time(train_time, "time_train", output_path)
+        calculate_aprox_time(forecast_time, "time_forecast", output_path)
+
+        break # DELETE
+
     return best.queue
 
 
+hyperparameters_to_adjust={"sigma":(0,5,0.2,lambda x,y: x+y),
+                        "degree_k":(2,4,2,lambda x,y: x+y),
+                        "ritch_regularization":(10e-4,10,4,lambda x,y: x*y),
+                        "spectral_radio": (0.9, 10 ,0.02, lambda x,y,i: x+y*i)}
+                  
 
 
 def grid_search(hyperparameters_to_adjust: dict, data_path: str, output_path: str, depth: int, queue_size: int, u: int=5000, tl: int=1000, threshold: int=0.01):
