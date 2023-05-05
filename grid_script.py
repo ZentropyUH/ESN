@@ -210,11 +210,15 @@ hyperparameters_to_adjust = {
     "reconection_prob": (0, 6, 0.2, lambda x, y, i: round(x + y*i, 2))
 }
 
+import argparse
 
-grid_search(
-    hyperparameters_to_adjust,
-    '/media/dionisio35/Windows/_folders/_new/22/',
-    '/media/dionisio35/Windows/_folders/_new/',
-    3,
-    2,
-)
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser("Hyperparametes")
+    parser.add_argument('-o', '--output', help="Output path", type=str, required=True)
+    parser.add_argument('-d', '--data', help="Data path", type=str, required=True)
+    parser.add_argument('-n', help="Search Tree depth", type=int, default=3)
+    parser.add_argument('-m', help="Number of best to keep", type=int, default=2)
+    args = parser.parse_args()
+
+
+    grid_search(hyperparameters_to_adjust, args.d, args.o, args.n, args.m)
