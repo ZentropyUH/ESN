@@ -227,11 +227,25 @@ def load_model_json(model_path):
     return data
 
 
-def generalized_binary_to_decimal(digit_array):
-    n = len(digit_array)
-    
-    ans = 0
-    
-    for i in range(1, n+1):
-        ans += digit_array[i] * 2**i
-    return ans
+# Decorator for composing a function n times.
+def compose_n_times(n):
+    """Compose a function n times."""
+
+    def decorator(f):
+        def inner(x):
+            result = x
+            for i in range(n):
+                result = f(result)
+            return result
+
+        return inner
+
+    return decorator
+
+
+if __name__ == "__main__":
+
+    def f(x):
+        return x + 1
+
+    print(compose_n_times(10)(f)(0))
