@@ -14,7 +14,6 @@ from functools import partial
 from scipy.integrate._ivp.base import (
     OdeSolver,
 )  # this is the class we will monkey patch
-from tqdm import tqdm
 
 ### monkey patching the ode solvers with a progress bar
 
