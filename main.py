@@ -12,7 +12,11 @@ import numpy as np
 import pandas as pd
 
 # This is because they still conserve the old API for tf 1.x
-from keras.initializers.initializers import Zeros
+try:
+    from keras.initializers.initializers import Zeros
+except ModuleNotFoundError:
+    from keras.initializers import Zeros
+
 from keras.models import load_model
 from tqdm import tqdm
 

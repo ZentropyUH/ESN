@@ -11,7 +11,9 @@ import time
 ---- ---- ---- predictions
 ---- ---- ---- mse
 ---- ---- ---- mse_mean
-'''      
+'''
+
+
 
 
 def grid(combinations:list[list], data:list[str], output_path:str, queue_size:int, u:int=5000, tl:int=20000, threshold:float=0.01, train_time:list=[], forecast_time:list=[]):
@@ -19,8 +21,13 @@ def grid(combinations:list[list], data:list[str], output_path:str, queue_size:in
     # Queue for best cases, n is the max number of cases
     best = Queue(queue_size)
 
+    a = 0
     #Create all the combinations of hyperparameters
     for combination in product(*combinations):
+        
+        if a ==1:
+            break
+        a+=1
         
         # Select the data to train
         train_index = randint(0, len(data) - 1)
@@ -48,37 +55,18 @@ def grid(combinations:list[list], data:list[str], output_path:str, queue_size:in
         train(combination, train_data_path, current_path, u, tl, 'trained_model')
         train_time.append(time.time() - start_train_time)
 
-
-        # List of Threads
-        forecast_list: list[Thread] = []
-        
-        for fn, current_data in enumerate(data):
-            
-            # Thread for forecast
-            current = Thread(
-                target = forecast,
-                kwargs={
-                    "prediction_steps": 1000,
-                    "train_transient": tl,
-                    "trained_model_path": trained_model_path,
-                    "prediction_path": forecast_path,
-                    "data_file": current_data,
-                    "forecast_name": fn,
-                    "trained": current_data == train_data_path,
-                }
-            )
-            # Add Thread to queue
-            forecast_list.append(current)
-            
-        
-        # Start Threads
         start_forecast_time = time.time()
-        for thread in forecast_list:
-            thread.start()
+        for fn, current_data in enumerate(data):
 
-        # Wait for all Threads to finish
-        for thread in forecast_list:
-            thread.join()
+            forecast(
+                prediction_steps = 1000,
+                train_transient= tl,
+                trained_model_path= trained_model_path,
+                prediction_path= forecast_path,
+                data_file= current_data,
+                forecast_name= fn,
+                trained= current_data == train_data_path,
+            )
         
         forecast_time.append((time.time() - start_forecast_time)/len(data))
 
@@ -245,5 +233,14 @@ if __name__ == '__main__':
     parser.add_argument('-m', help="Number of best to keep", type=int, default=2)
     args = parser.parse_args()
 
+    import tensorflow as tf
+
+    print()
+    print('GPU devices ...........')
+    a =tf.config.list_physical_devices("GPU")
+    print(a)
+    print('end GPu devices...............')
+
+    tf.debugging.set_log_device_placement(True)
 
     grid_search(hyperparameters_to_adjust, args.data, args.output, args.n, args.m)

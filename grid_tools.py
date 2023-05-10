@@ -86,7 +86,7 @@ def calculate_aprox_time(time: list, file: str, text):
     with open(file, 'a+') as f:
         f.write('{}: {}\n'.format(text, str(np.mean(time))))
 
-print(np.mean([1,5,6]))
+
 # main train
 def train(params, data_file_path, output_file, u, tl, tn):    
     instruction = f"python3 ./main.py train \
