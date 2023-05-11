@@ -1,6 +1,6 @@
 """Define the functions for the forecasting tasks."""
 import numpy as np
-from tqdm import trange
+from rich.progress import track
 
 #### Forecasting ####
 
@@ -40,7 +40,7 @@ def classic_forecast(
 
     print()
     print(
-        f"Forecasting free running sequence {forecast_length} steps ahead.\n\n"
+        f"Forecasting free running sequence {forecast_length} steps ahead.\n"
     )
 
     print("    Ensuring ESP...\n")
@@ -55,7 +55,7 @@ def classic_forecast(
 
     # Already tried initializing the predictions with shape (1, forecast_length, features)
     # and the performance was similar
-    for _ in trange(forecast_length):
+    for _ in track(range(forecast_length)):
         pred = model(predictions[:, -1:, :])
         predictions = np.hstack((predictions, pred))
 

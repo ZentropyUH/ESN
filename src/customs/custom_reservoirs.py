@@ -1,6 +1,4 @@
-import numpy as np
 import tensorflow as tf
-from tensorflow import keras
 
 from src.customs.custom_initializers import *
 
