@@ -2,8 +2,8 @@
 
 from tensorflow import keras
 
-from custom_initializers import ErdosRenyi, InputMatrix
-from custom_models import ESN, ParallelESN
+from src.customs.custom_initializers import ErdosRenyi, InputMatrix
+from src.customs.custom_models import ESN, ParallelESN
 
 #### Model instantiators ####
 

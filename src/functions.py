@@ -17,21 +17,13 @@ except ModuleNotFoundError:
 
 from keras.models import load_model
 
-from rich.progress import track
+from src.customs.custom_initializers import ErdosRenyi, InputMatrix, RandomUniform, RegularNX, RegularOwn, WattsStrogatzNX, WattsStrogatzOwn
+from src.customs.custom_models import ESN, ParallelESN, ReservoirModel
+from src.forecasters import classic_forecast, section_forecast
+from src.plotters import plot_contourf_forecast, plot_linear_forecast, plot_rmse, render_video
+from src.readout_generators import linear_readout, sgd_linear_readout
+from src.utils import get_name_from_dict, get_range, load_data
 
-# import tensorflow as tf
-# tf.debugging.set_log_device_placement(True)
-
-from custom_initializers import ErdosRenyi, InputMatrix, RandomUniform, RegularNX, RegularOwn, WattsStrogatzNX, WattsStrogatzOwn
-
-from custom_models import ESN, ParallelESN, ReservoirModel
-
-from forecasters import classic_forecast, section_forecast
-
-from plotters import plot_contourf_forecast, plot_linear_forecast, plot_rmse, render_video
-
-from readout_generators import linear_readout, sgd_linear_readout
-from utils import get_name_from_dict, get_range, load_data
 
 
 

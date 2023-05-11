@@ -4,7 +4,8 @@ from typing import Dict, List, Tuple
 import tensorflow as tf
 from tensorflow import keras
 
-from custom_initializers import ErdosRenyi, InputMatrix
+
+from src.customs.custom_initializers import ErdosRenyi, InputMatrix
 
 ###############################################
 ################## Layers #####################

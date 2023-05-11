@@ -39,27 +39,30 @@ cd $scratch
 
 
 # Script output
-output="$scratch/out/"
+output="$scratch/out"
 mkdir -p $output
 
-#SBATCH --output=$output/
-#SBATCH --error=$output/
+#SBATCH --output=$output
+#SBATCH --error=$output
 
 
 
 # Copy all
-ESN="$scratch/ESN/"
-mkdir -p $ESN
-cp -r /data/tsa/destevez/ESN/ $ESN
+cp -r /data/tsa/destevez/ESN $scratch
+ESN="$scratch/ESN"
 
 # TODO: data path
 data="$ESN/systems/data/KS/35/N64/"
 
-srun python3 $ESN/grid_script.py -o $output -d $data -n 5 -m 2
+
+
+
+cd $ESN
+srun python3 $ESN/grid_script.py -o $output -d $data -n 1 -m 2
 
 
 # TODO: final path to save output
-save="/data/tsa/destevez/dennis/"
+save="/data/tsa/destevez/dennis"
 mkdir -p $save
 cp -r $output $save
 

@@ -3,7 +3,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 
-from custom_layers import EsnCell, PowerIndex, InputSplitter, ReservoirCell
+from src.customs.custom_layers import EsnCell, PowerIndex, InputSplitter, ReservoirCell
 
 
 ###############################################

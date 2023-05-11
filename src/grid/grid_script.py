@@ -107,7 +107,7 @@ hyperparameters_to_adjust={"sigma":(0,5,0.2,lambda x,y: x+y),
                   
 
 
-def grid_search(hyperparameters_to_adjust: dict, data_path: str, output_path: str, depth: int, queue_size: int, u: int=9000, tl: int=20000, threshold: int=0.01):
+def grid_search(hyperparameters_to_adjust: dict, data_path: str, output_path: str, depth: int, queue_size: int, u: int=5000, tl: int=1000, threshold: int=0.01):
     
     # List all the files on the data folder
     data: list[str] = [join(data_path, p) for p in listdir(data_path)]
@@ -234,13 +234,5 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     import tensorflow as tf
-
-    print()
-    print('GPU devices ...........')
-    a =tf.config.list_physical_devices("GPU")
-    print(a)
-    print('end GPu devices...............')
-
-    tf.debugging.set_log_device_placement(True)
 
     grid_search(hyperparameters_to_adjust, args.data, args.output, args.n, args.m)
