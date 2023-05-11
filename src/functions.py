@@ -49,7 +49,6 @@ def training(
     '''
     ################ GET THE PARAMETERS WITH POSSIBLE RANGES ################
 
-    #FIX: name
     params = locals().copy()
 
     # General params
@@ -228,7 +227,6 @@ def training(
 
                                         # Choose only the mos important parameters to name the model
                                         name_dict = {
-                                            #FIX: name
                                             "mdl": locals()["model"],
                                             "units": _units,
                                             "inp_scl": _input_scaling,
