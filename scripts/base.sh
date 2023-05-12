@@ -15,11 +15,11 @@
 #SBATCH --ntasks=1
 #SBATCH --partition=graphic
 
-# We will use 4 A100 GPUs
+
 #SBATCH --gres=gpu:A100:4
 #SBATCH --constraint="gpu"
-#SBATCH --cpus-per-task=2 # every task gets 2 CPUs
-#SBATCH --mem-per-cpu=125000M
+#SBATCH --cpus-per-task=30
+#SBATCH --mem-per-cpu=10000M
 
 ########## END ##########
 
@@ -76,6 +76,7 @@ ESN="$scratch/ESN"
 
 # data path
 data="$ESN/data"
+mkdir -p $data
 
 # save path
 save="/data/tsa/destevez/dennis/$SLURM_JOB_ID"
@@ -91,11 +92,11 @@ mkdir -p $save
 
 # Copy project files to scratch
 echo "copying project............"
-cp -r /data/tsa/destevez/dennis/ESN $scratch
+cp -r /data/tsa/destevez/dennis/ESN/* $ESN
 
 echo "copying data............"
-cp -r /data/tsa/destevez/data $scratch/ESN
-echo "end of copy\n"
+cp -r /data/tsa/destevez/data/KS/35/N64/* $data
+echo "end of copy\n\n"
 
 ########## END ##########
 
@@ -103,12 +104,12 @@ echo "end of copy\n"
 
 
 
-########## RUN ##########
+######### RUN ##########
 
 cd $ESN
 echo "runing............"
-srun python3 $ESN/grid_script.py -o $output -d $data -n 1 -m 2
-echo "end of run\n"
+srun python3 $ESN/grid.py -o $output -d $data -n 1 -m 2
+echo "end of run \n\n"
 
 ########## END ##########
 
