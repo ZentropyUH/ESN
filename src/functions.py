@@ -225,19 +225,17 @@ def training(
                                         # Prune path from data_file
                                         data_file_name = data_file.split("/")[-1]
 
-                                        # Choose only the mos important parameters to name the model
+                                        # Choose only the most important parameters to name the model
                                         name_dict = {
-                                            "mdl": locals()["model"],
+                                            "0mdl": locals()["model"],
                                             "units": _units,
-                                            "inp_scl": _input_scaling,
-                                            "lr": _leak_rate,
-                                            "sp_rad": _spectral_radius,
-                                            "res_deg": _reservoir_degree,
-                                            "res_std": _reservoir_sigma,
+                                            "sigma": _input_scaling,
+                                            "sr": _spectral_radius,
+                                            "degr": _reservoir_degree,
+                                            "resigma": _reservoir_sigma,
                                             "rw": _rewiring,
                                             "reg": _regularization,
-                                            "train_len": _train_length,
-                                            "rdout": readout_layer,
+                                            "readl": readout_layer,
                                             "dta": data_file_name,
                                         }
 
@@ -250,7 +248,7 @@ def training(
                                         # Save the model and save the parameters dictionary in a json file inside the model folder
                                         model.save(model_path)
 
-                                        with open(join(output_dir, "params.json"), "w") as f:
+                                        with open(join(output_dir, "params.json", encoding="utf-8"), "w") as f:
                                             json.dump(params, f, indent=4, sort_keys=True, separators=(',', ': '))
 
                                         
