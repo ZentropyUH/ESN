@@ -37,14 +37,17 @@ class InputMatrix(keras.initializers.Initializer):
     """
 
     def __init__(self, sigma=0.5, **kwargs) -> None:
-        """Initialize the initializer."""
+        """
+        Initialize the initializer.
+        """
         assert sigma > 0, "sigma must be positive"
 
         self.sigma = sigma
         super().__init__()
 
     def __call__(self, shape, dtype=tf.float64, **kwargs) -> tf.Tensor:
-        """Generate the matrix.
+        """
+        Generate the matrix.
 
         Args:
             shape (tuple): Shape of the matrix.

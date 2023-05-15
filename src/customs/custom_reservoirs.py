@@ -1,7 +1,6 @@
-import numpy as np
 import tensorflow as tf
-from tensorflow import keras
-from custom_initializers import *
+
+from src.customs.custom_initializers import *
 
 
 class Reservoir:

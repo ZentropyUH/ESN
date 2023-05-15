@@ -115,10 +115,12 @@ class MackeyGlass:
         plt.show()
 
 
-mc = MackeyGlass(tau=22)
-n = 250000
-y, t, x = mc.gen(delta_t=1, n=n)
-mc.plot()
+# mc = MackeyGlass(tau=22)
+# n = 250000
+# y, t, x = mc.gen(delta_t=1, n=n)
+# mc.plot()
+
+
 # print((np.max(y) - np.min(y))/100, np.std(y), 0.03*np.std(y))
 # print(np.max(y))
 
@@ -128,3 +130,20 @@ mc.plot()
 #     f"data/mackey_alpha{mc.alpha}_beta{mc.beta}_gamma{mc.gamma}_tau{mc.tau}_n{n}.csv",
 #     index=False,
 # )
+
+from random import randint
+
+def generate_data(times:int, l_tau:list, dt:float, n:int):
+    for tau_i in l_tau:
+        for i in range(times):
+            mc = MackeyGlass(tau = tau_i)
+            y0=randint(0,100)/100
+            y, t, x = mc.gen(y0 = y0,delta_t = dt, n = n)
+            df = pd.DataFrame({"x": x, "y": y})
+            df.to_csv(
+            f"data/MG/tau_{tau_i}/mackey_alpha{mc.alpha}_beta{mc.beta}_gamma{mc.gamma}_tau{mc.tau}_n{n}_{i}.csv",
+            index=False,)
+            # mc.plot()   
+
+
+generate_data(times = 30, l_tau = [16,16.8,17,30], dt = 0.05, n = 250000)
