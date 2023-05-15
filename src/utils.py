@@ -215,3 +215,33 @@ def load_data(
         val_data,
         val_target,
     )
+
+
+def load_model_json(model_path):
+    with open(model_path + "/params.json", encoding="utf-8") as f:
+        data = json.load(f)
+    return data
+
+
+# Decorator for composing a function n times.
+def compose_n_times(n):
+    """Compose a function n times."""
+
+    def decorator(f):
+        def inner(x):
+            result = x
+            for i in range(n):
+                result = f(result)
+            return result
+
+        return inner
+
+    return decorator
+
+
+if __name__ == "__main__":
+
+    def f(x):
+        return x + 1
+
+    print(compose_n_times(10)(f)(0))

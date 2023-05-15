@@ -56,7 +56,7 @@ class EsnCell(keras.layers.Layer):
         activation="tanh",
         leak_rate=1,
         input_initializer=InputMatrix(),
-        input_bias_initializer=keras.initializers.random_uniform(),
+        input_bias_initializer=keras.initializers.get("random_uniform"),
         reservoir_initializer=ErdosRenyi(),
         **kwargs,
     ) -> None:
@@ -369,7 +369,7 @@ class ReservoirCell(keras.layers.Layer):
         self,
         reservoir_function,
         input_initializer=InputMatrix(),
-        input_bias_initializer=keras.initializers.random_uniform(),
+        input_bias_initializer=keras.initializers.get("random_uniform"),
         activation="tanh",
         leak_rate=1,
         **kwargs,
@@ -390,6 +390,7 @@ class ReservoirCell(keras.layers.Layer):
         # Initialize the weights
         self.w_input = None
         self.input_bias = None
+        self.input_dim = None
 
         super().__init__(self, **kwargs)
 
@@ -399,7 +400,7 @@ class ReservoirCell(keras.layers.Layer):
         Args:
             input_shape (tf.TensorShape): Input shape.
         """
-
+        self.input_dim = input_shape[-1]
         # Input to reservoir matrix
         self.w_input = self.add_weight(
             name="input_to_Reservoir",
@@ -412,7 +413,10 @@ class ReservoirCell(keras.layers.Layer):
         # Input bias
         self.input_bias = self.add_weight(
             name="input_bias",
-            shape=(self.units,),
+            shape=(
+                1,
+                self.units,
+            ),
             initializer=self.input_bias_initializer,
             trainable=False,
             dtype=self.dtype,
