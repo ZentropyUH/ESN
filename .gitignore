@@ -2,7 +2,7 @@ data
 trained
 forecasting
 __pycache__
-
+.vscode
 *.pyc
 
 # Byte-compiled / optimized / DLL files
