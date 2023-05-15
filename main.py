@@ -502,9 +502,7 @@ def train(
                                             + f"/{get_name_from_dict(name_dict)}"
                                         )
                                         # Save the model and save the parameters dictionary in a json file inside the model folder
-                                        model.save(
-                                            model_name
-                                        )
+                                        model.save(model_name)
                                         with open(
                                             model_name + "/params.json",
                                             "w",
