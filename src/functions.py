@@ -248,7 +248,7 @@ def training(
                                         # Save the model and save the parameters dictionary in a json file inside the model folder
                                         model.save(model_path)
 
-                                        with open(join(output_dir, "params.json", encoding="utf-8"), "w") as f:
+                                        with open(join(output_dir, "params.json"), "w", encoding="utf-8") as f:
                                             json.dump(params, f, indent=4, sort_keys=True, separators=(',', ': '))
 
                                         
