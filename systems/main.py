@@ -105,17 +105,7 @@ def lorenz(
     runs,
 ):
     """Integrate a Lorenz model with the given parameters. Data can be saved and plotted."""
-    _lorenz(initial_condition=initial_condition,
-    delta_t=delta_t,
-    steps=steps,
-    final_time=final_time,
-    transient=transient,
-    save_data=save_data,
-    plot=plot,
-    show=show,
-    plot_points=plot_points,
-    seed=seed,
-    runs=runs,)
+    _lorenz(**locals())
 
 # region mackey params
 @cli.command()
@@ -220,18 +210,7 @@ def mackey(
     seed,
 ):
     """Integrate a Mackey-Glass model with the given parameters. Data can be saved and plotted."""
-    _mackey(tau=tau,
-    steps=steps,
-    delta_t=delta_t,
-    initial_condition=initial_condition,
-    final_time=final_time,
-    save_data=save_data,
-    transient=transient,
-    plot=plot,
-    show=show,
-    plot_points=plot_points,
-    runs=runs,
-    seed=seed,)
+    _mackey(**locals())
 
 # region kuramoto params
 @cli.command()
@@ -343,19 +322,7 @@ def kuramoto(
     runs,
 ):
     """Integrate a KS model with the given parameters. Data can be saved and plotted."""
-    _kuramoto(spatial_period=spatial_period,
-    discretization=discretization,
-    delta_t=delta_t,
-    initial_condition=initial_condition,
-    steps=steps,
-    final_time=final_time,
-    save_data=save_data,
-    transient=transient,
-    plot=plot,
-    plot_points=plot_points,
-    show=show,
-    seed=seed,
-    runs=runs,)
+    _kuramoto(**locals())
 
 # region rossler params
 @cli.command()
@@ -463,20 +430,7 @@ def rossler(
     runs,
 ):
     """Integrate a Lorenz model with the given parameters. Data can be saved and plotted."""
-    _rossler(initial_condition=initial_condition,
-    a=a,
-    b=b,
-    c=c,
-    transient=transient,
-    delta_t=delta_t,
-    steps=steps,
-    final_time=final_time,
-    save_data=save_data,
-    plot=plot,
-    show=show,
-    plot_points=plot_points,
-    seed=seed,
-    runs=runs,)
+    _rossler(**locals())
 
 if __name__ == "__main__":
     cli()
