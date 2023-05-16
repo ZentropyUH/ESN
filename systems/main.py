@@ -4,6 +4,7 @@ import click
 import Lorenz as L_model
 from Mackey import MackeyGlass as MG_model
 import KS
+import Rossler as R_model
 
 from tqdm import tqdm
 
@@ -351,6 +352,126 @@ def kuramoto(
             plot=plot,
             plotpnts=plot_points,
             show=show,
+            seed=seed,
+        )
+
+
+##############################################################################################################
+@cli.command()
+@click.option(
+    "--steps",
+    "-st",
+    type=click.INT,
+    default=250000,
+    help="The amount of timesteps in the integration. Default is 250000",
+)
+@click.option(
+    "--delta-t",
+    "-dt",
+    type=click.FLOAT,
+    default=0.05,
+    help="Choose the timestep length for the integration.",
+)
+@click.option(
+    "--initial-condition",
+    "-ic",
+    type=click.Choice(["random", "zeroes"]),
+    default=None,
+    help="Choose the initial condition. Default is randomly from [-1,1]^3.",
+)
+@click.option(
+    "--final-time",
+    "-ft",
+    default=None,
+    type=click.FLOAT,
+    help="Choose the final physical time for the integration.",
+)
+@click.option(
+    "--save-data",
+    "-sd",
+    default=False,
+    is_flag=True,
+    help="Whether to save the generated data in a .csv file.",
+)
+@click.option(
+    "--plot",
+    "-pl",
+    default=False,
+    is_flag=True,
+    help="Choose whether to plot or not the function.",
+)
+@click.option(
+    "--show",
+    "-sh",
+    default=False,
+    is_flag=True,
+    help="Choose whether to show the plot or not. Only makes sense when --plot is given.",
+)
+@click.option(
+    "--seed",
+    "-sd",
+    default=None,
+    type=click.INT,
+    help="Choose the seed for random initial conditions.",
+)
+@click.option(
+    "--plot-points",
+    "-pp",
+    default=20000,
+    type=click.INT,
+    help="The number of points to be plotted. Default is 20000",
+)
+@click.option(
+    "--runs",
+    "-r",
+    type=click.INT,
+    default=1,
+    help="Number of runs. Only makes sense if random initial conditions are set.",
+)
+@click.option(
+    "--A", type=click.FLOAT, default=0.1, help="Parameter A of the model"
+)
+@click.option(
+    "--B", type=click.FLOAT, default=0.1, help="Parameter B of the model"
+)
+@click.option(
+    "--C", type=click.FLOAT, default=0.1, help="Parameter C of the model"
+)
+def rossler(
+    initial_condition,
+    a,
+    b,
+    c,
+    delta_t,
+    steps,
+    final_time,
+    save_data,
+    plot,
+    show,
+    plot_points,
+    seed,
+    runs,
+):
+    """Integrate a Lorenz model with the given parameters. Data can be saved and plotted."""
+    if not (save_data or plot):
+        print(
+            "Not saving the data nor plotting, not making a choice is itself choosing..."
+        )
+        exit(0)
+
+    for _ in tqdm(range(runs), desc="Number of simulations"):
+        R_model.integrate(
+            cond0=initial_condition,
+            A=a,
+            B=b,
+            C=c,
+            dt=delta_t,
+            steps=steps,
+            t_end=final_time,
+            save=save_data,
+            plot=plot,
+            show=show,
+            plotpnts=plot_points,
             seed=seed,
         )
 
