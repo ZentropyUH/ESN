@@ -128,11 +128,11 @@ def integrate(
         if not os.path.exists(f"data/Rossler/{C}"):
             os.makedirs(f"data/Rossler/{C}")
         df = pd.DataFrame({"x": x, "y": y, "z": z})
-        df.to_csv("data/Rossler/" + name + ".csv", index=False, header=False)
+        df.to_csv(f"data/Rossler/{C}/" + name + ".csv", index=False, header=False)
 
     if plot:
-        if not os.path.exists("data/Rossler"):
-            os.makedirs("data/Rossler")
+        if not os.path.exists(f"data/Rossler/{C}"):
+            os.makedirs(f"data/Rossler/{C}")
             
         fig = plt.figure()
         ax = fig.add_subplot(projection="3d")
@@ -143,7 +143,7 @@ def integrate(
             states[2, :plotpnts],
         )
 
-        with open("data/Rossler/" + name + ".pickle", "wb") as saved_plot:
+        with open(f"data/Rossler/{C}/" + name + ".pickle", "wb") as saved_plot:
             pickle.dump(fig, saved_plot)
 
         if show:

@@ -168,7 +168,7 @@ def lorenz(
 )
 @click.option(
     "--save-data",
-    "-sd",
+    "-sv",
     default=False,
     is_flag=True,
     help="Whether to save the generated data in a .csv file.",
@@ -297,7 +297,7 @@ def mackey(
 )
 @click.option(
     "--save-data",
-    "-sd",
+    "-sv",
     default=False,
     is_flag=True,
     help="Whether to save the generated data in a .csv file.",
@@ -415,7 +415,7 @@ def kuramoto(
 )
 @click.option(
     "--save-data",
-    "-sd",
+    "-sv",
     default=False,
     is_flag=True,
     help="Whether to save the generated data in a .csv file.",
