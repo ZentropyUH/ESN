@@ -38,7 +38,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 @click.group()
 @click.version_option(version="1.0.0")
 def cli():
-    """A command line for training and making predictions with general ESN-like models from provided dynamical systems timeseries."""
+    """A command line for training and making predictions with general ESN-like models."""
 
 
 # Train command

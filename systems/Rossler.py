@@ -1,19 +1,19 @@
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-from scipy.integrate import odeint, solve_ivp
-import pickle
-from tqdm import tqdm
+"""Integrator the Rossler attractor system."""
+# pylint: disable=all
 import os
-
+import pickle
 from functools import partial
 
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from scipy.integrate import solve_ivp
+from scipy.integrate._ivp.base import \
+    OdeSolver  # this is the class we will monkey patch
+from tqdm import tqdm
 
+# region Monkeypatch
 ############################ MONKEY PATCH FOR PBAR ############################
-
-from scipy.integrate._ivp.base import (
-    OdeSolver,
-)  # this is the class we will monkey patch
 
 ### monkey patching the ode solvers with a progress bar
 
@@ -25,17 +25,18 @@ old_step = OdeSolver.step
 
 # define our own methods
 def new_init(self, fun, t0, y0, t_bound, vectorized, support_complex=False):
+    """Monkey patched OdeSolver.__init__."""
     # define the progress bar
     self.pbar = tqdm(
         total=t_bound - t0, unit="ut", initial=t0, ascii=False, desc="IVP"
     )
     self.last_t = t0
-
     # call the old method - we still want to do the old things too!
     old_init(self, fun, t0, y0, t_bound, vectorized, support_complex)
 
 
 def new_step(self):
+    """Monkey patched OdeSolver.step."""
     # call the old method
     old_step(self)
 
@@ -54,22 +55,15 @@ OdeSolver.__init__ = new_init
 OdeSolver.step = new_step
 
 ############################ MONKEY PATCH FOR PBAR ############################
-
-
-# A = 0.1
-# B = 0.1
-# C = 4
-
+# endregion
 
 def rossler_dydt(_t, y, A=10, B=28, C=2.667):
+    """Rossler differential equation."""
     xp = -y[1] - y[2]
     yp = y[0] + A * y[1]
     zp = B + y[2] * (y[0] - C)
 
     return np.asarray([xp, yp, zp])
-
-
-
 
 def integrate(
     cond0=None,
@@ -86,15 +80,15 @@ def integrate(
     seed=None,
     transient=0,
 ):
-    
+    """Rossler attractor integrator."""
     rossler_f = partial(rossler_dydt, A=A, B=B, C=C)
-    
+
     if seed is None:
         seed = np.random.randint(1000000)
 
     rnd = np.random.default_rng(seed=seed)
 
-    if t_end != None:
+    if t_end is not None:
         steps = int(t_end / dt)
 
     t_end = steps * dt
@@ -133,7 +127,7 @@ def integrate(
     if plot:
         if not os.path.exists(f"data/Rossler/{C}"):
             os.makedirs(f"data/Rossler/{C}")
-            
+
         fig = plt.figure()
         ax = fig.add_subplot(projection="3d")
 
@@ -148,15 +142,3 @@ def integrate(
 
         if show:
             plt.show()
-
-    # return x, y, z
-
-
-if __name__ == "__main__":
-    integrate(
-        steps=50000,
-        plot=True,
-        show=True,
-        plotpnts=10000,
-        transient=10000,
-    )

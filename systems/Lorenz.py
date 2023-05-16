@@ -1,19 +1,19 @@
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-from scipy.integrate import odeint, solve_ivp
-import pickle
-from tqdm import tqdm
+"""Integrator the Lorenz attractor system."""
+# pylint: disable=all
 import os
-
+import pickle
 from functools import partial
 
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from scipy.integrate import solve_ivp
+from scipy.integrate._ivp.base import \
+    OdeSolver  # this is the class we will monkey patch
+from tqdm import tqdm
 
+# region Monkeypatch
 ############################ MONKEY PATCH FOR PBAR ############################
-
-from scipy.integrate._ivp.base import (
-    OdeSolver,
-)  # this is the class we will monkey patch
 
 ### monkey patching the ode solvers with a progress bar
 
@@ -24,6 +24,7 @@ old_step = OdeSolver.step
 
 # define our own methods
 def new_init(self, fun, t0, y0, t_bound, vectorized, support_complex=False):
+    """Monkey patched OdeSolver.__init__."""
     # define the progress bar
     self.pbar = tqdm(
         total=t_bound - t0, unit="ut", initial=t0, ascii=False, desc="IVP"
@@ -35,6 +36,7 @@ def new_init(self, fun, t0, y0, t_bound, vectorized, support_complex=False):
 
 
 def new_step(self):
+    """Monkey patched OdeSolver.step."""
     # call the old method
     old_step(self)
 
@@ -53,20 +55,15 @@ OdeSolver.__init__ = new_init
 OdeSolver.step = new_step
 
 ############################ MONKEY PATCH FOR PBAR ############################
-
+# endregion
 
 SIGMA = 10.0
 RHO = 28.0
 BETA = 8.0 / 3.0
 
 
-# def lorenz_f(state, _t):
-#     """Return the time-derivative of a Lorenz system."""
-#     x, y, z = state  # Unpack the state vector
-#     return SIGMA * (y - x), x * (RHO - z) - y, x * y - BETA * z  # Derivatives
-
-
 def lorenz_dydt(_t, y, sigma=10, rho=28, beta=2.667):
+    """Lorenz differential equation."""
     xp = sigma * (y[1] - y[0])
     yp = y[0] * (rho - y[2]) - y[1]
     zp = y[0] * y[1] - beta * y[2]
@@ -89,12 +86,13 @@ def integrate(
     seed=None,
     transient=0,
 ):
+    """Lorenz attractor integrator."""
     if seed is None:
         seed = np.random.randint(1000000)
 
     rnd = np.random.default_rng(seed=seed)
 
-    if t_end != None:
+    if t_end is not None:
         steps = int(t_end / dt)
 
     t_end = steps * dt
@@ -130,7 +128,7 @@ def integrate(
     if plot:
         if not os.path.exists("data/Lorenz"):
             os.makedirs("data/Lorenz")
-        
+
         fig = plt.figure()
         ax = fig.add_subplot(projection="3d")
 
@@ -143,9 +141,3 @@ def integrate(
 
         if show:
             plt.show()
-
-    # return x, y, z
-
-
-if __name__ == "__main__":
-    print("caca")

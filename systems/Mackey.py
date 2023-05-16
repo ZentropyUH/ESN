@@ -1,4 +1,5 @@
 """Module for integrating the Mackey-Glass equations."""
+# pylint: disable=all
 import math
 import os
 import pickle
@@ -88,7 +89,7 @@ class MackeyGlass:
 
         rnd = np.random.default_rng(seed=seed)
 
-        if t_end != None:
+        if t_end is not None:
             steps = int(t_end / dt)
 
         t_end = steps * dt
@@ -129,7 +130,7 @@ class MackeyGlass:
         if save:
             if not os.path.exists(f"data/MG/{self.tau}"):
                 os.makedirs(f"data/MG/{self.tau}")
-                
+
             df = pd.DataFrame({"y": Y})
             df.to_csv(
                 f"data/MG/{self.tau}/" + name + ".csv",
@@ -157,18 +158,3 @@ class MackeyGlass:
                 plt.show()
 
         return Y
-
-
-def main():
-    tau = 17
-
-    mc = MackeyGlass(tau=tau)
-    y = mc.integrate(y0=0.5, dt=0.05, t_end=4000)
-
-    # plt.plot(x)
-    plt.plot(y)
-    plt.show()
-
-
-if __name__ == "__main__":
-    main()

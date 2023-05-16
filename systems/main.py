@@ -1,14 +1,10 @@
 #!/usr/bin/python3
 """Cli interface to generate data of different physical models."""
+# pylint: disable=invalid-name
 import click
-import Lorenz as L_model
-from Mackey import MackeyGlass as MG_model
-import KS
-import Rossler as R_model
+from functions import _lorenz, _mackey, _kuramoto, _rossler
 
-from tqdm import tqdm
-
-
+# region lorenz params
 @click.group()
 @click.version_option(version="1.0.0")
 def cli():
@@ -94,6 +90,7 @@ def cli():
     default=1,
     help="Number of runs. Only makes sense if random initial conditions are set. Default is 1",
 )
+# endregion
 def lorenz(
     initial_condition,
     delta_t,
@@ -108,27 +105,19 @@ def lorenz(
     runs,
 ):
     """Integrate a Lorenz model with the given parameters. Data can be saved and plotted."""
-    if not (save_data or plot):
-        print(
-            "Not saving the data nor plotting, not making a choice is itself choosing..."
-        )
-        exit(0)
+    _lorenz(initial_condition=initial_condition,
+    delta_t=delta_t,
+    steps=steps,
+    final_time=final_time,
+    transient=transient,
+    save_data=save_data,
+    plot=plot,
+    show=show,
+    plot_points=plot_points,
+    seed=seed,
+    runs=runs,)
 
-    for _ in tqdm(range(runs), desc="Number of simulations"):
-        L_model.integrate(
-            cond0=initial_condition,
-            dt=delta_t,
-            steps=steps,
-            t_end=final_time,
-            transient=transient,
-            save=save_data,
-            plot=plot,
-            show=show,
-            plotpnts=plot_points,
-            seed=seed,
-        )
-
-
+# region mackey params
 @cli.command()
 @click.option(
     "--tau",
@@ -215,6 +204,7 @@ def lorenz(
     default=1,
     help="Number of runs. Only makes sense if random initial conditions are set.",
 )
+# endregion
 def mackey(
     tau,
     steps,
@@ -230,28 +220,20 @@ def mackey(
     seed,
 ):
     """Integrate a Mackey-Glass model with the given parameters. Data can be saved and plotted."""
-    if not (save_data or plot):
-        print(
-            "Not saving the data nor plotting, not making a choice is itself choosing..."
-        )
-        exit(0)
+    _mackey(tau=tau,
+    steps=steps,
+    delta_t=delta_t,
+    initial_condition=initial_condition,
+    final_time=final_time,
+    save_data=save_data,
+    transient=transient,
+    plot=plot,
+    show=show,
+    plot_points=plot_points,
+    runs=runs,
+    seed=seed,)
 
-    for _ in tqdm(range(runs), desc="Number of simulations"):
-        model = MG_model(tau=tau)
-        model.integrate(
-            dt=delta_t,
-            y0=initial_condition,
-            t_end=final_time,
-            steps=steps,
-            save=save_data,
-            transient=transient,
-            plot=plot,
-            show=show,
-            plotpnts=plot_points,
-            seed=seed,
-        )
-
-
+# region kuramoto params
 @cli.command()
 @click.option(
     "--spatial-period",
@@ -344,6 +326,7 @@ def mackey(
     default=1,
     help="Number of runs. Only makes sense if random initial conditions are set.",
 )
+# endregion
 def kuramoto(
     spatial_period,
     discretization,
@@ -360,30 +343,21 @@ def kuramoto(
     runs,
 ):
     """Integrate a KS model with the given parameters. Data can be saved and plotted."""
-    if not (save_data or plot):
-        print(
-            "Not saving the data nor plotting, not making a choice is itself choosing..."
-        )
-        exit(0)
+    _kuramoto(spatial_period=spatial_period,
+    discretization=discretization,
+    delta_t=delta_t,
+    initial_condition=initial_condition,
+    steps=steps,
+    final_time=final_time,
+    save_data=save_data,
+    transient=transient,
+    plot=plot,
+    plot_points=plot_points,
+    show=show,
+    seed=seed,
+    runs=runs,)
 
-    for _ in tqdm(range(runs), desc="Number of simulations"):
-        KS.generate_data(
-            L=spatial_period,
-            N=discretization,
-            dt=delta_t,
-            cond0=initial_condition,
-            steps=steps,
-            t_end=final_time,
-            save=save_data,
-            transient=transient,
-            plot=plot,
-            plotpnts=plot_points,
-            show=show,
-            seed=seed,
-        )
-
-
-##############################################################################################################
+# region rossler params
 @cli.command()
 @click.option(
     "--steps",
@@ -471,6 +445,7 @@ def kuramoto(
     default=0,
     help="Transient points to discard.",
 )
+# endregion
 def rossler(
     initial_condition,
     a,
@@ -488,42 +463,20 @@ def rossler(
     runs,
 ):
     """Integrate a Lorenz model with the given parameters. Data can be saved and plotted."""
-    if not (save_data or plot):
-        print(
-            "Not saving the data nor plotting, not making a choice is itself choosing..."
-        )
-        exit(0)
-
-    for _ in tqdm(range(runs), desc="Number of simulations"):
-        R_model.integrate(
-            cond0=initial_condition,
-            A=a,
-            B=b,
-            C=c,
-            transient=transient,
-            dt=delta_t,
-            steps=steps,
-            t_end=final_time,
-            save=save_data,
-            plot=plot,
-            show=show,
-            plotpnts=plot_points,
-            seed=seed,
-        )
-
-
-# def gen(
-#         self,
-#         dt=1,
-#         y0=None,
-#         steps=160000,
-#         t_end=None,
-#         plot=False,
-#         show=False,
-#         save=False,
-#         plotpnts=2500,
-#         seed=None,
-#     ):
+    _rossler(initial_condition=initial_condition,
+    a=a,
+    b=b,
+    c=c,
+    transient=transient,
+    delta_t=delta_t,
+    steps=steps,
+    final_time=final_time,
+    save_data=save_data,
+    plot=plot,
+    show=show,
+    plot_points=plot_points,
+    seed=seed,
+    runs=runs,)
 
 if __name__ == "__main__":
     cli()
