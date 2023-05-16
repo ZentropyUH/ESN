@@ -46,6 +46,13 @@ def cli():
     help="The final physical time for the integration. Default is None, infered from the steps",
 )
 @click.option(
+    "--transient",
+    "-tr",
+    type=click.INT,
+    default=0,
+    help="Transient points to discard.",
+)
+@click.option(
     "--save-data",
     "-sv",
     default=False,
@@ -92,6 +99,7 @@ def lorenz(
     delta_t,
     steps,
     final_time,
+    transient,
     save_data,
     plot,
     show,
@@ -112,6 +120,7 @@ def lorenz(
             dt=delta_t,
             steps=steps,
             t_end=final_time,
+            transient=transient,
             save=save_data,
             plot=plot,
             show=show,
@@ -186,6 +195,13 @@ def lorenz(
     help="Choose the seed for random initial conditions.",
 )
 @click.option(
+    "--transient",
+    "-tr",
+    type=click.INT,
+    default=0,
+    help="Transient points to discard.",
+)
+@click.option(
     "--plot-points",
     "-pp",
     default=50000,
@@ -206,6 +222,7 @@ def mackey(
     initial_condition,
     final_time,
     save_data,
+    transient,
     plot,
     show,
     plot_points,
@@ -227,6 +244,7 @@ def mackey(
             t_end=final_time,
             steps=steps,
             save=save_data,
+            transient=transient,
             plot=plot,
             show=show,
             plotpnts=plot_points,
@@ -306,6 +324,13 @@ def mackey(
     help="Choose the seed for random initial conditions.",
 )
 @click.option(
+    "--transient",
+    "-tr",
+    type=click.INT,
+    default=0,
+    help="Transient points to discard.",
+)
+@click.option(
     "--plot-points",
     "-pp",
     default=20000,
@@ -327,6 +352,7 @@ def kuramoto(
     steps,
     final_time,
     save_data,
+    transient,
     plot,
     plot_points,
     show,
@@ -349,6 +375,7 @@ def kuramoto(
             steps=steps,
             t_end=final_time,
             save=save_data,
+            transient=transient,
             plot=plot,
             plotpnts=plot_points,
             show=show,
@@ -369,7 +396,7 @@ def kuramoto(
     "--delta-t",
     "-dt",
     type=click.FLOAT,
-    default=0.05,
+    default=0.02,
     help="Choose the timestep length for the integration.",
 )
 @click.option(
@@ -435,13 +462,21 @@ def kuramoto(
     "--B", type=click.FLOAT, default=0.1, help="Parameter B of the model"
 )
 @click.option(
-    "--C", type=click.FLOAT, default=0.1, help="Parameter C of the model"
+    "--C", type=click.FLOAT, default=4, help="Parameter C of the model"
+)
+@click.option(
+    "--transient",
+    "-tr",
+    type=click.INT,
+    default=0,
+    help="Transient points to discard.",
 )
 def rossler(
     initial_condition,
     a,
     b,
     c,
+    transient,
     delta_t,
     steps,
     final_time,
@@ -465,6 +500,7 @@ def rossler(
             A=a,
             B=b,
             C=c,
+            transient=transient,
             dt=delta_t,
             steps=steps,
             t_end=final_time,

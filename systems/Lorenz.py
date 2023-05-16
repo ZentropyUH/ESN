@@ -87,6 +87,7 @@ def integrate(
     show=False,
     plotpnts=2500,
     seed=None,
+    transient=0,
 ):
     if seed is None:
         seed = np.random.randint(1000000)
@@ -111,6 +112,9 @@ def integrate(
 
     states = states["y"]
 
+    # eliminate transient
+    states = states[:, transient:]
+
     name = f"Lorenz_dt{dt}_steps{steps}_t-end{t_end}_seed{seed}"
 
     if save:
@@ -124,6 +128,9 @@ def integrate(
         df.to_csv("data/Lorenz/" + name + ".csv", index=False, header=False)
 
     if plot:
+        if not os.path.exists("data/Lorenz"):
+            os.makedirs("data/Lorenz")
+        
         fig = plt.figure()
         ax = fig.add_subplot(projection="3d")
 

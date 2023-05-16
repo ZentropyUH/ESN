@@ -4,8 +4,6 @@ import pickle
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import tqdm
-from matplotlib.animation import FuncAnimation
 from matplotlib.pyplot import cm
 from tqdm import trange
 
@@ -121,6 +119,7 @@ def generate_data(
     steps=2000,
     t_end=None,
     diffusion=1,
+    transient=0,
     plot=False,
     plotpnts=2000,
     show=False,
@@ -164,6 +163,9 @@ def generate_data(
 
     timeseries = np.array(timeseries)
     timesteps = np.array(timesteps)
+
+    timeseries = timeseries[transient:]
+    timesteps = timesteps[transient:]
 
     name = f"KS_L{L}_N{N}_diffusion-k{diffusion}_dt{dt}_steps{steps}_seed{seed}.csv"
 

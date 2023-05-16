@@ -56,9 +56,9 @@ OdeSolver.step = new_step
 ############################ MONKEY PATCH FOR PBAR ############################
 
 
-A = 0.1
-B = 0.1
-C = 18
+# A = 0.1
+# B = 0.1
+# C = 4
 
 
 def rossler_dydt(_t, y, A=10, B=28, C=2.667):
@@ -69,7 +69,6 @@ def rossler_dydt(_t, y, A=10, B=28, C=2.667):
     return np.asarray([xp, yp, zp])
 
 
-rossler_f = partial(rossler_dydt, A=A, B=B, C=C)
 
 
 def integrate(
@@ -87,6 +86,9 @@ def integrate(
     seed=None,
     transient=0,
 ):
+    
+    rossler_f = partial(rossler_dydt, A=A, B=B, C=C)
+    
     if seed is None:
         seed = np.random.randint(1000000)
 
@@ -129,6 +131,9 @@ def integrate(
         df.to_csv("data/Rossler/" + name + ".csv", index=False, header=False)
 
     if plot:
+        if not os.path.exists("data/Rossler"):
+            os.makedirs("data/Rossler")
+            
         fig = plt.figure()
         ax = fig.add_subplot(projection="3d")
 
@@ -138,7 +143,7 @@ def integrate(
             states[2, :plotpnts],
         )
 
-        with open(name + ".pickle", "wb") as saved_plot:
+        with open("data/Rossler/" + name + ".pickle", "wb") as saved_plot:
             pickle.dump(fig, saved_plot)
 
         if show:

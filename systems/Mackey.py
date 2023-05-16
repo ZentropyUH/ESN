@@ -69,6 +69,7 @@ class MackeyGlass:
         save=False,
         plotpnts=2500,
         seed=None,
+        transient=0,
     ):
         """Generate the time-series.
 
@@ -119,11 +120,16 @@ class MackeyGlass:
             # y_t_ = y_t
             y_t = y_t_plus_delta
 
+            # eliminate transient
+
+        Y = Y[transient:]
+
         name = f"MG_tau{self.tau}_dt{dt}_n{steps}_t-end{t_end}_seed{seed}"
 
         if save:
             if not os.path.exists(f"data/MG/{self.tau}"):
                 os.makedirs(f"data/MG/{self.tau}")
+                
             df = pd.DataFrame({"y": Y})
             df.to_csv(
                 f"data/MG/{self.tau}/" + name + ".csv",
@@ -138,7 +144,7 @@ class MackeyGlass:
             fig = plt.figure()
             ax = fig.add_subplot()
 
-            x = np.arange(0, t_end, dt)
+            x = np.arange(0, t_end, dt)[transient:]
 
             ax.plot(x[:plotpnts], Y[:plotpnts])
 
