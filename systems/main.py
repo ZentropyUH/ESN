@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 """Cli interface to generate data of different physical models."""
-# pylint: disable=invalid-name
+# pylint: disable=all
 import click
 from functions import _lorenz, _mackey, _kuramoto, _rossler
 
