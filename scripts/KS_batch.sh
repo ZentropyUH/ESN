@@ -94,7 +94,7 @@ echo "end of run"
 ########## SAVE ##########
 
 echo "saving............"
-cp -r $output $save
+cp -r $scratch $save
 echo "end of save"
 
 ########## END ##########

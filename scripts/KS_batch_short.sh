@@ -23,7 +23,7 @@
 
 ########## JOB NAME ##########
 
-#SBATCH --job-name="KS_batch"
+#SBATCH --job-name="short_test"
 
 ########## END ##########
 
@@ -56,7 +56,7 @@ output="$scratch/output"
 mkdir -p $output
 
 # save path
-save="/data/tsa/destevez/dennis/batch_$SLURM_JOB_ID"
+save="/data/tsa/destevez/dennis/sbatch_test_$SLURM_JOB_ID"
 mkdir -p $save
 
 ########## END ##########
@@ -94,7 +94,7 @@ echo "end of run"
 ########## SAVE ##########
 
 echo "saving............"
-cp -r $output $save
+cp -r $scratch $save
 echo "end of save"
 
 ########## END ##########
