@@ -43,7 +43,6 @@ export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
 
 
-
 ########## PATHS ##########
 
 # Create your scratch space
@@ -69,7 +68,7 @@ mkdir -p $save
 
 # Copy project files to scratch
 echo "copying project............"
-cp -r /data/tsa/destevez/dennis/ESN/test/test.py
+cp -r /data/tsa/destevez/dennis/ESN/test/test.py $scratch
 echo "end of copy"
 
 ########## END ##########
