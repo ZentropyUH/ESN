@@ -69,7 +69,7 @@ mkdir -p $save
 
 # Copy project files to scratch
 echo "copying project............"
-cp -r /data/tsa/destevez/dennis/ESN/scripts/test.sh # $scratch
+cp -r /data/tsa/destevez/dennis/ESN/scripts/test.sh $scratch
 echo "end of copy"
 
 ########## END ##########

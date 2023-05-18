@@ -41,9 +41,9 @@ export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
 ########## END ##########
 
-# echo 'ls.....'
-# ls $1
-# echo 'ls end'
+echo 'ls.....'
+ls $1
+echo 'ls end'
 
 ########## PATHS ##########
 
@@ -70,7 +70,7 @@ mkdir -p $save
 
 # Copy project files to scratch
 echo "copying project............"
-cp -r /data/tsa/destevez/dennis/ESN/test/test.py $scratch
+cp -r /data/tsa/destevez/dennis/ESN/test/test.py
 echo "end of copy"
 
 ########## END ##########
