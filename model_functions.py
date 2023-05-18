@@ -10,10 +10,10 @@ from keras.initializers import Zeros
 from keras.models import load_model
 from tqdm import tqdm
 
-from custom_initializers import (ErdosRenyi, InputMatrix, RandomUniform,
+from customs.custom_initializers import (ErdosRenyi, InputMatrix, RandomUniform,
                                  RegularNX, RegularOwn, WattsStrogatzNX,
                                  WattsStrogatzOwn)
-from custom_models import ESN, ParallelESN
+from customs.custom_models import ESN, ParallelESN
 from forecasters import classic_forecast, section_forecast
 from plotters import (plot_contourf_forecast, plot_linear_forecast, plot_rmse,
                       render_video)
@@ -27,7 +27,6 @@ from utils import get_range, load_data, load_model_json
 
 
 def _train(
-    ctx,
     # General params
     model,
     units,
@@ -62,6 +61,8 @@ def _train(
     The data file should be a csv file with the rows being the time and the columns being the dimensions. The data file should be provided with full path.
     """
     ################ GET THE PARAMETERS WITH POSSIBLE RANGES ################
+
+    params = locals().copy()
 
     # General params
     units = get_range(units, step=1000, method="linear")
@@ -245,7 +246,7 @@ def _train(
 
                                         ############### SAVING TRAINED MODEL ###############
 
-                                        params = ctx.__dict__["params"]
+                                        
                                         
                                         # Prune path from data_file
                                         # data_file_name = data_file.split("/")[

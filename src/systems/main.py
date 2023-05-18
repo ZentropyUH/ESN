@@ -1,8 +1,8 @@
 #!/usr/bin/python3
 """Cli interface to generate data of different physical models."""
-# pylint: disable=all
+
 import click
-from functions import _lorenz, _mackey, _kuramoto, _rossler
+from systems.functions import _lorenz, _mackey, _kuramoto, _rossler
 
 # region lorenz params
 @click.group()
@@ -107,6 +107,10 @@ def lorenz(
     """Integrate a Lorenz model with the given parameters. Data can be saved and plotted."""
     _lorenz(**locals())
 
+
+
+
+
 # region mackey params
 @cli.command()
 @click.option(
@@ -194,6 +198,11 @@ def lorenz(
     default=1,
     help="Number of runs. Only makes sense if random initial conditions are set.",
 )
+
+
+
+
+
 # endregion
 def mackey(
     tau,
@@ -305,6 +314,11 @@ def mackey(
     default=1,
     help="Number of runs. Only makes sense if random initial conditions are set.",
 )
+
+
+
+
+
 # endregion
 def kuramoto(
     spatial_period,
@@ -412,6 +426,10 @@ def kuramoto(
     default=0,
     help="Transient points to discard.",
 )
+
+
+
+
 # endregion
 def rossler(
     initial_condition,

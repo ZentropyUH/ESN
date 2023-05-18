@@ -15,6 +15,7 @@ class Config:
     def __init__(self):
         self.verbose = False
 
+
 from model_functions import _forecast, _plot, _train
 
 # To avoid tensorflow verbosity
@@ -35,7 +36,7 @@ def cli(ctx, verbose):
 # region Train params
 @cli.command()
 
-# region general params
+
 ################ GENERAL RESERVOIR PARAMETERS ################
 @click.option(
     "--model",
@@ -249,7 +250,7 @@ def cli(ctx, verbose):
     default=None,
     help="Training folder name.",
 )
-##################################################################################################################
+# endregion
 def train(
     # General params
     model,
@@ -279,16 +280,6 @@ def train(
     output_dir,
     trained_name,
 ):
-    """
-    Trains an Echo State Network on the data provided in the data file.
-
-    The data file should be a csv file with the rows being the time and the columns being the dimensions. The data file should be provided with full path.
-    """
-    training(**locals())
-
-
-
-
     """Train a specific model on a given data file."""
     _train(**locals())
 
@@ -309,6 +300,8 @@ def train(
     default=1000,
     help="The number of points to be forecasted. The default is 1000.",
 )
+# endregion
+
 # region single section params
 ################ SINGLE SECTION-FORECAS PARAMETERS ################
 @click.option(
@@ -356,7 +349,7 @@ def train(
     help="The number of points used for the training of the model.",
 )
 
-#################################################################
+# endregion
 
 # region General forecast params
 @click.option(
@@ -385,6 +378,7 @@ def train(
     default=None,
     help="Forecast file name.",
 )
+# endregion
 def forecast(
     forecast_method: str,
     forecast_length: int,
@@ -410,13 +404,7 @@ def forecast(
         None
 
     """
-    forecasting(**locals())
 
-
-
-
-    
-    
     # Prune path from trained_model
     if forecast_name is None:
         trained_model_name = trained_model.split("/")[-1] + f"_{forecast_method}_forecasted"
