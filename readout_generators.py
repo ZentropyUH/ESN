@@ -119,14 +119,14 @@ def linear_readout(
     # Adding the readout layer to the model
     # Obscure way to do it but it circumvents the problem of the input
     # being of fixed size. Maybe look into it later.
-    out_model = ModelWithReadout(model, readout_layer)
+    model = ModelWithReadout(model, readout_layer)
 
     # Have to build for some reason TODO
-    out_model.build(transient_data.shape)
+    model.build(transient_data.shape)
 
     # Calling the model in order to be able to save it. Check if
     # this is necessary or better ways to do it
-    out_model(transient_data[:, :1, :])
+    model(transient_data[:, :1, :])
 
     return model
 
