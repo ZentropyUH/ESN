@@ -2,7 +2,7 @@
 
 ########## EXECUTION TIME ##########
 
-#SBATCH --time=48:00:00
+#SBATCH --time=1:00:00
 
 ########## END ##########
 
@@ -12,7 +12,7 @@
 #SBATCH --ntasks=1
 #SBATCH --partition=medium
 
-#SBATCH --cpus-per-task=30
+#SBATCH --cpus-per-task=2
 #SBATCH --mem-per-cpu=5000M
 
 ########## END ##########
@@ -23,7 +23,7 @@
 
 ########## JOB NAME ##########
 
-#SBATCH --job-name="KS_cpu"
+#SBATCH --job-name="test"
 
 ########## END ##########
 
@@ -43,7 +43,6 @@ export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
 
 
-
 ########## PATHS ##########
 
 # Create your scratch space
@@ -52,23 +51,14 @@ mkdir -p $scratch
 cd $scratch
 
 # Script output
-output="$scratch/output"
+output="$scratch/output.out"
 mkdir -p $output
 
-# project path
-ESN="$scratch/ESN"
-
-# data path
-data="$ESN/data"
-mkdir -p $data
-
 # save path
-save="/data/tsa/destevez/dennis/$SLURM_JOB_ID"
+save="/data/tsa/destevez/dennis/test_$SLURM_JOB_ID"
 mkdir -p $save
 
 ########## END ##########
-
-
 
 
 
@@ -76,10 +66,7 @@ mkdir -p $save
 
 # Copy project files to scratch
 echo "copying project............"
-cp -r /data/tsa/destevez/dennis/ESN $scratch
-
-echo "copying data............"
-cp -r /data/tsa/destevez/data/KS/35/N64/* $data
+cp -r /data/tsa/destevez/dennis/ESN/test/test.py $scratch
 echo "end of copy"
 
 ########## END ##########
@@ -92,7 +79,7 @@ echo "end of copy"
 
 cd $ESN
 echo "runing............"
-srun python3 $ESN/grid.py -o $output -d $data -n 1 -m 2
+srun python3 $scratch/test.py -p $output
 echo "end of run"
 
 ########## END ##########

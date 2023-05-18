@@ -2,7 +2,7 @@
 
 ########## EXECUTION TIME ##########
 
-#SBATCH --time=48:00:00
+#SBATCH --time=1:00:00
 
 ########## END ##########
 
@@ -10,14 +10,10 @@
 ########## RESOURCES TO USE ##########
 
 #SBATCH --ntasks=1
-#SBATCH --partition=graphic
+#SBATCH --partition=short
 
-# We will use 4 A100 GPUs
-#SBATCH --gres=gpu:A100:4
-#SBATCH --cpus-per-task=8
-#SBATCH --mem-per-cpu=25000M
-
-export OMP_NUM_THREADS=4
+#SBATCH --cpus-per-task=2
+#SBATCH --mem-per-cpu=5000M
 
 ########## END ##########
 
@@ -27,7 +23,7 @@ export OMP_NUM_THREADS=4
 
 ########## JOB NAME ##########
 
-#SBATCH --job-name="gpu_threads"
+#SBATCH --job-name="short_test"
 
 ########## END ##########
 
@@ -39,8 +35,9 @@ export OMP_NUM_THREADS=4
 set -e
 
 module purge
-module load cuda/11.4
 module load python/3.10.5
+
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
 ########## END ##########
 
@@ -55,18 +52,11 @@ mkdir -p $scratch
 cd $scratch
 
 # Script output
-output="$scratch/output"
-mkdir -p $output
-
-# project path
-ESN="$scratch/ESN"
-
-# data path
-data="$ESN/data"
-mkdir -p $data
+# output="$scratch/output"
+# mkdir -p $output
 
 # save path
-save="/data/tsa/destevez/dennis/$SLURM_JOB_ID"
+save="/data/tsa/destevez/dennis/sbatch_test_$SLURM_JOB_ID"
 mkdir -p $save
 
 ########## END ##########
@@ -79,11 +69,8 @@ mkdir -p $save
 
 # Copy project files to scratch
 echo "copying project............"
-cp -r /data/tsa/destevez/dennis/ESN $scratch
-
-echo "copying data............"
-cp -r /data/tsa/destevez/data/KS/35/N64/* $data
-echo "end of copy\n"
+cp -r /data/tsa/destevez/dennis/ESN/scripts/test_short.sh $scratch
+echo "end of copy"
 
 ########## END ##########
 
@@ -95,8 +82,10 @@ echo "end of copy\n"
 
 cd $ESN
 echo "runing............"
-srun python3 $ESN/grid.py -o $output -d $data -n 1 -m 2
-echo "end of run\n"
+sbatch $scratch/test_short.sh
+echo "end of run"
+
+sleep 100
 
 ########## END ##########
 
@@ -107,8 +96,8 @@ echo "end of run\n"
 ########## SAVE ##########
 
 echo "saving............"
-cp -r $output $save
-echo "end of save\n"
+cp -r $scratch $save
+echo "end of save"
 
 ########## END ##########
 

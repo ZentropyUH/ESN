@@ -12,7 +12,7 @@
 #SBATCH --ntasks=1
 #SBATCH --partition=medium
 
-#SBATCH --cpus-per-task=30
+#SBATCH --cpus-per-task=2
 #SBATCH --mem-per-cpu=5000M
 
 ########## END ##########
@@ -23,7 +23,7 @@
 
 ########## JOB NAME ##########
 
-#SBATCH --job-name="f_threads"
+#SBATCH --job-name="KS_batch"
 
 ########## END ##########
 
@@ -52,18 +52,11 @@ mkdir -p $scratch
 cd $scratch
 
 # Script output
-output="$scratch/output"
-mkdir -p $output
-
-# project path
-ESN="$scratch/ESN"
-
-# data path
-data="$ESN/data"
-mkdir -p $data
+# output="$scratch/output"
+# mkdir -p $output
 
 # save path
-save="/data/tsa/destevez/dennis/$SLURM_JOB_ID"
+save="/data/tsa/destevez/dennis/batch_$SLURM_JOB_ID"
 mkdir -p $save
 
 ########## END ##########
@@ -76,10 +69,7 @@ mkdir -p $save
 
 # Copy project files to scratch
 echo "copying project............"
-cp -r /data/tsa/destevez/dennis/ESN $scratch
-
-echo "copying data............"
-cp -r /data/tsa/destevez/data/KS/35/N64/* $data
+cp -r /data/tsa/destevez/dennis/ESN/scripts/test.sh $scratch
 echo "end of copy"
 
 ########## END ##########
@@ -92,8 +82,10 @@ echo "end of copy"
 
 cd $ESN
 echo "runing............"
-srun python3 $ESN/grid.py -m f_threads -o $output -d $data -n 1 -m 2
+sbatch $scratch/test.sh
 echo "end of run"
+
+sleep 100
 
 ########## END ##########
 
@@ -104,7 +96,7 @@ echo "end of run"
 ########## SAVE ##########
 
 echo "saving............"
-cp -r $output $save
+cp -r $scratch $save
 echo "end of save"
 
 ########## END ##########
