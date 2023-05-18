@@ -2,7 +2,7 @@
 
 ########## EXECUTION TIME ##########
 
-#SBATCH --time=48:00:00
+#SBATCH --time=1:00:00
 
 ########## END ##########
 
@@ -10,7 +10,7 @@
 ########## RESOURCES TO USE ##########
 
 #SBATCH --ntasks=1
-#SBATCH --partition=medium
+#SBATCH --partition=short
 
 #SBATCH --cpus-per-task=2
 #SBATCH --mem-per-cpu=5000M
@@ -41,8 +41,9 @@ export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
 ########## END ##########
 
-
-
+echo 'ls.....'
+ls $1
+echo 'ls end'
 
 ########## PATHS ##########
 
