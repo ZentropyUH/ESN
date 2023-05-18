@@ -92,7 +92,7 @@ echo "end of copy"
 
 cd $ESN
 echo "runing............"
-srun python3 $ESN/grid.py -m f_threads -o $output -d $data -n 1 -m 2
+srun python3 $ESN/grid.py -t f_threads -o $output -d $data -n 1 -m 2
 echo "end of run"
 
 ########## END ##########

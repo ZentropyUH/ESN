@@ -17,7 +17,7 @@ import argparse
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Hyperparametes")
-    parser.add_argument('-m', '--method', help="Grid method", type=str, required=True, choices=['f_threads', 'grid'], default='grid')
+    parser.add_argument('-t', '--type', help="Grid type", type=str, required=True, choices=['f_threads', 'grid'], default='grid')
     parser.add_argument('-o', '--output', help="Output path", type=str, required=True)
     parser.add_argument('-d', '--data', help="Data path", type=str, required=True)
     parser.add_argument('-n', help="Search Tree depth", type=int, default=5)
@@ -30,7 +30,7 @@ if __name__ == '__main__':
     print(gpus)
 
 
-    if args.method == 'grid':
+    if args.type == 'grid':
         src.grid.grid_script.grid_search(hyperparameters_to_adjust, args.data, args.output, args.n, args.m)
-    if args.method == 'f_threads':
+    if args.type == 'f_threads':
         src.grid.grid_script_threads.grid_search(hyperparameters_to_adjust, args.data, args.output, args.n, args.m)
