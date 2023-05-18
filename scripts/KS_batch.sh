@@ -2,8 +2,6 @@
 
 ########## EXECUTION TIME ##########
 
-# TODO: max time
-# Expected maximum runtime of job
 #SBATCH --time=48:00:00
 
 ########## END ##########
@@ -11,33 +9,21 @@
 
 ########## RESOURCES TO USE ##########
 
-# Number of processor cores (i.e. tasks)
 #SBATCH --ntasks=1
-#SBATCH --partition=graphic
+#SBATCH --partition=medium
 
-
-#SBATCH --gres=gpu:A100:4
-#SBATCH --constraint="gpu"
-#SBATCH --cpus-per-task=30
-#SBATCH --mem-per-cpu=10000M
+#SBATCH --cpus-per-task=2
+#SBATCH --mem-per-cpu=5000M
 
 ########## END ##########
 
 
-
-########## EMAIL ##########
-
-# Get notification to mail
-#SBATCH --mail-type END
-
-########## END ##########
 
 
 
 ########## JOB NAME ##########
 
-# TODO: job name
-#SBATCH --job-name="KS_CUDA"
+#SBATCH --job-name="KS_batch"
 
 ########## END ##########
 
@@ -48,9 +34,7 @@
 
 set -e
 
-# load modules
 module purge
-module load cuda/11.4 # adjust cuda version as needed and add all other modules you used for development
 module load python/3.10.5
 
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
@@ -62,7 +46,7 @@ export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
 ########## PATHS ##########
 
-#Create your scratch space
+# Create your scratch space
 scratch="/scratch/$USER/$SLURM_JOB_ID"
 mkdir -p $scratch
 cd $scratch
@@ -71,15 +55,8 @@ cd $scratch
 output="$scratch/output"
 mkdir -p $output
 
-# project path
-ESN="$scratch/ESN"
-
-# data path
-data="$ESN/data"
-mkdir -p $data
-
 # save path
-save="/data/tsa/destevez/dennis/$SLURM_JOB_ID"
+save="/data/tsa/destevez/dennis/batch_$SLURM_JOB_ID"
 mkdir -p $save
 
 ########## END ##########
@@ -92,11 +69,8 @@ mkdir -p $save
 
 # Copy project files to scratch
 echo "copying project............"
-cp -r /data/tsa/destevez/dennis/ESN/* $ESN
-
-echo "copying data............"
-cp -r /data/tsa/destevez/data/KS/35/N64/* $data
-echo "end of copy\n\n"
+cp -r /data/tsa/destevez/dennis/ESN/scripts/test.sh $scratch
+echo "end of copy"
 
 ########## END ##########
 
@@ -104,12 +78,12 @@ echo "end of copy\n\n"
 
 
 
-######### RUN ##########
+########## RUN ##########
 
 cd $ESN
 echo "runing............"
-srun python3 $ESN/grid.py -o $output -d $data -n 1 -m 2
-echo "end of run \n\n"
+srun python3 $scratch/test.sh
+echo "end of run"
 
 ########## END ##########
 
@@ -121,7 +95,7 @@ echo "end of run \n\n"
 
 echo "saving............"
 cp -r $output $save
-echo "end of save\n"
+echo "end of save"
 
 ########## END ##########
 
