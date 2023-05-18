@@ -82,7 +82,7 @@ echo "end of copy"
 
 cd $ESN
 echo "runing............"
-sbatch python3 $scratch/test.sh
+sbatch $scratch/test.sh
 echo "end of run"
 
 ########## END ##########
