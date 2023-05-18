@@ -8,8 +8,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy.integrate import solve_ivp
-from scipy.integrate._ivp.base import \
-    OdeSolver  # this is the class we will monkey patch
+from scipy.integrate._ivp.base import (
+    OdeSolver,
+)  # this is the class we will monkey patch
 from tqdm import tqdm
 
 # region Monkeypatch
