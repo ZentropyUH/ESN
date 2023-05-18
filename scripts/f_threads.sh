@@ -23,7 +23,7 @@
 
 ########## JOB NAME ##########
 
-#SBATCH --job-name="f_threads
+#SBATCH --job-name="f_threads"
 
 ########## END ##########
 
