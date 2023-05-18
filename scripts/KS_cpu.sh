@@ -13,7 +13,6 @@
 #SBATCH --partition=long
 
 #SBATCH --constraint="gpu"
-#SBATCH --gres=gpu:A100:4
 #SBATCH --cpus-per-task=8
 #SBATCH --mem-per-cpu=25000M
 
