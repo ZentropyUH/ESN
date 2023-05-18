@@ -41,9 +41,8 @@ export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
 ########## END ##########
 
-echo 'ls.....'
-ls $1
-echo 'ls end'
+
+
 
 ########## PATHS ##########
 
