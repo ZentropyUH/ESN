@@ -23,7 +23,7 @@
 
 ########## JOB NAME ##########
 
-#SBATCH --job-name="KS_cpu"
+#SBATCH --job-name="f_threads
 
 ########## END ##########
 
@@ -92,7 +92,7 @@ echo "end of copy"
 
 cd $ESN
 echo "runing............"
-srun python3 $ESN/grid.py -m grid -o $output -d $data -n 1 -m 2
+srun python3 $ESN/grid.py -m f_threads -o $output -d $data -n 1 -m 2
 echo "end of run"
 
 ########## END ##########

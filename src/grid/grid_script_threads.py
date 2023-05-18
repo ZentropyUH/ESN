@@ -15,8 +15,7 @@ import time
 
 
 
-
-def grid(combinations:list[list], data:list[str], output_path:str, queue_size:int, u:int=5000, tl:int=20000, threshold:float=0.01, train_time:list=[], forecast_time:list=[]):
+def grid_threaded_forecast(combinations:list[list], data:list[str], output_path:str, queue_size:int, u:int=5000, tl:int=20000, threshold:float=0.01, train_time:list=[], forecast_time:list=[]):
 
     # Queue for best cases, n is the max number of cases
     best = Queue(queue_size)
@@ -55,18 +54,21 @@ def grid(combinations:list[list], data:list[str], output_path:str, queue_size:in
         train(combination, train_data_path, current_path, u, tl, 'trained_model')
         train_time.append(time.time() - start_train_time)
 
-        start_forecast_time = time.time()
+        threads = []
+        
         for fn, current_data in enumerate(data):
 
-            forecast(
-                prediction_steps = 1000,
-                train_transient= tl,
-                trained_model_path= trained_model_path,
-                prediction_path= forecast_path,
-                data_file= current_data,
-                forecast_name= fn,
-                trained= current_data == train_data_path,
-            )
+            thread = Thread(target=forecast,
+                            args=(1000, tl, trained_model_path, forecast_path, current_data, fn, current_data == train_data_path))
+            threads.append(thread)
+        
+        start_forecast_time = time.time()
+        
+        for thread in threads:
+            thread.start()
+        
+        for thread in threads:
+            thread.join()
         
         forecast_time.append((time.time() - start_forecast_time)/len(data))
 
@@ -99,7 +101,18 @@ def grid(combinations:list[list], data:list[str], output_path:str, queue_size:in
 
     return best.queue
 
-              
+
+
+
+
+
+# The hyperparameters will be of the form: name: (initial_value, number_of_values, increment, function_of_increment)
+# The parameters of the increment function are: initial_value, increment, current_value_of_the_iteration
+hyperparameters_to_adjust={"sigma":(0,5,0.2,lambda x,y: x+y),
+                        "degree_k":(2,4,2,lambda x,y: x+y),
+                        "ritch_regularization":(10e-4,10,4,lambda x,y: x*y),
+                        "spectral_radio": (0.9, 10 ,0.02, lambda x,y,i: x+y*i)}
+                  
 
 
 def grid_search(hyperparameters_to_adjust: dict, data_path: str, output_path: str, depth: int, queue_size: int, u: int=9000, tl: int=20000, threshold: int=0.01):
@@ -122,7 +135,7 @@ def grid_search(hyperparameters_to_adjust: dict, data_path: str, output_path: st
     combinations = generate_combinations(hyperparameters_to_adjust)
 
     # First search
-    first_results = grid(combinations,
+    first_results = grid_threaded_forecast(combinations,
         data=data,        
         output_path = output_path,
         queue_size= queue_size,
@@ -185,7 +198,7 @@ def grid_search(hyperparameters_to_adjust: dict, data_path: str, output_path: st
                 initial_value = 0
                 params[key] = (initial_value, number_of_values, increment, function_of_increment)
 
-        first_results = grid(generate_combinations(params),
+        first_results = grid_threaded_forecast(generate_combinations(params),
                             data=data,         
                             output_path = output_path,
                             queue_size= queue_size,
