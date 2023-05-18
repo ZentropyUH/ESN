@@ -1,4 +1,11 @@
 #!/usr/bin/python3
+"""CLI interface to train and forecast with ESN models."""
+
+# pylint: disable=unused-argument
+# pylint: disable=line-too-long
+import os
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+
 import click
 
 from src.functions import training, forecasting
@@ -8,7 +15,9 @@ class Config:
     def __init__(self):
         self.verbose = False
 
+from model_functions import _forecast, _plot, _train
 
+# To avoid tensorflow verbosity
 pass_config = click.make_pass_decorator(Config, ensure=True)
 
 
@@ -23,17 +32,15 @@ def cli(ctx, verbose):
     ctx.obj = Config()
     ctx.obj.verbose = verbose
 
-
-# Train command
+# region Train params
 @cli.command()
 
+# region general params
 ################ GENERAL RESERVOIR PARAMETERS ################
-
-
 @click.option(
     "--model",
     "-m",
-    type=click.Choice(["ESN", "Parallel-ESN", "Reservoir_to_be_implemented"]),
+    type=click.Choice(["ESN", "Parallel-ESN", "Reservoir"]),
     default="ESN",
     help="The model to be used. The default is ESN.",
 )
@@ -42,7 +49,12 @@ def cli(ctx, verbose):
     "-u",
     type=click.STRING,
     default="2000",
-    help="The number of units in the reservoir. The default is 2000. If a range of values is given, the script will be executed the specified number of times with different values of the number of units. The values will be chosen linearly between the first and the second value. If a list of values is given, the script will be executed the specified number of times with the values in the list.",
+    help="The number of units in the reservoir."\
+        " The default is 2000. If a range of values is given, the script will be executed the "\
+        "specified number of times with different values of the number of units. "\
+        "The values will be chosen linearly between the first and the second value. "\
+        "If a list of values is given, the script will be executed the specified number of "\
+        "times with the values in the list.",
 )
 @click.option(
     "--input-initializer",
@@ -82,10 +94,10 @@ def cli(ctx, verbose):
     if ctx.params["model"] == "ESN" or ctx.params["model"] == "Parallel-ESN"
     else None,
 )
+# endregion
 
+# region classic model params
 ################ CLASSIC ESN MODELS ONLY PARAMETERS
-
-
 @click.option(
     "--spectral-radius",
     "-sr",
@@ -148,10 +160,10 @@ def cli(ctx, verbose):
     if ctx.params["model"] == "ESN" or ctx.params["model"] == "Parallel-ESN"
     else None,
 )
+# endregion
 
+# region parallel model params
 ################ PARALLEL SCHEME PARAMETERS ################
-
-
 @click.option(
     "--reservoir-amount",
     "-ra",
@@ -174,13 +186,10 @@ def cli(ctx, verbose):
     if ctx.params["model"] == "Parallel-ESN"
     else None,
 )
+# endregion
 
-##################################################################################################################
-
-
+# region readout params
 ################ READOUT PARAMETERS ################
-
-
 @click.option(
     "--readout-layer",
     "-rl",
@@ -195,12 +204,10 @@ def cli(ctx, verbose):
     default="1e-4",
     help="The regularization parameter. The default is 1e-4. If a range of values is given, the script will be executed the specified number of times with different values of the regularization parameter. The values will be chosen logarithmically between the first and the second value. If a list of values is given, the script will be executed the specified number of times with the values in the list.",
 )
+# endregion
 
-##################################################################################################################
-
+# region training params
 ################ TRAINING PARAMETERS ################
-
-
 @click.option(
     "--init-transient",
     "-it",
@@ -282,11 +289,11 @@ def train(
 
 
 
+    """Train a specific model on a given data file."""
+    _train(**locals())
 
 
-################ FORECAST PARAMETERS ################
-
-
+# region Forecast params
 @cli.command()
 @click.option(
     "--forecast-method",
@@ -302,10 +309,8 @@ def train(
     default=1000,
     help="The number of points to be forecasted. The default is 1000.",
 )
-
-################ ONLY SECTION-FORECAS PARAMETERS ################
-
-
+# region single section params
+################ SINGLE SECTION-FORECAS PARAMETERS ################
 @click.option(
     "--section-initialization-length",
     "-sil",
@@ -353,7 +358,7 @@ def train(
 
 #################################################################
 
-
+# region General forecast params
 @click.option(
     "--trained-model",
     "-tm",
@@ -424,8 +429,13 @@ def forecast(
     else:
         trained_model_name = forecast_name
 
+    """Make predictions with a given model on a data file."""
+    _forecast(**locals())
 
 
+# region Plot params
+
+# region general params
 # plot command that receives a plot_type, prediction file and a data file and makes the plot
 @cli.command()
 @click.option(
@@ -485,33 +495,23 @@ def forecast(
     help="The label of the x axis. The default is time (t).",
 )
 @click.option(
+    "--plot-points",
+    "-pp",
+    type=click.INT,
+    default=None,
+    help="The number of points/steps to plot."
+)
+@click.option(
     "--y-values",
     "-yv",
     type=click.STRING,
     default=None,
     help="The values of the y axis. The default is None. Value should be a string with both values separated by commas.",
 )
+# endregion
 
+# region datafiles params
 
-# This is to know the validation data to be able to compare the predictions with the actual data and not with the training data.
-@click.option(
-    "--init-transient",
-    "-it",
-    type=click.INT,
-    help="The number of transient points that were discarded at the beginning of the data.",
-)
-@click.option(
-    "--transient",
-    "-tr",
-    type=click.INT,
-    help="The number of transient points discarded in the training of the model.",
-)
-@click.option(
-    "--train-length",
-    "-tl",
-    type=click.INT,
-    help="The number of points used for the training of the model.",
-)
 @click.option(
     "predictions",
     "-pr",
@@ -524,12 +524,42 @@ def forecast(
     type=click.Path(exists=True),
     help="The path to the file containing the data.",
 )
+# endregion
+# region training-related params
+
+# This is to know the validation data to be able to compare the predictions with the actual data and not with the training data.
+@click.option(
+    "--init-transient",
+    "-it",
+    type=click.INT,
+    help="The number of transient points that were discarded at the beginning of the data.",
+    default=1000,
+)
+@click.option(
+    "--transient",
+    "-tr",
+    type=click.INT,
+    help="The number of transient points discarded in the training of the model.",
+    default=1000,
+)
+@click.option(
+    "--train-length",
+    "-tl",
+    type=click.INT,
+    help="The number of points used for the training of the model.",
+    default=10000,
+)
+
+# endregion
+
+# endregion
 def plot(
     plot_type,
     predictions,
     data_file,
     lyapunov_exponent,
     delta_time,
+    plot_points,
     title,
     save_path,
     show,
@@ -540,12 +570,8 @@ def plot(
     transient,
     train_length,
 ):
-    ...
-
-
-
-
-
+    """Plot different data."""
+    _plot(**locals())
 
 
 if __name__ == "__main__":
