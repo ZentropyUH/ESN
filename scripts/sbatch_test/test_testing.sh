@@ -23,7 +23,7 @@
 
 ########## JOB NAME ##########
 
-#SBATCH --job-name="KS_batch"
+#SBATCH --job-name="test_testing"
 
 ########## END ##########
 
@@ -50,9 +50,13 @@ scratch="/scratch/$USER/$SLURM_JOB_ID"
 mkdir -p $scratch
 cd $scratch
 
-# save path
-save="/data/tsa/destevez/dennis/b_m_$SLURM_JOB_ID"
+# output path
+output="$scratch/output"
+mkdir -p $output
 
+# save path
+save="/data/tsa/destevez/dennis/test_t_$SLURM_JOB_ID"
+mkdir -p $save
 
 ########## END ##########
 
@@ -62,7 +66,7 @@ save="/data/tsa/destevez/dennis/b_m_$SLURM_JOB_ID"
 
 # Copy project files to scratch
 echo "copying project............"
-cp -r /data/tsa/destevez/dennis/ESN/scripts/test.sh $scratch
+cp -r /data/tsa/destevez/dennis/ESN/test/test.py $scratch
 echo "end of copy"
 
 ########## END ##########
@@ -73,9 +77,9 @@ echo "end of copy"
 
 ########## RUN ##########
 
-
+cd $ESN
 echo "runing............"
-sbatch $scratch/test.sh 57
+srun python3 $scratch/test.py -p $output -i $1 > $output/output.out
 echo "end of run"
 
 ########## END ##########

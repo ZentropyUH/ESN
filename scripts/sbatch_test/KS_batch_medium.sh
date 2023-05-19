@@ -10,7 +10,7 @@
 ########## RESOURCES TO USE ##########
 
 #SBATCH --ntasks=1
-#SBATCH --partition=testing
+#SBATCH --partition=medium
 
 #SBATCH --cpus-per-task=2
 #SBATCH --mem-per-cpu=5000M
@@ -23,7 +23,7 @@
 
 ########## JOB NAME ##########
 
-#SBATCH --job-name="test"
+#SBATCH --job-name="KS_batch"
 
 ########## END ##########
 
@@ -50,13 +50,9 @@ scratch="/scratch/$USER/$SLURM_JOB_ID"
 mkdir -p $scratch
 cd $scratch
 
-# output path
-output="$scratch/output"
-mkdir -p $output
-
 # save path
-save="/data/tsa/destevez/dennis/test_$SLURM_JOB_ID"
-mkdir -p $save
+save="/data/tsa/destevez/dennis/b_m_$SLURM_JOB_ID"
+
 
 ########## END ##########
 
@@ -66,7 +62,7 @@ mkdir -p $save
 
 # Copy project files to scratch
 echo "copying project............"
-cp -r /data/tsa/destevez/dennis/ESN/test/test.py $scratch
+cp -r /data/tsa/destevez/dennis/ESN/scripts/test_medium.sh $scratch
 echo "end of copy"
 
 ########## END ##########
@@ -77,9 +73,9 @@ echo "end of copy"
 
 ########## RUN ##########
 
-cd $ESN
+
 echo "runing............"
-srun python3 $scratch/test.py -p $output -i $1 > $output/output.out
+sbatch $scratch/test.sh 57
 echo "end of run"
 
 ########## END ##########

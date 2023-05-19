@@ -10,7 +10,7 @@
 ########## RESOURCES TO USE ##########
 
 #SBATCH --ntasks=1
-#SBATCH --partition=medium
+#SBATCH --partition=testing
 
 #SBATCH --cpus-per-task=2
 #SBATCH --mem-per-cpu=5000M
@@ -51,7 +51,7 @@ mkdir -p $scratch
 cd $scratch
 
 # save path
-save="/data/tsa/destevez/dennis/b_m_$SLURM_JOB_ID"
+save="/data/tsa/destevez/dennis/b_t_$SLURM_JOB_ID"
 
 
 ########## END ##########
@@ -62,7 +62,7 @@ save="/data/tsa/destevez/dennis/b_m_$SLURM_JOB_ID"
 
 # Copy project files to scratch
 echo "copying project............"
-cp -r /data/tsa/destevez/dennis/ESN/scripts/test.sh $scratch
+cp -r /data/tsa/destevez/dennis/ESN/scripts/test_testing.sh $scratch
 echo "end of copy"
 
 ########## END ##########

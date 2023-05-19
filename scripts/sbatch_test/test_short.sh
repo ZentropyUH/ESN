@@ -10,7 +10,7 @@
 ########## RESOURCES TO USE ##########
 
 #SBATCH --ntasks=1
-#SBATCH --partition=medium
+#SBATCH --partition=short
 
 #SBATCH --cpus-per-task=2
 #SBATCH --mem-per-cpu=5000M
@@ -23,7 +23,7 @@
 
 ########## JOB NAME ##########
 
-#SBATCH --job-name="test"
+#SBATCH --job-name="test_short"
 
 ########## END ##########
 
@@ -50,15 +50,16 @@ scratch="/scratch/$USER/$SLURM_JOB_ID"
 mkdir -p $scratch
 cd $scratch
 
-# output path
-output="$scratch/output"
-mkdir -p $output
+# Script output
+# output="$scratch/output"
+# mkdir -p $output
 
 # save path
-save="/data/tsa/destevez/dennis/test_$SLURM_JOB_ID"
+save="/data/tsa/destevez/dennis/test_s_$SLURM_JOB_ID"
 mkdir -p $save
 
 ########## END ##########
+
 
 
 
@@ -91,7 +92,7 @@ echo "end of run"
 ########## SAVE ##########
 
 echo "saving............"
-cp -r $scratch $save
+cp -r $output $save
 echo "end of save"
 
 ########## END ##########
