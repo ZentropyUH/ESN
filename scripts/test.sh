@@ -51,8 +51,8 @@ mkdir -p $scratch
 cd $scratch
 
 # Script output
-output="$scratch/output"
-mkdir -p $output
+# output="$scratch/output"
+# mkdir -p $output
 
 # save path
 save="/data/tsa/destevez/dennis/test_$SLURM_JOB_ID"
