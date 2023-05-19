@@ -82,7 +82,7 @@ echo "end of copy"
 
 cd $ESN
 echo "runing............"
-sbatch $scratch/test_short.sh
+sbatch --err $scratch/error.err $scratch/test_short.sh
 echo "end of run"
 
 sleep 100
