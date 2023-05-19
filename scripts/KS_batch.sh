@@ -85,8 +85,6 @@ echo "runing............"
 sbatch $scratch/test.sh
 echo "end of run"
 
-sleep 100
-
 ########## END ##########
 
 
