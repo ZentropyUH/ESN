@@ -23,7 +23,7 @@
 
 ########## JOB NAME ##########
 
-#SBATCH --job-name="short_test"
+#SBATCH --job-name="test_short"
 
 ########## END ##########
 
@@ -43,7 +43,6 @@ export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
 
 
-
 ########## PATHS ##########
 
 # Create your scratch space
@@ -56,12 +55,19 @@ cd $scratch
 # mkdir -p $output
 
 # save path
-save="/data/tsa/destevez/dennis/sbatch_test_$SLURM_JOB_ID"
+save="/data/tsa/destevez/dennis/test_$SLURM_JOB_ID"
 mkdir -p $save
 
 ########## END ##########
 
 
+
+########## OUT ##########
+
+#SBATCH --output=/scratch/output.out
+#SBATCH --error=/scratch/error.err
+
+########### END ##########
 
 
 
@@ -69,7 +75,7 @@ mkdir -p $save
 
 # Copy project files to scratch
 echo "copying project............"
-cp -r /data/tsa/destevez/dennis/ESN/scripts/test_short.sh $scratch
+cp -r /data/tsa/destevez/dennis/ESN/test/test.py $scratch
 echo "end of copy"
 
 ########## END ##########
@@ -82,7 +88,7 @@ echo "end of copy"
 
 cd $ESN
 echo "runing............"
-sbatch $scratch/test_short.sh
+srun python3 $scratch/test.py
 echo "end of run"
 
 ########## END ##########
@@ -94,7 +100,7 @@ echo "end of run"
 ########## SAVE ##########
 
 echo "saving............"
-cp -r $scratch $save
+cp -r $output $save
 echo "end of save"
 
 ########## END ##########
