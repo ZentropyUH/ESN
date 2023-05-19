@@ -82,10 +82,8 @@ echo "end of copy"
 
 cd $ESN
 echo "runing............"
-sbatch $scratch/test.sh > $scratch/output.out
+sbatch $scratch/test.sh
 echo "end of run"
-
-sleep 100
 
 ########## END ##########
 
