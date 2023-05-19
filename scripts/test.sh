@@ -62,6 +62,13 @@ mkdir -p $save
 
 
 
+########## OUT ##########
+
+#SBATCH --output=/scratch/output.out
+#SBATCH --error=/scratch/error.err
+
+########### END ##########
+
 
 
 ########## COPY ##########
