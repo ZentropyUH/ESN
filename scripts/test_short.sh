@@ -88,7 +88,7 @@ echo "end of copy"
 
 cd $ESN
 echo "runing............"
-srun python3 $scratch/test.py
+srun python3 $scratch/test.py -p $output > $output/output.out
 echo "end of run"
 
 ########## END ##########

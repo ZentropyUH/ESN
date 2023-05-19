@@ -2,7 +2,7 @@
 
 ########## EXECUTION TIME ##########
 
-#SBATCH --time=48:00:00
+#SBATCH --time=1:00:00
 
 ########## END ##########
 
@@ -23,7 +23,11 @@
 
 ########## JOB NAME ##########
 
+<<<<<<<< HEAD:scripts/KS_batch.sh
 #SBATCH --job-name="KS_batch"
+========
+#SBATCH --job-name="test"
+>>>>>>>> c05fa4d497c22da628ea7734867ee62b16b7f5c2:scripts/test.sh
 
 ########## END ##########
 
@@ -43,7 +47,6 @@ export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
 
 
-
 ########## PATHS ##########
 
 # Create your scratch space
@@ -52,16 +55,22 @@ mkdir -p $scratch
 cd $scratch
 
 # Script output
+<<<<<<<< HEAD:scripts/KS_batch.sh
 # output="$scratch/output"
 # mkdir -p $output
 
 # save path
 save="/data/tsa/destevez/dennis/batch_$SLURM_JOB_ID"
+========
+output="$scratch/output.out"
+mkdir -p $output
+
+# save path
+save="/data/tsa/destevez/dennis/test_$SLURM_JOB_ID"
+>>>>>>>> c05fa4d497c22da628ea7734867ee62b16b7f5c2:scripts/test.sh
 mkdir -p $save
 
 ########## END ##########
-
-
 
 
 
@@ -69,7 +78,11 @@ mkdir -p $save
 
 # Copy project files to scratch
 echo "copying project............"
+<<<<<<<< HEAD:scripts/KS_batch.sh
 cp -r /data/tsa/destevez/dennis/ESN/scripts/test.sh $scratch
+========
+cp -r /data/tsa/destevez/dennis/ESN/test/test.py $scratch
+>>>>>>>> c05fa4d497c22da628ea7734867ee62b16b7f5c2:scripts/test.sh
 echo "end of copy"
 
 ########## END ##########
@@ -82,7 +95,11 @@ echo "end of copy"
 
 cd $ESN
 echo "runing............"
+<<<<<<<< HEAD:scripts/KS_batch.sh
 sbatch $scratch/test.sh
+========
+srun python3 $scratch/test.py -p $output > $output/output.out
+>>>>>>>> c05fa4d497c22da628ea7734867ee62b16b7f5c2:scripts/test.sh
 echo "end of run"
 
 ########## END ##########
