@@ -62,7 +62,7 @@ save="/data/tsa/destevez/dennis/b_m_$SLURM_JOB_ID"
 
 # Copy project files to scratch
 echo "copying project............"
-cp -r /data/tsa/destevez/dennis/ESN/scripts/test_medium.sh $scratch
+cp -r /data/tsa/destevez/dennis/ESN/scripts/sbatch_test/test_medium.sh $scratch
 echo "end of copy"
 
 ########## END ##########
