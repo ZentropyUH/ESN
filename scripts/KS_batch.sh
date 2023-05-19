@@ -51,7 +51,7 @@ mkdir -p $scratch
 cd $scratch
 
 # save path
-save="/data/tsa/destevez/dennis/batch_$SLURM_JOB_ID"
+save="/data/tsa/destevez/dennis/b_m_$SLURM_JOB_ID"
 
 
 ########## END ##########
@@ -75,7 +75,7 @@ echo "end of copy"
 
 
 echo "runing............"
-sbatch $scratch/test.sh
+sbatch $scratch/test.sh 57
 echo "end of run"
 
 ########## END ##########

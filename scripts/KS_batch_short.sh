@@ -51,12 +51,8 @@ scratch="/scratch/$USER/$SLURM_JOB_ID"
 mkdir -p $scratch
 cd $scratch
 
-# Script output
-# output="$scratch/output"
-# mkdir -p $output
-
 # save path
-save="/data/tsa/destevez/dennis/sbatch_test_$SLURM_JOB_ID"
+save="/data/tsa/destevez/dennis/b_s_$SLURM_JOB_ID"
 mkdir -p $save
 
 ########## END ##########
@@ -82,7 +78,7 @@ echo "end of copy"
 
 cd $ESN
 echo "runing............"
-sbatch $scratch/test_short.sh
+sbatch $scratch/test_short.sh 57
 echo "end of run"
 
 ########## END ##########
