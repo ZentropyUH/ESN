@@ -52,8 +52,8 @@ mkdir -p $scratch
 cd $scratch
 
 # Script output
-output="$scratch/output"
-mkdir -p $output
+# output="$scratch/output"
+# mkdir -p $output
 
 # save path
 save="/data/tsa/destevez/dennis/batch_$SLURM_JOB_ID"
@@ -82,8 +82,10 @@ echo "end of copy"
 
 cd $ESN
 echo "runing............"
-sbatch $scratch/test.sh $scratch
+sbatch $scratch/test.sh
 echo "end of run"
+
+sleep 100
 
 ########## END ##########
 
