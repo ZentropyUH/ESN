@@ -50,6 +50,9 @@ mkdir -p $data
 save="/data/tsa/destevez/dennis/Lorenz/run_$1"
 mkdir -p $save
 
+out="/data/tsa/destevez/dennis/ESN/scripts/out"
+mkdir -p $out
+#SBATCH --output=/data/tsa/destevez/dennis/ESN/scripts/out/lorenz-%j.out
 
 
 ########## COPY ##########
