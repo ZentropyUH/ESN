@@ -45,13 +45,15 @@ def grid_one(combination_index: int, data_path: str, output_path:str, u:int=5000
 
         # Train
         start_train_time = time.time()
+        print('Training...')
         train(combination, train_data_path, current_path, u, tl, 'trained_model')
+        print('Training finished')
         train_time = time.time() - start_train_time
 
         # Forecast
         start_forecast_time = time.time()
         for fn, current_data in enumerate(data):
-
+            print('Forecasting {}...'.format(fn))
             forecast(
                 prediction_steps = 1000,
                 train_transient= tl,
@@ -61,6 +63,7 @@ def grid_one(combination_index: int, data_path: str, output_path:str, u:int=5000
                 forecast_name= fn,
                 trained= current_data == train_data_path,
             )
+            print('Forecasting {} finished'.format(fn))
         forecast_time = (time.time() - start_forecast_time)/len(data)
 
         # Get Forecast data files
