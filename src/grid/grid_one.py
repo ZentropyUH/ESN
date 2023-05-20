@@ -99,7 +99,7 @@ if __name__ == '__main__':
     parser.add_argument('-o', '--output', help="Output path", type=str, required=True)
     parser.add_argument('-d', '--data', help="Data path", type=str, required=True)
     parser.add_argument('-i', '--index', help="Combination of hyperparameters", type=int, required=True)
-    
+    args = parser.parse_args()
 
     gpus = tf.config.list_physical_devices('GPU')
     print("Num GPUs Available: ", len(gpus))
