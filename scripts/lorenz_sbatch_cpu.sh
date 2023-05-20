@@ -57,6 +57,7 @@ do
     echo "runing $i............"
     sbatch lorenz_srun_cpu.sh $i
     echo "end of run $i"
+    sleep(5)
 done
 
 echo "end of run"
