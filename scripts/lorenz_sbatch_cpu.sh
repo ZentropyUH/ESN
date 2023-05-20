@@ -1,23 +1,13 @@
 #!/bin/bash
 
-########## EXECUTION TIME ##########
-
-#SBATCH --time=48:00:00
-
-########## END ##########
-
-
 ########## RESOURCES TO USE ##########
 
 #SBATCH --ntasks=1
-#SBATCH --partition=medium
-
 #SBATCH --cpus-per-task=2
 #SBATCH --mem-per-cpu=5000M
 
-########## END ##########
-
-
+#SBATCH --time=48:00:00
+#SBATCH --partition=medium
 
 
 
@@ -25,18 +15,12 @@
 
 #SBATCH --job-name="Lorenz_main"
 
-########## END ##########
-
-
 
 
 ########## MODULES ##########
 
 set -e
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
-
-########## END ##########
-
 
 
 
@@ -51,10 +35,6 @@ cd $scratch
 save="/data/tsa/destevez/dennis/Lorenz/main_$SLURM_JOB_ID"
 mkdir -p $save
 
-########## END ##########
-
-
-
 
 
 ########## COPY ##########
@@ -63,10 +43,6 @@ mkdir -p $save
 echo "copying project............"
 cp -r /data/tsa/destevez/dennis/ESN/scripts/lorenz_srun_cpu.sh $scratch
 echo "end of copy"
-
-########## END ##########
-
-
 
 
 
@@ -86,11 +62,7 @@ done
 echo "end of run"
 echo ""
 
-sleep 1m
-
-########## END ##########
-
-
+sleep 14400
 
 
 
@@ -99,10 +71,6 @@ sleep 1m
 echo "saving............"
 cp -r $scratch $save
 echo "end of save"
-
-########## END ##########
-
-
 
 
 
