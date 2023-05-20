@@ -66,9 +66,9 @@ echo "end of copy"
 
 ########## RUN ##########
 
-cd $scratch
+cd $ESN
 echo "runing............"
-srun python3 test.py -o $output -d $data -i $1 > $output/output.out
+srun python3 grid.py -o $output -d $data -i $1 > $output/output.out
 echo "end of run"
 
 
