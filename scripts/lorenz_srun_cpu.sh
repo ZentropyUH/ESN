@@ -36,7 +36,7 @@ cd $scratch
 
 # project path
 ESN=$scratch/ESN
-mkdir -p $project
+mkdir -p $ESN
 
 # output path
 output="$scratch/output"
