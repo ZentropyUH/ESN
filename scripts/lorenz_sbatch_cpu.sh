@@ -2,7 +2,7 @@
 
 ########## EXECUTION TIME ##########
 
-#SBATCH --time=1:00:00
+#SBATCH --time=48:00:00
 
 ########## END ##########
 
@@ -10,7 +10,7 @@
 ########## RESOURCES TO USE ##########
 
 #SBATCH --ntasks=1
-#SBATCH --partition=short
+#SBATCH --partition=medium
 
 #SBATCH --cpus-per-task=2
 #SBATCH --mem-per-cpu=5000M
@@ -23,7 +23,7 @@
 
 ########## JOB NAME ##########
 
-#SBATCH --job-name="test_short"
+#SBATCH --job-name="Lorenz_main"
 
 ########## END ##########
 
@@ -33,13 +33,10 @@
 ########## MODULES ##########
 
 set -e
-
-module purge
-module load python/3.10.5
-
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
 ########## END ##########
+
 
 
 
@@ -50,15 +47,12 @@ scratch="/scratch/$USER/$SLURM_JOB_ID"
 mkdir -p $scratch
 cd $scratch
 
-# Script output
-# output="$scratch/output"
-# mkdir -p $output
-
 # save path
-save="/data/tsa/destevez/dennis/test_s_$SLURM_JOB_ID"
+save="/data/tsa/destevez/dennis/Lorenz/main_$SLURM_JOB_ID"
 mkdir -p $save
 
 ########## END ##########
+
 
 
 
@@ -67,7 +61,7 @@ mkdir -p $save
 
 # Copy project files to scratch
 echo "copying project............"
-cp -r /data/tsa/destevez/dennis/ESN/test/test.py $scratch
+cp -r /data/tsa/destevez/dennis/ESN/scripts/lorenz_srun_cpu.sh $scratch
 echo "end of copy"
 
 ########## END ##########
@@ -79,9 +73,20 @@ echo "end of copy"
 ########## RUN ##########
 
 cd $scratch
+
+echo ""
 echo "runing............"
-srun python3 test.py -p $output -i $1 > output.out
+for i in {1..10}
+do
+    echo "runing $i............"
+    sbatch lorenz_srun_cpu.sh $i
+    echo "end of run $i"
+done
+
 echo "end of run"
+echo ""
+
+sleep 1m
 
 ########## END ##########
 
@@ -92,7 +97,7 @@ echo "end of run"
 ########## SAVE ##########
 
 echo "saving............"
-cp -r $output $save
+cp -r $scratch $save
 echo "end of save"
 
 ########## END ##########

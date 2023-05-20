@@ -2,7 +2,7 @@
 
 ########## EXECUTION TIME ##########
 
-#SBATCH --time=1:00:00
+#SBATCH --time=4:00:00
 
 ########## END ##########
 
@@ -10,7 +10,7 @@
 ########## RESOURCES TO USE ##########
 
 #SBATCH --ntasks=1
-#SBATCH --partition=short
+#SBATCH --partition=medium
 
 #SBATCH --cpus-per-task=2
 #SBATCH --mem-per-cpu=5000M
@@ -23,7 +23,7 @@
 
 ########## JOB NAME ##########
 
-#SBATCH --job-name="test_short"
+#SBATCH --job-name="lorenz_run"
 
 ########## END ##########
 
@@ -50,16 +50,19 @@ scratch="/scratch/$USER/$SLURM_JOB_ID"
 mkdir -p $scratch
 cd $scratch
 
-# Script output
-# output="$scratch/output"
-# mkdir -p $output
+# project path
+ESN=$scratch/ESN
+mkdir -p $project
+
+# output path
+output="$scratch/output"
+mkdir -p $output
 
 # save path
-save="/data/tsa/destevez/dennis/test_s_$SLURM_JOB_ID"
+save="/data/tsa/destevez/dennis/Lorenz/run_$1"
 mkdir -p $save
 
 ########## END ##########
-
 
 
 
@@ -67,7 +70,7 @@ mkdir -p $save
 
 # Copy project files to scratch
 echo "copying project............"
-cp -r /data/tsa/destevez/dennis/ESN/test/test.py $scratch
+cp -r /data/tsa/destevez/dennis/ESN/* $ESN
 echo "end of copy"
 
 ########## END ##########
@@ -77,6 +80,8 @@ echo "end of copy"
 
 
 ########## RUN ##########
+
+sleep 10
 
 cd $scratch
 echo "runing............"
@@ -92,7 +97,7 @@ echo "end of run"
 ########## SAVE ##########
 
 echo "saving............"
-cp -r $output $save
+cp -r $scratch $save
 echo "end of save"
 
 ########## END ##########

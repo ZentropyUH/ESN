@@ -74,9 +74,17 @@ echo "end of copy"
 ########## RUN ##########
 
 
-echo "runing............"
-sbatch $scratch/test.sh 57
-echo "end of run"
+cd $scratch
+for i in {1..5}
+do
+    echo "runing $i............"
+    sbatch test_medium.sh i
+    echo "end of run $i"
+done
+
+
+
+sleep 200
 
 ########## END ##########
 

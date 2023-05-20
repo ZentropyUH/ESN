@@ -90,6 +90,13 @@ def calculate_aprox_time(time: list, file: str, text):
         f.write('{}: {}\n'.format(text, str(np.mean(time))))
 
 
+
+import json
+def save_combinations(hyperparameters_to_adjust: dict):
+    with open("./combinations.json", "w") as f:
+        json.dump({int(i): c for i, c in enumerate(product(*generate_combinations(hyperparameters_to_adjust)))}, f, indent=4, sort_keys=True, separators=(',', ': '))
+
+
 # main train
 def train_main(params, data_file_path, output_file, u, tl, tn):    
     instruction = f"python3 ./main.py train \

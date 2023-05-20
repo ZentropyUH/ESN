@@ -76,9 +76,9 @@ echo "end of copy"
 
 ########## RUN ##########
 
-cd $ESN
+cd $scratch
 echo "runing............"
-sbatch $scratch/test_short.sh 57
+sbatch test_short.sh 57
 echo "end of run"
 
 ########## END ##########
