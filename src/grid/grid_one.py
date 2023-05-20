@@ -105,4 +105,4 @@ if __name__ == '__main__':
     print("Num GPUs Available: ", len(gpus))
     print(gpus)
 
-    grid_one(parser.index, parser.data, parser.output)
+    grid_one(args.index, args.data, args.output)
