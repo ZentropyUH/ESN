@@ -20,7 +20,7 @@ def grid_one(combination_index: int, data_path: str, output_path:str, u:int=5000
         combination = []
         with open('src/grid/combinations.json', 'r') as f:
             combinations = json.load(f)
-            combination = combinations[combination_index]
+            combination = combinations[str(combination_index)]
         
 
         # Create the trained model folder
