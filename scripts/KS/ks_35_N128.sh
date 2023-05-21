@@ -11,7 +11,7 @@
 #SBATCH --time=48:00:00
 #SBATCH --partition=medium
 
-#SBATCH --array=1-10
+#SBATCH --array=1-9600
 
 
 
