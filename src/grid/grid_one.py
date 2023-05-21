@@ -6,7 +6,7 @@ import argparse
 import json
 
 
-def grid_one(combination_index: int, data_path: str, output_path:str, u:int=5000, tl:int=20000):
+def grid_one(combination_index: int, data_path: str, output_path:str, u:int=9000, tl:int=20000):
 
         # Select the data to train
         data: list[str] = [join(data_path, p) for p in listdir(data_path)]

@@ -2,7 +2,7 @@
 
 ########## RESOURCES TO USE ##########
 
-#SBATCH --job-name="lorenz"
+#SBATCH --job-name="KS"
 
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=2
@@ -45,7 +45,7 @@ data="$scratch/data"
 mkdir -p $data
 
 # save path
-save="/data/tsa/destevez/dennis/Lorenz/run_$SLURM_ARRAY_TASK_ID"
+save="/data/tsa/destevez/dennis/KS/35_N64/run_$SLURM_ARRAY_TASK_ID"
 mkdir -p $save
 
 
@@ -57,7 +57,7 @@ echo "copying project............"
 cp -r /data/tsa/destevez/dennis/ESN/* $ESN
 
 echo "copying data............"
-cp -r /data/tsa/destevez/data/Lorenz/* $data
+cp -r /data/tsa/destevez/data/KS/35/N64/* $data
 echo "end of copy"
 
 
