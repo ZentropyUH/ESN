@@ -14,6 +14,8 @@ from src.grid.grid_one import *
 #     "reconection_prob": (0, 6, 0.2, lambda x, y, i: round(x + y*i, 2))
 # }
 
+# save_combinations(hyperparameters_to_adjust)
+
 # import argparse
 
 # if __name__ == '__main__':
@@ -30,6 +32,7 @@ from src.grid.grid_one import *
 #     print(gpus)
 
 #     src.grid.grid_script.grid_search(hyperparameters_to_adjust, args.data, args.output, args.n, args.m)
+
 
 
 

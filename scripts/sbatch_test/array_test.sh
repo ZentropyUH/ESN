@@ -2,16 +2,17 @@
 
 ########## RESOURCES TO USE ##########
 
+#SBATCH --job-name="test_testing"
+#SBATCH --array=1-10
+
+
 #SBATCH --time=1:00:00
 #SBATCH --partition=testing
-#SBATCH --ntasks=4
-#SBATCH --cpus-per-task=2
-#SBATCH --mem-per-cpu=5000M
 
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem-per-cpu=1000M
 
-########## JOB NAME ##########
-
-#SBATCH --job-name="test_testing"
 
 
 ########## MODULES ##########
@@ -20,8 +21,6 @@ set -e
 
 module purge
 module load python/3.10.5
-
-export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
 
 ########## PATHS ##########
@@ -45,23 +44,16 @@ mkdir -p $save
 # Copy project files to scratch
 echo "copying project............"
 cp -r /data/tsa/destevez/dennis/ESN/test/test.py $scratch
+cp -r /data/tsa/destevez/dennis/ESN/src/grid/combinations.txt $scratch
 echo "end of copy"
 
-
-########## ARRAY ##########
-
-#SBATCH --array=1-10
 
 
 ########## RUN ##########
 
 cd $scratch
 echo "runing............"
-N=$(sed -n -e "$SLURM_ARRAY_TASK_ID p")
-echo "Current task ID: $SLURM_ARRAY_TASK_ID"
-echo "Current job ID: $SLURM_ARRAY_JOB_ID"
-echo "Current var : $N"
-srun python3 test.py $SLURM_ARRAY_TASK_ID -p $output -i $N
+srun python3 test.py -a $SLURM_ARRAY_TASK_ID
 echo "end of run"
 
 

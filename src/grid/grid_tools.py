@@ -8,6 +8,7 @@ from itertools import product
 import pandas as pd
 import numpy as np
 import csv
+import json
 import matplotlib.pyplot as plt
 
 from src.functions import training, forecasting
@@ -90,11 +91,14 @@ def calculate_aprox_time(time: list, file: str, text):
         f.write('{}: {}\n'.format(text, str(np.mean(time))))
 
 
+def save_combinations_txt(hyperparameters_to_adjust: dict, path: str):
+    with open(join(path, "combinations.txt"), "w") as f:
+        for i, c in enumerate(product(*generate_combinations(hyperparameters_to_adjust))):
+            f.write("{} {} {} {} {} {}\n".format(i+1, c[0], c[1], c[2], c[3], c[4]))
 
-import json
 def save_combinations(hyperparameters_to_adjust: dict):
     with open("./combinations.json", "w") as f:
-        json.dump({int(i): c for i, c in enumerate(product(*generate_combinations(hyperparameters_to_adjust)))}, f, indent=4, sort_keys=True, separators=(',', ': '))
+        json.dump({int(i+1): c for i, c in enumerate(product(*generate_combinations(hyperparameters_to_adjust)))}, f, indent=4, sort_keys=True, separators=(',', ': '))
 
 
 # main train
