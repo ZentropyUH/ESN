@@ -45,7 +45,7 @@ data="$scratch/data"
 mkdir -p $data
 
 # save path
-save="/data/tsa/destevez/dennis/Lorenz/run_$SLURM_ARRAY_TASK_ID"
+save="/data/tsa/destevez/dennis/Lorenz/"
 mkdir -p $save
 
 

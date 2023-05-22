@@ -21,14 +21,9 @@ def grid(combinations:list[list], data:list[str], output_path:str, queue_size:in
     # Queue for best cases, n is the max number of cases
     best = Queue(queue_size)
 
-    a = 0
     #Create all the combinations of hyperparameters
     for combination in product(*combinations):
-        
-        if a ==1:
-            break
-        a+=1
-        
+
         # Select the data to train
         train_index = randint(0, len(data) - 1)
         train_data_path = data[train_index]

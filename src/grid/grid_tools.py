@@ -73,6 +73,10 @@ def save_csv(data, name:str, path:str):
     )
 
 
+def read_csv(file: str):
+    return pd.read_csv(file).to_numpy()
+
+
 def generate_combinations(params:dict):
     return [[elem[3](elem[0], elem[2], i) for i in range(elem[1])] for elem in params.values()]
 

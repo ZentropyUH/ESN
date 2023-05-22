@@ -1,6 +1,5 @@
 from src.grid.grid_script import *
 import src.grid.grid_script
-import src.grid.grid_script_threads
 from src.grid.grid_one import *
 
 

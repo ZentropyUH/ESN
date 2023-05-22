@@ -41,7 +41,7 @@ def grid_one(combination_index: int, data_path: str, output_path:str, u:int=9000
         makedirs(mean_path, exist_ok=True)
 
         # Create time file
-        time_file = join(output_path, 'time.txt')
+        time_file = join(current_path, 'time.txt')
 
 
         # Train
@@ -95,6 +95,55 @@ def grid_one(combination_index: int, data_path: str, output_path:str, u:int=9000
 
         with open(time_file, 'w') as f:
             json.dump({'train': train_time, 'forecast': forecast_time}, f)
+
+
+
+def best_combinations(path: str, output: str, max_size: int, threshold: float):
+    
+    best = Queue(max_size)
+    for folder in listdir(path):
+        folder = join(path, folder)
+        mse_mean_path = join(folder, 'mse_mean', 'mse_mean.csv')
+        params_path = join(folder, 'params.json')
+
+        mse_mean = []
+        with open(mse_mean_path, 'r') as f:
+            mse_mean = read_csv(f)
+        
+        params = {}
+        with open(params_path, 'r') as f:
+            params = json.load(f)
+        
+        params = (
+            params['reservoir_sigma'],
+            params['reservoir_degree'],
+            params['regularization'],
+            params['spectral_radius'],
+            params['rewiring'],
+        )
+        
+        best.decide(mse_mean, params, folder, threshold)
+    
+    for i in best.queue:
+        folder = i[1][1]
+        folder_name = split(folder)[1]
+        shutil.copytree(folder, join(output, folder_name), dirs_exist_ok=True)
+
+
+
+def change_folders(path: str):
+    
+    for folder in listdir(path):
+        folder = join(path, folder)
+        time_file = join(folder, 'time.txt')
+
+        inside_folders = [join(folder, f) for f in listdir(folder) if join(folder, f) != time_file]
+
+        for inside_folder in inside_folders:
+            shutil.move(time_file, inside_folder)
+            shutil.move(inside_folder, path)
+            shutil.rmtree(folder)
+     
 
 
 
