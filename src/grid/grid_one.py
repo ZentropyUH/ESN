@@ -145,6 +145,11 @@ def change_folders(path: str):
             shutil.rmtree(folder)
      
 
+def detect_not_fished_jobs(path: str, output: str):
+    with open(join(output, 'out.out'), 'w') as f:
+        for file in [join(path, f) for f in listdir(path) if 'time.txt' not in listdir(join(path, f))]:
+            f.write('{}\n'.format(file.split('_')[-1]))
+
 
 
 if __name__ == '__main__':

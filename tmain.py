@@ -1,7 +1,7 @@
 import typer
 from enum import Enum
 
-from src.grid.grid_one import grid_one, best_combinations, change_folders
+from src.grid.grid_one import grid_one, best_combinations, change_folders, detect_not_fished_jobs
 from src.functions import training, forecasting
 
 
@@ -46,6 +46,16 @@ def cf(
 ):
     change_folders(
         path,
+    )
+
+@app.command()
+def dnfj(
+    path: str = typer.Option(..., '--path', '-p'),
+    output: str = typer.Option(..., '--output', '-o'),
+):
+    detect_not_fished_jobs(
+        path,
+        output,
     )
 
 
