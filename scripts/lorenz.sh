@@ -6,7 +6,7 @@
 
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=2
-#SBATCH --mem-per-cpu=5000M
+#SBATCH --mem-per-cpu=10000M
 
 #SBATCH --time=48:00:00
 #SBATCH --partition=medium
