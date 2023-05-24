@@ -8,8 +8,8 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --mem-per-cpu=100000M
 
-#SBATCH --time=14-00:00:00
-#SBATCH --partition=long
+#SBATCH --time=1:00:00
+#SBATCH --partition=short
 
 #SBATCH --array=1-9600
 
