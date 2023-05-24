@@ -4,6 +4,7 @@ import time
 import tensorflow as tf
 import argparse
 import json
+from rich.progress import track
 
 
 def grid_one(combination_index: int, data_path: str, output_path:str, u:int=9000, tl:int=20000):
@@ -101,7 +102,7 @@ def grid_one(combination_index: int, data_path: str, output_path:str, u:int=9000
 def best_combinations(path: str, output: str, max_size: int, threshold: float):
     
     best = Queue(max_size)
-    for folder in listdir(path):
+    for folder in track(listdir(path), description='Searching best combinations'):
         folder = join(path, folder)
         mse_mean_path = join(folder, 'mse_mean', 'mse_mean.csv')
         params_path = join(folder, 'params.json')
