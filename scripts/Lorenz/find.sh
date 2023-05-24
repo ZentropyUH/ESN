@@ -11,8 +11,6 @@
 #SBATCH --time=14-00:00:00
 #SBATCH --partition=long
 
-#SBATCH --array=1-9600
-
 
 
 ########## MODULES ##########
@@ -45,7 +43,7 @@ data="$scratch/data"
 mkdir -p $data
 
 # save path
-save="/data/tsa/destevez/dennis/Lorenz_fixed/"
+save="/data/tsa/destevez/dennis/results/Lorenz/"
 mkdir -p $save
 
 
@@ -57,7 +55,7 @@ echo "copying project............"
 cp -r /data/tsa/destevez/dennis/ESN/* $ESN
 
 echo "copying data............"
-cp -r /data/tsa/destevez/data/Lorenz/* $data
+cp -r /data/tsa/destevez/dennis/Lorenz/* $data
 echo "end of copy"
 
 
@@ -66,7 +64,7 @@ echo "end of copy"
 
 cd $ESN
 echo "runing............"
-srun python3 tmain.py grid -i $SLURM_ARRAY_TASK_ID -d $data  -o $output
+srun python3 tmain.py best-params -p $data -o $output -m 10 -t 0.01
 echo "end of run"
 
 

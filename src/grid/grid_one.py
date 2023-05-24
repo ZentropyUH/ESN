@@ -124,10 +124,9 @@ def best_combinations(path: str, output: str, max_size: int, threshold: float):
         
         best.decide(mse_mean, params, folder, threshold)
     
-    for i in best.queue:
-        folder = i[1][1]
-        folder_name = split(folder)[1]
-        shutil.copytree(folder, join(output, folder_name), dirs_exist_ok=True)
+    for i, element in enumerate(best.queue):
+        folder = element[1][1]
+        shutil.copytree(folder, join(output, str(i)), dirs_exist_ok=True)
 
 
 
