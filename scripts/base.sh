@@ -11,6 +11,8 @@
 #SBATCH --time=14-00:00:00
 #SBATCH --partition=long
 
+#SBATCH --array=1-9600
+
 
 
 ########## MODULES ##########
@@ -48,35 +50,40 @@ mkdir -p $save
 
 out="/data/tsa/destevez/dennis/"
 
+config="/data/tsa/destevez/dennis/out.out"
 
 ########## COPY ##########
 
 # Copy project files to scratch
 echo "copying project............"
-cp -r /data/tsa/destevez/dennis/ESN/* $ESN
+# cp -r /data/tsa/destevez/dennis/ESN/* $ESN
 
 echo "copying data............"
-cp -r /data/tsa/destevez/dennis/Lorenz/* $data
+# cp -r /data/tsa/destevez/dennis/Lorenz/* $data
 echo "end of copy"
 
 
 
 ########## RUN ##########
 
-cd $ESN
-echo "runing............"
-srun python3 tmain.py dnfj -p $data -o $output
-srun python3 tmain.py cf -p $data
-echo "end of run"
+case=$(awk -v ArrayTaskID=$SLURM_ARRAY_TASK_ID '$1==ArrayTaskID {print $1}' $config)
+
+echo $case
+
+# cd $ESN
+# echo "runing............"
+# srun python3 tmain.py dnfj -p $data -o $output
+# srun python3 tmain.py cf -p $data
+# echo "end of run"
 
 
 
 ########## SAVE ##########
 
-echo "saving............"
-cp -r $output/* $out
-cp -r $data/* $save
-echo "end of save"
+# echo "saving............"
+# cp -r $output/* $out
+# cp -r $data/* $save
+# echo "end of save"
 
 
 
