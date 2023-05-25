@@ -36,7 +36,7 @@ class Queue:
     
     def decide(self, l:list, combination: tuple, folder: str, threshold: int):
         for i, x in enumerate(l):
-            if x > threshold:
+            if x < threshold:
                 self.add(i, (combination, folder))
                 break
             elif i == len(l) - 1:
