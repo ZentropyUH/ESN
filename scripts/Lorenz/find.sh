@@ -55,7 +55,12 @@ echo "copying project............"
 cp -r /data/tsa/destevez/dennis/ESN/* $ESN
 
 echo "copying data............"
-cp -r /data/tsa/destevez/dennis/Lorenz/* $data
+# cp -r /data/tsa/destevez/dennis/Lorenz/* $data
+cp -r /data/tsa/destevez/dennis/Lorenz/0.4_8_0.0001_0.91_0.0 $data
+cp -r /data/tsa/destevez/dennis/Lorenz/0.4_8_0.0001_0.91_1.0 $data
+cp -r /data/tsa/destevez/dennis/Lorenz/0.4_8_0.0001_0.95_0.0 $data
+cp -r /data/tsa/destevez/dennis/Lorenz/0.4_8_0.0001_0.95_0.8 $data
+cp -r /data/tsa/destevez/dennis/Lorenz/0.4_6_1e-05_1.03_0.6 $data
 echo "end of copy"
 
 
