@@ -11,6 +11,8 @@
 #SBATCH --time=14-00:00:00
 #SBATCH --partition=long
 
+#SBATCH --array=1-9600
+
 
 
 ########## MODULES ##########
@@ -43,7 +45,7 @@ data="$scratch/data"
 mkdir -p $data
 
 # save path
-save="/data/tsa/destevez/dennis/results/Lorenz/"
+save="/data/tsa/destevez/dennis/best_work/Lorenz"
 mkdir -p $save
 
 
@@ -54,13 +56,8 @@ mkdir -p $save
 echo "copying project............"
 cp -r /data/tsa/destevez/dennis/ESN/* $ESN
 
-echo "copying data............"
-# cp -r /data/tsa/destevez/dennis/Lorenz/* $data
-cp -r /data/tsa/destevez/dennis/Lorenz/0.4_8_0.0001_0.91_0.0 $data
-cp -r /data/tsa/destevez/dennis/Lorenz/0.4_8_0.0001_0.91_1.0 $data
-cp -r /data/tsa/destevez/dennis/Lorenz/0.4_8_0.0001_0.95_0.0 $data
-cp -r /data/tsa/destevez/dennis/Lorenz/0.4_8_0.0001_0.95_0.8 $data
-cp -r /data/tsa/destevez/dennis/Lorenz/0.4_6_1e-05_1.03_0.6 $data
+echo "copying folder $(ls --format=single-column /data/tsa/destevez/dennis/Lorenz | sed -n ${SLURM_ARRAY_TASK_ID}p) ........"
+cp /data/tsa/destevez/dennis/Lorenz/"$(ls --format=single-column /data/tsa/destevez/dennis/Lorenz | sed -n ${SLURM_ARRAY_TASK_ID}p)" $data
 echo "end of copy"
 
 
@@ -69,7 +66,7 @@ echo "end of copy"
 
 cd $ESN
 echo "runing............"
-srun python3 tmain.py best-params -p $data -o $output -m 10 -t 0.01
+srun python3 tmain.py set-env -p $data -o $output -i $SLURM_ARRAY_TASK_ID
 echo "end of run"
 
 

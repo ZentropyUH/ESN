@@ -58,6 +58,17 @@ def dnfj(
         output,
     )
 
+def set_env(
+    path: str = typer.Option(..., '--path', '-p'),
+    output: str = typer.Option(..., '--output', '-o'),
+    index: int = typer.Option(..., '--index', '-i'),
+):
+    set_best_combinations_env(
+        path,
+        output,
+        index,
+    )
+
 
 if __name__ == "__main__":
     app()

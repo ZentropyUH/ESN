@@ -152,6 +152,20 @@ def detect_not_fished_jobs(path: str, output: str):
 
 
 
+def set_best_combinations_env(path: str, output: str, index: int):
+    for path in track(listdir(path), description='Searching best combinations'):
+        path = join(path, path)
+        mse_mean_path = join(path, 'mse_mean', 'mse_mean.csv')
+        params_path = join(path, 'params.json')
+        
+        out = join(output, str(index))
+        makedirs(out)
+        shutil.copy(mse_mean_path, out)
+        shutil.copy(params_path, out)
+
+
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Hyperparametes")
     parser.add_argument('-o', '--output', help="Output path", type=str, required=True)
