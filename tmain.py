@@ -1,7 +1,7 @@
 import typer
 from enum import Enum
 
-from src.grid.grid_one import grid_one, best_combinations, change_folders, detect_not_fished_jobs
+from src.grid.grid_one import *
 from src.functions import training, forecasting
 
 
@@ -58,17 +58,38 @@ def dnfj(
         output,
     )
 
-def set_env(
+
+@app.command()
+def mse(
     path: str = typer.Option(..., '--path', '-p'),
+    data_path: str = typer.Option(..., '--data', '-d'),
     output: str = typer.Option(..., '--output', '-o'),
-    index: int = typer.Option(..., '--index', '-i'),
+    tl: int = typer.Option(..., '--training-lenght', '-tl'),
+    trancient: int = typer.Option(..., '--trancient', '-t'),
 ):
-    set_best_combinations_env(
+    calculate_mse(
         path,
+        data_path,
         output,
-        index,
+        tl,
+        trancient,
     )
 
 
+@app.command()
+def plot_data_forecast(
+    data_path: str = typer.Option(..., '--data', '-d'),
+    forecast_path: str = typer.Option(..., '--forecast', '-f'),
+    output: str = typer.Option(..., '--output', '-o'),
+    trancient: int = typer.Option(..., '--trancient', '-t'),
+):
+    forecast_data = [join(forecast_path, x) for x in listdir(forecast_path)]
+    data: list[str] = [join(data_path, p) for p in listdir(data_path)]
+
+    for i, values in enumerate([(read_csv(d), read_csv(f)) for d, f in  zip(data, forecast_data)]):
+        dd, ff = values
+        dd = dd[:trancient]
+        plots_data_forecast(dd[:1000], ff, join(output, str(i)))
+
 if __name__ == "__main__":
-    app()
+    app()    a = [1,2,3,4,5,6,7,8,9]

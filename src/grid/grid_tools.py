@@ -44,6 +44,8 @@ class Queue:
 
 
 def save_plots(data, output_path,name):
+    plt.clf() 
+    plt.figure()
     plt.plot(data)
     plt.xlabel('Time')
     plt.ylabel('Mean square error')
@@ -55,6 +57,9 @@ def save_plots_from_csv(input_path, output_path, name):
         data = list(csv.reader(archivo))
 
     data = [float(date[0]) for date in data]
+
+    plt.clf() 
+    plt.figure()
     plt.plot(data)
     plt.xlabel('Time')
     plt.ylabel('Mean square error')
@@ -68,6 +73,27 @@ def save_csv(data, name:str, path:str):
     index=False,
     header=None,
     )
+
+
+def save_plots_data_forecast(data: str, forecast: str, output: str):
+    plt.clf() 
+    plt.figure()
+    plt.plot(data, color='blue')
+    plt.plot(forecast, color='red')
+    plt.xlabel('Time')
+    plt.ylabel('value')
+    plt.title('Plot data and forecast')
+    plt.savefig(output)
+
+def get_axis(data, axis: int):
+    return [x[axis] for x in data]
+
+
+def plots_data_forecast(data: str, forecast: str, output: str):
+    save_plots_data_forecast(get_axis(data, 0), get_axis(forecast, 0), output+ '_x')
+    save_plots_data_forecast(get_axis(data, 1), get_axis(forecast, 1), output+ '_y')
+    save_plots_data_forecast(get_axis(data, 2), get_axis(forecast, 2), output+ '_z')
+
 
 
 def read_csv(file: str):

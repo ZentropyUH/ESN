@@ -7,6 +7,36 @@ import json
 from rich.progress import track
 
 
+def calculate_mse(forecast_path: str, data_path: str, output, t: int):
+    forecast_data = [join(forecast_path, x) for x in listdir(forecast_path)]
+    data: list[str] = [join(data_path, p) for p in listdir(data_path)]
+    makedirs(output, exist_ok=True)
+        
+    # Calculate MSE
+    mse = [[np.sqrt(((f - d) ** 2).mean())
+            for f, d in zip(pd.read_csv(forecast_file).to_numpy(), pd.read_csv(data_file).to_numpy()[(t):])]
+            for forecast_file, data_file in zip(forecast_data, data)]
+
+    # Sum all the mse
+    mean = []
+    for i, current in enumerate(mse):
+        
+        # Save current mse
+        save_csv(current, "{}.csv".format(i), output)
+        
+        if len(mean) == 0:
+            mean = current
+        else:
+            mean = np.add(mean, current)
+
+    mean = [x / len(data) for x in mean]
+
+    # Save the csv
+    save_csv(mean, "mse_mean.csv", output)
+    save_plots(data=mean, output_path=output, name='mse_mean_plot.png')
+
+
+
 def grid_one(combination_index: int, data_path: str, output_path:str, u:int=9000, tl:int=20000):
 
         # Select the data to train
@@ -34,8 +64,8 @@ def grid_one(combination_index: int, data_path: str, output_path:str, u:int=9000
         makedirs(forecast_path, exist_ok=True)
         
         # Create folder for the mse of predictions
-        mse_path = join(current_path, 'mse')
-        makedirs(mse_path, exist_ok=True)
+        rmse_path = join(current_path, 'mse')
+        makedirs(rmse_path, exist_ok=True)
 
         # Create the folder mean
         mean_path = join(current_path, 'mse_mean')
@@ -72,16 +102,16 @@ def grid_one(combination_index: int, data_path: str, output_path:str, u:int=9000
         forecast_data = [join(forecast_path, x) for x in listdir(forecast_path)]
         
         # Calculate MSE
-        mse = [[np.square(np.subtract(f, d)).mean()
+        rmse = [[np.sqrt(((f - d) ** 2).mean())
                 for f, d in zip(pd.read_csv(forecast_file).to_numpy(), pd.read_csv(data_file).to_numpy()[(1000 + 1000 + tl):])]
                 for forecast_file, data_file in zip(forecast_data, data)]
 
         # Sum all the mse
         mean = []
-        for i, current in enumerate(mse):
+        for i, current in enumerate(rmse):
             
             # Save current mse
-            save_csv(current, "{}.csv".format(i), mse_path)
+            save_csv(current, "{}.csv".format(i), rmse_path)
             
             if len(mean) == 0:
                 mean = current
@@ -152,16 +182,8 @@ def detect_not_fished_jobs(path: str, output: str):
 
 
 
-def set_best_combinations_env(path: str, output: str, index: int):
-    for path in track(listdir(path), description='Searching best combinations'):
-        path = join(path, path)
-        mse_mean_path = join(path, 'mse_mean', 'mse_mean.csv')
-        params_path = join(path, 'params.json')
-        
-        out = join(output, str(index))
-        makedirs(out)
-        shutil.copy(mse_mean_path, out)
-        shutil.copy(params_path, out)
+def test():
+    params = (0.5, 6, 1e-8, 0.99, 0.5)
 
 
 
