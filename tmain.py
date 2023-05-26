@@ -1,11 +1,58 @@
 import typer
-from enum import Enum
+from t_utils import *
 
 from src.grid.grid_one import *
 from src.functions import training, forecasting
 
 
 app = typer.Typer()
+
+
+
+
+@app.command()
+def train(
+    # General params
+    model: EModel = typer.Option('ESN', '--model', '-m', help=''),
+    units: str = typer.Option(..., '--units', '-u', help=''),
+    input_initializer: EInputInitializer = typer.Option(
+        'InputMatrix','--input-initializer', '-ii',
+        help= '',
+    ),
+    # input_scaling: str = typer.O,
+    # leak_rate,
+    # reservoir_activation,
+    # # Classic Cases
+    # spectral_radius,
+    # reservoir_initializer,
+    # rewiring,
+    # reservoir_degree,
+    # reservoir_sigma,
+    # # Parallel cases
+    # reservoir_amount,
+    # overlap,
+    # # Readout params
+    # readout_layer,
+    # regularization,
+    # # Training params
+    # init_transient,
+    # transient,
+    # train_length,
+    # data_file,
+    # output_dir,
+    # trained_name,
+):
+    print('Train')
+
+
+@app.command()
+def forecast():
+    print('Forecast')
+
+
+@app.command()
+def plot():
+    print('Plot')
 
 
 @app.command()
@@ -88,8 +135,20 @@ def plot_data_forecast(
 
     for i, values in enumerate([(read_csv(d), read_csv(f)) for d, f in  zip(data, forecast_data)]):
         dd, ff = values
-        dd = dd[:trancient]
+        dd = dd[trancient:]
         plots_data_forecast(dd[:1000], ff, join(output, str(i)))
 
+
+# for i in range(0, 24000, 1000):
+    #     print(i)
+    #     calculate_mse(
+    #         '/home/dionisio35/Documents/a/0.2_6_1.0000000000000002e-08_0.99_0.4/forecast/',
+    #         '/media/dionisio35/Windows/_folders/_new/Lorenz/',
+    #         '/home/dionisio35/Documents/B/prediction/all/{}'.format(i),
+    #         i,
+    #     )
+
+
+
 if __name__ == "__main__":
-    app()    a = [1,2,3,4,5,6,7,8,9]
+    app()
