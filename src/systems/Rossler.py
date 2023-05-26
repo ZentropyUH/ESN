@@ -1,4 +1,4 @@
-"""Integrator the Lorenz attractor system."""
+"""Integrator the Rossler attractor system."""
 # pylint: disable=all
 import os
 import pickle
@@ -8,9 +8,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy.integrate import solve_ivp
-from scipy.integrate._ivp.base import (
-    OdeSolver,
-)  # this is the class we will monkey patch
+from scipy.integrate._ivp.base import \
+    OdeSolver  # this is the class we will monkey patch
 from tqdm import tqdm
 
 # region Monkeypatch
@@ -20,6 +19,7 @@ from tqdm import tqdm
 
 # save the old methods - we still need them
 old_init = OdeSolver.__init__
+
 old_step = OdeSolver.step
 
 
@@ -31,7 +31,6 @@ def new_init(self, fun, t0, y0, t_bound, vectorized, support_complex=False):
         total=t_bound - t0, unit="ut", initial=t0, ascii=False, desc="IVP"
     )
     self.last_t = t0
-
     # call the old method - we still want to do the old things too!
     old_init(self, fun, t0, y0, t_bound, vectorized, support_complex)
 
@@ -58,25 +57,19 @@ OdeSolver.step = new_step
 ############################ MONKEY PATCH FOR PBAR ############################
 # endregion
 
-SIGMA = 10.0
-RHO = 28.0
-BETA = 8.0 / 3.0
-
-
-def lorenz_dydt(_t, y, sigma=10, rho=28, beta=2.667):
-    """Lorenz differential equation."""
-    xp = sigma * (y[1] - y[0])
-    yp = y[0] * (rho - y[2]) - y[1]
-    zp = y[0] * y[1] - beta * y[2]
+def rossler_dydt(_t, y, A=10, B=28, C=2.667):
+    """Rossler differential equation."""
+    xp = -y[1] - y[2]
+    yp = y[0] + A * y[1]
+    zp = B + y[2] * (y[0] - C)
 
     return np.asarray([xp, yp, zp])
 
-
-lorenz_f = partial(lorenz_dydt, sigma=SIGMA, rho=RHO, beta=BETA)
-
-
 def integrate(
     cond0=None,
+    A=0.1,
+    B=0.1,
+    C=4,
     dt=0.02,
     steps=30000,
     t_end=None,
@@ -87,7 +80,9 @@ def integrate(
     seed=None,
     transient=0,
 ):
-    """Lorenz attractor integrator."""
+    """Rossler attractor integrator."""
+    rossler_f = partial(rossler_dydt, A=A, B=B, C=C)
+
     if seed is None:
         seed = np.random.randint(1000000)
 
@@ -106,7 +101,7 @@ def integrate(
     timesteps = np.arange(0.0, t_end, dt)
 
     states = solve_ivp(
-        lorenz_f, [0, t_end], state0, t_eval=timesteps, rtol=1e-12
+        rossler_f, [0, t_end], state0, t_eval=timesteps, rtol=1e-12
     )
 
     states = states["y"]
@@ -114,30 +109,35 @@ def integrate(
     # eliminate transient
     states = states[:, transient:]
 
-    name = f"Lorenz_dt{dt}_steps{steps}_t-end{t_end}_seed{seed}"
+    print("states.shape")
+    print(states.shape)
+
+    name = f"Rossler_dt{dt}_steps{steps}_t-end{t_end}_seed{seed}"
 
     if save:
         x = states[0, :]
         y = states[1, :]
         z = states[2, :]
 
-        if not os.path.exists("data/Lorenz"):
-            os.makedirs("data/Lorenz")
+        if not os.path.exists(f"data/Rossler/{C}"):
+            os.makedirs(f"data/Rossler/{C}")
         df = pd.DataFrame({"x": x, "y": y, "z": z})
-        df.to_csv("data/Lorenz/" + name + ".csv", index=False, header=False)
+        df.to_csv(f"data/Rossler/{C}/" + name + ".csv", index=False, header=False)
 
     if plot:
-        if not os.path.exists("data/Lorenz"):
-            os.makedirs("data/Lorenz")
+        if not os.path.exists(f"data/Rossler/{C}"):
+            os.makedirs(f"data/Rossler/{C}")
 
         fig = plt.figure()
         ax = fig.add_subplot(projection="3d")
 
         ax.plot3D(
-            states[0, :plotpnts], states[1, :plotpnts], states[2, :plotpnts]
+            states[0, :plotpnts],
+            states[1, :plotpnts],
+            states[2, :plotpnts],
         )
 
-        with open("data/Lorenz/" + name + ".pickle", "wb") as saved_plot:
+        with open(f"data/Rossler/{C}/" + name + ".pickle", "wb") as saved_plot:
             pickle.dump(fig, saved_plot)
 
         if show:

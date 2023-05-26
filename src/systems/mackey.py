@@ -1,6 +1,11 @@
-import numpy as np
-import matplotlib.pyplot as plt
+"""Module for integrating the Mackey-Glass equations."""
+# pylint: disable=all
 import math
+import os
+import pickle
+
+import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 from tqdm import trange
 
@@ -8,6 +13,7 @@ from tqdm import trange
 class MackeyGlass:
     """
     Generate time-series using the Mackey-Glass equation.
+
     Equation is numerically integrated by using a fourth-order Runge-Kutta method
     """
 
@@ -19,7 +25,7 @@ class MackeyGlass:
         self.tau = tau
 
     def f(self, y_t, y_t_minus_tau):
-        """The Mackey-Glass equation derivative.
+        """Calculate the Mackey-Glass equation derivative.
 
         Args:
             y_t (float): y(t) The function value at time t.
@@ -34,7 +40,7 @@ class MackeyGlass:
             1 + y_t_minus_tau**self.beta
         )
 
-    def rk4(self, y_t, y_t_minus_tau, delta_t):
+    def rk4(self, y_t, y_t_minus_tau, dt):
         """Runge-Kutta 4th order method.
 
         Args:
@@ -42,108 +48,113 @@ class MackeyGlass:
 
             y_t_minus_tau (float): the function value at time t - tau.
 
-            delta_t (float): the time step.
+            dt (float): the time step.
 
         Returns:
-            float: y(t + delta_t) The function value at time t + delta_t.
+            float: y(t + dt) The function value at time t + dt.
         """
-        k1 = delta_t * self.f(y_t, y_t_minus_tau)
-        k2 = delta_t * self.f(y_t + 0.5 * k1, y_t_minus_tau)  # + delta_t*0.5
-        k3 = delta_t * self.f(y_t + 0.5 * k2, y_t_minus_tau)  # + delta_t*0.5
-        k4 = delta_t * self.f(y_t + k3, y_t_minus_tau)  # + delta_t
+        k1 = dt * self.f(y_t, y_t_minus_tau)
+        k2 = dt * self.f(y_t + 0.5 * k1, y_t_minus_tau)  # + dt*0.5
+        k3 = dt * self.f(y_t + 0.5 * k2, y_t_minus_tau)  # + dt*0.5
+        k4 = dt * self.f(y_t + k3, y_t_minus_tau)  # + dt
         return y_t + k1 / 6 + k2 / 3 + k3 / 3 + k4 / 6
 
-    def gen(self, y0=0.5, delta_t=1, n=160000):
+    def integrate(
+        self,
+        dt=1,
+        y0=None,
+        steps=160000,
+        t_end=None,
+        plot=False,
+        show=False,
+        save=False,
+        plotpnts=2500,
+        seed=None,
+        transient=0,
+    ):
         """Generate the time-series.
 
         Args:
             y0 (float): the initial function value.
 
-            delta_t (float): the time step.
+            dt (float): the time step.
 
             n (int): the number of time steps.
 
         Returns:
             tuple: (Y, T, X) The time-series, time steps, and delayed time-series.
         """
-        time = 0
-        index = 1
-        history_length = math.floor(self.tau / delta_t)
-        y_history = np.full(history_length, 0.5)
-        y_t = y0
-        y_t_ = 0
-        Y = np.zeros(n + 1)
-        X = np.zeros(n + 1)
-        T = np.zeros(n + 1)
+        if seed is None:
+            seed = np.random.randint(1000000)
 
-        for i in trange(n + 1):
+        rnd = np.random.default_rng(seed=seed)
+
+        if t_end is not None:
+            steps = int(t_end / dt)
+
+        t_end = steps * dt
+
+        if y0 is None:
+            y0 = rnd.random()
+
+        index = 1
+        history_length = math.floor(self.tau / dt)
+        y_history = np.full(history_length, y0)
+        y_t = y0
+        # y_t_ = 0
+        Y = np.zeros(steps)
+        # X = np.zeros(steps)
+
+        for i in trange(steps):
             Y[i] = y_t
-            X[i] = y_t_
-            time = time + delta_t
-            T[i] = time
+            # X[i] = y_t_
             if self.tau == 0:
                 y_t_minus_tau = y0
             else:
                 y_t_minus_tau = y_history[index]
 
-            y_t_plus_delta = self.rk4(y_t, y_t_minus_tau, delta_t)
+            y_t_plus_delta = self.rk4(y_t, y_t_minus_tau, dt)
             # print(y_t, y_t_minus_tau, y_t_plus_delta, time)
             if self.tau != 0:
                 y_history[index] = y_t_plus_delta
                 index = (index + 1) % history_length
-            y_t_ = y_t
+            # y_t_ = y_t
             y_t = y_t_plus_delta
 
-        return Y, T, X
+            # eliminate transient
 
-    def plot(self, discard=250 * 10):
-        Y, T, X = self.gen()
-        Y = Y[discard:]
-        T = T[discard:]
-        X = X[discard:]
-        # plt.plot(Y[:-tau], Y[tau:])
-        plt.plot(Y[2000 - self.tau : 2500 - self.tau], Y[2000:2500])
-        # plt.plot(Y[2000:2500], Y[2000-self.tau:2500-self.tau]) #reverse x,y
-        # plt.plot(Y[2000:2500], X[2000:2500])
-        plt.title(
-            "Mackey-Glass delay differential equation, tau = {}".format(
-                self.tau
-            )
-        )
-        plt.xlabel(r"$x(t - \tau)$")
-        plt.ylabel(r"$x(t)$")
-        plt.show()
+        Y = Y[transient:]
 
+        name = f"MG_tau{self.tau}_dt{dt}_n{steps}_t-end{t_end}_seed{seed}"
 
-# mc = MackeyGlass(tau=22)
-# n = 250000
-# y, t, x = mc.gen(delta_t=1, n=n)
-# mc.plot()
+        if save:
+            if not os.path.exists(f"data/MG/{self.tau}"):
+                os.makedirs(f"data/MG/{self.tau}")
 
-
-# print((np.max(y) - np.min(y))/100, np.std(y), 0.03*np.std(y))
-# print(np.max(y))
-
-# # save to pandas dataframe
-# df = pd.DataFrame({"x": x, "y": y})
-# df.to_csv(
-#     f"data/mackey_alpha{mc.alpha}_beta{mc.beta}_gamma{mc.gamma}_tau{mc.tau}_n{n}.csv",
-#     index=False,
-# )
-
-from random import randint
-
-def generate_data(times:int, l_tau:list, dt:float, n:int):
-    for tau_i in l_tau:
-        for i in range(times):
-            mc = MackeyGlass(tau = tau_i)
-            y0=randint(0,100)/100
-            y, t, x = mc.gen(y0 = y0,delta_t = dt, n = n)
-            df = pd.DataFrame({"x": x, "y": y})
+            df = pd.DataFrame({"y": Y})
             df.to_csv(
-            f"data/MG/tau_{tau_i}/mackey_alpha{mc.alpha}_beta{mc.beta}_gamma{mc.gamma}_tau{mc.tau}_n{n}_{i}.csv",
-            index=False,)
-            # mc.plot()   
+                f"data/MG/{self.tau}/" + name + ".csv",
+                index=False,
+                header=False,
+            )
 
+        if plot:
+            if not os.path.exists(f"data/MG/{self.tau}"):
+                os.makedirs(f"data/MG/{self.tau}")
 
-generate_data(times = 30, l_tau = [16,16.8,17,30], dt = 0.05, n = 250000)
+            fig = plt.figure()
+            ax = fig.add_subplot()
+
+            x = np.arange(0, t_end, dt)[transient:]
+
+            ax.plot(x[:plotpnts], Y[:plotpnts])
+
+            with open(
+                f"data/MG/{self.tau}/" + name + ".pickle", "wb"
+            ) as saved_plot:
+                pickle.dump(fig, saved_plot)
+
+            if show:
+                plt.show()
+
+        return Y
