@@ -1,8 +1,8 @@
 #!/usr/bin/python3
 """Cli interface to generate data of different physical models."""
-
 import click
-from systems.functions import _lorenz, _mackey, _kuramoto, _rossler
+from functions import _lorenz, _mackey, _kuramoto, _rossler
+
 
 # region lorenz params
 @click.group()
@@ -108,9 +108,6 @@ def lorenz(
     _lorenz(**locals())
 
 
-
-
-
 # region mackey params
 @cli.command()
 @click.option(
@@ -200,9 +197,6 @@ def lorenz(
 )
 
 
-
-
-
 # endregion
 def mackey(
     tau,
@@ -220,6 +214,7 @@ def mackey(
 ):
     """Integrate a Mackey-Glass model with the given parameters. Data can be saved and plotted."""
     _mackey(**locals())
+
 
 # region kuramoto params
 @cli.command()
@@ -316,9 +311,6 @@ def mackey(
 )
 
 
-
-
-
 # endregion
 def kuramoto(
     spatial_period,
@@ -337,6 +329,7 @@ def kuramoto(
 ):
     """Integrate a KS model with the given parameters. Data can be saved and plotted."""
     _kuramoto(**locals())
+
 
 # region rossler params
 @cli.command()
@@ -428,8 +421,6 @@ def kuramoto(
 )
 
 
-
-
 # endregion
 def rossler(
     initial_condition,
@@ -449,6 +440,7 @@ def rossler(
 ):
     """Integrate a Lorenz model with the given parameters. Data can be saved and plotted."""
     _rossler(**locals())
+
 
 if __name__ == "__main__":
     cli()

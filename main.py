@@ -243,13 +243,6 @@ def cli(ctx, verbose):
     type=click.Path(exists=True),
     help="Data file to be used for training.",
 )
-@click.option(
-    "--trained-name",
-    "-tn",
-    type=click.STRING,
-    default=None,
-    help="Training folder name.",
-)
 # endregion
 def train(
     # General params
@@ -278,7 +271,6 @@ def train(
     train_length,
     data_file,
     output_dir,
-    trained_name,
 ):
     """Train a specific model on a given data file."""
     _train(**locals())
@@ -330,24 +322,24 @@ def train(
 ################ PARAMETERS TO EXTRACT THE VALIDATION DATA/TARGET ################
 
 
-@click.option(
-    "--init-transient",
-    "-it",
-    type=click.INT,
-    help="The number of transient points that were discarded at the beginning of the data.",
-)
-@click.option(
-    "--transient",
-    "-tr",
-    type=click.INT,
-    help="The number of transient points discarded in the training of the model.",
-)
-@click.option(
-    "--train-length",
-    "-tl",
-    type=click.INT,
-    help="The number of points used for the training of the model.",
-)
+# @click.option(
+#     "--init-transient",
+#     "-it",
+#     type=click.INT,
+#     help="The number of transient points that were discarded at the beginning of the data.",
+# )
+# @click.option(
+#     "--transient",
+#     "-tr",
+#     type=click.INT,
+#     help="The number of transient points discarded in the training of the model.",
+# )
+# @click.option(
+#     "--train-length",
+#     "-tl",
+#     type=click.INT,
+#     help="The number of points used for the training of the model.",
+# )
 
 # endregion
 
@@ -371,26 +363,26 @@ def train(
     type=click.Path(exists=True),
     help="The data file to be used for training the model",
 )
-@click.option(
-    "--forecast-name",
-    "-fn",
-    type=click.STRING,
-    default=None,
-    help="Forecast file name.",
-)
+# @click.option(
+#     "--forecast-name",
+#     "-fn",
+#     type=click.STRING,
+#     default=None,
+#     help="Forecast file name.",
+# )
 # endregion
 def forecast(
     forecast_method: str,
     forecast_length: int,
     section_initialization_length: int,
     number_of_sections: int,
-    init_transient: int,
-    transient: int,
-    train_length: int,
+    # init_transient: int,
+    # transient: int,
+    # train_length: int,
     output_dir: str,
     trained_model: str,
     data_file: str,
-    forecast_name: str,
+    # forecast_name: str,
 ):
     """Load a model and forecast the data.
 
@@ -405,17 +397,17 @@ def forecast(
 
     """
 
-    # Prune path from trained_model
-    if forecast_name is None:
-        trained_model_name = trained_model.split("/")[-1] + f"_{forecast_method}_forecasted"
-    else:
-        trained_model_name = forecast_name
+    # # Prune path from trained_model
+    # if forecast_name is None:
+    #     trained_model_name = trained_model.split("/")[-1] + f"_{forecast_method}_forecasted"
+    # else:
+    #     trained_model_name = forecast_name
 
-    # Prune path from trained_model
-    if forecast_name is None:
-        trained_model_name = trained_model.split("/")[-1] + f"_{forecast_method}_forecasted"
-    else:
-        trained_model_name = forecast_name
+    # # Prune path from trained_model
+    # if forecast_name is None:
+    #     trained_model_name = trained_model.split("/")[-1] + f"_{forecast_method}_forecasted"
+    # else:
+    #     trained_model_name = forecast_name
 
     """Make predictions with a given model on a data file."""
     _forecast(**locals())

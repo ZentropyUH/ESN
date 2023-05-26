@@ -3,7 +3,7 @@
 import KS
 import Lorenz as L_model
 import Rossler as R_model
-from Mackey import MackeyGlass as MG_model
+from mackey import MackeyGlass as MG_model
 from tqdm import trange
 
 

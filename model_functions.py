@@ -5,25 +5,33 @@ import os
 
 import numpy as np
 import pandas as pd
+
 # pylint: disable=no-name-in-module
 from keras.initializers import Zeros
 from keras.models import load_model
 from tqdm import tqdm
 
-from customs.custom_initializers import (ErdosRenyi, InputMatrix, RandomUniform,
-                                 RegularNX, RegularOwn, WattsStrogatzNX,
-                                 WattsStrogatzOwn)
-from customs.custom_models import ESN, ParallelESN
-from forecasters import classic_forecast, section_forecast
-from plotters import (plot_contourf_forecast, plot_linear_forecast, plot_rmse,
-                      render_video)
-from readout_generators import linear_readout
-from utils import get_range, load_data, load_model_json
+from src.customs.custom_initializers import (
+    ErdosRenyi,
+    InputMatrix,
+    RandomUniform,
+    RegularNX,
+    RegularOwn,
+    WattsStrogatzNX,
+    WattsStrogatzOwn,
+)
+from src.customs.custom_models import ESN, ParallelESN
+from src.forecasters import classic_forecast, section_forecast
+from src.plotters import (
+    plot_contourf_forecast,
+    plot_linear_forecast,
+    plot_rmse,
+    render_video,
+)
+from src.readout_generators import linear_readout
+from src.utils import get_range, load_data, load_model_json
 
 # pylint: enable=no-name-in-module
-
-
-
 
 
 def _train(
@@ -246,8 +254,6 @@ def _train(
 
                                         ############### SAVING TRAINED MODEL ###############
 
-                                        
-                                        
                                         # Prune path from data_file
                                         # data_file_name = data_file.split("/")[
                                         #     -1
@@ -276,7 +282,9 @@ def _train(
                                         if not os.path.exists("Models"):
                                             os.makedirs("Models")
 
-                                        model_name = output_dir + f"/{model.model.seed}"
+                                        model_name = (
+                                            output_dir + f"/{model.model.seed}"
+                                        )
 
                                         # Save the model and save the parameters dictionary in a json file inside the model folder
                                         model.save(model_name)
@@ -287,6 +295,7 @@ def _train(
                                         ) as _f_:
                                             json.dump(params, _f_)
     # endregion
+
 
 def _forecast(
     forecast_method: str,
@@ -370,13 +379,13 @@ def _forecast(
     if not os.path.exists(f"forecasts/{trained_model_name}"):
         os.makedirs(f"forecasts/{trained_model_name}")
 
-
     # Save the forecasted data as csv using pandas
     pd.DataFrame(predictions).to_csv(
         f"{output_dir}/{trained_model_name}/{data_name}_{forecast_method}_forecasted.csv",
         index=False,
         header=None,
     )
+
 
 def _plot(
     plot_type,
