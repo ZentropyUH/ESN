@@ -9,9 +9,10 @@ import pandas as pd
 import numpy as np
 import csv
 import json
+import shutil
 import matplotlib.pyplot as plt
 
-from src.functions import training, forecasting
+from model_functions import _train, _forecast
 
 
 # Priority Queue with limited size, sorted from max to min
@@ -43,14 +44,14 @@ class Queue:
 
 
 
-def save_plots(data, output_path,name):
+def save_plots(data: list, output_path: str, name: str):
     plt.clf() 
     plt.figure()
     plt.plot(data)
     plt.xlabel('Time')
     plt.ylabel('Mean square error')
     plt.title('Plot of root mean square error')
-    plt.savefig(output_path + name)
+    plt.savefig(join(output_path, name))
 
 def save_plots_from_csv(input_path, output_path, name):
     with open(input_path, 'r') as archivo:
@@ -128,56 +129,85 @@ def save_combinations(hyperparameters_to_adjust: dict):
         json.dump({int(i+1): c for i, c in enumerate(product(*generate_combinations(hyperparameters_to_adjust)))}, f, indent=4, sort_keys=True, separators=(',', ': '))
 
 
+
+def change_folders(path: str):
+    
+    for folder in listdir(path):
+        folder = join(path, folder)
+        time_file = join(folder, 'time.txt')
+
+        inside_folders = [join(folder, f) for f in listdir(folder) if join(folder, f) != time_file]
+
+        for inside_folder in inside_folders:
+            shutil.move(time_file, inside_folder)
+            shutil.move(inside_folder, path)
+            shutil.rmtree(folder)
+     
+
+def detect_not_fished_jobs(path: str, output: str):
+    with open(join(output, 'out.out'), 'w') as f:
+        for file in [join(path, f) for f in listdir(path) if 'time.txt' not in listdir(join(path, f))]:
+            f.write('{}\n'.format(file.split('_')[-1]))
+
+
+
 # main train
-def train_main(params, data_file_path, output_file, u, tl, tn):    
-    instruction = f"python3 ./main.py train \
-            -m ESN \
-            -ri WattsStrogatzOwn\
+def train_main(params: tuple, data_file_path: str, output_file: str, u: int, tl: int, fn: str):    
+    instruction = f"python3 ./tmain.py train \
+            --model ESN \
+            --units {u} \
+            --input-initializer InputMatrix \
+            --input-scaling 0.5 \
+            --input-bias-initializer RandomUniform \
+            --reservoir-initializer WattsStrogatzOwn \
+            --leak-rate 1 \
+            --reservoir-activation tanh \
+            --readout-layer linear \
             -df {data_file_path} \
             -o {output_file} \
-            -rs {params[0]} \
-            -sr {params[3]} \
-            -rw {params[4]} \
-            -u {u} \
+            --reservoir-sigma {params[0]} \
+            --spectral-radius {params[3]} \
+            --rewiring {params[4]} \
             -tl {tl} \
-            -rd {params[1]} \
-            -tn {tn} \
-            -rg {params[2]}"
+            --reservoir-degree {params[1]} \
+            --regularization {params[2]} \
+            --file-name {fn}"
 
     system(instruction)
 
 
 # main forecast
-def forecast_main(prediction_steps: int, train_transient: int, trained_model_path: str, prediction_path: str, data_file, forecast_name, trained: bool):    
-    if trained:
-        instruction = f"python3 ./main.py forecast \
-                -fm classic \
-                -fl {prediction_steps} \
-                -it {1000} \
-                -tr {train_transient} \
-                -tl {train_transient} \
-                -tm {trained_model_path} \
-                -df {data_file} \
-                -o {prediction_path} \
-                -fn {forecast_name}"
-    else:
-        instruction = f"python3 ./main.py forecast \
-                -fm classic \
-                -fl {prediction_steps} \
-                -it {1000} \
-                -tr {0} \
-                -tl {train_transient}\
-                -tm {trained_model_path} \
-                -df {data_file} \
-                -o {prediction_path} \
-                -fn {forecast_name}"
+def forecast_main(prediction_steps: int, trained_model_path: str, prediction_path: str, data_file: str, forecast_name: str):    
+    instruction = f"python3 ./tmain.py forecast \
+            -fm classic \
+            -fl {prediction_steps} \
+            -tm {trained_model_path} \
+            -df {data_file} \
+            -o {prediction_path} \
+            -fn {forecast_name}"
 
     system(instruction)
 
 
 
+# main plot
+def plot_main(prediction_file: str, data_file: str, tl: int, output_file: str):    
+    instruction = f"python3 ./tmain.py plot \
+            -dt 1 \
+            -pt linear \
+            -tl {tl} \
+            -df {data_file} \
+            -pr {prediction_file} \
+            --save-path {output_file} \
+            "
+
+    system(instruction)
+
+
+
+
 def train(params, data_file_path, output_file, u, tl, tn):
-    training(
+    _train(
         model='ESN',
         units=str(u),
         input_initializer='InputMatrix',
@@ -199,20 +229,16 @@ def train(params, data_file_path, output_file, u, tl, tn):
         train_length=str(tl),
         output_dir=output_file,
         data_file=data_file_path,
-        trained_name=tn
+        # trained_name=tn
     )
 
-def forecast(prediction_steps: int, train_transient: int, trained_model_path: str, prediction_path: str, data_file, forecast_name, trained: bool):
-    forecasting(
+def forecast(prediction_steps: int, trained_model_path: str, prediction_path: str, data_file):
+    _forecast(
         forecast_method='classic',
         forecast_length=prediction_steps,
         section_initialization_length=50,
         number_of_sections=10,
-        init_transient=1000,
-        transient=1000 if trained else train_transient,
-        train_length=train_transient,
         trained_model=trained_model_path,
         output_dir=prediction_path,
         data_file=data_file,
-        forecast_name=str(forecast_name)
     )

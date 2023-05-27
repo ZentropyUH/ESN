@@ -1,5 +1,4 @@
 from src.grid.grid_tools import *
-import shutil
 import time
 import tensorflow as tf
 import argparse
@@ -12,16 +11,16 @@ def calculate_mse(forecast_path: str, data_path: str, output, t: int):
     data: list[str] = [join(data_path, p) for p in listdir(data_path)]
     makedirs(output, exist_ok=True)
         
-    # Calculate MSE
-    mse = [[np.sqrt(((f - d) ** 2).mean())
+    # Calculate RMSE
+    rmse = [[np.sqrt(((f - d) ** 2).mean())
             for f, d in zip(pd.read_csv(forecast_file).to_numpy(), pd.read_csv(data_file).to_numpy()[(t):])]
             for forecast_file, data_file in zip(forecast_data, data)]
 
-    # Sum all the mse
+    # Sum all the rmse
     mean = []
-    for i, current in enumerate(mse):
+    for i, current in enumerate(rmse):
         
-        # Save current mse
+        # Save current rmse
         save_csv(current, "{}.csv".format(i), output)
         
         if len(mean) == 0:
@@ -32,8 +31,8 @@ def calculate_mse(forecast_path: str, data_path: str, output, t: int):
     mean = [x / len(data) for x in mean]
 
     # Save the csv
-    save_csv(mean, "mse_mean.csv", output)
-    save_plots(data=mean, output_path=output, name='mse_mean_plot.png')
+    save_csv(mean, "rmse_mean.csv", output)
+    save_plots(data=mean, output_path=output, name='rmse_mean_plot.png')
 
 
 
@@ -57,19 +56,26 @@ def grid_one(combination_index: int, data_path: str, output_path:str, u:int=9000
 
         # Create the trained model folder
         current_path = join(output_path, '_'.join([str(x) for x in combination]))
-        trained_model_path = join(current_path, 'trained_model')
+        makedirs(current_path)
         
         # Create forecast folder
         forecast_path = join(current_path, 'forecast')
         makedirs(forecast_path, exist_ok=True)
         
-        # Create folder for the mse of predictions
-        rmse_path = join(current_path, 'mse')
+        # Create folder for the rmse of predictions
+        rmse_path = join(current_path, 'rmse')
         makedirs(rmse_path, exist_ok=True)
 
         # Create the folder mean
-        mean_path = join(current_path, 'mse_mean')
+        mean_path = join(current_path, 'rmse_mean')
         makedirs(mean_path, exist_ok=True)
+
+        # Create Trained model file
+        trained_model_path = join(current_path, 'trained_model')
+        makedirs(trained_model_path, exist_ok=True)
+
+        forecast_plot_path = join(current_path, 'forecast_plots')
+        makedirs(forecast_plot_path)
 
         # Create time file
         time_file = join(current_path, 'time.txt')
@@ -78,7 +84,14 @@ def grid_one(combination_index: int, data_path: str, output_path:str, u:int=9000
         # Train
         start_train_time = time.time()
         print('Training...')
-        train(combination, train_data_path, current_path, u, tl, 'trained_model')
+        train_main(
+            params=combination,
+            data_file_path=train_data_path,
+            output_file=current_path,
+            u=u,
+            tl=tl,
+            fn='trained_model',
+        )
         print('Training finished')
         train_time = time.time() - start_train_time
 
@@ -86,31 +99,36 @@ def grid_one(combination_index: int, data_path: str, output_path:str, u:int=9000
         start_forecast_time = time.time()
         for fn, current_data in enumerate(data):
             print('Forecasting {}...'.format(fn))
-            forecast(
+            forecast_main(
                 prediction_steps = 1000,
-                train_transient= tl,
                 trained_model_path= trained_model_path,
                 prediction_path= forecast_path,
                 data_file= current_data,
-                forecast_name= fn,
-                trained= current_data == train_data_path,
+                forecast_name= str(fn),
             )
             print('Forecasting {} finished'.format(fn))
+
+            plot_main(
+                prediction_file=join(forecast_path, str(fn)),
+                data_file=current_data,
+                tl=tl,
+                output_file=join(forecast_plot_path, str(fn))
+            )
         forecast_time = (time.time() - start_forecast_time)/len(data)
 
         # Get Forecast data files
         forecast_data = [join(forecast_path, x) for x in listdir(forecast_path)]
         
-        # Calculate MSE
+        # Calculate RMSE
         rmse = [[np.sqrt(((f - d) ** 2).mean())
                 for f, d in zip(pd.read_csv(forecast_file).to_numpy(), pd.read_csv(data_file).to_numpy()[(1000 + 1000 + tl):])]
                 for forecast_file, data_file in zip(forecast_data, data)]
 
-        # Sum all the mse
+        # Sum all the rmse
         mean = []
         for i, current in enumerate(rmse):
             
-            # Save current mse
+            # Save current rmse
             save_csv(current, "{}.csv".format(i), rmse_path)
             
             if len(mean) == 0:
@@ -121,11 +139,14 @@ def grid_one(combination_index: int, data_path: str, output_path:str, u:int=9000
         mean = [x / len(data) for x in mean]
 
         # Save the csv
-        save_csv(mean, "mse_mean.csv", mean_path)
-        save_plots(data=mean, output_path=mean_path, name='mse_mean_plot.png')
+        save_csv(mean, "rmse_mean.csv", mean_path)
+        save_plots(data=mean, output_path=mean_path, name='rmse_mean_plot.png')
+
+        
 
         with open(time_file, 'w') as f:
             json.dump({'train': train_time, 'forecast': forecast_time}, f)
+
 
 
 
@@ -134,12 +155,12 @@ def best_combinations(path: str, output: str, max_size: int, threshold: float):
     best = Queue(max_size)
     for folder in track(listdir(path), description='Searching best combinations'):
         folder = join(path, folder)
-        mse_mean_path = join(folder, 'mse_mean', 'mse_mean.csv')
+        rmse_mean_path = join(folder, 'rmse_mean', 'rmse_mean.csv')
         params_path = join(folder, 'params.json')
 
-        mse_mean = []
-        with open(mse_mean_path, 'r') as f:
-            mse_mean = read_csv(f)
+        rmse_mean = []
+        with open(rmse_mean_path, 'r') as f:
+            rmse_mean = read_csv(f)
         
         params = {}
         with open(params_path, 'r') as f:
@@ -153,50 +174,9 @@ def best_combinations(path: str, output: str, max_size: int, threshold: float):
             params['rewiring'],
         )
         
-        best.decide(mse_mean, params, folder, threshold)
+        best.decide(rmse_mean, params, folder, threshold)
     
     for i, element in enumerate(best.queue):
         folder = element[1][1]
         shutil.copytree(folder, join(output, str(i)), dirs_exist_ok=True)
 
-
-
-def change_folders(path: str):
-    
-    for folder in listdir(path):
-        folder = join(path, folder)
-        time_file = join(folder, 'time.txt')
-
-        inside_folders = [join(folder, f) for f in listdir(folder) if join(folder, f) != time_file]
-
-        for inside_folder in inside_folders:
-            shutil.move(time_file, inside_folder)
-            shutil.move(inside_folder, path)
-            shutil.rmtree(folder)
-     
-
-def detect_not_fished_jobs(path: str, output: str):
-    with open(join(output, 'out.out'), 'w') as f:
-        for file in [join(path, f) for f in listdir(path) if 'time.txt' not in listdir(join(path, f))]:
-            f.write('{}\n'.format(file.split('_')[-1]))
-
-
-
-def test():
-    params = (0.5, 6, 1e-8, 0.99, 0.5)
-
-
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser("Hyperparametes")
-    parser.add_argument('-o', '--output', help="Output path", type=str, required=True)
-    parser.add_argument('-d', '--data', help="Data path", type=str, required=True)
-    parser.add_argument('-i', '--index', help="Combination of hyperparameters", type=int, required=True)
-    args = parser.parse_args()
-
-    gpus = tf.config.list_physical_devices('GPU')
-    print("Num GPUs Available: ", len(gpus))
-    print(gpus)
-
-    grid_one(args.index, args.data, args.output)
