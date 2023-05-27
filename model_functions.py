@@ -2,6 +2,7 @@
 # pylint: disable=line-too-long
 import json
 import os
+from os.path import join
 
 import numpy as np
 import pandas as pd
@@ -61,6 +62,7 @@ def _train(
     train_length,
     data_file,
     output_dir,
+    file_name,
 ):
     # region Code
     """
@@ -93,27 +95,15 @@ def _train(
 
     ## INPUT INITIALIZER
 
-    for _units in tqdm(units, postfix="Units"):
-        for _input_scaling in tqdm(input_scaling, postfix="Input Scaling"):
-            for _leak_rate in tqdm(leak_rate, postfix="Leak rate"):
-                for _spectral_radius in tqdm(
-                    spectral_radius, postfix="Spectral radius"
-                ):
-                    for _reservoir_degree in tqdm(
-                        reservoir_degree, postfix="Degree"
-                    ):
-                        for _reservoir_sigma in tqdm(
-                            reservoir_sigma, postfix="Reservoir std"
-                        ):
-                            for _rewiring in tqdm(
-                                rewiring, postfix="Rewiring"
-                            ):
-                                for _regularization in tqdm(
-                                    regularization, postfix="regularization"
-                                ):
-                                    for _train_length in tqdm(
-                                        train_length, postfix="Train length"
-                                    ):
+    for _units in units:
+        for _input_scaling in input_scaling:
+            for _leak_rate in leak_rate:
+                for _spectral_radius in spectral_radius:
+                    for _reservoir_degree in reservoir_degree:
+                        for _reservoir_sigma in reservoir_sigma:
+                            for _rewiring in rewiring:
+                                for _regularization in regularization:
+                                    for _train_length in train_length:
                                         ############### LOAD THE DATA ###############
 
                                         # Only the training data needed
@@ -254,42 +244,18 @@ def _train(
 
                                         ############### SAVING TRAINED MODEL ###############
 
-                                        # Prune path from data_file
-                                        # data_file_name = data_file.split("/")[
-                                        #     -1
-                                        # ]
+                                        if output_dir is None:
+                                            os.makedirs("Models", exist_ok=True)
 
-                                        # Choose only the most important parameters to name the model
-                                        # name_dict = {
-                                        #     "mdl": ctx.__dict__["params"][
-                                        #         "model"
-                                        #     ],
-                                        #     "units": _units,
-                                        #     "sigma": _input_scaling,
-                                        #     "sr": _spectral_radius,
-                                        #     "degr": _reservoir_degree,
-                                        #     "resigma": _reservoir_sigma,
-                                        #     "rw": _rewiring,
-                                        #     "reg": _regularization,
-                                        #     "readl": readout_layer,
-                                        #     "dta": data_file_name,
-                                        # }
-
-                                        # model_name = (
-                                        #     output_dir
-                                        #     + f"/{get_name_from_dict(name_dict)}"
-                                        # )
-                                        if not os.path.exists("Models"):
-                                            os.makedirs("Models")
-
-                                        model_name = (
-                                            output_dir + f"/{model.model.seed}"
-                                        )
+                                        if file_name is not None:
+                                            model_name = join(output_dir, file_name)
+                                        else:
+                                            model_name = join(output_dir, f"/{model.model.seed}")
 
                                         # Save the model and save the parameters dictionary in a json file inside the model folder
                                         model.save(model_name)
                                         with open(
-                                            model_name + "/params.json",
+                                            join(model_name, "params.json"),
                                             "w",
                                             encoding="utf-8",
                                         ) as _f_:
@@ -305,6 +271,7 @@ def _forecast(
     output_dir: str,
     trained_model: str,
     data_file: str,
+    file_name: str,
 ):
     """Load a model and forecast the data.
 
@@ -371,17 +338,25 @@ def _forecast(
     # save in the output directory with the name of the data file (without the path) and the model name attached
 
     # Prune path from trained_model
-    trained_model_name = trained_model.split("/")[-1]
 
-    data_name = data_file.split("/")[-1]
-    print(data_name)
+    # FIX
+    if output_dir is None:
+        trained_model_name = trained_model.split("/")[-1]
 
-    if not os.path.exists(f"forecasts/{trained_model_name}"):
-        os.makedirs(f"forecasts/{trained_model_name}")
+        data_name = data_file.split("/")[-1]
+        print(data_name)
+
+        if not os.path.exists(f"forecasts/{trained_model_name}"):
+            os.makedirs(f"forecasts/{trained_model_name}")
+
+        name = f"{output_dir}/{trained_model_name}/{data_name}_{forecast_method}_forecasted.csv"
+
+    if file_name is not None:
+        name = join(output_dir, str(file_name))
 
     # Save the forecasted data as csv using pandas
     pd.DataFrame(predictions).to_csv(
-        f"{output_dir}/{trained_model_name}/{data_name}_{forecast_method}_forecasted.csv",
+        name,
         index=False,
         header=None,
     )
