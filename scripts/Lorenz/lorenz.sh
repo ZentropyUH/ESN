@@ -66,7 +66,7 @@ echo "end of copy"
 
 cd $ESN
 echo "runing............"
-srun python3 tmain.py grid -i $SLURM_ARRAY_TASK_ID -d $data  -o $output
+srun python3 tmain.py grid -i $SLURM_ARRAY_TASK_ID -d $data -o $output -u 9000 -tl 20000
 echo "end of run"
 
 
