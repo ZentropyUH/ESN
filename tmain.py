@@ -383,7 +383,23 @@ def missing_cases(
         if i not in l:
             m.append(i)
     print(m)
-        
+
+
+
+
+def ranges(
+    l: list[int],
+):
+    b = []
+    c = [l[0]]
+    for i in l[1:]:
+        if i == c[-1] + 1:
+            c.append(i)
+        else:
+            b.append(c)
+            c = [i]
+    
+    print(','.join(['{}-{}'.format(x[0], x[-1]) if len(x) > 1 else str(x) for x in b]))
 
 
 if __name__ == "__main__":
