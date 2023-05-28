@@ -9,6 +9,7 @@ from model_functions import _train, _forecast, _plot
 app = typer.Typer()
 
 #TODO: Files names
+#FIX: RMSE, puede estar tomando mal los trancientes
 
 
 
@@ -364,8 +365,26 @@ def plot_data_forecast(
 
 
 
-
+@app.command()
+def missing_cases(
+    path: str = typer.Option(..., '--path', '-p'),
+):
+    l = []
+    for i in listdir(path):
+        l.append(int(i.strip('slurm-').strip('.out').split('_')[1]))
+    
+    l.sort()
+    print('list')
+    print(l)
+    print('missing')
+    m = []
+    for i in range(l[0], l[-1]):
+        if i not in l:
+            m.append(i)
+    print(m)
+        
 
 
 if __name__ == "__main__":
-    app()
+    print('slurm-23242_123.out'.strip('slurm-').strip('.out').split('_')[1])
+    # app()
