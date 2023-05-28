@@ -379,7 +379,7 @@ def missing_cases(
     print(l)
     print('missing')
     m = []
-    for i in range(l[0], l[-1]):
+    for i in range(1, 9601):
         if i not in l:
             m.append(i)
     print(m)
