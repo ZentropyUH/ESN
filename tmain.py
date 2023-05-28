@@ -371,7 +371,8 @@ def missing_cases(
 ):
     l = []
     for i in listdir(path):
-        l.append(int(i.strip('slurm-').strip('.out').split('_')[1]))
+        if i.endswith('.out'):
+            l.append(int(i.strip('slurm-').strip('.out').split('_')[1]))
     
     l.sort()
     print('list')
@@ -386,5 +387,4 @@ def missing_cases(
 
 
 if __name__ == "__main__":
-    print('slurm-23242_123.out'.strip('slurm-').strip('.out').split('_')[1])
-    # app()
+    app()
