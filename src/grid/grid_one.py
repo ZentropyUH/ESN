@@ -4,6 +4,7 @@ import tensorflow as tf
 import argparse
 import json
 from rich.progress import track
+from model_functions import _train, _forecast
 
 
 def calculate_mse(forecast_path: str, data_path: str, output, t: int):
@@ -84,27 +85,28 @@ def grid_one(combination_index: int, data_path: str, output_path:str, u:int=9000
         # Train
         start_train_time = time.time()
         print('Training...')
-        train_main(
-            params=combination,
+
+        # Se manda a entrenar con los parametros por defecto, en este caso
+        trained_model, trained_params = _train (
+
             data_file_path=train_data_path,
             output_file=current_path,
-            u=u,
-            tl=tl,
-            fn='trained_model',
+            file_name ='trained_model',
+            save_model = True
         )
+
         print('Training finished')
         train_time = time.time() - start_train_time
 
-        # Forecast
+        # Forecast aqui se hace con el modelo no con el path
         start_forecast_time = time.time()
         for fn, current_data in enumerate(data):
             print('Forecasting {}...'.format(fn))
-            forecast_main(
-                prediction_steps = 1000,
-                trained_model_path= trained_model_path,
-                prediction_path= forecast_path,
+            _forecast(
+                trained_model = trained_model,
                 data_file= current_data,
-                forecast_name= str(fn),
+                output_dir= forecast_path,
+                model_params = trained_params
             )
             print('Forecasting {} finished'.format(fn))
 
@@ -114,6 +116,7 @@ def grid_one(combination_index: int, data_path: str, output_path:str, u:int=9000
                 tl=tl,
                 output_file=join(forecast_plot_path, str(fn))
             )
+
         forecast_time = (time.time() - start_forecast_time)/len(data)
 
         # Get Forecast data files
@@ -143,11 +146,8 @@ def grid_one(combination_index: int, data_path: str, output_path:str, u:int=9000
         save_plots(data=mean, output_path=mean_path, name='rmse_mean_plot.png')
 
         
-
         with open(time_file, 'w') as f:
             json.dump({'train': train_time, 'forecast': forecast_time}, f)
-
-
 
 
 def best_combinations(path: str, output: str, max_size: int, threshold: float):

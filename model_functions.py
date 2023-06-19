@@ -10,6 +10,7 @@ import pandas as pd
 # pylint: disable=no-name-in-module
 from keras.initializers import Zeros
 from keras.models import load_model
+from torch import NoneType
 from tqdm import tqdm
 
 from src.customs.custom_initializers import (
@@ -37,9 +38,9 @@ from src.utils import get_range, load_data, load_model_json
 
 def _train(
     # Save params
-    data_file,
-    output_dir,
-    file_name,
+    data_file: str,
+    output_dir: str = None,
+    file_name : str= None,
 
     # General params
     model: str = 'ESN',
@@ -76,7 +77,22 @@ def _train(
     """
     Trains an Echo State Network on the data provided in the data file.
 
-    The data file should be a csv file with the rows being the time and the columns being the dimensions. The data file should be provided with full path.
+    The data file should be a csv file with the rows being the time and the columns being the dimensions. 
+    The data file should be provided with full path.
+    The data file should not include init transient
+
+    Train a model with the data.
+
+    Args:
+        data_file (str): Path to the data
+        output_dir (str): Path to the output file
+        file_name: Output file name,
+
+    Returns:
+        model (ESN_Model): The trained model
+        params (dict): The parameters used for training 
+
+     
     """
     ################ GET THE PARAMETERS WITH POSSIBLE RANGES ################
 
@@ -220,17 +236,18 @@ def _train(
 
     ############### SAVING TRAINED MODEL ###############
 
-    if output_dir is None:
-        os.makedirs("Models", exist_ok=True)
-
-    if file_name is not None:
-        model_name = join(output_dir, file_name)
-    else:
-        model_name = join(output_dir, f"/{model.model.seed}")
-
-    
-    # Save the model and save the parameters dictionary in a json file inside the model folder
     if save_model:
+
+        if output_dir is None:
+            os.makedirs("Models", exist_ok=True)
+
+        if file_name is not None:
+            model_name = join(output_dir, file_name)
+        else:
+            model_name = join(output_dir, f"/{model.model.seed}")
+
+        # Save the model and save the parameters dictionary in a json file inside the model folder
+   
         model.save(model_name)
 
         with open(
@@ -246,10 +263,10 @@ def _train(
 
 def _forecast(
     
-    output_dir: str,
-    trained_model: str,
+    trained_model,
     data_file: str,
-    file_name: str,
+    output_dir: str,
+    model_params: dict = {},
 
     # Forecast params
     forecast_method: str = 'classic',
@@ -257,22 +274,54 @@ def _forecast(
     section_initialization_length: int = 50,
     number_of_sections: int = 10,
 
+    # Charge saved model
+    load_saved_model = False
+
 ):
     """Load a model and forecast the data.
 
     Args:
-        forecast_method (str): The method to be used for forecasting. The default is ClassicForecast.
-        forecast_length (int): The number of points to be forecasted. The default is 1000.
         trained_model (str): The trained model to be used for forecasting
         data_file (str): The data file to be used for training the model
+        output_dir (str):
+        model_params (dict) = {},
+
+        forecast_method (str): The method to be used for forecasting. The default is ClassicForecast.
+        forecast_length (int): The number of points to be forecasted. The default is 1000.
+        section_initialization_length: int = 50,
+        number_of_sections: int = 10,
+
+        load_saved_model (bool): True -> the model will be load of a file so trained_model will be a path
+                               | False -> Not need to load the model, trained_model will be a ESN_model
 
     Returns:
         None
 
     """
-    # Load the param json from the model location
-    params = load_model_json(trained_model)
 
+    transient
+    train_length
+    init_transient
+    
+    if load_saved_model:
+
+        # Load the param json from the model location
+        params = load_model_json(trained_model)
+        model = load_model(trained_model, compile=False)
+
+        transient= params["transient"],
+        train_length= params["train_length"],
+        init_transient= params["init_transient"]
+
+    else:
+
+        model = trained_model
+
+        transient= model_params["transient"],
+        train_length= model_params["train_length"],
+        init_transient= model_params["init_transient"]
+
+        
     # Load the data
     (
         _,
@@ -283,13 +332,12 @@ def _forecast(
         val_target,
     ) = load_data (
         data_file,
-        transient= params["transient"],
-        train_length= params["train_length"],
-        init_transient= params["init_transient"],
+        transient= transient,
+        train_length= train_length,
+        init_transient= init_transient
     )
 
     # Load the model
-    model = load_model(trained_model, compile=False)
 
     ############### CHOOSE THE FORECAST METHOD AND FORECAST ###############
 

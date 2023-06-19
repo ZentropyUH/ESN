@@ -152,7 +152,7 @@ def detect_not_fished_jobs(path: str, output: str):
 
 
 # main train
-def train_main(params: tuple, data_file_path: str, output_file: str, u: int, tl: int, fn: str):    
+def _train(params: tuple, data_file_path: str, output_file: str, u: int, tl: int, fn: str):    
     instruction = f"python3 ./tmain.py train \
             --model ESN \
             --units {u} \
