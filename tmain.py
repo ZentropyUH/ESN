@@ -9,7 +9,6 @@ from model_functions import _train, _forecast, _plot
 app = typer.Typer()
 
 #TODO: Files names
-#FIX: RMSE, puede estar tomando mal los trancientes
 
 
 
