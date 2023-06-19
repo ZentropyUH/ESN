@@ -43,7 +43,7 @@ def _train(
 
     # General params
     model: str = 'ESN',
-    units: int = 7000,
+    units: int = 6000,
     input_initializer: str = 'InputMatrix',
     input_bias_initializer: str = 'RandomUniform',
     input_scaling : int = 0.5,
@@ -66,12 +66,13 @@ def _train(
     regularization : int = 1e-4,
 
     # Training params
-    init_transient: int = 1000,
     transient: int = 1000,
-    train_length : int = 10000,
+    train_length : int = 20000,
+
+    # Save flag
+    save_model: bool = False
     
 ):
-    # region Code
     """
     Trains an Echo State Network on the data provided in the data file.
 
@@ -81,204 +82,184 @@ def _train(
 
     params = locals().copy()
 
-    # General params
-    units = get_range(units, step=1000, method="linear")
-    units = [int(unit) for unit in units]
+    # Only the training data needed
+    (
+        transient_data,
+        train_data,
+        train_target,
+        _,
+        _,
+        _,
 
-    input_scaling = get_range(input_scaling)
-    leak_rate = get_range(leak_rate)
-    spectral_radius = get_range(spectral_radius)
+    ) = load_data (
+        data_file,
+        transient,
+        train_length,
+    )
 
-    reservoir_degree = get_range(reservoir_degree)
-    reservoir_degree = [int(degree) for degree in reservoir_degree]
+    ############### CHOOSE THE INPUT INITIALIZER ###############
 
-    reservoir_sigma = get_range(reservoir_sigma)
-    rewiring = get_range(rewiring)
-    # This will typically be chosen to be 1e-4
-    regularization = get_range(regularization, method="log", base=10)
+    match input_initializer:
+        case "InputMatrix":
+            input_initializer = (
+                InputMatrix(
+                    sigma=input_scaling
+                )
+            )
+        case "RandomUniform":
+            input_initializer = (
+                RandomUniform(
+                    sigma=input_scaling
+                )
+            )
 
-    train_length = get_range(train_length)
-    train_length = [int(length) for length in train_length]
+    ############### CHOOSE THE INPUT INITIALIZER ###############
 
-    ## INPUT INITIALIZER
+    match input_bias_initializer:
+        case "InputMatrix":
+            input_bias_initializer = (
+                InputMatrix(
+                    sigma=input_scaling
+                )
+            )
+        case "RandomUniform":
+            input_bias_initializer = (
+                RandomUniform(
+                    sigma=input_scaling
+                )
+            )
 
-    for _units in units:
-        for _input_scaling in input_scaling:
-            for _leak_rate in leak_rate:
-                for _spectral_radius in spectral_radius:
-                    for _reservoir_degree in reservoir_degree:
-                        for _reservoir_sigma in reservoir_sigma:
-                            for _rewiring in rewiring:
-                                for _regularization in regularization:
-                                    for _train_length in train_length:
-                                        ############### LOAD THE DATA ###############
+        case "None":
+            input_bias_initializer = (
+                Zeros()
+            )
 
-                                        # Only the training data needed
-                                        (
-                                            transient_data,
-                                            train_data,
-                                            train_target,
-                                            _,
-                                            _,
-                                            _,
-                                        ) = load_data(
-                                            data_file,
-                                            transient=transient,
-                                            train_length=_train_length,
-                                            init_transient=init_transient,
-                                        )
+    ############### CHOOSE THE RESERVOIR INITIALIZER ###############
 
-                                        ############### CHOOSE THE INPUT INITIALIZER ###############
+    match reservoir_initializer:
+        case "RegularOwn":
+            reservoir_initializer = RegularOwn(
+                degree= reservoir_degree,
+                spectral_radius= spectral_radius,
+                sigma= reservoir_sigma,
+            )
+        case "RegularNX":
+            reservoir_initializer = RegularNX(
+                degree= reservoir_degree,
+                spectral_radius= spectral_radius,
+                sigma= reservoir_sigma,
+            )
+        case "ErdosRenyi":
+            reservoir_initializer = ErdosRenyi(
+                degree= reservoir_degree,
+                spectral_radius= spectral_radius,
+                sigma= reservoir_sigma,
+            )
+        case "WattsStrogatzOwn":
+            reservoir_initializer = WattsStrogatzOwn(
+                degree= reservoir_degree,
+                spectral_radius= spectral_radius,
+                rewiring_p= rewiring,
+                sigma= reservoir_sigma,
+            )
+        case "WattsStrogatzNX":
+            reservoir_initializer = WattsStrogatzNX(
+                degree= reservoir_degree,
+                spectral_radius= spectral_radius,
+                rewiring_p= rewiring,
+                sigma= reservoir_sigma,
+            )
 
-                                        match input_initializer:
-                                            case "InputMatrix":
-                                                input_initializer = (
-                                                    InputMatrix(
-                                                        sigma=_input_scaling
-                                                    )
-                                                )
-                                            case "RandomUniform":
-                                                input_initializer = (
-                                                    RandomUniform(
-                                                        sigma=_input_scaling
-                                                    )
-                                                )
+    ############### CHOOSE THE MODEL ###############
 
-                                        ############### CHOOSE THE INPUT INITIALIZER ###############
+    match model:
+        case "ESN":
+            model = ESN(
+                units= units,
+                leak_rate= leak_rate,
+                input_reservoir_init=input_initializer,
+                input_bias_init=input_bias_initializer,
+                reservoir_kernel_init=reservoir_initializer,
+                esn_activation=reservoir_activation,
+            )
 
-                                        match input_bias_initializer:
-                                            case "InputMatrix":
-                                                input_bias_initializer = (
-                                                    InputMatrix(
-                                                        sigma=_input_scaling
-                                                    )
-                                                )
-                                            case "RandomUniform":
-                                                input_bias_initializer = (
-                                                    RandomUniform(
-                                                        sigma=_input_scaling
-                                                    )
-                                                )
+        case "Parallel-ESN":
+            model = ParallelESN(
+                units_per_reservoir= units,
+                reservoir_amount=reservoir_amount,
+                overlap=overlap,
+                leak_rate= leak_rate,
+                input_reservoir_init=input_initializer,
+                input_bias_init=input_bias_initializer,
+                reservoir_kernel_init=reservoir_initializer,
+                esn_activation=reservoir_activation,
+            )
 
-                                            case "None":
-                                                input_bias_initializer = (
-                                                    Zeros()
-                                                )
+        case "Reservoir":
+            print("Yet to be implemented")
+            return
 
-                                        ############### CHOOSE THE RESERVOIR INITIALIZER ###############
+    ############### CHOOSE THE READOUT LAYER ###############
 
-                                        match reservoir_initializer:
-                                            case "RegularOwn":
-                                                reservoir_initializer = RegularOwn(
-                                                    degree=_reservoir_degree,
-                                                    spectral_radius=_spectral_radius,
-                                                    sigma=_reservoir_sigma,
-                                                )
-                                            case "RegularNX":
-                                                reservoir_initializer = RegularNX(
-                                                    degree=_reservoir_degree,
-                                                    spectral_radius=_spectral_radius,
-                                                    sigma=_reservoir_sigma,
-                                                )
-                                            case "ErdosRenyi":
-                                                reservoir_initializer = ErdosRenyi(
-                                                    degree=_reservoir_degree,
-                                                    spectral_radius=_spectral_radius,
-                                                    sigma=_reservoir_sigma,
-                                                )
-                                            case "WattsStrogatzOwn":
-                                                reservoir_initializer = WattsStrogatzOwn(
-                                                    degree=_reservoir_degree,
-                                                    spectral_radius=_spectral_radius,
-                                                    rewiring_p=_rewiring,
-                                                    sigma=_reservoir_sigma,
-                                                )
-                                            case "WattsStrogatzNX":
-                                                reservoir_initializer = WattsStrogatzNX(
-                                                    degree=_reservoir_degree,
-                                                    spectral_radius=_spectral_radius,
-                                                    rewiring_p=_rewiring,
-                                                    sigma=_reservoir_sigma,
-                                                )
+    match readout_layer:
+        case "linear":
+            model = linear_readout(
+                model=model,
+                transient_data=transient_data,
+                train_data=train_data,
+                train_target=train_target,
+                regularization= regularization,
+            )
 
-                                        ############### CHOOSE THE MODEL ###############
+        case "sgd":
+            print("Yet to be implemented")
+            return
+        case "mlp":
+            print("Yet to be implemented")
+            return
 
-                                        match model:
-                                            case "ESN":
-                                                model = ESN(
-                                                    units=_units,
-                                                    leak_rate=_leak_rate,
-                                                    input_reservoir_init=input_initializer,
-                                                    input_bias_init=input_bias_initializer,
-                                                    reservoir_kernel_init=reservoir_initializer,
-                                                    esn_activation=reservoir_activation,
-                                                )
+    ############### SAVING TRAINED MODEL ###############
 
-                                            case "Parallel-ESN":
-                                                model = ParallelESN(
-                                                    units_per_reservoir=_units,
-                                                    reservoir_amount=reservoir_amount,
-                                                    overlap=overlap,
-                                                    leak_rate=_leak_rate,
-                                                    input_reservoir_init=input_initializer,
-                                                    input_bias_init=input_bias_initializer,
-                                                    reservoir_kernel_init=reservoir_initializer,
-                                                    esn_activation=reservoir_activation,
-                                                )
+    if output_dir is None:
+        os.makedirs("Models", exist_ok=True)
 
-                                            case "Reservoir":
-                                                print("Yet to be implemented")
-                                                return
+    if file_name is not None:
+        model_name = join(output_dir, file_name)
+    else:
+        model_name = join(output_dir, f"/{model.model.seed}")
 
-                                        ############### CHOOSE THE READOUT LAYER ###############
+    
+    # Save the model and save the parameters dictionary in a json file inside the model folder
+    if save_model:
+        model.save(model_name)
 
-                                        match readout_layer:
-                                            case "linear":
-                                                model = linear_readout(
-                                                    model=model,
-                                                    transient_data=transient_data,
-                                                    train_data=train_data,
-                                                    train_target=train_target,
-                                                    regularization=_regularization,
-                                                )
+        with open(
+            join(model_name, "params.json"),
+            "w",
+            encoding="utf-8",
+        ) as _f_:
+            json.dump(params, _f_)
+    
+    return model, params
 
-                                            case "sgd":
-                                                print("Yet to be implemented")
-                                                return
-                                            case "mlp":
-                                                print("Yet to be implemented")
-                                                return
-
-                                        ############### SAVING TRAINED MODEL ###############
-
-                                        if output_dir is None:
-                                            os.makedirs("Models", exist_ok=True)
-
-                                        if file_name is not None:
-                                            model_name = join(output_dir, file_name)
-                                        else:
-                                            model_name = join(output_dir, f"/{model.model.seed}")
-
-                                        # Save the model and save the parameters dictionary in a json file inside the model folder
-                                        model.save(model_name)
-                                        with open(
-                                            join(model_name, "params.json"),
-                                            "w",
-                                            encoding="utf-8",
-                                        ) as _f_:
-                                            json.dump(params, _f_)
-    # endregion
 
 
 def _forecast(
-    forecast_method: str,
-    forecast_length: int,
-    section_initialization_length: int,
-    number_of_sections: int,
+    
     output_dir: str,
     trained_model: str,
     data_file: str,
     file_name: str,
+
+    # Forecast params
+    forecast_method: str = 'classic',
+    forecast_length: int = 1000,
+    section_initialization_length: int = 50,
+    number_of_sections: int = 10,
+
+    # Save flag
+    save_forecast: bool = True
+
 ):
     """Load a model and forecast the data.
 
@@ -303,11 +284,11 @@ def _forecast(
         forecast_transient_data,
         val_data,
         val_target,
-    ) = load_data(
+    ) = load_data (
         data_file,
-        transient=int(params["transient"]),
-        train_length=int(params["train_length"]),
-        init_transient=int(params["init_transient"]),
+        transient= params["transient"],
+        train_length= params["train_length"],
+        init_transient= params["init_transient"],
     )
 
     # Load the model
