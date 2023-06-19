@@ -1,4 +1,4 @@
-from grid_tools import *
+from src.grid.grid_tools import *
 import shutil
 import time
 
@@ -11,7 +11,9 @@ import time
 ---- ---- ---- predictions
 ---- ---- ---- mse
 ---- ---- ---- mse_mean
-'''      
+'''
+
+
 
 
 def grid(combinations:list[list], data:list[str], output_path:str, queue_size:int, u:int=5000, tl:int=20000, threshold:float=0.01, train_time:list=[], forecast_time:list=[]):
@@ -19,8 +21,13 @@ def grid(combinations:list[list], data:list[str], output_path:str, queue_size:in
     # Queue for best cases, n is the max number of cases
     best = Queue(queue_size)
 
+    a = 0
     #Create all the combinations of hyperparameters
     for combination in product(*combinations):
+        
+        if a ==1:
+            break
+        a+=1
         
         # Select the data to train
         train_index = randint(0, len(data) - 1)
@@ -48,37 +55,18 @@ def grid(combinations:list[list], data:list[str], output_path:str, queue_size:in
         train(combination, train_data_path, current_path, u, tl, 'trained_model')
         train_time.append(time.time() - start_train_time)
 
-
-        # List of Threads
-        forecast_list: list[Thread] = []
-        
-        for fn, current_data in enumerate(data):
-            
-            # Thread for forecast
-            current = Thread(
-                target = forecast,
-                kwargs={
-                    "prediction_steps": 1000,
-                    "train_transient": tl,
-                    "trained_model_path": trained_model_path,
-                    "prediction_path": forecast_path,
-                    "data_file": current_data,
-                    "forecast_name": fn,
-                    "trained": current_data == train_data_path,
-                }
-            )
-            # Add Thread to queue
-            forecast_list.append(current)
-            
-        
-        # Start Threads
         start_forecast_time = time.time()
-        for thread in forecast_list:
-            thread.start()
+        for fn, current_data in enumerate(data):
 
-        # Wait for all Threads to finish
-        for thread in forecast_list:
-            thread.join()
+            forecast(
+                prediction_steps = 1000,
+                train_transient= tl,
+                trained_model_path= trained_model_path,
+                prediction_path= forecast_path,
+                data_file= current_data,
+                forecast_name= fn,
+                trained= current_data == train_data_path,
+            )
         
         forecast_time.append((time.time() - start_forecast_time)/len(data))
 
@@ -119,13 +107,12 @@ hyperparameters_to_adjust={"sigma":(0,5,0.2,lambda x,y: x+y),
                   
 
 
-def grid_search(hyperparameters_to_adjust: dict, data_path: str, output_path: str, depth: int, queue_size: int, u: int=9000, tl: int=20000, threshold: int=0.01):
+def grid_search(hyperparameters_to_adjust: dict, data_path: str, output_path: str, depth: int, queue_size: int, u: int=5000, tl: int=1000, threshold: int=0.01):
     
     # List all the files on the data folder
     data: list[str] = [join(data_path, p) for p in listdir(data_path)]
 
     # Create the output folder
-    output_path = join(output_path, 'output')
     makedirs(output_path, exist_ok=True)
 
     results_path = join(output_path, 'results')
@@ -224,26 +211,3 @@ def grid_search(hyperparameters_to_adjust: dict, data_path: str, output_path: st
         folder_name = split(folder)[1]
         shutil.copytree(folder, join(results_path, folder_name), dirs_exist_ok=True)
 
-
-# The hyperparameters will be of the form: name: (initial_value, number_of_values, increment, function_of_increment)
-# The parameters of the increment function are: initial_value, increment, current_value_of_the_iteration
-hyperparameters_to_adjust = {
-    "sigma": (0.2, 5, 0.2, lambda x, y, i: round(x + y * i, 2)),
-    "degree": (2, 4, 2, lambda x, y, i: round(x + y * i, 2)),
-    "ritch_regularization": (10e-5, 5, 0.1, lambda x, y, i: x * y**i),
-    "spectral_radio": (0.9, 16 , 0.01, lambda x, y, i: round(x + y * i, 2)),
-    "reconection_prob": (0, 6, 0.2, lambda x, y, i: round(x + y*i, 2))
-}
-
-import argparse
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser("Hyperparametes")
-    parser.add_argument('-o', '--output', help="Output path", type=str, required=True)
-    parser.add_argument('-d', '--data', help="Data path", type=str, required=True)
-    parser.add_argument('-n', help="Search Tree depth", type=int, default=5)
-    parser.add_argument('-m', help="Number of best to keep", type=int, default=2)
-    args = parser.parse_args()
-
-
-    grid_search(hyperparameters_to_adjust, args.data, args.output, args.n, args.m)

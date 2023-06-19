@@ -3,9 +3,9 @@ import time
 
 import numpy as np
 from sklearn.linear_model import ElasticNet, Lasso, Ridge
-from tensorflow import keras
+import keras
 
-from custom_models import ModelWithReadout
+from src.customs.custom_models import ModelWithReadout
 
 ######### READOUT GENERATORS #########
 

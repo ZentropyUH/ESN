@@ -6,7 +6,8 @@ import numpy as np
 import tensorflow as tf
 from scipy import sparse
 from scipy.sparse import linalg
-from tensorflow import keras
+import keras
+from keras.initializers.initializers import Initializer
 
 ###############################################
 ################## Initializers ###############
@@ -14,7 +15,7 @@ from tensorflow import keras
 
 
 @tf.keras.utils.register_keras_serializable(package="custom")
-class InputMatrix(keras.initializers.Initializer):
+class InputMatrix(Initializer):
     """
     Makes an input matrix which connects the input to the reservoir.
 
@@ -37,14 +38,17 @@ class InputMatrix(keras.initializers.Initializer):
     """
 
     def __init__(self, sigma=0.5, **kwargs) -> None:
-        """Initialize the initializer."""
+        """
+        Initialize the initializer.
+        """
         assert sigma > 0, "sigma must be positive"
 
         self.sigma = sigma
         super().__init__()
 
     def __call__(self, shape, dtype=tf.float64, **kwargs) -> tf.Tensor:
-        """Generate the matrix.
+        """
+        Generate the matrix.
 
         Args:
             shape (tuple): Shape of the matrix.
@@ -71,7 +75,7 @@ class InputMatrix(keras.initializers.Initializer):
             rows <= cols
         ), "Reservoir nodes must be greater than or equal to number of features of the input."
 
-        inputs_per_node = int(cols / (rows))
+        inputs_per_node = int(cols / rows)
 
         # There's a tweak for when cols/rows is not an integer,
         # hence it leaves the last column empty and that node is
@@ -110,7 +114,7 @@ class InputMatrix(keras.initializers.Initializer):
 
 
 @tf.keras.utils.register_keras_serializable(package="custom")
-class RandomUniform(keras.initializers.Initializer):
+class RandomUniform(Initializer):
     """Random uniform matrix Initializer
 
     Args:
@@ -161,7 +165,7 @@ class RandomUniform(keras.initializers.Initializer):
 
 
 @tf.keras.utils.register_keras_serializable(package="custom")
-class RegularOwn(keras.initializers.Initializer):
+class RegularOwn(Initializer):
     """Regular graph adjacency matrix initializer.
 
     Generates a regular graph adjacency matrix with a given degree.
@@ -276,7 +280,7 @@ class RegularOwn(keras.initializers.Initializer):
 
 
 @tf.keras.utils.register_keras_serializable(package="custom")
-class RegularNX(keras.initializers.Initializer):
+class RegularNX(Initializer):
     """Regular graph adjacency matrix initializer.
 
     Generates a regular undirected graph's adjacency matrix with a given degree and spectral radius.
@@ -385,7 +389,7 @@ class RegularNX(keras.initializers.Initializer):
 
 
 @tf.keras.utils.register_keras_serializable(package="custom")
-class ErdosRenyi(keras.initializers.Initializer):
+class ErdosRenyi(Initializer):
     """Erdos Renyi adjacency matrix initializer.
 
     Uses networkx to generate a random graph and returns the adjacency matrix.
@@ -453,15 +457,17 @@ class ErdosRenyi(keras.initializers.Initializer):
 
         graph = nx.erdos_renyi_graph(rows, probab, directed=True)
 
-        if not self.ones:  # Make this more efficient
-            # Convert to dense matrix to make non zero values random uniform
-            graph_matrix = nx.to_numpy_array(graph).astype(np.float32)
-            # make non zero values randomly uniform in [-sigma, sigma]
-            graph_matrix[graph_matrix != 0] = np.random.uniform(
-                -self.sigma, self.sigma, graph_matrix[graph_matrix != 0].shape
-            )
-            # Convert to sparse matrix to calculate the spectral radius efficiently
-            graph_matrix = sparse.coo_matrix(graph_matrix)
+        if not self.ones:
+            
+            for u,v in graph.edges():
+                weight = np.random.uniform(-self.sigma, self.sigma)
+                graph[u][v]['weight'] = weight
+            
+        # Convert to dense matrix to make non zero values random uniform
+        graph_matrix = nx.to_numpy_array(graph).astype(np.float32)
+        
+        # Convert to sparse matrix to calculate the spectral radius efficiently
+        graph_matrix = sparse.coo_matrix(graph_matrix)
 
         print(f"Correcting spectral radius to {self.spectral_radius}")
 
@@ -492,7 +498,7 @@ class ErdosRenyi(keras.initializers.Initializer):
 
 
 @tf.keras.utils.register_keras_serializable(package="custom")
-class WattsStrogatzOwn(keras.initializers.Initializer):
+class WattsStrogatzOwn(Initializer):
     """Generate a Watts Strogatz graph adjacency matrix.
 
     Makes a regular graph adjacency matrix and then randomly rewire each edge
@@ -694,7 +700,7 @@ class WattsStrogatzOwn(keras.initializers.Initializer):
 
 
 @tf.keras.utils.register_keras_serializable(package="Custom")
-class WattsStrogatzNX(tf.keras.initializers.Initializer):
+class WattsStrogatzNX(Initializer):
     """Watts Strogatz graph initializer.
 
     Uses networkx to generate the graph and extract the adjacency matrix of a

@@ -10,6 +10,9 @@ import numpy as np
 import csv
 import matplotlib.pyplot as plt
 
+from src.functions import training, forecasting
+
+
 # Priority Queue with limited size, sorted from max to min
 class Queue:
     def __init__(self, max_size:int):
@@ -86,9 +89,9 @@ def calculate_aprox_time(time: list, file: str, text):
     with open(file, 'a+') as f:
         f.write('{}: {}\n'.format(text, str(np.mean(time))))
 
-print(np.mean([1,5,6]))
+
 # main train
-def train(params, data_file_path, output_file, u, tl, tn):    
+def train_main(params, data_file_path, output_file, u, tl, tn):    
     instruction = f"python3 ./main.py train \
             -m ESN \
             -ri WattsStrogatzOwn\
@@ -107,7 +110,7 @@ def train(params, data_file_path, output_file, u, tl, tn):
 
 
 # main forecast
-def forecast(prediction_steps: int, train_transient: int, trained_model_path: str, prediction_path: str, data_file, forecast_name, trained: bool):    
+def forecast_main(prediction_steps: int, train_transient: int, trained_model_path: str, prediction_path: str, data_file, forecast_name, trained: bool):    
     if trained:
         instruction = f"python3 ./main.py forecast \
                 -fm classic \
@@ -132,3 +135,46 @@ def forecast(prediction_steps: int, train_transient: int, trained_model_path: st
                 -fn {forecast_name}"
 
     system(instruction)
+
+
+
+def train(params, data_file_path, output_file, u, tl, tn):
+    training(
+        model='ESN',
+        units=str(u),
+        input_initializer='InputMatrix',
+        input_scaling='0.5',
+        input_bias_initializer='RandomUniform',
+        leak_rate='1.',
+        reservoir_activation='tanh',
+        spectral_radius=str(params[3]),
+        reservoir_initializer='WattsStrogatzOwn',
+        rewiring=str(params[4]),
+        reservoir_degree=str(params[1]),
+        reservoir_sigma=str(params[0]),
+        reservoir_amount=None,
+        overlap=None,
+        readout_layer='linear',
+        regularization=str(params[2]),
+        init_transient=1000,
+        transient=1000,
+        train_length=str(tl),
+        output_dir=output_file,
+        data_file=data_file_path,
+        trained_name=tn
+    )
+
+def forecast(prediction_steps: int, train_transient: int, trained_model_path: str, prediction_path: str, data_file, forecast_name, trained: bool):
+    forecasting(
+        forecast_method='classic',
+        forecast_length=prediction_steps,
+        section_initialization_length=50,
+        number_of_sections=10,
+        init_transient=1000,
+        transient=1000 if trained else train_transient,
+        train_length=train_transient,
+        trained_model=trained_model_path,
+        output_dir=prediction_path,
+        data_file=data_file,
+        forecast_name=str(forecast_name)
+    )
