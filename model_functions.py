@@ -2,6 +2,10 @@
 # pylint: disable=line-too-long
 import json
 import os
+
+# ignore tensorflow warnings
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+
 from os.path import join
 
 import numpy as np
@@ -9,6 +13,7 @@ import pandas as pd
 
 # pylint: disable=no-name-in-module
 from keras.initializers import Zeros
+from keras import Model
 from torch import NoneType
 from tqdm import tqdm
 
@@ -21,7 +26,7 @@ from src.customs.custom_initializers import (
     WattsStrogatzNX,
     WattsStrogatzOwn,
 )
-from src.customs.custom_models import ESN, ParallelESN
+from src.model_instantiators import create_esn_model
 from src.forecasters import classic_forecast, section_forecast
 from src.plotters import (
     plot_contourf_forecast,
@@ -38,42 +43,37 @@ from src.utils import load_data, load_model
 def _train(
     # Save params
     data_file: str,
-    output_dir: str|None,
-    file_name : str|None,
-
+    output_dir: str | None,
+    file_name: str | None,
     # General params
-    model: str = 'ESN',
+    model: str = "ESN",
     units: int = 6000,
-    input_initializer: str = 'InputMatrix',
-    input_bias_initializer: str = 'RandomUniform',
-    input_scaling : int = 0.5,
-    leak_rate: int = 1.0,
-    reservoir_activation: str = 'tanh',
-
+    input_initializer: str = "InputMatrix",
+    input_bias_initializer: str = "RandomUniform",
+    input_scaling: float = 0.5,
+    leak_rate: float = 1.0,
+    reservoir_activation: str = "tanh",
+    seed: int | None = None,
     # Classic Cases
-    spectral_radius : int = 0.99,
-    reservoir_initializer: str = 'WattsStrogatzOwn',
-    rewiring: int = 0.5,
+    spectral_radius: float = 0.99,
+    reservoir_initializer: str = "WattsStrogatzOwn",
+    rewiring: float = 0.5,
     reservoir_degree: int = 3,
-    reservoir_sigma: int = 0.5,
-
+    reservoir_sigma: float = 0.5,
     # Parallel cases
     reservoir_amount: int = 10,
     overlap: int = 6,
-
     # Readout params
-    readout_layer: str = 'linear',
-    regularization : int = 1e-4,
-
+    readout_layer: str = "linear",
+    regularization: float = 1e-4,
     # Training params
     transient: int = 1000,
-    train_length : int = 20000,
-
+    train_length: int = 20000,
 ):
     """
     Trains an Echo State Network on the data provided in the data file.
 
-    The data file should be a csv file with the rows being the time and the columns being the dimensions. 
+    The data file should be a csv file with the rows being the time and the columns being the dimensions.
     The data file should be provided with full path.
     The data file should not include init transient
 
@@ -86,11 +86,17 @@ def _train(
 
     Returns:
         model (ESN_Model): The trained model
-        params (dict): The parameters used for training 
+        params (dict): The parameters used for training
 
-     
+
     """
     ################ GET THE PARAMETERS WITH POSSIBLE RANGES ################
+
+    if seed is None:
+        seed = np.random.randint(0, 100000000)
+
+    if file_name is None:
+        file_name = f"{seed}"
 
     params = locals().copy()
 
@@ -102,110 +108,88 @@ def _train(
         _,
         _,
         _,
-
-    ) = load_data (
+    ) = load_data(
         data_file,
         transient,
         train_length,
     )
 
+    features = train_data.shape[-1]
+
     ############### CHOOSE THE INPUT INITIALIZER ###############
 
     match input_initializer:
         case "InputMatrix":
-            input_initializer = (
-                InputMatrix(
-                    sigma=input_scaling
-                )
-            )
+            input_initializer = InputMatrix(sigma=input_scaling)
         case "RandomUniform":
-            input_initializer = (
-                RandomUniform(
-                    sigma=input_scaling
-                )
-            )
+            input_initializer = RandomUniform(sigma=input_scaling)
 
     ############### CHOOSE THE INPUT INITIALIZER ###############
 
     match input_bias_initializer:
         case "InputMatrix":
-            input_bias_initializer = (
-                InputMatrix(
-                    sigma=input_scaling
-                )
-            )
+            input_bias_initializer = InputMatrix(sigma=input_scaling)
         case "RandomUniform":
-            input_bias_initializer = (
-                RandomUniform(
-                    sigma=input_scaling
-                )
-            )
+            input_bias_initializer = RandomUniform(sigma=input_scaling)
 
         case "None":
-            input_bias_initializer = (
-                Zeros()
-            )
+            input_bias_initializer = Zeros()
 
     ############### CHOOSE THE RESERVOIR INITIALIZER ###############
 
     match reservoir_initializer:
         case "RegularOwn":
             reservoir_initializer = RegularOwn(
-                degree= reservoir_degree,
-                spectral_radius= spectral_radius,
-                sigma= reservoir_sigma,
+                degree=reservoir_degree,
+                spectral_radius=spectral_radius,
+                sigma=reservoir_sigma,
             )
         case "RegularNX":
             reservoir_initializer = RegularNX(
-                degree= reservoir_degree,
-                spectral_radius= spectral_radius,
-                sigma= reservoir_sigma,
+                degree=reservoir_degree,
+                spectral_radius=spectral_radius,
+                sigma=reservoir_sigma,
             )
         case "ErdosRenyi":
             reservoir_initializer = ErdosRenyi(
-                degree= reservoir_degree,
-                spectral_radius= spectral_radius,
-                sigma= reservoir_sigma,
+                degree=reservoir_degree,
+                spectral_radius=spectral_radius,
+                sigma=reservoir_sigma,
             )
         case "WattsStrogatzOwn":
             reservoir_initializer = WattsStrogatzOwn(
-                degree= reservoir_degree,
-                spectral_radius= spectral_radius,
-                rewiring_p= rewiring,
-                sigma= reservoir_sigma,
+                degree=reservoir_degree,
+                spectral_radius=spectral_radius,
+                rewiring_p=rewiring,
+                sigma=reservoir_sigma,
             )
         case "WattsStrogatzNX":
             reservoir_initializer = WattsStrogatzNX(
-                degree= reservoir_degree,
-                spectral_radius= spectral_radius,
-                rewiring_p= rewiring,
-                sigma= reservoir_sigma,
+                degree=reservoir_degree,
+                spectral_radius=spectral_radius,
+                rewiring_p=rewiring,
+                sigma=reservoir_sigma,
             )
 
     ############### CHOOSE THE MODEL ###############
 
     match model:
         case "ESN":
-            model = ESN(
-                units= units,
-                leak_rate= leak_rate,
+            _model = create_esn_model(
+                features=features,
+                units=units,
+                leak_rate=leak_rate,
                 input_reservoir_init=input_initializer,
                 input_bias_init=input_bias_initializer,
                 reservoir_kernel_init=reservoir_initializer,
                 esn_activation=reservoir_activation,
+                seed=seed,
+                regularization=regularization,
             )
 
         case "Parallel-ESN":
-            model = ParallelESN(
-                units_per_reservoir= units,
-                reservoir_amount=reservoir_amount,
-                overlap=overlap,
-                leak_rate= leak_rate,
-                input_reservoir_init=input_initializer,
-                input_bias_init=input_bias_initializer,
-                reservoir_kernel_init=reservoir_initializer,
-                esn_activation=reservoir_activation,
-            )
+            print("Yet to be implemented")
+            return
 
         case "Reservoir":
             print("Yet to be implemented")
@@ -215,12 +199,12 @@ def _train(
 
     match readout_layer:
         case "linear":
-            model = linear_readout(
-                model=model,
+            _model = linear_readout(
+                model=_model,
                 transient_data=transient_data,
                 train_data=train_data,
                 train_target=train_target,
-                regularization= regularization,
+                regularization=regularization,
             )
 
         case "sgd":
@@ -233,17 +217,12 @@ def _train(
     ############### SAVING TRAINED MODEL ###############
 
     if output_dir:
-
         os.makedirs("Models", exist_ok=True)
 
-        if file_name is not None:
-            model_name = join(output_dir, file_name)
-        else:
-            model_name = join(output_dir, f"/{model.model.seed}")
+        model_name = join(output_dir, file_name)
 
         # Save the model and save the parameters dictionary in a json file inside the model folder
-   
-        model.save(model_name)
+        _model.save(model_name)
 
         with open(
             join(model_name, "params.json"),
@@ -251,25 +230,20 @@ def _train(
             encoding="utf-8",
         ) as _f_:
             json.dump(params, _f_)
-    
-    return (model, params)
 
+    return (_model, params)
 
 
 def _forecast(
-    
-    trained_model: ESN|ParallelESN|NoneType,
+    trained_model: Model,
     model_params: dict,
     data_file: str,
     output_dir: str,
-
     # Forecast params
-    forecast_method: str = 'classic',
+    forecast_method: str = "classic",
     forecast_length: int = 1000,
     section_initialization_length: int = 50,
     number_of_sections: int = 10,
-
-
 ):
     """Load a model and forecast the data.
 
@@ -283,17 +257,15 @@ def _forecast(
         forecast_length (int): The number of points to be forecasted. The default is 1000.
         section_initialization_length: int = 50,
         number_of_sections: int = 10,
-        
+
     Returns:
         None
 
     """
 
-    transient= model_params["transient"],
-    train_length= model_params["train_length"],
-    init_transient= model_params["init_transient"]
+    transient = model_params["transient"]
+    train_length = model_params["train_length"]
 
-        
     # Load the data
     (
         _,
@@ -302,11 +274,10 @@ def _forecast(
         forecast_transient_data,
         val_data,
         val_target,
-    ) = load_data (
+    ) = load_data(
         data_file,
-        transient= transient,
-        train_length= train_length,
-        init_transient= init_transient
+        transient=transient,
+        train_length=train_length,
     )
 
     # Load the model
@@ -338,18 +309,17 @@ def _forecast(
             # this will be of shape (1, number_of_sections * forecast_length, features) I need to reshape it to (number_of_sections * forecast_length, features)
             predictions = predictions[0]
 
- ############### SAVING FORECASTED DATA ###############
+    ############### SAVING FORECASTED DATA ###############
 
     # save in the output directory with the name of the data file (without the path) and the model name attached
 
     # Prune path from trained_model
-    trained_model_name = trained_model.split("/")[-1]
+    trained_model_name = model_params["file_name"]
 
     data_name = data_file.split("/")[-1]
     print(data_name)
-    
-    if output_dir:
 
+    if output_dir:
         os.makedirs(f"{output_dir}/{trained_model_name}", exist_ok=True)
 
         # Save the forecasted data as csv using pandas
@@ -358,10 +328,8 @@ def _forecast(
             index=False,
             header=None,
         )
-   
 
     else:
-       
         os.makedirs(f"forecasts/{trained_model_name}", exist_ok=True)
 
         # Save the forecasted data as csv using pandas

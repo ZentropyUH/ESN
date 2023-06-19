@@ -102,7 +102,7 @@ def linear_readout(
 
     model = keras.Model(
         inputs=model.inputs,
-        outputs=readout_layer(model.outputs),
+        outputs=readout_layer(model.outputs[0]),
         name="ESN",
     )
 

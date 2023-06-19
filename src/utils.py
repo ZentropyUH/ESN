@@ -6,6 +6,7 @@ import re
 import json
 from src.customs.custom_models import ESN, ParallelESN
 from keras.models import load_model
+import tensorflow as tf
 
 
 #### Parameters ####
