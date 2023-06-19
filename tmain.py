@@ -1,6 +1,5 @@
 import typer
 from src.grid.grid_tools import *
-from src.utils import load_model_and_params
 
 from t_utils import *
 from src.grid.grid_one import grid_one, best_combinations, change_folders, detect_not_fished_jobs, calculate_mse
@@ -15,35 +14,16 @@ app = typer.Typer()
 @app.command()
 def train(
     # General params
-    data_file: str = typer.Option(
-        ...,
-        "--data-file", "-df",
-        help="Data file to be used for training.",
-    ),
-
-    output_dir: str = typer.Option(
-        ...,
-        "--output-dir", "-o",
-        help="The directory where the results will be saved. The default is the current directory.",
-    ),
-
-    file_name: str = typer.Option(
-        ...,
-        "--file-name", "-fn",
-    ),
-
     model: EModel = typer.Option(
         'ESN',
         '--model', '-m',
         help=''
     ),
-
-    units: int = typer.Option(
+    units: str = typer.Option(
         ...,
         '--units', '-u',
         help=''
     ),
-
     input_initializer: EInputInitializer = typer.Option(
         'InputMatrix',
         '--input-initializer', '-ii',
@@ -54,13 +34,13 @@ def train(
         '--input-bias-initializer', '-ib',
         help="The initializer for the input bias weights. The default is RandomUniform.",
     ),
-    input_scaling: int = typer.Option(
-        0.5,
+    input_scaling: str = typer.Option(
+        '0.5',
         '--input-scaling', '-is',
         help="The input scaling parameter. The default is 0.5. If a range of values is given, the script will be executed the specified number of times with different values of the input scaling parameter. The values will be chosen linearly between the first and the second value. If a list of values is given, the script will be executed the specified number of times with the values in the list.",
     ),
-    leak_rate: int = typer.Option(
-        1.0,
+    leak_rate: str = typer.Option(
+        '1.',
         '--leak-rate', '-lr',
         help="The leak rate of the reservoir. The default is 1. If a range of values is given, the script will be executed the specified number of times with different values of the leak rate. The values will be chosen linearly between the first and the second value. If a list of values is given, the script will be executed the specified number of times with the values in the list.",
     ),
@@ -70,8 +50,8 @@ def train(
         help="The activation function of the reservoir. The default is tanh. Only used if ESN or Parallel_ESN is used.",
     ),
     # Classic Cases
-    spectral_radius: int = typer.Option(
-        0.99,
+    spectral_radius: str = typer.Option(
+        '0.99',
         '--spectral-radius', '-sr',
         help="The spectral radius of the reservoir. The default is 0.99. Only used if ESN or Parallel_ESN is used. If a range of values is given, the script will be executed the specified number of times with different values of the spectral radius. The values will be chosen linearly between the first and the second value. If a list of values is given, the script will be executed the specified number of times with the values in the list.",
     ),
@@ -80,18 +60,18 @@ def train(
         '--reservoir-initializer', '-ri',
         help="The initializer for the reservoir weights. The default is WattsStrogatzOwn. Only used if ESN or Parallel_ESN is used.",  # Maybe play later with topologies on ECA and Oscillators. First we have to study impact on EOC.allow_from_autoenv=
     ),
-    rewiring: int = typer.Option(
-        0.5,
+    rewiring: str = typer.Option(
+        '0.5',
         '--rewiring', '-rw',
         help="The rewiring probability of the WattsStrogatz graph. The default is 0.5. Only used if ESN or Parallel_ESN is used. If a range of values is given, the script will be executed the specified number of times with different values of the degree parameter. The values will be chosen linearly between the first and the second value. If a list of values is given, the script will be executed the specified number of times with the values in the list.",
     ),
-    reservoir_degree: int = typer.Option(
-        3,
+    reservoir_degree: str = typer.Option(
+        '3',
         '--reservoir-degree', '-rd',
         help="The degree of the reservoir. The default is 3. Only used if ESN or Parallel_ESN is used. If a range of values is given, the script will be executed the specified number of times with different values of the degree parameter. The values will be chosen linearly between the first and the second value. If a list of values is given, the script will be executed the specified number of times with the values in the list.",
     ),
-    reservoir_sigma: int = typer.Option(
-        0.5,
+    reservoir_sigma: str = typer.Option(
+        '0.5',
         '--reservoir-sigma', '-rs',
         help="The standard deviation for the reservoir weights. The default is 0.5. Only used if ESN or Parallel_ESN is used. If a range of values is given, the script will be executed the specified number of times with different values of the sigma parameter. The values will be chosen linearly between the first and the second value. If a list of values is given, the script will be executed the specified number of times with the values in the list.",
     ),
@@ -101,8 +81,8 @@ def train(
         '--reservoir-amount', '-ra',
         help="The number of reservoirs to be used. The default is 10. Only used if Parallel_ESN is used or other parallel scheme.",
     ),
-    overlap: int = typer.Option(
-        6,
+    overlap: str = typer.Option(
+        '6',
         "--overlap", "-ol",
         help="The number of overlapping units between reservoirs. The default is 6. Only used if Parallel_ESN is used or other parallel scheme. If a range of values is given, the script will be executed the specified number of times with different values of the overlap parameter. The values will be chosen linearly between the first and the second value. If a list of values is given, the script will be executed the specified number of times with the values in the list.",
     ),
@@ -112,8 +92,8 @@ def train(
         "--readout-layer", "-rl",
         help="The type of readout layer of the model; 'linear' if the layer is a linear regression using Ridge (Tikhonov) regularization scheme; 'sgd' if the readout should be a linear regression to be calculated iteratively with stochastic gradient descent; 'mlp' if the readout is to be chosen as a multilayer perceptron. If 'mlp' is chosen more options should be provided.",
     ),
-    regularization: int = typer.Option(
-        1e-4,
+    regularization: str = typer.Option(
+        '1e-4',
         "--regularization", "-rg",
         help="The regularization parameter. The default is 1e-4. If a range of values is given, the script will be executed the specified number of times with different values of the regularization parameter. The values will be chosen logarithmically between the first and the second value. If a list of values is given, the script will be executed the specified number of times with the values in the list.",
     ),
@@ -128,43 +108,34 @@ def train(
         "--transient", "-tr",
         help="The number of transient points to be discarded. The default is 1000.",
     ),
-    train_length: int = typer.Option(
-        10000,
+    train_length: str = typer.Option(
+        '10000',
         "--train-length", "-tl",
         help="The number of points to be used for training. The default is 10000. If a range of values is given, the script will be executed the specified number of times worg.freedesktop.PackageKit.proxyith different values of the training length. The values will be chosen linearly between the first and the second value. If a list of values is given, the script will be executed the specified number of times with the values in the list.",
     ),
-
-):  
-    '''Train a specific model on a given data file.'''
-    _train(**locals())
-
-
-@app.command()
-def forecast(
-
-    trained_model_path: str = typer.Option(
-        ...,
-        "--trained-model-path", "-tm",
-        help="The trained model to be used for forecasting",
-    ),
-
     data_file: str = typer.Option(
         ...,
         "--data-file", "-df",
-        help="The data file to be used for training the model",
+        help="Data file to be used for training.",
     ),
-
     output_dir: str = typer.Option(
         ...,
         "--output-dir", "-o",
-        help="The output directory where the forecasted data will be saved",
+        help="The directory where the results will be saved. The default is the current directory.",
     ),
-
     file_name: str = typer.Option(
         ...,
         "--file-name", "-fn",
     ),
+):
+    '''Train a specific model on a given data file.'''
+    _train(**locals())
 
+
+
+
+@app.command()
+def forecast(
     forecast_method: ForecastMethod = typer.Option(
         'classic',
         "--forecast-method", "-fm",
@@ -185,12 +156,30 @@ def forecast(
         "--number-of-sections", "-nos",
         help="The number of sections to be used for forecasting. The default is 10.",
     ),
-    
+    output_dir: str = typer.Option(
+        ...,
+        "--output-dir", "-o",
+        help="The output directory where the forecasted data will be saved",
+    ),
+    trained_model: str = typer.Option(
+        ...,
+        "--trained-model", "-tm",
+        help="The trained model to be used for forecasting",
+    ),
+    data_file: str = typer.Option(
+        ...,
+        "--data-file", "-df",
+        help="The data file to be used for training the model",
+    ),
+    file_name: str = typer.Option(
+        ...,
+        "--file-name", "-fn",
+    ),
 ):
     '''Make predictions with a given model on a data file.'''
-    model, params = load_model_and_params(trained_model_path)
-    locals().pop("trained_model_path")
-    _forecast(model, params, **locals())
+    _forecast(**locals())
+
+
 
 
 #FIX: Output path

@@ -1,11 +1,18 @@
+import time
+import argparse
+
+
+def main(a):
+
+    print('Hello World!')
+    print(a)
+    time.sleep(10)
 
 
 
-from rich.progress import track
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser.add_argument('-a', type=str, help='Path to save the output')
 
-def main():
-    total = 0
-    for value in track(range(100), description="Processing..."):
-        # Fake processing time
-        total += 1
-    print(f"Processed {total} things.")
+    args = parser.parse_args()
+    main(args.a)

@@ -21,14 +21,9 @@ def grid(combinations:list[list], data:list[str], output_path:str, queue_size:in
     # Queue for best cases, n is the max number of cases
     best = Queue(queue_size)
 
-    a = 0
     #Create all the combinations of hyperparameters
     for combination in product(*combinations):
-        
-        if a ==1:
-            break
-        a+=1
-        
+
         # Select the data to train
         train_index = randint(0, len(data) - 1)
         train_data_path = data[train_index]
@@ -99,15 +94,10 @@ def grid(combinations:list[list], data:list[str], output_path:str, queue_size:in
 
     return best.queue
 
-
-hyperparameters_to_adjust={"sigma":(0,5,0.2,lambda x,y: x+y),
-                        "degree_k":(2,4,2,lambda x,y: x+y),
-                        "ritch_regularization":(10e-4,10,4,lambda x,y: x*y),
-                        "spectral_radio": (0.9, 10 ,0.02, lambda x,y,i: x+y*i)}
-                  
+              
 
 
-def grid_search(hyperparameters_to_adjust: dict, data_path: str, output_path: str, depth: int, queue_size: int, u: int=5000, tl: int=1000, threshold: int=0.01):
+def grid_search(hyperparameters_to_adjust: dict, data_path: str, output_path: str, depth: int, queue_size: int, u: int=9000, tl: int=20000, threshold: int=0.01):
     
     # List all the files on the data folder
     data: list[str] = [join(data_path, p) for p in listdir(data_path)]

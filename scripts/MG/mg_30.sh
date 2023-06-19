@@ -2,14 +2,16 @@
 
 ########## RESOURCES TO USE ##########
 
-#SBATCH --job-name="lorenz"
+#SBATCH --job-name="MG"
 
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=2
-#SBATCH --mem-per-cpu=10000M
+#SBATCH --mem-per-cpu=5000M
 
-#SBATCH --time=2-00:00:00
+#SBATCH --time=48:00:00
 #SBATCH --partition=medium
+
+#SBATCH --array=1-9600
 
 
 
@@ -43,7 +45,7 @@ data="$scratch/data"
 mkdir -p $data
 
 # save path
-save="/data/tsa/destevez/dennis/test_lorenz/"
+save="/data/tsa/destevez/dennis/MG/30/run_$SLURM_ARRAY_TASK_ID"
 mkdir -p $save
 
 
@@ -55,7 +57,7 @@ echo "copying project............"
 cp -r /data/tsa/destevez/dennis/ESN/* $ESN
 
 echo "copying data............"
-cp -r /data/tsa/destevez/data/Lorenz/* $data
+cp -r /data/tsa/destevez/data/MG/30/* $data
 echo "end of copy"
 
 
@@ -64,7 +66,7 @@ echo "end of copy"
 
 cd $ESN
 echo "runing............"
-srun python3 main.py grid -i $SLURM_ARRAY_TASK_ID -d $data  -o $output
+srun python3 grid.py -o $output -d $data -i $SLURM_ARRAY_TASK_ID
 echo "end of run"
 
 

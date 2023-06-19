@@ -8,9 +8,10 @@
 #SBATCH --cpus-per-task=2
 #SBATCH --mem-per-cpu=10000M
 
-#SBATCH --time=2-00:00:00
-#SBATCH --partition=medium
+#SBATCH --time=14-00:00:00
+#SBATCH --partition=long
 
+#SBATCH --array=1529-1660,2197-2216,2236-2273,2312-2349,2388-2404,4008-6070,6072-9536
 
 
 ########## MODULES ##########
@@ -43,7 +44,7 @@ data="$scratch/data"
 mkdir -p $data
 
 # save path
-save="/data/tsa/destevez/dennis/test_lorenz/"
+save="/data/tsa/destevez/dennis/Lorenz_fixed/"
 mkdir -p $save
 
 
@@ -64,7 +65,7 @@ echo "end of copy"
 
 cd $ESN
 echo "runing............"
-srun python3 main.py grid -i $SLURM_ARRAY_TASK_ID -d $data  -o $output
+srun python3 tmain.py grid -i $SLURM_ARRAY_TASK_ID -d $data -o $output -u 9000 -tl 20000
 echo "end of run"
 
 
