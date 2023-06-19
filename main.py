@@ -336,8 +336,6 @@ def dnfj(
     )
 
 
-
-
 @app.command()
 def mse(
     path: str = typer.Option(..., '--path', '-p'),
@@ -353,8 +351,6 @@ def mse(
         tl,
         trancient,
     )
-
-
 
 
 @app.command()

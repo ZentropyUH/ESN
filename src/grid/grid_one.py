@@ -87,7 +87,7 @@ def grid_one(combination_index: int, data_path: str, output_path:str, u:int=9000
         print('Training...')
 
         # Se manda a entrenar con los parametros por defecto, en este caso
-        trained_model, train_params = _train (
+        (trained_model, train_params) = _train (
 
             data_file_path=train_data_path,
             output_file=current_path,
@@ -104,7 +104,7 @@ def grid_one(combination_index: int, data_path: str, output_path:str, u:int=9000
             print('Forecasting {}...'.format(fn))
             _forecast (
                 trained_model = trained_model,
-                model_params = train_params,
+                model_params = train_params
                 data_file= current_data,
                 output_dir= forecast_path
             )
