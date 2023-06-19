@@ -257,9 +257,6 @@ def _forecast(
     section_initialization_length: int = 50,
     number_of_sections: int = 10,
 
-    # Save flag
-    save_forecast: bool = True
-
 ):
     """Load a model and forecast the data.
 
@@ -321,30 +318,22 @@ def _forecast(
             # this will be of shape (1, number_of_sections * forecast_length, features) I need to reshape it to (number_of_sections * forecast_length, features)
             predictions = predictions[0]
 
-    ############### SAVING FORECASTED DATA ###############
+ ############### SAVING FORECASTED DATA ###############
 
     # save in the output directory with the name of the data file (without the path) and the model name attached
 
     # Prune path from trained_model
+    trained_model_name = trained_model.split("/")[-1]
 
-    # FIX
-    if output_dir is None:
-        trained_model_name = trained_model.split("/")[-1]
+    data_name = data_file.split("/")[-1]
+    print(data_name)
 
-        data_name = data_file.split("/")[-1]
-        print(data_name)
-
-        if not os.path.exists(f"forecasts/{trained_model_name}"):
-            os.makedirs(f"forecasts/{trained_model_name}")
-
-        name = f"{output_dir}/{trained_model_name}/{data_name}_{forecast_method}_forecasted.csv"
-
-    if file_name is not None:
-        name = join(output_dir, str(file_name))
+    if not os.path.exists(f"forecasts/{trained_model_name}"):
+        os.makedirs(f"forecasts/{trained_model_name}")
 
     # Save the forecasted data as csv using pandas
     pd.DataFrame(predictions).to_csv(
-        name,
+        f"{output_dir}/{trained_model_name}/{data_name}_{forecast_method}_forecasted.csv",
         index=False,
         header=None,
     )
