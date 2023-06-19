@@ -9,7 +9,6 @@ import pandas as pd
 
 # pylint: disable=no-name-in-module
 from keras.initializers import Zeros
-from keras.models import load_model
 from torch import NoneType
 from tqdm import tqdm
 
@@ -31,7 +30,7 @@ from src.plotters import (
     render_video,
 )
 from src.readout_generators import linear_readout
-from src.utils import get_range, load_data, load_model_json
+from src.utils import load_data, load_model
 
 # pylint: enable=no-name-in-module
 
@@ -39,8 +38,8 @@ from src.utils import get_range, load_data, load_model_json
 def _train(
     # Save params
     data_file: str,
-    output_dir: str = None,
-    file_name : str= None,
+    output_dir: str|None,
+    file_name : str|None,
 
     # General params
     model: str = 'ESN',
@@ -70,9 +69,6 @@ def _train(
     transient: int = 1000,
     train_length : int = 20000,
 
-    # Save flag
-    save_model: bool = False
-    
 ):
     """
     Trains an Echo State Network on the data provided in the data file.
@@ -85,8 +81,8 @@ def _train(
 
     Args:
         data_file (str): Path to the data
-        output_dir (str): Path to the output file
-        file_name: Output file name,
+        output_dir (str|None): Path to the output file. If None the model will not be saved.
+        file_name (str): Name of the file to be saved. If None the model will be saved with the seed name.
 
     Returns:
         model (ESN_Model): The trained model
@@ -236,10 +232,9 @@ def _train(
 
     ############### SAVING TRAINED MODEL ###############
 
-    if save_model:
+    if output_dir:
 
-        if output_dir is None:
-            os.makedirs("Models", exist_ok=True)
+        os.makedirs("Models", exist_ok=True)
 
         if file_name is not None:
             model_name = join(output_dir, file_name)
@@ -257,16 +252,16 @@ def _train(
         ) as _f_:
             json.dump(params, _f_)
     
-    return model, params
+    return (model, params)
 
 
 
 def _forecast(
     
-    trained_model,
+    trained_model: ESN|ParallelESN|NoneType,
+    model_params: dict,
     data_file: str,
     output_dir: str,
-    model_params: dict = {},
 
     # Forecast params
     forecast_method: str = 'classic',
@@ -274,52 +269,29 @@ def _forecast(
     section_initialization_length: int = 50,
     number_of_sections: int = 10,
 
-    # Charge saved model
-    load_saved_model = False
 
 ):
     """Load a model and forecast the data.
 
     Args:
         trained_model (str): The trained model to be used for forecasting
+        model_params (dict): Parameters used for training the model
         data_file (str): The data file to be used for training the model
-        output_dir (str):
-        model_params (dict) = {},
+        output_dir (str): Path for save the forecasted data
 
         forecast_method (str): The method to be used for forecasting. The default is ClassicForecast.
         forecast_length (int): The number of points to be forecasted. The default is 1000.
         section_initialization_length: int = 50,
         number_of_sections: int = 10,
-
-        load_saved_model (bool): True -> the model will be load of a file so trained_model will be a path
-                               | False -> Not need to load the model, trained_model will be a ESN_model
-
+        
     Returns:
         None
 
     """
 
-    transient
-    train_length
-    init_transient
-    
-    if load_saved_model:
-
-        # Load the param json from the model location
-        params = load_model_json(trained_model)
-        model = load_model(trained_model, compile=False)
-
-        transient= params["transient"],
-        train_length= params["train_length"],
-        init_transient= params["init_transient"]
-
-    else:
-
-        model = trained_model
-
-        transient= model_params["transient"],
-        train_length= model_params["train_length"],
-        init_transient= model_params["init_transient"]
+    transient= model_params["transient"],
+    train_length= model_params["train_length"],
+    init_transient= model_params["init_transient"]
 
         
     # Load the data
@@ -344,7 +316,7 @@ def _forecast(
     match forecast_method:
         case "classic":
             predictions = classic_forecast(
-                model,
+                trained_model,
                 forecast_transient_data,
                 val_data,
                 val_target,
@@ -355,7 +327,7 @@ def _forecast(
 
         case "section":
             predictions = section_forecast(
-                model,
+                trained_model,
                 forecast_transient_data,
                 val_data,
                 val_target,
@@ -375,16 +347,29 @@ def _forecast(
 
     data_name = data_file.split("/")[-1]
     print(data_name)
+    
+    if output_dir:
 
-    if not os.path.exists(f"forecasts/{trained_model_name}"):
-        os.makedirs(f"forecasts/{trained_model_name}")
+        os.makedirs(f"{output_dir}/{trained_model_name}", exist_ok=True)
 
-    # Save the forecasted data as csv using pandas
-    pd.DataFrame(predictions).to_csv(
-        f"{output_dir}/{trained_model_name}/{data_name}_{forecast_method}_forecasted.csv",
-        index=False,
-        header=None,
-    )
+        # Save the forecasted data as csv using pandas
+        pd.DataFrame(predictions).to_csv(
+            f"{output_dir}/{trained_model_name}/{data_name}_{forecast_method}_forecasted.csv",
+            index=False,
+            header=None,
+        )
+   
+
+    else:
+       
+        os.makedirs(f"forecasts/{trained_model_name}", exist_ok=True)
+
+        # Save the forecasted data as csv using pandas
+        pd.DataFrame(predictions).to_csv(
+            f"forecasts/{trained_model_name}/{data_name}_{forecast_method}_forecasted.csv",
+            index=False,
+            header=None,
+        )
 
 
 def _plot(

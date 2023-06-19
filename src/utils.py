@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 import re
 import json
+from keras.models import load_model
+
 
 #### Parameters ####
 
@@ -139,10 +141,15 @@ def load_data(
     )
 
 
-def load_model_json(model_path):
+def load_model_and_params(model_path: str):
+
+    # Load the param json from the model location
     with open(model_path + "/params.json", encoding="utf-8") as f:
-        data = json.load(f)
-    return data
+        params = json.load(f)
+
+    model = load_model(model_path, compile=False)
+
+    return model, params
 
 
 # Decorator for composing a function n times.
