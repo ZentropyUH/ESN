@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import re
 import json
+import tensorflow as tf
 
 #### Parameters ####
 
@@ -238,6 +239,37 @@ def compose_n_times(n):
         return inner
 
     return decorator
+
+
+def tf_ridge_regression(X, Y, beta):
+    """Solve the ridge regression problem using the closed-form solution.
+
+    Args:
+        X (tf.Tensor): The input data matrix of shape (N, D).
+        Y (tf.Tensor): The target data matrix of shape (N, 1).
+
+    Returns:
+        tuple: A tuple with:
+
+            w (tf.Tensor): The weights of the ridge regression model of shape (D, 1).
+            b (tf.Tensor): The bias of the ridge regression model of shape (1,).
+    """
+
+    # Cast X and Y to float32
+    X = tf.cast(X, tf.float32)
+    Y = tf.cast(Y, tf.float32)
+
+    # Add a column of ones to X for the bias term
+    ones = tf.ones((tf.shape(X)[0], 1), dtype=X.dtype)
+
+    X = tf.concat([ones, X], axis=1)
+
+    # Calculate the ridge regression weights using the closed-form solution
+    XtX = tf.linalg.matmul(tf.transpose(X), X)
+    XtY = tf.linalg.matmul(tf.transpose(X), Y)
+    reg_term = beta * tf.eye(tf.shape(XtX)[0], dtype=XtX.dtype)
+    w = tf.linalg.solve(XtX + reg_term, XtY)
+    return w[1:], w[0]  # Exclude the bias term from the weights
 
 
 if __name__ == "__main__":
