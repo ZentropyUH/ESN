@@ -3,7 +3,7 @@ import time
 
 import numpy as np
 from sklearn.linear_model import ElasticNet, Lasso, Ridge
-from tensorflow import keras
+import keras
 
 from src.customs.custom_models import ModelWithReadout
 

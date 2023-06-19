@@ -2,7 +2,7 @@
 from typing import Dict, List, Tuple
 
 import tensorflow as tf
-from tensorflow import keras
+import keras
 
 
 from src.customs.custom_initializers import ErdosRenyi, InputMatrix
@@ -296,12 +296,7 @@ class InputSplitter(keras.layers.Layer):
             slicee = inputs[
                 :, :, : features // self.partitions + 2 * self.overlap
             ]
-
-            # slicee = slicee[0]
-
-            # print(input_clusters[i].shape)
-            # print(input_clusters.shape)
-
+            
             input_clusters[i] = slicee
 
             # Just roll the input tensor to the left by N/partitions,
@@ -345,6 +340,26 @@ class InputSplitter(keras.layers.Layer):
     @classmethod
     def from_config(cls, config):
         return cls(**config)
+
+@tf.keras.utils.register_keras_serializable(package="custom")
+class PseudoInverseRegression(keras.layers.Layer):
+    def __init__(self, output_dim, **kwargs):
+        self.output_dim = output_dim
+        super(PseudoInverseRegression, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        self.kernel = self.add_weight(name='kernel',
+                                      shape=(input_shape[1], self.output_dim),
+                                      initializer='random_normal',
+                                      trainable=True)
+        super(PseudoInverseRegression, self).build(input_shape)
+
+    def call(self, inputs):
+        pseudo_inverse = tf.linalg.pinv(self.kernel)
+        return tf.matmul(inputs, pseudo_inverse)
+
+    def compute_output_shape(self, input_shape):
+        return input_shape[0], self.output_dim
 
 
 @tf.keras.utils.register_keras_serializable(package="custom")

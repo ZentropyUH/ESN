@@ -1,6 +1,6 @@
 """Custom keras callbacks."""
 import tensorflow as tf
-from tensorflow import keras
+import keras
 
 
 ###############################################
@@ -84,7 +84,35 @@ class CustomCallback(keras.callbacks.Callback):
         print(f"...Predicting: end of batch {batch}; got log keys: {keys}")
 
     def get_config(self):
-        """Get the config to save the callback."""
-        base_config = super().get_config()
-        config = {}
-        return dict(list(base_config.items()) + list(config.items()))
+        """Return the config of the callback."""
+        return {}
+
+
+class ResetStatesCallback(keras.callbacks.Callback):
+    """Callback to reset the states of the model."""
+
+    def on_epoch_begin(self, epoch, logs=None):
+        """Reset the states of the model."""
+        self.model.reset_states()
+
+
+class ThermalizeNetCallback(keras.callbacks.Callback):
+    """Callback to thermalize the model calling predicting a transient data."""
+
+    def __init__(self, thermalize_data, **kwargs):
+        """Initialize the callback.
+
+        Args:
+            thermalize_data (np.ndarray): Data to thermalize the model.
+                This is the transient to eliminate initial state of the RNN.
+        """
+        self.thermalize_data = thermalize_data
+        super(ThermalizeNetCallback, self).__init__(**kwargs)
+
+    def on_epoch_begin(self, epoch, logs=None):
+        """Reset the states of the model."""
+        self.model.predict(self.thermalize_data)
+
+    def on_epoch_end(self, epoch, logs=None):
+        """Reset the states of the model."""
+        self.model.reset_states()
