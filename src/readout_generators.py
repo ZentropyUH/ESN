@@ -99,3 +99,11 @@ def linear_readout(
     training_loss = np.mean((predicted - train_target[0]) ** 2)
 
     print(f"Training loss: {training_loss}\n")
+
+    model = keras.Model(
+        inputs=model.inputs,
+        outputs=readout_layer(model.outputs),
+        name="ESN",
+    )
+
+    return model
