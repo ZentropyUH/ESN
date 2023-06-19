@@ -1,8 +1,12 @@
 """Custom keras layers."""
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Callable
 
 import tensorflow as tf
 import keras
+import keras.utils
+import keras.layers
+import keras.initializers
+import keras.activations
 
 
 from src.customs.custom_initializers import ErdosRenyi, InputMatrix
@@ -496,11 +500,43 @@ class ReservoirCell(keras.layers.Layer):
         return cls(**config)
 
 
+import keras.backend
+
+@keras.utils.register_keras_serializable(package="custom")
+class Reservoir(keras.layers.Layer):
+    def __init__(self,
+            func: Callable,
+            units: int,
+            **kwargs
+        ):
+        self.func = tf.function(func)
+        self.state_size = units
+        super().__init__(**kwargs)
+    
+    def call(self, inputs, states) -> tf.Tensor:
+        return self.func(inputs, states)
+
+    def get_config(self) -> Dict:
+        config = super().get_config()
+        config.update(
+            {
+                'func': self.func,
+            }
+        )
+        return config
+
+    @classmethod
+    def from_config(cls, config) -> 'Reservoir':
+        return cls(**config)
+
+
+
 custom_layers = {
     "EsnCell": EsnCell,
     "PowerIndex": PowerIndex,
     "InputSplitter": InputSplitter,
     "ReservoirCell": ReservoirCell,
+    "Reservoir": Reservoir,
 }
 
 keras.utils.get_custom_objects().update(custom_layers)
