@@ -11,7 +11,6 @@ app = typer.Typer()
 #TODO: Files names
 
 
-
 @app.command()
 def train(
     # General params

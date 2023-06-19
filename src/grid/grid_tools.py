@@ -17,10 +17,9 @@ from model_functions import _train, _forecast
 
 # Priority Queue with limited size, sorted from max to min
 class Queue:
-    def __init__(self, max_size:int):
+    def __init__(self, max_size: int):
         self.queue = []
         self.max_size = max_size
-    
 
     def add(self, val, data):
         if not self.queue:
@@ -30,154 +29,168 @@ class Queue:
                 if val >= v[0]:
                     self.queue.insert(i, (val, data))
                     break
-                
+
         if len(self.queue) > self.max_size:
             self.queue.pop()
-    
-    
-    def decide(self, l:list, combination: tuple, folder: str, threshold: int):
+
+    def decide(self, l: list, combination: tuple, folder: str, threshold: int):
         for i, x in enumerate(l):
             if x > threshold:
                 self.add(i, (combination, folder))
                 break
 
 
-
-
 def save_plots(data: list, output_path: str, name: str):
-    plt.clf() 
+    plt.clf()
     plt.figure()
     plt.plot(data)
-    plt.xlabel('Time')
-    plt.ylabel('Mean square error')
-    plt.title('Plot of root mean square error')
+    plt.xlabel("Time")
+    plt.ylabel("Mean square error")
+    plt.title("Plot of root mean square error")
     plt.savefig(join(output_path, name))
 
+
 def save_plots_from_csv(input_path, output_path, name):
-    with open(input_path, 'r') as archivo:
+    with open(input_path, "r") as archivo:
         data = list(csv.reader(archivo))
 
     data = [float(date[0]) for date in data]
 
-    plt.clf() 
+    plt.clf()
     plt.figure()
     plt.plot(data)
-    plt.xlabel('Time')
-    plt.ylabel('Mean square error')
-    plt.title('Plot of root mean square error')
+    plt.xlabel("Time")
+    plt.ylabel("Mean square error")
+    plt.title("Plot of root mean square error")
     plt.savefig(output_path + name)
 
 
-def save_csv(data, name:str, path:str):
+def save_csv(data, name: str, path: str):
     pd.DataFrame(data).to_csv(
-    join(path, name),
-    index=False,
-    header=None,
+        join(path, name),
+        index=False,
+        header=None,
     )
 
 
 def save_plots_data_forecast(data: str, forecast: str, output: str):
-    plt.clf() 
+    plt.clf()
     plt.figure()
-    plt.plot(data, color='blue')
-    plt.plot(forecast, color='red')
-    plt.xlabel('Time')
-    plt.ylabel('value')
-    plt.title('Plot data and forecast')
+    plt.plot(data, color="blue")
+    plt.plot(forecast, color="red")
+    plt.xlabel("Time")
+    plt.ylabel("value")
+    plt.title("Plot data and forecast")
     plt.savefig(output)
+
 
 def get_axis(data, axis: int):
     return [x[axis] for x in data]
 
 
 def plots_data_forecast(data: str, forecast: str, output: str):
-    save_plots_data_forecast(get_axis(data, 0), get_axis(forecast, 0), output+ '_x')
-    save_plots_data_forecast(get_axis(data, 1), get_axis(forecast, 1), output+ '_y')
-    save_plots_data_forecast(get_axis(data, 2), get_axis(forecast, 2), output+ '_z')
-
+    save_plots_data_forecast(
+        get_axis(data, 0), get_axis(forecast, 0), output + "_x"
+    )
+    save_plots_data_forecast(
+        get_axis(data, 1), get_axis(forecast, 1), output + "_y"
+    )
+    save_plots_data_forecast(
+        get_axis(data, 2), get_axis(forecast, 2), output + "_z"
+    )
 
 
 def read_csv(file: str):
     return pd.read_csv(file).to_numpy()
 
 
-def generate_combinations(params:dict):
-    return [[elem[3](elem[0], elem[2], i) for i in range(elem[1])] for elem in params.values()]
+def generate_combinations(params: dict):
+    return [
+        [elem[3](elem[0], elem[2], i) for i in range(elem[1])]
+        for elem in params.values()
+    ]
 
-def get_param_tuple(value, param , step):    
-    initial_value, number_of_values, _ , function_of_increment = param
+
+def get_param_tuple(value, param, step):
+    initial_value, number_of_values, _, function_of_increment = param
     initial_value = value - int(number_of_values / 2) * step
     return initial_value, number_of_values, step, function_of_increment
 
-def get_ritch_param_tuple(value, param , step):    
-    initial_value, number_of_values, _ , function_of_increment = param
+
+def get_ritch_param_tuple(value, param, step):
+    initial_value, number_of_values, _, function_of_increment = param
     initial_value = value / int(number_of_values / 2) * step
     return initial_value, number_of_values, step, function_of_increment
 
+
 def calculate_aprox_time(time: list, file: str, text):
-    with open(file, 'a+') as f:
-        f.write('{}: {}\n'.format(text, str(np.mean(time))))
+    with open(file, "a+") as f:
+        f.write("{}: {}\n".format(text, str(np.mean(time))))
 
 
 def save_combinations_txt(hyperparameters_to_adjust: dict, path: str):
     with open(join(path, "combinations.txt"), "w") as f:
-        for i, c in enumerate(product(*generate_combinations(hyperparameters_to_adjust))):
-            f.write("{} {} {} {} {} {}\n".format(i+1, c[0], c[1], c[2], c[3], c[4]))
+        for i, c in enumerate(
+            product(*generate_combinations(hyperparameters_to_adjust))
+        ):
+            f.write(
+                "{} {} {} {} {} {}\n".format(
+                    i + 1, c[0], c[1], c[2], c[3], c[4]
+                )
+            )
+
 
 def save_combinations(hyperparameters_to_adjust: dict):
     with open("./combinations.json", "w") as f:
-        json.dump({int(i+1): c for i, c in enumerate(product(*generate_combinations(hyperparameters_to_adjust)))}, f, indent=4, sort_keys=True, separators=(',', ': '))
-
+        json.dump(
+            {
+                int(i + 1): c
+                for i, c in enumerate(
+                    product(*generate_combinations(hyperparameters_to_adjust))
+                )
+            },
+            f,
+            indent=4,
+            sort_keys=True,
+            separators=(",", ": "),
+        )
 
 
 def change_folders(path: str):
-    
     for folder in listdir(path):
         folder = join(path, folder)
-        time_file = join(folder, 'time.txt')
+        time_file = join(folder, "time.txt")
 
-        inside_folders = [join(folder, f) for f in listdir(folder) if join(folder, f) != time_file]
+        inside_folders = [
+            join(folder, f)
+            for f in listdir(folder)
+            if join(folder, f) != time_file
+        ]
 
         for inside_folder in inside_folders:
             shutil.move(time_file, inside_folder)
             shutil.move(inside_folder, path)
             shutil.rmtree(folder)
-     
+
 
 def detect_not_fished_jobs(path: str, output: str):
-    with open(join(output, 'out.out'), 'w') as f:
-        for file in [join(path, f) for f in listdir(path) if 'time.txt' not in listdir(join(path, f))]:
-            f.write('{}\n'.format(file.split('_')[-1]))
-
-
-
-# main train
-def train_main(params: tuple, data_file_path: str, output_file: str, u: int, tl: int, fn: str):    
-    instruction = f"python3 ./tmain.py train \
-            --model ESN \
-            --units {u} \
-            --input-initializer InputMatrix \
-            --input-scaling 0.5 \
-            --input-bias-initializer RandomUniform \
-            --reservoir-initializer WattsStrogatzOwn \
-            --leak-rate 1 \
-            --reservoir-activation tanh \
-            --readout-layer linear \
-            -df {data_file_path} \
-            -o {output_file} \
-            --reservoir-sigma {params[0]} \
-            --spectral-radius {params[3]} \
-            --rewiring {params[4]} \
-            -tl {tl} \
-            --reservoir-degree {params[1]} \
-            --regularization {params[2]} \
-            --file-name {fn}"
-
-    system(instruction)
+    with open(join(output, "out.out"), "w") as f:
+        for file in [
+            join(path, f)
+            for f in listdir(path)
+            if "time.txt" not in listdir(join(path, f))
+        ]:
+            f.write("{}\n".format(file.split("_")[-1]))
 
 
 # main forecast
-def forecast_main(prediction_steps: int, trained_model_path: str, prediction_path: str, data_file: str, forecast_name: str):    
+def forecast_main(
+    prediction_steps: int,
+    trained_model_path: str,
+    prediction_path: str,
+    data_file: str,
+    forecast_name: str,
+):
     instruction = f"python3 ./tmain.py forecast \
             -fm classic \
             -fl {prediction_steps} \
@@ -189,9 +202,8 @@ def forecast_main(prediction_steps: int, trained_model_path: str, prediction_pat
     system(instruction)
 
 
-
 # main plot
-def plot_main(prediction_file: str, data_file: str, tl: int, output_file: str):    
+def plot_main(prediction_file: str, data_file: str, tl: int, output_file: str):
     instruction = f"python3 ./tmain.py plot \
             -dt 1 \
             -pt linear \
@@ -202,43 +214,3 @@ def plot_main(prediction_file: str, data_file: str, tl: int, output_file: str):
             "
 
     system(instruction)
-
-
-
-
-def train(params, data_file_path, output_file, u, tl, tn):
-    _train(
-        model='ESN',
-        units=str(u),
-        input_initializer='InputMatrix',
-        input_scaling='0.5',
-        input_bias_initializer='RandomUniform',
-        leak_rate='1.',
-        reservoir_activation='tanh',
-        spectral_radius=str(params[3]),
-        reservoir_initializer='WattsStrogatzOwn',
-        rewiring=str(params[4]),
-        reservoir_degree=str(params[1]),
-        reservoir_sigma=str(params[0]),
-        reservoir_amount=None,
-        overlap=None,
-        readout_layer='linear',
-        regularization=str(params[2]),
-        init_transient=1000,
-        transient=1000,
-        train_length=str(tl),
-        output_dir=output_file,
-        data_file=data_file_path,
-        # trained_name=tn
-    )
-
-def forecast(prediction_steps: int, trained_model_path: str, prediction_path: str, data_file):
-    _forecast(
-        forecast_method='classic',
-        forecast_length=prediction_steps,
-        section_initialization_length=50,
-        number_of_sections=10,
-        trained_model=trained_model_path,
-        output_dir=prediction_path,
-        data_file=data_file,
-    )

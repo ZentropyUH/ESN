@@ -34,7 +34,7 @@ from src.plotters import (
     plot_rmse,
     render_video,
 )
-from src.readout_generators import linear_readout, sgd_linear_readout
+from src.readout_generators import linear_readout
 from src.utils import get_name_from_dict, get_range, load_data
 
 

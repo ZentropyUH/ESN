@@ -4,82 +4,12 @@ import numpy as np
 import pandas as pd
 import re
 import json
+from src.customs.custom_models import ESN, ParallelESN
+from keras.models import load_model
+import tensorflow as tf
+
 
 #### Parameters ####
-
-
-def get_smallest_digit_unit(number):
-    """Get the smallest order of magnitude unit of a number.
-
-    Args:
-        number (float): The number to be analyzed.
-
-    Returns:
-        float: The smallest order of magnitude of the number.
-    """
-    number = float(number)
-    # Convert it to a string
-    number = str(number)
-    number = number.split(".")
-    # Now count the number of digits after the decimal point
-    if len(number) == 2 and number[-1] == "0":
-        return 1
-    else:
-        return 10 ** (-len(number[1]))
-
-
-def get_range(rng, method="linear", step=None, base=10, dtype=float):
-    """Get the ranges for the parameters.
-
-    The parameter rng is a string of the form 'start:end' or a list of comma separated values.
-
-    Args:
-        rng (str): The range of the parameter. Can be a list of comma separated values or a range
-            of the form 'start:end'.
-
-        method (int): The method to be used to generate the range. It can be either 'linear' or 'log'.
-            It will generate a range of values between the start and end values,
-            linearly with a step of the lowest significant digit of the start value or
-            logarithmically spaced with base 10.
-
-        step (float): The step to be used for the linear range. If None, it will be calculated
-            automatically.
-
-        base (int): The base to be used for the logarithmic range.
-
-        dtype (type): The data type for the values.
-
-    Returns:
-        list: The list of values for the parameter.
-    """
-    # Check if range
-    if ":" in rng:
-        start, end = rng.split(":")
-        start = float(start)
-        end = float(end)
-        if method == "linear":
-            if step is None:
-                step = get_smallest_digit_unit(start)
-
-            return np.arange(start, end + 1, step)  # the +1 to include the end
-        elif method == "log":
-            start = np.log(start) / np.log(base)
-            end = np.log(end) / np.log(base)
-            print(start, end)
-            exps = np.arange(start, end + np.sign(end), np.sign(end))
-            print(exps)
-            return (base**exps).astype(dtype)
-    # Check if comma separated values
-    elif "," in rng:
-        return np.array([float(item) for item in rng.split(",")]).astype(dtype)
-    # Check if single value
-    else:
-        try:
-            return np.array([float(rng)]).astype(dtype)
-        except ValueError:
-            print(
-                "The units parameter should be a single value, a range or a list of values"
-            )
 
 
 def lyap_ks(i, l):
@@ -125,7 +55,6 @@ def get_dict_from_name(name_str):
 
 def load_data(
     name: str,
-    init_transient: int = 0,
     transient: int = 1000,
     train_length: int = 5000,
     step: int = 1,
@@ -183,9 +112,6 @@ def load_data(
     # Reshape it to have batches as a dimension. For keras convention purposes.
     data = data.reshape(1, -1, features)
 
-    # Ignoring initial transient
-    data = data[:, init_transient:, :]
-
     # Index up to the training end.
     train_index = transient + train_length
 
@@ -218,10 +144,14 @@ def load_data(
     )
 
 
-def load_model_json(model_path):
+def load_model_and_params(model_path: str):
+    # Load the param json from the model location
     with open(model_path + "/params.json", encoding="utf-8") as f:
-        data = json.load(f)
-    return data
+        params = json.load(f)
+
+    model = load_model(model_path, compile=False)
+
+    return model, params
 
 
 # Decorator for composing a function n times.
@@ -238,6 +168,37 @@ def compose_n_times(n):
         return inner
 
     return decorator
+
+
+def tf_ridge_regression(X, Y, beta):
+    """Solve the ridge regression problem using the closed-form solution.
+
+    Args:
+        X (tf.Tensor): The input data matrix of shape (N, D).
+        Y (tf.Tensor): The target data matrix of shape (N, 1).
+
+    Returns:
+        tuple: A tuple with:
+
+            w (tf.Tensor): The weights of the ridge regression model of shape (D, 1).
+            b (tf.Tensor): The bias of the ridge regression model of shape (1,).
+    """
+
+    # Cast X and Y to float32
+    X = tf.cast(X, tf.float32)
+    Y = tf.cast(Y, tf.float32)
+
+    # Add a column of ones to X for the bias term
+    ones = tf.ones((tf.shape(X)[0], 1), dtype=X.dtype)
+
+    X = tf.concat([ones, X], axis=1)
+
+    # Calculate the ridge regression weights using the closed-form solution
+    XtX = tf.linalg.matmul(tf.transpose(X), X)
+    XtY = tf.linalg.matmul(tf.transpose(X), Y)
+    reg_term = beta * tf.eye(tf.shape(XtX)[0], dtype=XtX.dtype)
+    w = tf.linalg.solve(XtX + reg_term, XtY)
+    return w[1:], w[0]  # Exclude the bias term from the weights
 
 
 if __name__ == "__main__":

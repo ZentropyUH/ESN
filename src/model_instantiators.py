@@ -26,8 +26,7 @@ def create_esn_model(
     exponent=2,
     # Seed of the model
     seed=None,
-    
-    regularization=1e-8
+    regularization=1e-8,
 ):
     """
     Create an ESN model using Keras' functional API.
@@ -53,9 +52,6 @@ def create_esn_model(
             Defaults to 2.
 
         seed (int, optional): Seed of the model. If None, a random seed will be used.
-
-        raw (bool): If True the model will not concatenate the input with the reservoir output.
-            Defaults to False.
 
     Returns:
         keras.Model: A Keras model with the ESN architecture.
@@ -111,15 +107,22 @@ def create_esn_model(
         esn_rnn
     )
 
-    # Concatenate the inputs with the output, if raw is False
-    output = keras.layers.Concatenate(name="Concat_ESN_input")([inputs, power_index])
+    output = keras.layers.Concatenate(name="Concat_ESN_input")(
+        [inputs, power_index]
+    )
 
-    # # Add the readout layer
-    # output = keras.layers.Dense(features, activation='linear', kernel_initializer="uniform", kernel_regularizer=keras.regularizers.l2(regularization))(output)
-
+    # Add the readout layer
+    output = keras.layers.Dense(
+        features,
+        activation="linear",
+        kernel_initializer="uniform",
+        kernel_regularizer=keras.regularizers.l2(regularization),
+    )(output)
 
     # Build the model
-    model = keras.Model(inputs=inputs, outputs=output)
+    model = keras.Model(
+        inputs=inputs, outputs=output, name="ESN_without_readout"
+    )
 
     # Return the created model
     return model
