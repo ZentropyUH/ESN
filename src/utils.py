@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import re
 import json
+from src.customs.custom_models import ESN, ParallelESN
 from keras.models import load_model
 
 
