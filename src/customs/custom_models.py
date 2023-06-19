@@ -1,9 +1,14 @@
 """Custom keras models."""
 import numpy as np
 import tensorflow as tf
-from tensorflow import keras
+import keras
 
-from src.customs.custom_layers import EsnCell, PowerIndex, InputSplitter, ReservoirCell
+from src.customs.custom_layers import (
+    EsnCell,
+    PowerIndex,
+    InputSplitter,
+    ReservoirCell,
+)
 
 
 ###############################################
@@ -810,6 +815,117 @@ class ReservoirModel(keras.Model):
     @classmethod
     def from_config(cls, config):
         return cls(**config)
+
+
+def create_esn_model(
+    # ESN related parameters
+    features,
+    units=200,
+    leak_rate=1,
+    input_reservoir_init="InputMatrix",
+    input_bias_init="random_uniform",
+    reservoir_kernel_init="ErdosRenyi",
+    esn_activation="tanh",
+    exponent=2,
+    # Seed of the model
+    seed=None,
+    raw=False,
+):
+    """
+    Create an ESN model using Keras' functional API.
+
+    Args:
+        units (int): Number of units in the reservoir.
+
+        leak_rate (float): Leaky rate of the reservoir.
+
+        input_reservoir_init (str): Initializer for the input to reservoir weights.
+            Defaults to 'InputMatrix'.
+
+        input_bias_init (str): Initializer for the input bias.
+            Defaults to 'random_uniform'.
+
+        reservoir_kernel_init (str): Initializer for the reservoir weights.
+            Defaults to 'ErdosRenyi'.
+
+        esn_activation (str): Activation function of the reservoir.
+            Defaults to 'tanh'.
+
+        exponent (int): Exponent of the power function applied to the reservoir.
+            Defaults to 2.
+
+        seed (int, optional): Seed of the model. If None, a random seed will be used.
+
+        raw (bool): If True the model will not concatenate the input with the reservoir output.
+            Defaults to False.
+
+    Returns:
+        keras.Model: A Keras model with the ESN architecture.
+
+    Example usage:
+
+    >>> model = create_esn_model(
+            units=100,
+            leak_rate=0.5,
+            input_reservoir_init='glorot_uniform',
+            input_bias_init='zeros',
+            reservoir_kernel_init='ErdosRenyi',
+            esn_activation='tanh',
+            exponent=2,
+            seed=42,
+        )
+    """
+    # Optional seed of the model
+    if seed is None:
+        seed = np.random.randint(0, 1000000)
+
+    print()
+    print(f"Seed: {seed}\n")
+
+    np.random.seed(seed)
+    tf.random.set_seed(seed)
+
+    # Define the input layer
+    inputs = keras.Input(batch_shape=(1, None, features), name="Input")
+
+    # Define the ESN cell layer
+    esn_cell = EsnCell(
+        units=units,
+        name="EsnCell",
+        activation=esn_activation,
+        leak_rate=leak_rate,
+        input_initializer=input_reservoir_init,
+        input_bias_initializer=input_bias_init,
+        reservoir_initializer=reservoir_kernel_init,
+    )
+
+    # Define the RNN layer using the ESN cell
+    esn_rnn = keras.layers.RNN(
+        esn_cell,
+        trainable=False,
+        stateful=True,
+        return_sequences=True,
+        name="esn_rnn",
+    )(inputs)
+
+    # Define the PowerIndex layer
+    power_index = PowerIndex(exponent=exponent, index=2, name="power_index")(
+        esn_rnn
+    )
+
+    # Concatenate the inputs with the output, if raw is False
+    if raw is False:
+        output = keras.layers.Concatenate(name="Concat_ESN_input")(
+            [inputs, power_index]
+        )
+    else:
+        output = power_index
+
+    # Build the model
+    model = keras.Model(inputs=inputs, outputs=output)
+
+    # Return the created model
+    return model
 
 
 custom_models = {

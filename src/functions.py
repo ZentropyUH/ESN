@@ -17,36 +17,61 @@ except ModuleNotFoundError:
 
 from keras.models import load_model
 
-from src.customs.custom_initializers import ErdosRenyi, InputMatrix, RandomUniform, RegularNX, RegularOwn, WattsStrogatzNX, WattsStrogatzOwn
+from src.customs.custom_initializers import (
+    ErdosRenyi,
+    InputMatrix,
+    RandomUniform,
+    RegularNX,
+    RegularOwn,
+    WattsStrogatzNX,
+    WattsStrogatzOwn,
+)
 from src.customs.custom_models import ESN, ParallelESN, ReservoirModel
 from src.forecasters import classic_forecast, section_forecast
-from src.plotters import plot_contourf_forecast, plot_linear_forecast, plot_rmse, render_video
+from src.plotters import (
+    plot_contourf_forecast,
+    plot_linear_forecast,
+    plot_rmse,
+    render_video,
+)
 from src.readout_generators import linear_readout, sgd_linear_readout
 from src.utils import get_name_from_dict, get_range, load_data
 
 
-
-
-
-
-
 def training(
     # General params
-    model, units, input_initializer, input_bias_initializer, input_scaling, leak_rate, reservoir_activation,
+    model,
+    units,
+    input_initializer,
+    input_bias_initializer,
+    input_scaling,
+    leak_rate,
+    reservoir_activation,
     # Classic Cases
-    spectral_radius, reservoir_initializer, rewiring, reservoir_degree, reservoir_sigma,
+    spectral_radius,
+    reservoir_initializer,
+    rewiring,
+    reservoir_degree,
+    reservoir_sigma,
     # Parallel cases
-    reservoir_amount, overlap,
+    reservoir_amount,
+    overlap,
     # Readout params
-    readout_layer, regularization,
+    readout_layer,
+    regularization,
     # Training params
-    init_transient, transient, train_length, data_file, output_dir, trained_name,
+    init_transient,
+    transient,
+    train_length,
+    data_file,
+    output_dir,
+    trained_name,
 ):
-    '''
+    """
     Trains an Echo State Network on the data provided in the data file.
 
     The data file should be a csv file with the rows being the time and the columns being the dimensions. The data file should be provided with full path.
-    '''
+    """
     ################ GET THE PARAMETERS WITH POSSIBLE RANGES ################
 
     params = locals().copy()
@@ -221,9 +246,10 @@ def training(
 
                                         ############### SAVING TRAINED MODEL ###############
 
-
                                         # Prune path from data_file
-                                        data_file_name = data_file.split("/")[-1]
+                                        data_file_name = data_file.split("/")[
+                                            -1
+                                        ]
 
                                         # Choose only the most important parameters to name the model
                                         name_dict = {
@@ -239,21 +265,34 @@ def training(
                                             "dta": data_file_name,
                                         }
 
-                                        model_path = join(output_dir, get_name_from_dict(name_dict))
-                                        
-                                        
+                                        model_path = join(
+                                            output_dir,
+                                            get_name_from_dict(name_dict),
+                                        )
+
                                         if trained_name is not None:
-                                            model_path = join(output_dir, trained_name)
+                                            model_path = join(
+                                                output_dir, trained_name
+                                            )
 
                                         # Save the model and save the parameters dictionary in a json file inside the model folder
                                         model.save(model_path)
 
-                                        with open(join(output_dir, "params.json", encoding="utf-8"), "w") as f:
-                                            json.dump(params, f, indent=4, sort_keys=True, separators=(',', ': '))
-
-                                        
-
-
+                                        with open(
+                                            join(
+                                                output_dir,
+                                                "params.json",
+                                                encoding="utf-8",
+                                            ),
+                                            "w",
+                                        ) as f:
+                                            json.dump(
+                                                params,
+                                                f,
+                                                indent=4,
+                                                sort_keys=True,
+                                                separators=(",", ": "),
+                                            )
 
 
 def forecasting(
@@ -269,7 +308,7 @@ def forecasting(
     data_file: str,
     forecast_name: str,
 ):
-    '''
+    """
     Load a model and forecast the data.
 
     Args:
@@ -281,7 +320,7 @@ def forecasting(
     Returns:
         None
 
-    '''
+    """
 
     # Load the data
     (
@@ -333,10 +372,12 @@ def forecasting(
     # save in the output directory with the name of the data file (without the path) and the model name attached
     # Prune path from data_file
     data_file_name = data_file.split("/")[-1]
-    
+
     # Prune path from trained_model
     if forecast_name is None:
-        trained_model_name = trained_model.split("/")[-1] + f"_{forecast_method}_forecasted"
+        trained_model_name = (
+            trained_model.split("/")[-1] + f"_{forecast_method}_forecasted"
+        )
     else:
         trained_model_name = forecast_name
 

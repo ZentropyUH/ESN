@@ -1,4 +1,7 @@
 data
+forecasts
+dummy.py
+Models
 trained
 forecasting
 __pycache__

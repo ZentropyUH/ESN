@@ -1,97 +1,134 @@
 """Instantiate the different models using function wrappers."""
 
-from tensorflow import keras
+import keras
+import numpy as np
+import tensorflow as tf
+import os
 
-from src.customs.custom_initializers import ErdosRenyi, InputMatrix
-from src.customs.custom_models import ESN, ParallelESN
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+
+
+from src.customs.custom_models import ParallelESN
+from src.customs.custom_layers import EsnCell, PowerIndex
 
 #### Model instantiators ####
 
 
-def get_simple_esn(  # Check how to improve this
-    units,
-    activation="tanh",
+def create_esn_model(
+    # ESN related parameters
+    features=1,
+    units=200,
     leak_rate=1,
+    input_reservoir_init="InputMatrix",
+    input_bias_init="random_uniform",
+    reservoir_kernel_init="WattsStrogatzNX",
+    esn_activation="tanh",
     exponent=2,
-    sigma=0.5,
-    degree=2,
-    spectral_radius=0.99,
+    # Seed of the model
     seed=None,
-    name="Simple_ESN",
-    input_initializer=None,
-    reservoir_initializer=None,
-    bias_initializer=None,
-) -> keras.Model:
-    """Get an Ott model. This is an instantiator for the ESN class.
-
-    It is used to make the code more readable.
-    It is also used to make the code more flexible. This is easier to use in a grid search.
+    
+    regularization=1e-8
+):
+    """
+    Create an ESN model using Keras' functional API.
 
     Args:
-        units (int): The number of units in the reservoir.
+        units (int): Number of units in the reservoir.
 
-        activation (str, optional): The activation function to use in the reservoir.
-            Defaults to "tanh".
+        leak_rate (float): Leaky rate of the reservoir.
 
-        leak_rate (int, optional): The leak rate of the reservoir. Defaults to 1.
+        input_reservoir_init (str): Initializer for the input to reservoir weights.
+            Defaults to 'InputMatrix'.
 
-        exponent (int, optional): The exponent of the activation function. Defaults to 2.
+        input_bias_init (str): Initializer for the input bias.
+            Defaults to 'random_uniform'.
 
-        sigma (float, optional): The sigma of the gaussian distribution to use in the reservoir.
-            Defaults to 0.5.
+        reservoir_kernel_init (str): Initializer for the reservoir weights.
+            Defaults to 'ErdosRenyi'.
 
-        degree (int, optional): The degree of the polynomial to use in the readout. Defaults to 2.
+        esn_activation (str): Activation function of the reservoir.
+            Defaults to 'tanh'.
 
-        spectral_radius (float, optional): The spectral radius of the reservoir. Defaults to 0.99.
+        exponent (int): Exponent of the power function applied to the reservoir.
+            Defaults to 2.
 
-        seed (int, optional): The seed to use in the reservoir. Defaults to None.
+        seed (int, optional): Seed of the model. If None, a random seed will be used.
 
-        name (str, optional): The name of the model. Defaults to "Simple_ESN".
-
-        input_initializer (InputMatrix, optional): The initializer to use in the input matrix.
-            Defaults to None.
-
-        reservoir_initializer (ReservoirInitializer, optional): The initializer to use in
-            the reservoir matrix. Defaults to None.
-
-        bias_initializer (BiasInitializer, optional): The initializer to use in the bias matrix.
-            Defaults to None.
+        raw (bool): If True the model will not concatenate the input with the reservoir output.
+            Defaults to False.
 
     Returns:
-        model: The model to use in the training.
-    """
-    # These are if the initializer needs to be different than the default.
-    if input_initializer is None:
-        input_initializer = InputMatrix(sigma=sigma)
+        keras.Model: A Keras model with the ESN architecture.
 
-    if reservoir_initializer is None:
-        reservoir_initializer = ErdosRenyi(
-            degree=degree,
-            spectral_radius=spectral_radius,
-            sigma=spectral_radius,
+    Example usage:
+
+    >>> model = create_esn_model(
+            units=100,
+            leak_rate=0.5,
+            input_reservoir_init='glorot_uniform',
+            input_bias_init='zeros',
+            reservoir_kernel_init='ErdosRenyi',
+            esn_activation='tanh',
+            exponent=2,
+            seed=42,
         )
+    """
+    # Optional seed of the model
+    if seed is None:
+        seed = np.random.randint(0, 1000000)
 
-    if bias_initializer is None:
-        bias_initializer = keras.initializers.Zeros()
+    print()
+    print(f"Seed: {seed}\n")
 
-    model = ESN(
+    np.random.seed(seed)
+    tf.random.set_seed(seed)
+
+    # Define the input layer
+    inputs = keras.Input(batch_shape=(1, None, features), name="Input")
+
+    # Define the ESN cell layer
+    esn_cell = EsnCell(
         units=units,
-        name=name,
-        esn_activation=activation,
+        name="EsnCell",
+        activation=esn_activation,
         leak_rate=leak_rate,
-        seed=seed,
-        exponent=exponent,
-        input_reservoir_init=input_initializer,
-        input_bias_init=bias_initializer,
-        reservoir_kernel_init=reservoir_initializer,
+        input_initializer=input_reservoir_init,
+        input_bias_initializer=input_bias_init,
+        reservoir_initializer=reservoir_kernel_init,
     )
 
+    # Define the RNN layer using the ESN cell
+    esn_rnn = keras.layers.RNN(
+        esn_cell,
+        trainable=False,
+        stateful=True,
+        return_sequences=True,
+        name="esn_rnn",
+    )(inputs)
+
+    # Define the PowerIndex layer
+    power_index = PowerIndex(exponent=exponent, index=2, name="power_index")(
+        esn_rnn
+    )
+
+    # Concatenate the inputs with the output, if raw is False
+    output = keras.layers.Concatenate(name="Concat_ESN_input")([inputs, power_index])
+
+    # # Add the readout layer
+    # output = keras.layers.Dense(features, activation='linear', kernel_initializer="uniform", kernel_regularizer=keras.regularizers.l2(regularization))(output)
+
+
+    # Build the model
+    model = keras.Model(inputs=inputs, outputs=output)
+
+    # Return the created model
     return model
 
 
 # Using defaults as Ott et al. 2018 KS model
 def get_parallel_esn(
-    units_per_reservoir,
+    features=1,
+    units_per_reservoir=200,
     reservoir_amount=64,
     overlap=6,
     leak_rate=1,
@@ -105,70 +142,14 @@ def get_parallel_esn(
     reservoir_initializer=None,
     bias_initializer=None,
 ) -> keras.Model:
-    """Get a parallel ESN model. This is an instantiator for the ParallelESN class.
+    if seed is None:
+        seed = np.random.randint(0, 1000000)
 
-    It is used to make the code more readable. It is also used to make the code more flexible.
-    This is easier to use in a grid search.
+    print()
+    print(f"Seed: {seed}\n")
 
-    Args:
-        units_per_reservoir (int): The number of units per reservoir.
+    np.random.seed(seed)
+    tf.random.set_seed(seed)
 
-        reservoir_amount (int, optional): The number of reservoirs. Defaults to 64.
-
-        overlap (int, optional): The number of overlapping units between reservoir inputs.
-            Defaults to 6.
-
-        leak_rate (int, optional): The leak rate of the reservoirs. Defaults to 1.
-
-        exponent (int, optional): The exponent of the PowerIndex layer (augmented hidden states).
-            Defaults to 2.
-
-        sigma (float, optional): The standard deviation of the input matrix. Defaults to 0.5.
-
-        degree (int, optional): The degree of the Erdos-Renyi graph. Defaults to 2.
-
-        spectral_radius (float, optional): The spectral radius of the reservoirs. Defaults to 0.99.
-
-        seed (int, optional): The seed for the random number generator.
-            Defaults to None, which means the seed is random.
-
-        name (str, optional): The name of the model. Defaults to "Parallel_ESN".
-
-        input_initializer (InputMatrix, optional): The initializer for the input matrix.
-            Defaults to None, which means the default initializer is used.
-
-        reservoir_initializer (ErdosRenyi, optional): The initializer for the reservoir matrix.
-            Defaults to None, which means the default initializer is used.
-
-        bias_initializer (keras.initializers.Zeros, optional): The initializer for the bias.
-            Defaults to None, Zeros is used.
-    """
-    # These are if the initializer needs to be different than the default.
-    if input_initializer is None:
-        input_initializer = InputMatrix(sigma=sigma)
-
-    if reservoir_initializer is None:
-        reservoir_initializer = ErdosRenyi(
-            degree=degree,
-            spectral_radius=spectral_radius,
-            sigma=spectral_radius,
-        )
-
-    if bias_initializer is None:
-        bias_initializer = keras.initializers.Zeros()
-
-    model = ParallelESN(
-        units_per_reservoir=units_per_reservoir,
-        reservoir_amount=reservoir_amount,
-        overlap=overlap,
-        name=name,
-        esn_activation="tanh",
-        leak_rate=leak_rate,
-        seed=seed,
-        exponent=exponent,
-        input_reservoir_init=input_initializer,
-        input_bias_init=bias_initializer,
-        reservoir_kernel_init=reservoir_initializer,
-    )
-
-    return model
+    # Define the input layer
+    inputs = keras.Input(batch_shape=(1, None, features), name="Input")

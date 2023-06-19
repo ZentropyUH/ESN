@@ -10,7 +10,7 @@ import numpy as np
 #     argrelmax,
 #     argrelmin,
 # )
-from tensorflow import keras
+import keras
 
 from custom_initializers import *
 from custom_models import *
