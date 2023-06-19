@@ -3,7 +3,7 @@ import time
 
 import numpy as np
 import keras
-from utils import tf_ridge_regression
+from src.utils import tf_ridge_regression
 
 
 ######### READOUT GENERATORS #########
