@@ -36,33 +36,40 @@ from src.utils import get_range, load_data, load_model_json
 
 
 def _train(
-    # General params
-    model,
-    units,
-    input_initializer,
-    input_bias_initializer,
-    input_scaling,
-    leak_rate,
-    reservoir_activation,
-    # Classic Cases
-    spectral_radius,
-    reservoir_initializer,
-    rewiring,
-    reservoir_degree,
-    reservoir_sigma,
-    # Parallel cases
-    reservoir_amount,
-    overlap,
-    # Readout params
-    readout_layer,
-    regularization,
-    # Training params
-    init_transient,
-    transient,
-    train_length,
+    # Save params
     data_file,
     output_dir,
     file_name,
+
+    # General params
+    model: str = 'ESN',
+    units: int = 7000,
+    input_initializer: str = 'InputMatrix',
+    input_bias_initializer: str = 'RandomUniform',
+    input_scaling : int = 0.5,
+    leak_rate: int = 1.0,
+    reservoir_activation: str = 'tanh',
+
+    # Classic Cases
+    spectral_radius : int = 0.99,
+    reservoir_initializer: str = 'WattsStrogatzOwn',
+    rewiring: int = 0.5,
+    reservoir_degree: int = 3,
+    reservoir_sigma: int = 0.5,
+
+    # Parallel cases
+    reservoir_amount: int = 10,
+    overlap: int = 6,
+
+    # Readout params
+    readout_layer: str = 'linear',
+    regularization : int = 1e-4,
+
+    # Training params
+    init_transient: int = 1000,
+    transient: int = 1000,
+    train_length : int = 10000,
+    
 ):
     # region Code
     """
