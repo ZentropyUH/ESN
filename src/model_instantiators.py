@@ -111,14 +111,6 @@ def create_esn_model(
         [inputs, power_index]
     )
 
-    # Add the readout layer
-    output = keras.layers.Dense(
-        features,
-        activation="linear",
-        kernel_initializer="uniform",
-        kernel_regularizer=keras.regularizers.l2(regularization),
-    )(output)
-
     # Build the model
     model = keras.Model(
         inputs=inputs, outputs=output, name="ESN_without_readout"
