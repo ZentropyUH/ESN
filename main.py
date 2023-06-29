@@ -79,7 +79,6 @@ def train(
         help="The seed to be used for the random number generator. If not specified, it is randomly generated.",
     ),
     # endregion
-    # region Classic Cases
     # Classic Cases
     spectral_radius: float = typer.Option(
         0.99,
@@ -111,8 +110,6 @@ def train(
         "-rs",
         help="The standard deviation for the reservoir weights. The default is 0.5. Only used if ESN or Parallel_ESN is used. If a range of values is given, the script will be executed the specified number of times with different values of the sigma parameter. The values will be chosen linearly between the first and the second value. If a list of values is given, the script will be executed the specified number of times with the values in the list.",
     ),
-    # endregion
-    # region Parallel Cases
     # Parallel cases
     reservoir_amount: int = typer.Option(
         10,
@@ -126,8 +123,6 @@ def train(
         "-ol",
         help="The number of overlapping units between reservoirs. The default is 6. Only used if Parallel_ESN is used or other parallel scheme. If a range of values is given, the script will be executed the specified number of times with different values of the overlap parameter. The values will be chosen linearly between the first and the second value. If a list of values is given, the script will be executed the specified number of times with the values in the list.",
     ),
-    # endregion
-    # region Readout params
     # Readout params
     readout_layer: ReadoutLayer = typer.Option(
         "linear",
@@ -141,7 +136,6 @@ def train(
         "-rg",
         help="The regularization parameter. The default is 1e-4. If a range of values is given, the script will be executed the specified number of times with different values of the regularization parameter. The values will be chosen logarithmically between the first and the second value. If a list of values is given, the script will be executed the specified number of times with the values in the list.",
     ),
-    # endregion
     # Training params
     transient: int = typer.Option(
         1000,
@@ -180,11 +174,6 @@ def forecast(
         "-o",
         help="The output directory where the forecasted data will be saved",
     ),
-    file_name: str = typer.Option(
-        None,
-        "--file-name",
-        "-fn",
-    ),
     forecast_method: ForecastMethod = typer.Option(
         "classic",
         "--forecast-method",
@@ -211,9 +200,11 @@ def forecast(
     ),
 ):
     """Make predictions with a given model on a data file."""
-    model, params = load_model_and_params(trained_model_path)
-    locals().pop("trained_model_path")
-    _forecast(model, params, **locals())
+    forecast_params = locals()
+    trained_model, model_params = load_model_and_params(trained_model_path)
+    forecast_params.pop("trained_model_path")
+    print(forecast_params)
+    _forecast(trained_model, model_params, **forecast_params)
 
 
 # FIX: Output path
