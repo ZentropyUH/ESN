@@ -31,10 +31,8 @@ class ReservoirActivation(Choice):
 
 
 class ReservoirInitializer(Choice):
-    RO = 'RegularOwn'
     RNX = 'RegularNX'
     ER = 'ErdosRenyi'
-    WSO = 'WattsStrogatzOwn'
     WSNX = 'WattsStrogatzNX'
 
 

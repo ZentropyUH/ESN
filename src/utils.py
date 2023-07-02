@@ -170,19 +170,18 @@ def compose_n_times(n):
     return decorator
 
 
-def tf_ridge_regression(X, Y, beta):
-    """Solve the ridge regression problem using the closed-form solution.
-
+def tf_ridge_regression(X, Y, beta, method="pinv"):
+    """Solve the ridge regression problem using the closed-form solution, i. e. solve the equation XW = Y.
     Args:
-        X (tf.Tensor): The input data matrix of shape (N, D).
-        Y (tf.Tensor): The target data matrix of shape (N, 1).
-
+        X (tf.Tensor): The input data matrix of shape (N, D_1).
+        Y (tf.Tensor): The target data matrix of shape (N, D_2).
+        method (str): The method to use for the regression ('svd', 'qr', or 'pinv').
     Returns:
         tuple: A tuple with:
-
             w (tf.Tensor): The weights of the ridge regression model of shape (D, 1).
             b (tf.Tensor): The bias of the ridge regression model of shape (1,).
     """
+    print(f"Making Ridge with {method} method.")
 
     # Cast X and Y to float32
     X = tf.cast(X, tf.float32)
@@ -190,14 +189,30 @@ def tf_ridge_regression(X, Y, beta):
 
     # Add a column of ones to X for the bias term
     ones = tf.ones((tf.shape(X)[0], 1), dtype=X.dtype)
+    X = tf.concat([ones, X], 1)
 
-    X = tf.concat([ones, X], axis=1)
-
-    # Calculate the ridge regression weights using the closed-form solution
+    # Calculate the ridge regression weights using the chosen method
     XtX = tf.linalg.matmul(tf.transpose(X), X)
     XtY = tf.linalg.matmul(tf.transpose(X), Y)
     reg_term = beta * tf.eye(tf.shape(XtX)[0], dtype=XtX.dtype)
-    w = tf.linalg.solve(XtX + reg_term, XtY)
+
+    if method == "svd":
+        s, u, v = tf.linalg.svd(XtX + reg_term)
+        w = tf.matmul(
+            v,
+            tf.matmul(tf.linalg.diag(1 / s), tf.matmul(tf.transpose(u), XtY)),
+        )
+
+    elif method == "qr":
+        q, r = tf.linalg.qr(XtX + reg_term)
+        w = tf.linalg.solve(r, tf.matmul(tf.transpose(q), XtY))
+
+    elif method == "pinv":
+        pseudo_inv = tf.linalg.pinv(XtX + reg_term)
+        w = tf.matmul(pseudo_inv, XtY)
+
+    else:
+        raise ValueError("Invalid method. Choose from 'svd', 'qr', or 'pinv'.")
     return w[1:], w[0]  # Exclude the bias term from the weights
 
 

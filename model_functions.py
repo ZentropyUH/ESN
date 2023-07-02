@@ -12,19 +12,17 @@ import numpy as np
 import pandas as pd
 
 # pylint: disable=no-name-in-module
-from keras.initializers import Zeros
+# pylint: disable=no-member
+from keras import initializers
 from keras import Model
-from torch import NoneType
-from tqdm import tqdm
 
 from src.customs.custom_initializers import (
     ErdosRenyi,
     InputMatrix,
-    RandomUniform,
     RegularNX,
-    RegularOwn,
+    # RegularOwn,
     WattsStrogatzNX,
-    WattsStrogatzOwn,
+    # WattsStrogatzOwn,
 )
 from src.model_instantiators import create_esn_model
 from src.forecasters import classic_forecast, section_forecast
@@ -122,7 +120,7 @@ def _train(
         case "InputMatrix":
             input_initializer = InputMatrix(sigma=input_scaling)
         case "RandomUniform":
-            input_initializer = RandomUniform(sigma=input_scaling)
+            input_initializer = initializers.RandomUniform(sigma=input_scaling)
 
     ############### CHOOSE THE INPUT INITIALIZER ###############
 
@@ -130,20 +128,16 @@ def _train(
         case "InputMatrix":
             input_bias_initializer = InputMatrix(sigma=input_scaling)
         case "RandomUniform":
-            input_bias_initializer = RandomUniform(sigma=input_scaling)
+            input_bias_initializer = initializers.RandomUniform(
+                sigma=input_scaling
+            )
 
         case "None":
-            input_bias_initializer = Zeros()
+            input_bias_initializer = initializers.Zeros()
 
     ############### CHOOSE THE RESERVOIR INITIALIZER ###############
 
     match reservoir_initializer:
-        case "RegularOwn":
-            reservoir_initializer = RegularOwn(
-                degree=reservoir_degree,
-                spectral_radius=spectral_radius,
-                sigma=reservoir_sigma,
-            )
         case "RegularNX":
             reservoir_initializer = RegularNX(
                 degree=reservoir_degree,
@@ -154,13 +148,6 @@ def _train(
             reservoir_initializer = ErdosRenyi(
                 degree=reservoir_degree,
                 spectral_radius=spectral_radius,
-                sigma=reservoir_sigma,
-            )
-        case "WattsStrogatzOwn":
-            reservoir_initializer = WattsStrogatzOwn(
-                degree=reservoir_degree,
-                spectral_radius=spectral_radius,
-                rewiring_p=rewiring,
                 sigma=reservoir_sigma,
             )
         case "WattsStrogatzNX":
@@ -188,11 +175,11 @@ def _train(
             )
 
         case "Parallel-ESN":
-            print("Yet to be implemented")
+            print(f"{model} is yet to be implemented")
             return
 
         case "Reservoir":
-            print("Yet to be implemented")
+            print(f"{model} is yet to be implemented")
             return
 
     ############### CHOOSE THE READOUT LAYER ###############
@@ -239,7 +226,6 @@ def _forecast(
     model_params: dict,
     data_file: str,
     output_dir: str,
-    # Forecast params
     forecast_method: str = "classic",
     forecast_length: int = 1000,
     section_initialization_length: int = 50,
@@ -353,7 +339,6 @@ def _plot(
     y_labels,
     y_values,
     x_label,
-    init_transient,
     transient,
     train_length,
 ):
@@ -377,7 +362,6 @@ def _plot(
         data_file,
         transient=transient,
         train_length=train_length,
-        init_transient=init_transient,
     )
 
     # Convert y_labels to a list

@@ -4,6 +4,7 @@ import time
 import numpy as np
 import keras
 from src.utils import tf_ridge_regression
+import tensorflow as tf
 
 
 ######### READOUT GENERATORS #########
@@ -95,10 +96,22 @@ def linear_readout(
 
     # Training error of the readout
     predicted = readout_layer(harvested_states[0])
+    
+    predicted_1 = tf.matmul(harvested_states[0], readout_matrix) + readout_bias
+    
+    print("Comparing the layer and the real stuff", tf.reduce_mean(predicted - predicted_1))
 
-    training_loss = np.mean((predicted - train_target[0]) ** 2)
+    training_loss = np.mean(np.abs((predicted - train_target[0])))
 
     print(f"Training loss: {training_loss}\n")
+    
+    # Show NRMSE of the readout with respect to the training data
+    
+    NRMSE = np.sqrt(np.mean(np.square(predicted - train_target[0]))) / np.std(train_target[0])
+    print(f"NRMSE: {NRMSE}\n")
+
+
+
 
     model = keras.Model(
         inputs=model.inputs,
