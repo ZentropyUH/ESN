@@ -1,6 +1,7 @@
 """Instantiate the different models using function wrappers."""
 
 import keras
+import keras.layers
 import numpy as np
 import tensorflow as tf
 import os

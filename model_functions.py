@@ -32,7 +32,7 @@ from src.plotters import (
     plot_rmse,
     render_video,
 )
-from src.readout_generators import linear_readout
+from src.readout_generators import linear_readout, linear_readout_sklearn
 from src.utils import load_data, load_model
 
 # pylint: enable=no-name-in-module
@@ -111,6 +111,7 @@ def _train(
         transient,
         train_length,
     )
+    
 
     features = train_data.shape[-1]
 
@@ -186,7 +187,7 @@ def _train(
 
     match readout_layer:
         case "linear":
-            _model = linear_readout(
+            _model = linear_readout_sklearn(
                 model=_model,
                 transient_data=transient_data,
                 train_data=train_data,
