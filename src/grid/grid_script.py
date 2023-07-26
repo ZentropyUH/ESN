@@ -2,17 +2,6 @@ from src.grid.grid_tools import *
 import shutil
 import time
 
-'''
-<output dir>
----- results
----- output
----- ---- <name>
----- ---- ---- trained_model
----- ---- ---- predictions
----- ---- ---- mse
----- ---- ---- mse_mean
-'''
-
 
 
 
@@ -94,7 +83,7 @@ def grid(combinations:list[list], data:list[str], output_path:str, queue_size:in
 
     return best.queue
 
-              
+
 
 
 def grid_search(hyperparameters_to_adjust: dict, data_path: str, output_path: str, depth: int, queue_size: int, u: int=9000, tl: int=20000, threshold: int=0.01):

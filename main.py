@@ -1,22 +1,16 @@
 #!/usr/bin/python3
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import typer
 from src.grid.grid_tools import *
 from src.utils import load_model_and_params
 
 from t_utils import *
-from src.grid.grid_one import (
-    grid_one,
-    best_combinations,
-    change_folders,
-    detect_not_fished_jobs,
-    calculate_mse,
-)
-from model_functions import _train, _forecast, _plot
-
+from functions import _train, _forecast, _plot
+from src.grid.grid import _grid
 
 app = typer.Typer()
 
-# TODO: Files names
 
 
 @app.command()
@@ -301,18 +295,26 @@ def plot(
 
 @app.command()
 def grid(
-    index: int = typer.Option(..., "--index", "-i"),
+    units: int = typer.Option(9000, "--units", "-u"),
+    train_length: int = typer.Option(20000, "--train-length", "-tl"),
+    forecast_length: int = typer.Option(1000, "--forecast-length", "-fl"),
+    transient: int = typer.Option(1000, "--transient", "-tr"),
+
     data_path: str = typer.Option(..., "--data", "-d"),
     output_path: str = typer.Option(..., "--output", "-o"),
-    units: int = typer.Option(9000, "--units", "-u"),
-    training_lenght: int = typer.Option(20000, "--training-lenght", "-tl"),
+    
+    index: int = typer.Option(..., "--index", "-i"),
+    hyperparameters_path: str = typer.Option(..., "--hyperparameters-path", "-hp"),
 ):
-    grid_one(
-        index,
-        data_path,
-        output_path,
-        units,
-        training_lenght,
+    _grid(
+        units=units,
+        train_length=train_length,
+        forecast_length=forecast_length,
+        transient=transient,
+        data_path=data_path,
+        output_path=output_path,
+        index=index,
+        hyperparameters_path=hyperparameters_path,
     )
 
 
