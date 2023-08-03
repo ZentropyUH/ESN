@@ -68,7 +68,7 @@ echo "end of copy"
 ########## RUN ##########
 
 echo "runing............"
-srun python3 .ESN/main.py grid -u 6000 -tl 20000 -fl 1000 -tr 1000 -d $data -o $output -i 1 -hp $comb
+srun python3 ESN/main.py grid -u 6000 -tl 20000 -fl 1000 -tr 1000 -d $data -o $output -i 1 -hp $comb
 echo "end of run"
 
 
