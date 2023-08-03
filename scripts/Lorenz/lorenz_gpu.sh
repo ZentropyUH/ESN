@@ -10,7 +10,7 @@
 
 #SBATCH --gres=gpu:A100:4
 
-#SBATCH --time=14-00:00:00
+#SBATCH --time=4-00:00:00
 #SBATCH --partition=graphic
 
 #SBATCH --array=1-9600
@@ -34,20 +34,23 @@ mkdir -p $scratch
 cd $scratch
 
 # project path
-ESN=$scratch/ESN
+ESN=./ESN
 mkdir -p $ESN
 
 # output path
-output="$scratch/output"
+output="./output"
 mkdir -p $output
 
 # data path
-data="$scratch/data"
+data="./data"
 mkdir -p $data
 
 # save path
-save="/data/tsa/destevez/Lorenz/"
+save="/data/tsa/destevez/_Lorenz/"
 mkdir -p $save
+
+# combinations
+comb=$ESN/src/grid/combinations.json
 
 
 
@@ -66,9 +69,8 @@ echo "end of copy"
 
 ########## RUN ##########
 
-cd $ESN
 echo "runing............"
-srun python3 main.py grid -i $SLURM_ARRAY_TASK_ID -d $data -o $output -u 9000 -tl 20000
+srun python3 .ESN/main.py grid -u 6000 -tl 20000 -fl 1000 -tr 1000 -d $data -o $output -i $SLURM_ARRAY_TASK_ID -hp $comb
 echo "end of run"
 
 

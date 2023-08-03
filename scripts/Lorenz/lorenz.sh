@@ -32,20 +32,23 @@ mkdir -p $scratch
 cd $scratch
 
 # project path
-ESN=$scratch/ESN
+ESN=./ESN
 mkdir -p $ESN
 
 # output path
-output="$scratch/output"
+output="./output"
 mkdir -p $output
 
 # data path
-data="$scratch/data"
+data="./data"
 mkdir -p $data
 
 # save path
-save="/data/tsa/destevez/dennis/Lorenz_new/"
+save="/data/tsa/destevez/_Lorenz/"
 mkdir -p $save
+
+# combinations
+comb=$ESN/src/grid/combinations.json
 
 
 
@@ -64,9 +67,8 @@ echo "end of copy"
 
 ########## RUN ##########
 
-cd $ESN
 echo "runing............"
-srun python3 main.py grid -u 6000 -tl 20000 -fl 1000 -tr 1000 -d $data -o $output -i 1 -hp "./src/grid/combinations.json"
+srun python3 .ESN/main.py grid -u 6000 -tl 20000 -fl 1000 -tr 1000 -d $data -o $output -i 1 -hp $comb
 echo "end of run"
 
 
