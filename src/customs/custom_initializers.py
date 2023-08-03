@@ -10,7 +10,7 @@ from scipy.sparse import linalg
 import keras
 import keras.utils
 import keras.initializers
-from keras.initializers.initializers import Initializer
+from keras.initializers import Initializer
 
 ###############################################
 ################## Initializers ###############
