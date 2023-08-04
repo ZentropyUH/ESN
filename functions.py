@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from os.path import join
 
-from keras.initializers.initializers import RandomUniform, Zeros
+from keras.initializers import RandomUniform, Zeros
 
 from src.customs.custom_initializers import (
     ErdosRenyi,
