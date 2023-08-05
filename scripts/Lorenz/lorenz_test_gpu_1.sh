@@ -2,15 +2,14 @@
 
 ########## RESOURCES TO USE ##########
 
-#SBATCH --job-name="lorenz_gpu"
+#SBATCH --job-name="lorenz_cpu"
 
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem-per-cpu=2000M
 
 #SBATCH --time=1-00:00:00
-#SBATCH --partition=graphic
-#SBATCH --gres=gpu:A100:4
+#SBATCH --partition=medium
 
 ########## MODULES ##########
 
