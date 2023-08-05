@@ -5,8 +5,8 @@
 #SBATCH --job-name="lorenz"
 
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=2
-#SBATCH --mem-per-cpu=10000M
+#SBATCH --cpus-per-task=8
+#SBATCH --mem-per-cpu=16000M
 
 #SBATCH --gres=gpu:A100:4
 
