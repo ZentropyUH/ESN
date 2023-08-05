@@ -2,14 +2,15 @@
 
 ########## RESOURCES TO USE ##########
 
-#SBATCH --job-name="lorenz_cpu"
+#SBATCH --job-name="lorenz_gpu"
 
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=8
-#SBATCH --mem-per-cpu=16000M
+#SBATCH --cpus-per-task=6
+#SBATCH --mem-per-cpu=4000M
 
-#SBATCH --time=2:00:00
-#SBATCH --partition=short
+#SBATCH --time=1-00:00:00
+#SBATCH --partition=graphic
+#SBATCH --gres=gpu:A100:4
 
 ########## MODULES ##########
 
@@ -41,7 +42,7 @@ data="./data"
 mkdir -p $data
 
 # save path
-save="/data/tsa/destevez/Lorenz_cpu/"
+save="/data/tsa/destevez/Lorenz_gpu/"
 mkdir -p $save
 
 # combinations
