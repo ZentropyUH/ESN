@@ -6,7 +6,7 @@
 
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
-#SBATCH --mem-per-cpu=16000M
+#SBATCH --mem-per-cpu=2000M
 
 #SBATCH --gres=gpu:A100:4
 
