@@ -2,15 +2,14 @@
 
 ########## RESOURCES TO USE ##########
 
-#SBATCH --job-name="lorenz"
+#SBATCH --job-name="lorenz_cpu"
 
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=2
-#SBATCH --mem-per-cpu=10000M
+#SBATCH --cpus-per-task=8
+#SBATCH --mem-per-cpu=16000M
 
 #SBATCH --time=1-00:00:00
 #SBATCH --partition=medium
-
 
 ########## MODULES ##########
 
@@ -42,7 +41,7 @@ data="./data"
 mkdir -p $data
 
 # save path
-save="/data/tsa/destevez/_Lorenz/"
+save="/data/tsa/destevez/Lorenz_cpu/"
 mkdir -p $save
 
 # combinations
@@ -66,7 +65,7 @@ echo "end of copy"
 ########## RUN ##########
 
 echo "runing............"
-srun python3 ESN/main.py grid -u 6000 -tl 20000 -fl 1000 -tr 1000 -d $data -o $output -i 1 -hp $comb
+srun python3 ESN/main.py grid -u 6000 -tl 20000 -fl 1000 -tr 1000 -d $data -o $output -i 1000 -hp $comb
 echo "end of run"
 
 
