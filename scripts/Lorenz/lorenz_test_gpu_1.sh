@@ -9,7 +9,8 @@
 #SBATCH --mem-per-cpu=2000M
 
 #SBATCH --time=1-00:00:00
-#SBATCH --partition=medium
+#SBATCH --partition=graphic
+#SBATCH --gres=gpu:A100:1
 
 ########## MODULES ##########
 

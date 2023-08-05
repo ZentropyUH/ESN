@@ -10,7 +10,7 @@
 
 #SBATCH --time=1-00:00:00
 #SBATCH --partition=graphic
-#SBATCH --gres=gpu:A100:4
+#SBATCH --gres=gpu:A100:2
 
 ########## MODULES ##########
 
