@@ -8,8 +8,8 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem-per-cpu=16000M
 
-#SBATCH --time=1-00:00:00
-#SBATCH --partition=medium
+#SBATCH --time=2:00:00
+#SBATCH --partition=short
 
 ########## MODULES ##########
 
