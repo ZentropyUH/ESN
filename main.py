@@ -8,6 +8,7 @@ from src.utils import load_model_and_params
 from t_utils import *
 from functions import _train, _forecast, _plot
 from src.grid.grid import _grid
+from src.grid.grid_tools import best_combinations
 
 app = typer.Typer()
 
@@ -315,6 +316,21 @@ def grid(
         output_path=output_path,
         index=index,
         hyperparameters_path=hyperparameters_path,
+    )
+
+
+@app.command()
+def grid_combinations(
+    path: str = typer.Option(..., "--path", "-p"),
+    output: str = typer.Option(..., "--output", "-o"),
+    max_size: int = typer.Option(..., "--max-size", "-ms"),
+    threshold: float = typer.Option(..., "--train-length", "-tl"),
+):
+    best_combinations(
+        path,
+        output,
+        max_size,
+        threshold
     )
 
 
