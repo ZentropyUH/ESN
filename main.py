@@ -324,7 +324,7 @@ def grid_combinations(
     path: str = typer.Option(..., "--path", "-p"),
     output: str = typer.Option(..., "--output", "-o"),
     max_size: int = typer.Option(..., "--max-size", "-ms"),
-    threshold: float = typer.Option(..., "--train-length", "-tl"),
+    threshold: float = typer.Option(..., "--threshold", "-t"),
 ):
     best_combinations(
         path,

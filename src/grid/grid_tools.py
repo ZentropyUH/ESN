@@ -186,7 +186,7 @@ def best_combinations(path: str, output: str, max_size: int, threshold: float):
     for folder in track(listdir(path), description='Searching best combinations'):
         folder = join(path, folder)
         rmse_mean_path = join(folder, 'rmse_mean', 'rmse_mean.csv')
-        params_path = join(folder, 'params.json')
+        params_path = join(folder, 'trained_model', 'params.json')
 
         rmse_mean = []
         with open(rmse_mean_path, 'r') as f:
