@@ -1,7 +1,7 @@
 from src.grid.grid_tools import *
 import json
 from rich.progress import track
-from itertools import product
+from itertools import product, chain
 
 
 def generate_new_combinations(
@@ -9,7 +9,7 @@ def generate_new_combinations(
         current_path='./',
         intervals_len_file='intervals_len.json',
         output='./combinations.json',
-        max_size=5,
+        max_size=2,
         threshold=0.1):
     
     '''using the best combinations of the last run and the intervals len saved'''
@@ -48,19 +48,36 @@ def generate_new_combinations(
         json.dump(int_len, f)
 
     new_combinations = []
-    for i in range(len(combinations[0])):
-        temp = []
-        for j in range(len(combinations)):
-            if len(len_intervals) == i+2:
-                temp.append(combinations[j][i]*len_intervals[i])
-                temp.append(combinations[j][i]/len_intervals[i])
-            else:
-                temp.append(combinations[j][i]+len_intervals[i])
-                temp.append(combinations[j][i]-len_intervals[i])
+    # for i in range(len(combinations[0])):
+    #     temp = []
+    #     for j in range(len(combinations)):
+    #         if len(len_intervals) == i+2:
+    #             temp.append(combinations[j][i]*len_intervals[i])
+    #             temp.append(combinations[j][i]/len_intervals[i])
+    #         else:
+    #             temp.append(combinations[j][i]+len_intervals[i])
+    #             temp.append(combinations[j][i]-len_intervals[i])
 
-        new_combinations.append(temp)
-    new_combinations = product(*new_combinations)
-    new_combinations = {str(i): x for i, x in enumerate(new_combinations)}
+    #     new_combinations.append(temp)
+    # new_combinations = product(*new_combinations)
+
+    for i in range(len(combinations)):       
+        new_combinations.append([]) 
+        for j in range(len(combinations[i])):
+            if len(len_intervals) == j+2:
+                new_combinations[i].append(combinations[i][j]*len_intervals[i])
+                new_combinations[i].append(combinations[i][j]/len_intervals[i])
+            else:
+                new_combinations[i].append(combinations[i][j]+len_intervals[i])
+                new_combinations[i].append(combinations[i][j]-len_intervals[i])
+        new_combinations[i] = product(*new_combinations[i])
+            
+
+    new_combinations= chain(*new_combinations)
+    new_combinations = {str(i): x for i, x in enumerate(k for k in new_combinations)}
 
     with open(join(output), 'w') as data:
         json.dump(new_combinations, data)
+
+
+
