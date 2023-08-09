@@ -338,19 +338,16 @@ def new_combinations(
     current_path: str = typer.Option(..., "--current_path", "-cp"),
     path: str = typer.Option(..., "--path", "-p"),
     output: str = typer.Option(..., "--output", "-o"),
-    count: int = typer.Option(..., "--count", "-c"),
     max_size: int = typer.Option(..., "--max-size", "-ms"),
     threshold: float = typer.Option(..., "--threshold", "-t")):
 
     generate_new_combinations(
         path = path,
         current_path = current_path, 
-        # data_file ='combination_threshold_time.json', 
-        count = count,  
         intervals_len_file ='intervals_len.json',
         output = output,
         max_size = max_size,
-        threshold=threshold
+        threshold = threshold
         )
 
 
