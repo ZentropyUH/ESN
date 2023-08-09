@@ -48,18 +48,6 @@ def generate_new_combinations(
         json.dump(int_len, f)
 
     new_combinations = []
-    # for i in range(len(combinations[0])):
-    #     temp = []
-    #     for j in range(len(combinations)):
-    #         if len(len_intervals) == i+2:
-    #             temp.append(combinations[j][i]*len_intervals[i])
-    #             temp.append(combinations[j][i]/len_intervals[i])
-    #         else:
-    #             temp.append(combinations[j][i]+len_intervals[i])
-    #             temp.append(combinations[j][i]-len_intervals[i])
-
-    #     new_combinations.append(temp)
-    # new_combinations = product(*new_combinations)
 
     for i in range(len(combinations)):       
         new_combinations.append([]) 
