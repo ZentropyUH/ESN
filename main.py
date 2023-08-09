@@ -348,9 +348,4 @@ def new_combinations(
 
 
 if __name__ == "__main__":
-    new_combinations(
-        '/home/dionisio35/Documents/thesis/outputs/grid',
-        '/home/dionisio35/Documents/thesis/outputs/test',
-        './src/grid/files/intervals_len.json',
-    )
-    # app()
+    app()

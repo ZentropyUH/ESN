@@ -158,7 +158,7 @@ def generate_new_combinations(
     '''
 
     # PATHS
-    steps_path = join(output, 'intervals.json')
+    steps_path = join(output, 'steps.json')
     combinations_path = join(output, 'combinations.json')
     makedirs(output, exist_ok=True)
 
