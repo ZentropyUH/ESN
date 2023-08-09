@@ -2,14 +2,13 @@
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import typer
-from src.grid.grid_tools import *
+from src.grid.tools import *
 from src.utils import load_model_and_params
 
 from t_utils import *
 from functions import _train, _forecast, _plot
 from src.grid.grid import _grid
-from src.grid.grid_tools import best_combinations
-from src.grid.new_combinations import *
+from src.grid.tools import best_combinations, generate_new_combinations
 app = typer.Typer()
 
 
@@ -341,12 +340,17 @@ def new_combinations(
     intervals: str = typer.Option(..., "--intervals", "-it"),
 ):
     generate_new_combinations(
-        best_path = path, 
-        intervals_len_file = intervals,
+        path = path, 
+        steps_file = intervals,
         output = output,
     )
 
 
 
 if __name__ == "__main__":
-    app()
+    new_combinations(
+        '/home/dionisio35/Documents/thesis/outputs/grid',
+        '/home/dionisio35/Documents/thesis/outputs/test',
+        './src/grid/files/intervals_len.json',
+    )
+    # app()

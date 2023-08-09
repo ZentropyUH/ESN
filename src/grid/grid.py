@@ -3,18 +3,18 @@ import json
 from rich.progress import track
 
 from functions import _train, _forecast
-from src.grid.grid_tools import *
+from src.grid.tools import *
 
 
 '''
 <output dir>
----- results
----- output
----- ---- <name>
----- ---- ---- trained_model
----- ---- ---- predictions
----- ---- ---- mse
----- ---- ---- mse_mean
+---- <name>
+---- ---- trained_model
+---- ---- forecast
+---- ---- forecast_plots
+---- ---- time.txt
+---- ---- rmse
+---- ---- rmse_mean
 '''
 
 
@@ -166,118 +166,6 @@ def grid(
     
     with open(time_file, 'w') as f:
         json.dump({'train': train_time, 'forecast': forecast_time}, f)
-
-
-
-# TODO
-# def grid_search(
-#         data_path: str,
-#         output_path: str,
-
-#         combinations: list[list[float]],
-#         depth: int,
-#         queue_size: int,
-#         threshold: int=0.01,
-
-#         units: int=6000,
-#         train_length: int=20000,
-#         forecast_length: int=1000,
-#         transient: int=1000,
-#     ):
-
-#     for index, params in enumerate(combinations):
-
-#         reservoir_sigma=params[0],
-#         reservoir_degree=params[1],
-#         regularization=params[2],
-#         spectral_radius=params[3],
-#         rewiring=params[4],
-#         input_scaling=0.5,
-#         leak_rate=1.0,
-        
-#         grid(
-#             data_path=data_path,
-#             output_path=join(output_path, str(index)),
-#             units=units,
-#             train_length=train_length,
-#             forecast_length=forecast_length,
-#             transient=transient,
-
-#             input_scaling=input_scaling,
-#             leak_rate=leak_rate,
-#             spectral_radius=spectral_radius,
-#             rewiring=rewiring,
-#             reservoir_degree=reservoir_degree,
-#             reservoir_sigma=reservoir_sigma,
-#             regularization=regularization,
-#         )
-
-#         # Get best results
-#         # data: (<mse index>, (<hyperparameters>, <path>))
-#         best = [(1, elem) for elem in first_results]
-
-
-
-
-#     all_the_best = Queue(queue_size)
-#     while True:
-#         if not len(best):
-#             break
-        
-#         iteration, best_data = best.pop(0)
-        
-#         all_the_best.add(*best_data)
-
-#         if iteration >= depth:
-#             continue
-        
-#         if not steps.get(iteration):
-#             steps[iteration]={
-#                 "sigma": (steps[iteration-1]["sigma"] / (combinations["sigma"][1] + 1)),
-#                 "degree": (steps[iteration-1]["degree"] / (combinations["degree"][1] + 1)),
-#                 "ritch_regularization": (steps[iteration-1]["ritch_regularization"] / (combinations["ritch_regularization"][1] + 1)),
-#                 "spectral_radio": (steps[iteration-1]["spectral_radio"] / (combinations["spectral_radio"][1] + 1)),
-#                 "reconection_prob": (steps[iteration-1]["reconection_prob"] / (combinations["reconection_prob"][1] + 1))
-#             }
-
-        
-        
-#         params = {
-#             "sigma": get_param_tuple(best_data[1][0][0], combinations["sigma"], steps[iteration]["sigma"]),
-#             "degree":get_param_tuple(best_data[1][0][1], combinations["degree"], steps[iteration]["degree"]),
-#             "ritch_regularization": get_ritch_param_tuple(best_data[1][0][2], combinations["ritch_regularization"], steps[iteration]["ritch_regularization"]),
-#             "spectral_radio": get_param_tuple(best_data[1][0][3], combinations["spectral_radio"], steps[iteration]["spectral_radio"]),
-#             "reconection_prob": get_param_tuple(best_data[1][0][4], combinations["reconection_prob"], steps[iteration]["reconection_prob"])
-#         }
-        
-#         for key in params.keys():
-#             initial_value, number_of_values, increment, function_of_increment = params[key]
-#             if initial_value < 0 :
-#                 initial_value = 0
-#                 params[key] = (initial_value, number_of_values, increment, function_of_increment)
-
-#         first_results = grid(generate_combinations(params),
-#                             data=data,         
-#                             output_path = output_path,
-#                             queue_size= queue_size,
-#                             u=u,
-#                             tl=tl,
-#                             threshold=threshold,
-#                             train_time=train_time,
-#                             forecast_time=forecast_time
-#                         )
-        
-#         best += [(iteration + 1, elem) for elem in first_results]
-
-#     calculate_aprox_time(train_time, time_file, 'Train Time')
-#     calculate_aprox_time(forecast_time, time_file, 'Forecaast Time')
-
-#     for i in all_the_best.queue:
-#         folder = i[1][1]
-#         folder_name = split(folder)[1]
-#         shutil.copytree(folder, join(results_path, folder_name), dirs_exist_ok=True)
-
-
 
 
 

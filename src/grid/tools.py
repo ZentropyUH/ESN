@@ -3,7 +3,7 @@ from os.path import join, isdir, split, isfile
 
 from threading import Thread
 from random import randint
-from itertools import product
+from itertools import product, chain
 
 import pandas as pd
 import numpy as np
@@ -41,6 +41,7 @@ class Queue:
                 self.add(i, (combination, folder))
                 break
 
+
 # TODO: make base method for plots
 def save_plots(data: list, output_path: str, name: str):
     plt.clf()
@@ -51,45 +52,6 @@ def save_plots(data: list, output_path: str, name: str):
     plt.title("Plot of root mean square error")
     plt.savefig(join(output_path, name))
 
-def save_plots_from_csv(input_path, output_path, name):
-    with open(input_path, "r") as archivo:
-        data = list(csv.reader(archivo))
-
-    data = [float(date[0]) for date in data]
-    plt.clf()
-    plt.figure()
-    plt.plot(data)
-    plt.xlabel("Time")
-    plt.ylabel("Mean square error")
-    plt.title("Plot of root mean square error")
-    plt.savefig(output_path + name)
-
-# DELETE?
-def save_plots_data_forecast(data: str, forecast: str, output: str):
-    plt.clf()
-    plt.figure()
-    plt.plot(data, color="blue")
-    plt.plot(forecast, color="red")
-    plt.xlabel("Time")
-    plt.ylabel("value")
-    plt.title("Plot data and forecast")
-    plt.savefig(output)
-
-# DELETE?
-def get_axis(data, axis: int):
-    return [x[axis] for x in data]
-
-# DELETE?
-def plots_data_forecast(data: str, forecast: str, output: str):
-    save_plots_data_forecast(
-        get_axis(data, 0), get_axis(forecast, 0), output + "_x"
-    )
-    save_plots_data_forecast(
-        get_axis(data, 1), get_axis(forecast, 1), output + "_y"
-    )
-    save_plots_data_forecast(
-        get_axis(data, 2), get_axis(forecast, 2), output + "_z"
-    )
 
 
 # Work with csv
@@ -104,6 +66,7 @@ def read_csv(file: str):
     return pd.read_csv(file).to_numpy()
 
 
+
 # Hyper Parameters
 def load_hyperparams(filepath: str):
     if not isfile(filepath) or not filepath.endswith('.json'):
@@ -112,41 +75,15 @@ def load_hyperparams(filepath: str):
         combinations = json.load(f)
         return combinations
 
-def generate_combinations(params: dict):
-    return [
-        [elem[3](elem[0], elem[2], i) for i in range(elem[1])]
-        for elem in params.values()
-    ]
-
-def get_param_tuple(value, param, step):
-    initial_value, number_of_values, _, function_of_increment = param
-    initial_value = value - int(number_of_values / 2) * step
-    return initial_value, number_of_values, step, function_of_increment
-
-def get_ritch_param_tuple(value, param, step):
-    initial_value, number_of_values, _, function_of_increment = param
-    initial_value = value / int(number_of_values / 2) * step
-    return initial_value, number_of_values, step, function_of_increment
-
-# DELETE?
-def save_combinations_txt(hyperparameters_to_adjust: dict, path: str):
-    with open(join(path, "combinations.txt"), "w") as f:
-        for i, c in enumerate(
-            product(*generate_combinations(hyperparameters_to_adjust))
-        ):
-            f.write(
-                "{} {} {} {} {} {}\n".format(
-                    i + 1, c[0], c[1], c[2], c[3], c[4]
-                )
-            )
-
 def save_combinations(hyperparameters_to_adjust: dict):
     with open("./combinations.json", "w") as f:
         json.dump(
             {
                 int(i + 1): c
                 for i, c in enumerate(
-                    product(*generate_combinations(hyperparameters_to_adjust))
+                    product(
+                        [[elem[3](elem[0], elem[2], i) for i in range(elem[1])] for elem in hyperparameters_to_adjust.values()]
+                    )
                 )
             },
             f,
@@ -166,7 +103,6 @@ def generate_combinations(filepath: str):
         "reconection_prob": (0, 6, 0.2, lambda x, y, i: round(x + y*i, 2))
     }
     save_combinations(hyperparameters_to_adjust)
-
 
 
 
@@ -210,7 +146,83 @@ def best_combinations(path: str, output: str, max_size: int, threshold: float):
         folder = element[1][1]
         shutil.copytree(folder, join(output, str(i)), dirs_exist_ok=True)
 
-# DELETE?
-def calculate_aprox_time(time: list, file: str, text):
-    with open(file, "a+") as f:
-        f.write("{}: {}\n".format(text, str(np.mean(time))))
+
+
+def generate_new_combinations(
+        path,
+        steps_file,
+        output,
+):
+    '''
+    using the best combinations of the last run and the intervals len saved.
+    '''
+
+    # PATHS
+    steps_path = join(output, 'intervals.json')
+    combinations_path = join(output, 'combinations.json')
+    makedirs(output, exist_ok=True)
+
+    combinations = []
+    steps_data = []
+
+    for folder in track(listdir(path), description='Generating new combinations'):
+        folder = join(path, folder)
+        params_path = join(folder, 'trained_model', 'params.json')
+
+        with open(params_path, 'r') as f:
+            params = json.load(f)
+
+        combinations.append(
+            [
+                params['reservoir_sigma'],
+                params['reservoir_degree'],
+                params['regularization'],
+                params['spectral_radius'],
+                params['rewiring'],
+            ]
+        )
+
+    with open(steps_file, 'r') as f:
+        steps_dict = json.load(f)
+        steps_data = steps_dict['all']
+        steps_data = [i/10 for i in steps_data]
+        steps_dict['all'] = steps_data
+    
+    with open(steps_path, 'w') as f:
+        json.dump(
+            steps_dict, 
+            f,
+            indent=4,
+            separators=(",", ": ")
+        )
+
+    new_combinations = []
+
+    for i in range(len(combinations)):       
+        new_combinations.append([]) 
+        for j in range(len(combinations[i])):
+            
+            if len(steps_data)-3 == j:
+                new_combinations[i].append(
+                    [round(combinations[i][j]*steps_data[i], 10), round(combinations[i][j]/steps_data[i], 10)]
+                )
+            else:
+                new_combinations[i].append(
+                    [round(combinations[i][j]+steps_data[i],4), round(combinations[i][j]-steps_data[i],4)]
+                )
+        
+        new_combinations[i] = product(*new_combinations[i])
+            
+
+    new_combinations= chain(*new_combinations)
+    new_combinations = {i+1: x for i, x in enumerate(k for k in new_combinations)}
+
+    with open(combinations_path, 'w') as f:
+        json.dump(
+            new_combinations,
+            f,
+            indent=4,
+            sort_keys=True,
+            separators=(",", ": "),
+        )
+
