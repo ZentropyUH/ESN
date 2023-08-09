@@ -6,22 +6,14 @@ from itertools import product, chain
 
 def generate_new_combinations(
         best_path,
-        current_path='./',
-        intervals_len_file='intervals_len.json',
+        intervals_len_file='./intervals_len.json',
         output='./combinations.json',
-        max_size=2,
-        threshold=0.1):
+):
     
     '''using the best combinations of the last run and the intervals len saved'''
-    
-    best_combinations(path=best_path,
-                      output=current_path,
-                      max_size=max_size,
-                      threshold=threshold)
 
     combinations = []
     len_intervals = []
-    path_len = f"{current_path}{intervals_len_file}"
 
     for folder in track(listdir(best_path), description='Searching best combinations'):
         folder = join(best_path, folder)
@@ -39,12 +31,12 @@ def generate_new_combinations(
              params['rewiring']]
         )
 
-    with open(path_len, 'r+') as f:
+    with open(intervals_len_file, 'r+') as f:
         int_len = json.load(f)
         len_intervals = int_len['all']
         len_intervals = [i/10 for i in len_intervals]
         int_len['all'] = len_intervals
-    with open(path_len, 'w') as f:
+    with open(intervals_len_file, 'w') as f:
         json.dump(int_len, f)
 
     new_combinations = []
@@ -64,7 +56,7 @@ def generate_new_combinations(
     new_combinations= chain(*new_combinations)
     new_combinations = {str(i): x for i, x in enumerate(k for k in new_combinations)}
 
-    with open(join(output), 'w') as data:
+    with open(output, 'w') as data:
         json.dump(new_combinations, data)
 
 

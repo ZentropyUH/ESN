@@ -333,21 +333,17 @@ def grid_combinations(
         threshold
     )
 
+
 @app.command()
 def new_combinations(
-    current_path: str = typer.Option(..., "--current_path", "-cp"),
     path: str = typer.Option(..., "--path", "-p"),
     output: str = typer.Option(..., "--output", "-o"),
-    max_size: int = typer.Option(..., "--max-size", "-ms"),
-    threshold: float = typer.Option(..., "--threshold", "-t")):
-
+    intervals: str = typer.Option(..., "--intervals", "-it"),
+):
     generate_new_combinations(
-        path = path,
-        current_path = current_path, 
-        intervals_len_file ='intervals_len.json',
+        path = path, 
+        intervals_len_file =intervals,
         output = output,
-        max_size = max_size,
-        threshold = threshold
         )
 
 
