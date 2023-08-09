@@ -9,7 +9,7 @@ from t_utils import *
 from functions import _train, _forecast, _plot
 from src.grid.grid import _grid
 from src.grid.grid_tools import best_combinations
-
+from src.grid.new_combinations import *
 app = typer.Typer()
 
 
@@ -332,6 +332,27 @@ def grid_combinations(
         max_size,
         threshold
     )
+
+@app.command()
+def new_combinations(
+    current_path: str = typer.Option(..., "--current_path", "-cp"),
+    path: str = typer.Option(..., "--path", "-p"),
+    output: str = typer.Option(..., "--output", "-o"),
+    count: int = typer.Option(..., "--count", "-c"),
+    max_size: int = typer.Option(..., "--max-size", "-ms"),
+    threshold: float = typer.Option(..., "--threshold", "-t")):
+
+    generate_new_combinations(
+        path = path,
+        current_path = current_path, 
+        # data_file ='combination_threshold_time.json', 
+        count = count,  
+        intervals_len_file ='intervals_len.json',
+        output = output,
+        max_size = max_size,
+        threshold=threshold
+        )
+
 
 
 if __name__ == "__main__":

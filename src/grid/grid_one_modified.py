@@ -10,75 +10,37 @@ import os
 from itertools import product
 
 
-def generate_new_combinations(current_path, data_file='combination_threshold_time.json', count=5,  intervalse_len_file='intervals_len.json'):
-    combinations = []
-    len_intervals = []
-    path = f"{current_path}{data_file}"
-    path_len = f"{current_path}{intervalse_len_file}"
-    with open(path, 'r') as f:
-        data = json.load(f)
-        data = sorted(data, key=lambda x: x[1])
-        for i in range(min(count,len(data))):
-            combinations.append(data[i][0])
 
-    with open(path_len, 'r+') as f:
-        int_len = json.load(f)
-        len_intervals = int_len['all']
-        len_intervals = [i/10 for i in len_intervals]
-        int_len['all']=len_intervals
-    with open(path_len, 'w') as f:
-        json.dump(int_len, f)
+# def threshold_time(mean: list, threshold: float):
+#     threshold_time = 0
+#     for i in mean:
+#         if i > threshold:
+#             # mean = i
+#             break
+#         threshold_time += 1
+#     return threshold_time
 
 
-    new_combinations = []
-    for i in range(len(combinations[0])):
-        temp = []
-        for j in range(len(combinations)):
-            if len(len_intervals) == i+2:
-                temp.append(combinations[j][i]*len_intervals[i])
-                temp.append(combinations[j][i]/len_intervals[i])
-            else:
-                temp.append(combinations[j][i]+len_intervals[i])
-                temp.append(combinations[j][i]-len_intervals[i])
+# def save_combinations_threshold_time(combination, threshold_time, current_path=""):
+#     '''saves a list of list where first elem is combination of parameters and the second elem is the is the moment when the threshold is crossed'''
+#     data = []
+#     # combination = str(combination)
+#     # data[combination] = threshold_time
+#     data.append((combination, threshold_time))
+#     path = f"{current_path}combination_threshold_time.json"
+#     if not os.path.exists(path):
+#         with open(path, 'w') as f:
+#             json.dump(data, f)
 
-        new_combinations.append(temp)
-    new_combinations = product(*new_combinations)
-    new_combinations = {str(i): x for i, x in enumerate(new_combinations)}
-
-    with open(join(current_path, 'combinations.json'), 'w') as data:
-        json.dump(new_combinations, data)
-
-
-def threshold_time(mean: list, threshold: float):
-    threshold_time = 0
-    for i in mean:
-        if i > threshold:
-            mean = i
-            break
-        threshold_time += 1
-    return threshold_time
-
-
-def save_combinations_threshold_time(combination, threshold_time, current_path=""):
-    '''saves a list of list where first elem is combination of parameters and the second elem is the is the moment when the threshold is crossed'''
-    data = []
-    # combination = str(combination)
-    # data[combination] = threshold_time
-    data.append((combination, threshold_time))
-    path = f"{current_path}combination_threshold_time.json"
-    if not os.path.exists(path):
-        with open(path, 'w') as f:
-            json.dump(data, f)
-
-    else:
-        with open(path, 'r') as f:
-            data = json.load(f)
-            print(data)
-            # data[combination] = threshold_time
-            data.append((combination, threshold_time))
-            print(data)
-        with open(path, 'w') as f:
-            json.dump(data, f)
+#     else:
+#         with open(path, 'r') as f:
+#             data = json.load(f)
+#             print(data)
+#             # data[combination] = threshold_time
+#             data.append((combination, threshold_time))
+#             print(data)
+#         with open(path, 'w') as f:
+#             json.dump(data, f)
 
 
 def calculate_mse(forecast_path: str, data_path: str, output, t: int):
@@ -237,8 +199,8 @@ def grid_one(combination_index: int, data_path: str, output_path: str, u: int = 
     save_csv(mean, "rmse_mean.csv", mean_path)
     save_plots(data=mean, output_path=mean_path, name='rmse_mean_plot.png')
 
-    save_combinations_threshold_time(
-        combination, threshold_time(threshold, mean), current_path)
+    # save_combinations_threshold_time(
+    #     combination, threshold_time(threshold, mean), current_path)
     
     with open(time_file, 'w') as f:
         json.dump({'train': train_time, 'forecast': forecast_time}, f)
