@@ -341,10 +341,10 @@ def new_combinations(
     intervals: str = typer.Option(..., "--intervals", "-it"),
 ):
     generate_new_combinations(
-        path = path, 
-        intervals_len_file =intervals,
+        best_path = path, 
+        intervals_len_file = intervals,
         output = output,
-        )
+    )
 
 
 

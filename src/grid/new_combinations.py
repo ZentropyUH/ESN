@@ -24,11 +24,13 @@ def generate_new_combinations(
             params = json.load(f)
 
         combinations.append(
-            [params['reservoir_sigma'],
-             params['reservoir_degree'],
-             params['regularization'],
-             params['spectral_radius'],
-             params['rewiring']]
+            [
+                params['reservoir_sigma'],
+                params['reservoir_degree'],
+                params['regularization'],
+                params['spectral_radius'],
+                params['rewiring'],
+            ]
         )
 
     with open(intervals_len_file, 'r+') as f:
