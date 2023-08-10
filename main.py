@@ -346,6 +346,7 @@ def new_combinations(
     )
 
 
+@app.command()
 def aux(
     job_name: str = typer.Option(..., "--job-name", "-j"),
     data: str = typer.Option(..., "--data", "-d"),
