@@ -11,8 +11,10 @@ import keras
 import keras.layers
 
 from src.customs.custom_layers import EsnCell, PowerIndex
+from src.utils import tf_ridge_regression
 
 # TODO: save predict in scv
+# TODO: separate prediction and evaluation
 
 class ESN:
     def __init__(self, inputs, outputs, readout) -> None:
@@ -85,6 +87,71 @@ class ESN:
             name="ESN",
         )
     
+
+    def train_test(
+        self,
+        transient_data: np.ndarray,
+        train_data: np.ndarray,
+        train_target: np.ndarray,
+        regularization: int,
+    ):
+        if not self.reservoir:
+            self.reservoir = keras.Model(
+                inputs=self.inputs,
+                outputs=self.outputs
+            )
+        
+        print("\nEnsuring ESP...\n")
+        if not self.reservoir.built:
+            self.reservoir.build(input_shape=transient_data.shape)
+        self.reservoir.predict(transient_data)
+
+        print("\nHarvesting...\n")
+        start = time.time()
+        harvested_states = self.reservoir.predict(train_data)
+        end = time.time()
+        print(f"Harvesting took: {round(end - start, 2)} seconds.")
+        
+        print("Calculating the readout matrix...\n")
+
+        readout_matrix, readout_bias = tf_ridge_regression(
+            harvested_states[0], train_target[0], regularization, 'svd'
+        )
+
+        readout_layer = self.readout
+
+        readout_layer.build(harvested_states[0].shape)
+
+        # Applying the readout weights
+        readout_layer.set_weights([readout_matrix, readout_bias])
+
+        # readout = Ridge(alpha=regularization, tol=0, solver=solver)
+
+        # readout.fit(harvested_states[0], train_target[0])
+
+        # Training error of the readout
+        predicted = readout_layer(harvested_states[0])
+        
+        predicted_1 = tf.matmul(harvested_states[0], readout_matrix) + readout_bias
+        
+        print("Comparing the layer and the real stuff", tf.reduce_mean(predicted - predicted_1))
+
+        training_loss = np.mean(np.abs((predicted - train_target[0])))
+
+        print(f"Training loss: {training_loss}\n")
+        
+        # Show NRMSE of the readout with respect to the training data
+        
+        NRMSE = np.sqrt(np.mean(np.square(predicted - train_target[0]))) / np.std(train_target[0])
+        print(f"NRMSE: {NRMSE}\n")
+
+        self.model = keras.Model(
+            inputs=self.reservoir.inputs,
+            outputs=readout_layer(self.reservoir.outputs[0]),
+            name="ESN",
+        )
+
+
     def forecast(
             self,
             forecast_length: int,
