@@ -8,7 +8,7 @@ from src.utils import load_model_and_params
 from t_utils import *
 from functions import _train, _forecast, _plot
 from src.grid.grid import _grid
-from src.grid.tools import best_combinations, generate_new_combinations
+from src.grid.tools import best_combinations, generate_new_combinations, script_generator
 app = typer.Typer()
 
 
@@ -343,6 +343,43 @@ def new_combinations(
         path = path,
         steps_file = steps,
         output = output,
+    )
+
+
+def aux(
+    job_name: str = typer.Option(..., "--job-name", "-j"),
+    data: str = typer.Option(..., "--data", "-d"),
+    path: str = typer.Option(..., "--path", "-p"),
+    info: str = typer.Option(..., "--info", "-i"),
+    max_size: int = typer.Option(..., "--max-size", "-ms"),
+    threshold: float = typer.Option(..., "--threshold", "-t"),
+):
+    data_path = join(path, 'data')
+    results_path = join(path, 'results')
+    steps = join(info, 'steps.json')
+    new_info = join(info, int(Path(info).absolute().name)+1)
+    makedirs(new_info, exist_ok=True)
+    new_run = join(Path(path).absolute().parent, 'run_', int(Path(path).absolute().name.split('_')[-1])+1)
+    makedirs(new_run)
+
+    grid_combinations(
+        data_path,
+        results_path,
+        max_size,
+        threshold
+    )
+    new_combinations = generate_new_combinations(
+        results_path,
+        steps,
+        new_info,
+    )
+    script_generator(
+        job_name,
+        (1, len(new_combinations)),
+        join(new_info, 'combinations.json'),
+        join(new_run, 'data'),
+        data,
+        join(new_info, 'script.sh'),
     )
 
 
