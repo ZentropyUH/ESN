@@ -337,11 +337,11 @@ def grid_combinations(
 def new_combinations(
     path: str = typer.Option(..., "--path", "-p"),
     output: str = typer.Option(..., "--output", "-o"),
-    intervals: str = typer.Option(..., "--intervals", "-it"),
+    steps: str = typer.Option(..., "--steps", "-s"),
 ):
     generate_new_combinations(
-        path = path, 
-        steps_file = intervals,
+        path = path,
+        steps_file = steps,
         output = output,
     )
 
