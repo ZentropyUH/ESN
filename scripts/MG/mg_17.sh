@@ -2,17 +2,18 @@
 
 ########## RESOURCES TO USE ##########
 
-#SBATCH --job-name="MG"
+#SBATCH --job-name="MG_17"
 
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=2
-#SBATCH --mem-per-cpu=5000M
+#SBATCH --cpus-per-task=8
+#SBATCH --mem-per-cpu=2000M
 
-#SBATCH --time=48:00:00
-#SBATCH --partition=medium
+#SBATCH --gres=gpu:A100:1
+
+#SBATCH --time=4-00:00:00
+#SBATCH --partition=graphic
 
 #SBATCH --array=1-9600
-
 
 
 ########## MODULES ##########
@@ -33,28 +34,33 @@ mkdir -p $scratch
 cd $scratch
 
 # project path
-ESN=$scratch/ESN
+ESN=./ESN
 mkdir -p $ESN
 
 # output path
-output="$scratch/output"
+output="./output"
 mkdir -p $output
 
 # data path
-data="$scratch/data"
+data="./data"
 mkdir -p $data
 
 # save path
-save="/data/tsa/destevez/dennis/MG/17/run_$SLURM_ARRAY_TASK_ID"
+save="/data/tsa/destevez/MG/17/run_0/data"
 mkdir -p $save
+
+# combinations
+comb=$ESN/combinations.json
 
 
 
 ########## COPY ##########
 
+# TODO: Copy project
 # Copy project files to scratch
 echo "copying project............"
 cp -r /data/tsa/destevez/dennis/ESN/* $ESN
+cp -r "/data/tsa/destevez/MG/17/info/0/combinations.json" $ESN
 
 echo "copying data............"
 cp -r /data/tsa/destevez/data/MG/17/* $data
@@ -64,9 +70,8 @@ echo "end of copy"
 
 ########## RUN ##########
 
-cd $ESN
 echo "runing............"
-srun python3 grid.py -o $output -d $data -i $SLURM_ARRAY_TASK_ID
+srun python3 ESN/main.py grid -u 6000 -tl 20000 -fl 1000 -tr 1000 -d $data -o $output -i $SLURM_ARRAY_TASK_ID -hp $comb
 echo "end of run"
 
 
