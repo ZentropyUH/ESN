@@ -186,7 +186,6 @@ def generate_new_combinations(
     with open(steps_file, 'r') as f:
         steps_dict = json.load(f)
         steps_data = steps_dict['all']
-        # steps_data = [(i/10 if (not index == 1) else (i-1 if i>0 else 0)) for index,i in enumerate(steps_data) ]
         steps_data = [((i-1 if i>0 else 0) if (index == 1) else i/10) for index,i in enumerate(steps_data) ]
 
         steps_dict['all'] = steps_data
