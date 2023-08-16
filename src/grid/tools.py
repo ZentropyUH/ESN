@@ -203,13 +203,17 @@ def generate_new_combinations(
     for i in range(len(combinations)):       
         new_combinations.append([]) 
         for j in range(len(combinations[i])):
-            
             if len(steps_data)-3 == j:
                 new_combinations[i].append(
                     [round(combinations[i][j]*steps_data[i], 10), round(combinations[i][j]/steps_data[i], 10)]
                 )
             else:
-                new_combinations[i].append(
+                if combinations[i][j] < 10e-15:
+                    new_combinations[i].append(
+                        [round(combinations[i][j],4)]
+                    )
+                else:
+                    new_combinations[i].append(
                     [round(combinations[i][j]+steps_data[i],4), round(combinations[i][j]-steps_data[i],4)]
                 )
         
