@@ -360,7 +360,7 @@ def aux(
 ):
     data_path = join(path, 'data')
     results_path = join(path, 'results')
-    steps = join(info, 'steps.json')
+    steps_file = join(info, 'steps.json')
     new_info = join(Path(info).absolute().parent, str(int(Path(info).absolute().name)+1))
     makedirs(new_info, exist_ok=True)
     new_run = join(Path(path).absolute().parent, 'run_' + str(int(Path(path).absolute().name.split('_')[-1])+1))
@@ -374,7 +374,7 @@ def aux(
     )
     new_combinations = generate_new_combinations(
         results_path,
-        steps,
+        steps_file,
         new_info,
     )
     script_generator(
