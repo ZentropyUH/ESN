@@ -299,6 +299,7 @@ def grid(
     train_length: int = typer.Option(20000, "--train-length", "-tl"),
     forecast_length: int = typer.Option(1000, "--forecast-length", "-fl"),
     transient: int = typer.Option(1000, "--transient", "-tr"),
+    steps: int = typer.Option(1, '--steps', '-s'),
 
     data_path: str = typer.Option(..., "--data", "-d"),
     output_path: str = typer.Option(..., "--output", "-o"),
@@ -311,6 +312,7 @@ def grid(
         train_length=train_length,
         forecast_length=forecast_length,
         transient=transient,
+        steps=steps,
         data_path=data_path,
         output_path=output_path,
         index=index,
@@ -354,6 +356,7 @@ def aux(
     info: str = typer.Option(..., "--info", "-i"),
     max_size: int = typer.Option(..., "--max-size", "-ms"),
     threshold: float = typer.Option(..., "--threshold", "-t"),
+    steps: int = typer.Option(1, '--steps', '-s'),
 ):
     data_path = join(path, 'data')
     results_path = join(path, 'results')
@@ -381,6 +384,7 @@ def aux(
         join(new_run, 'data'),
         data,
         join(new_info, 'script.sh'),
+        steps
     )
 
 

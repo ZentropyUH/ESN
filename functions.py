@@ -32,6 +32,7 @@ def _train(
     # General params
     model: str = "ESN",
     units: int = 6000,
+    steps: int = 1,
 
     input_initializer: str = "InputMatrix",
     input_bias_initializer: str = "RandomUniform",
@@ -86,6 +87,7 @@ def _train(
         data_file,
         transient,
         train_length,
+        steps
     )
     features = train_data.shape[-1]
 
@@ -190,6 +192,7 @@ def _forecast(
     filepath: str = None,
     forecast_method: str = "classic",
     forecast_length: int = 1000,
+    steps: int = 1,
 ):
     '''
     Load a model and forecast the data.
@@ -220,6 +223,7 @@ def _forecast(
         data_file,
         transient=transient,
         train_length=train_length,
+        step=steps,
     )
 
     ############### CHOOSE THE FORECAST METHOD AND FORECAST ###############

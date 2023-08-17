@@ -27,6 +27,7 @@ def grid(
         train_length: int=20000,
         forecast_length: int=1000,
         transient: int=1000,
+        steps: int=1,
 
         input_scaling=0.5,
         leak_rate=1.0,
@@ -86,6 +87,7 @@ def grid(
         units=units,
         transient=transient,
         train_length=train_length,
+        steps=steps,
 
         input_scaling=input_scaling,
         leak_rate=leak_rate,
@@ -111,6 +113,7 @@ def grid(
             data_file= current_data,
             filepath= join(forecast_path, f'{fn}.csv'),
             forecast_length=forecast_length,
+            steps=steps,
         )
         print('Forecasting {} finished'.format(fn))
         forecast_data.append((prediction, true_data))
@@ -174,6 +177,7 @@ def _grid(
     train_length: int,
     forecast_length: int,
     transient: int,
+    steps: int,
 
     data_path: str,
     output_path: str,
@@ -198,6 +202,7 @@ def _grid(
         train_length=train_length,
         forecast_length=forecast_length,
         transient=transient,
+        steps=steps,
 
         input_scaling=input_scaling,
         leak_rate=leak_rate,

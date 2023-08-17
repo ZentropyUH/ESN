@@ -232,7 +232,15 @@ def generate_new_combinations(
 
 
 
-def script_generator(job_name: str, array: tuple, combinations: str, output: str, data: str, filepath: str):
+def script_generator(
+        job_name: str,
+        array: tuple,
+        combinations: str,
+        output: str,
+        data: str,
+        filepath: str,
+        steps:int
+    ):
     combinations:Path = Path(combinations)
     output:Path = Path(output)
     data:Path = Path(data)
@@ -309,7 +317,7 @@ echo "end of copy"
 ########## RUN ##########
 
 echo "runing............"
-srun python3 ESN/main.py grid -u 6000 -tl 20000 -fl 1000 -tr 1000 -d $data -o $output -i $SLURM_ARRAY_TASK_ID -hp $comb
+srun python3 ESN/main.py grid -u 6000 -tl 20000 -fl 1000 -tr 1000 -d $data -o $output -i $SLURM_ARRAY_TASK_ID -hp $comb -s {steps}
 echo "end of run"
 
 
