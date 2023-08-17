@@ -166,7 +166,7 @@ def generate_new_combinations(
     combinations = []
     steps_data = []
 
-    for folder in track(listdir(path), description='Generating new combinations'):
+    for folder in listdir(path):
         folder = join(path, folder)
         params_path = join(folder, 'trained_model', 'params.json')
 
@@ -186,7 +186,7 @@ def generate_new_combinations(
     with open(steps_file, 'r') as f:
         steps_dict = json.load(f)
         steps_data = steps_dict['all']
-        steps_data = [((i-1 if i>0 else 0) if (index == 1) else i/10) for index,i in enumerate(steps_data) ]
+        steps_data = [1 if index == 1 else i/10 for index, i in enumerate(steps_data) ]
 
         steps_dict['all'] = steps_data
     
@@ -200,28 +200,21 @@ def generate_new_combinations(
 
     new_combinations = []
 
-    for i in range(len(combinations)):       
-        new_combinations.append([]) 
+    for i in track(range(len(combinations)), description='Generating new combinations'):
+        current_generated_combination = []
         for j in range(len(combinations[i])):
-            if len(steps_data)-3 == j:
-                new_combinations[i].append(
-                    [round(combinations[i][j]*steps_data[i], 10), round(combinations[i][j]/steps_data[i], 10)]
-                )
+            if combinations[i][j] < 10e-15:
+                current_generated_combination.append([round(combinations[i][j],4)])
             else:
-                if combinations[i][j] < 10e-15:
-                    new_combinations[i].append(
-                        [round(combinations[i][j],4)]
-                    )
+                if j == 2:
+                    current_generated_combination.append([round(combinations[i][j]*steps_data[j], 10), combinations[i][j], round(combinations[i][j]/steps_data[j], 10)])
+                elif j == 1 and combinations[i][j] <= 2:
+                    current_generated_combination.append([3, 2])
                 else:
-                    new_combinations[i].append(
-                    [round(combinations[i][j]+steps_data[i],4), round(combinations[i][j]-steps_data[i],4)]
-                )
-        
-        new_combinations[i] = product(*new_combinations[i])
-            
-
-    new_combinations= chain(*new_combinations)
-    new_combinations = {i+1: x for i, x in enumerate(k for k in new_combinations)}
+                    current_generated_combination.append([round(combinations[i][j]+steps_data[j], 4), combinations[i][j], round(combinations[i][j]-steps_data[j], 4)])
+    
+        new_combinations.append(product(*current_generated_combination))
+    new_combinations = {i+1: x for i, x in enumerate(chain(*new_combinations))}
 
     with open(combinations_path, 'w') as f:
         json.dump(
