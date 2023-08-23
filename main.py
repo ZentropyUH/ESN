@@ -2,13 +2,15 @@
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import typer
+
 from src.grid.tools import *
 from src.utils import load_model_and_params
 
 from t_utils import *
 from functions import _train, _forecast, _plot
 from src.grid.grid import _grid
-from src.grid.tools import best_combinations, generate_new_combinations, script_generator
+from src.grid.tools import get_best_results, generate_result_combinations, script_generator, generate_initial_combinations
+
 app = typer.Typer()
 
 
@@ -320,14 +322,34 @@ def grid(
     )
 
 
-@app.command()
-def grid_combinations(
+@app.command(help='Generate and save the initial hyperparameters combinations in the given path.')
+def initial_combinations(
+    output: str = typer.Option(..., "--output", "-o"),
+):
+    generate_initial_combinations(output)
+
+
+@app.command(help='Generate the new hyperparameters combinations from the results from the given path.')
+def new_combinations(
+    path: str = typer.Option(..., "--path", "-p"),
+    output: str = typer.Option(..., "--output", "-o"),
+    steps: str = typer.Option(..., "--steps", "-s"),
+):
+    generate_result_combinations(
+        path = path,
+        steps_file = steps,
+        output = output,
+    )
+
+
+@app.command(help='Get the best results from the given path. Compare by the given `threshold`.')
+def best_results(
     path: str = typer.Option(..., "--path", "-p"),
     output: str = typer.Option(..., "--output", "-o"),
     max_size: int = typer.Option(..., "--max-size", "-ms"),
     threshold: float = typer.Option(..., "--threshold", "-t"),
 ):
-    best_combinations(
+    get_best_results(
         path,
         output,
         max_size,
@@ -335,21 +357,29 @@ def grid_combinations(
     )
 
 
-@app.command()
-def new_combinations(
-    path: str = typer.Option(..., "--path", "-p"),
-    output: str = typer.Option(..., "--output", "-o"),
-    steps: str = typer.Option(..., "--steps", "-s"),
+@app.command(help='Generate new slurm script.')
+def script(
+    job_name: str = typer.Option(..., "--job-name", "-j"),
+    data_path: str = typer.Option(..., "--data-path", "-dp"),
+    combinations_path: str = typer.Option(..., "--combinations-path", "-cp"),
+    output_path: str = typer.Option(..., "--output-path", "-op"),
+    filepath: str = typer.Option(..., "--file-path", "-fp"),
+    steps: int = typer.Option(1, '--steps', '-s'),
 ):
-    generate_new_combinations(
-        path = path,
-        steps_file = steps,
-        output = output,
+    params = load_hyperparams(combinations_path)
+    script_generator(
+        job_name,
+        (1, len(params)),
+        combinations_path,
+        output_path,
+        data_path,
+        filepath,
+        steps
     )
 
 
 @app.command()
-def aux(
+def grid_aux(
     job_name: str = typer.Option(..., "--job-name", "-j"),
     data: str = typer.Option(..., "--data", "-d"),
     path: str = typer.Option(..., "--path", "-p"),
@@ -366,13 +396,13 @@ def aux(
     new_run = join(Path(path).absolute().parent, 'run_' + str(int(Path(path).absolute().name.split('_')[-1])+1))
     makedirs(new_run, exist_ok=True)
 
-    grid_combinations(
+    best_results(
         data_path,
         results_path,
         max_size,
         threshold
     )
-    new_combinations = generate_new_combinations(
+    new_combinations = generate_result_combinations(
         results_path,
         steps_file,
         new_info,

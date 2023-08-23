@@ -1,6 +1,7 @@
 from os import makedirs, listdir, system
 from os.path import join, isdir, split, isfile
 from pathlib import Path
+from typing import Dict
 
 from threading import Thread
 from random import randint
@@ -44,7 +45,11 @@ class Queue:
 
 
 # TODO: make base method for plots
+# BUG: too many plots?
 def save_plots(data: list, output_path: str, name: str):
+    '''
+    Save the plot of the given `data` in the given `output_path`/`name`.
+    '''
     plt.clf()
     plt.figure()
     plt.plot(data)
@@ -57,6 +62,9 @@ def save_plots(data: list, output_path: str, name: str):
 
 # Work with csv
 def save_csv(data, name: str, path: str):
+    '''
+    Save the `data` in a .csv.
+    '''
     pd.DataFrame(data).to_csv(
         join(path, name),
         index=False,
@@ -64,26 +72,43 @@ def save_csv(data, name: str, path: str):
     )
 
 def read_csv(file: str):
+    '''
+    Read a .csv file and return a numpy array.
+    '''
     return pd.read_csv(file).to_numpy()
 
 
 
 # Hyper Parameters
-def load_hyperparams(filepath: str):
+def load_hyperparams(filepath: str) -> Dict:
+    '''
+    Load the hyperparameters dictionary from a .json file.
+    '''
     if not isfile(filepath) or not filepath.endswith('.json'):
         raise Exception(f'{filepath} is not a valid file')
     with open(filepath, 'r') as f:
         combinations = json.load(f)
         return combinations
 
-def save_combinations(hyperparameters_to_adjust: dict):
-    with open("./combinations.json", "w") as f:
+def generate_initial_combinations(output: str):
+    '''
+    Generate and save the initial hyperparameters combinations in the given path.\n
+    The hyperparameters will be of the form: name: (initial_value, number_of_values, increment, function_of_increment).
+    '''
+    hyperparameters_to_adjust = {
+        "sigma": (0.2, 5, 0.2, lambda x, y, i: round(x + y * i, 2)),
+        "degree": (2, 4, 2, lambda x, y, i: round(x + y * i, 2)),
+        "ritch_regularization": (10e-5, 5, 0.1, lambda x, y, i: round(x * y**i, 8)),
+        "spectral_radio": (0.9, 16 , 0.01, lambda x, y, i: round(x + y * i, 2)),
+        "reconection_prob": (0, 6, 0.2, lambda x, y, i: round(x + y*i, 2))
+    }
+    with open(join(output, 'combinations.json'), 'w') as f:
         json.dump(
             {
                 int(i + 1): c
                 for i, c in enumerate(
                     product(
-                        [[elem[3](elem[0], elem[2], i) for i in range(elem[1])] for elem in hyperparameters_to_adjust.values()]
+                        *[[elem[3](elem[0], elem[2], i) for i in range(elem[1])] for elem in hyperparameters_to_adjust.values()]
                     )
                 )
             },
@@ -92,33 +117,36 @@ def save_combinations(hyperparameters_to_adjust: dict):
             sort_keys=True,
             separators=(",", ": "),
         )
-
-def generate_combinations(filepath: str):
-    # The hyperparameters will be of the form: name: (initial_value, number_of_values, increment, function_of_increment)
-    # The parameters of the increment function are: initial_value, increment, current_value_of_the_iteration
-    hyperparameters_to_adjust = {
-        "sigma": (0.2, 5, 0.2, lambda x, y, i: round(x + y * i, 2)),
-        "degree": (2, 4, 2, lambda x, y, i: round(x + y * i, 2)),
-        "ritch_regularization": (10e-5, 5, 0.1, lambda x, y, i: round(x * y**i, 8)),
-        "spectral_radio": (0.9, 16 , 0.01, lambda x, y, i: round(x + y * i, 2)),
-        "reconection_prob": (0, 6, 0.2, lambda x, y, i: round(x + y*i, 2))
-    }
-    save_combinations(hyperparameters_to_adjust)
+    with open(join(output, 'steps.json'), 'w') as f:
+        json.dump(
+            {
+                "all": [
+                    0.2,
+                    2,
+                    0.1,
+                    0.01,
+                    0.2
+                ],
+                "sigma": 0.2,
+                "degree": 2,
+                "ritch_regularization": 0.1,
+                "spectral_radio": 0.01,
+                "reconection_prob": 0.2
+            },
+            f,
+            indent=4,
+            separators=(",", ": "),
+        )
 
 
 
 # AUX
-def detect_not_fished_jobs(path: str, output: str):
-    with open(join(output, "out.out"), "w") as f:
-        for file in [
-            join(path, f)
-            for f in listdir(path)
-            if "time.txt" not in listdir(join(path, f))
-        ]:
-            f.write("{}\n".format(file.split("_")[-1]))
-
-def best_combinations(path: str, output: str, max_size: int, threshold: float):
-    
+def get_best_results(path: str, output: str, max_size: int, threshold: float):
+    '''
+    Get the best results(the number of results by `max_size`) from the given `path` and save them in the `output` path.\n
+    The results are the ones with the lowest mean square error.\n
+    Will be stored in the `output` path with the folder name as the index of the result.
+    '''
     best = Queue(max_size)
     for folder in track(listdir(path), description='Searching best combinations'):
         folder = join(path, folder)
@@ -149,13 +177,14 @@ def best_combinations(path: str, output: str, max_size: int, threshold: float):
 
 
 
-def generate_new_combinations(
+def generate_result_combinations(
         path,
         steps_file,
         output,
 ):
     '''
-    using the best combinations of the last run and the intervals len saved.
+    Generate the new hyperparameters combinations from the results from `path` and save them in the `output` path.\n
+    The new combinations are combinations of the old ones and +-10% of the steps of the old ones.
     '''
 
     # PATHS
@@ -232,15 +261,20 @@ def generate_new_combinations(
 def script_generator(
         job_name: str,
         array: tuple,
-        combinations: str,
-        output: str,
-        data: str,
+        combinations_path: str,
+        output_path: str,
+        data_path: str,
         filepath: str,
         steps:int
-    ):
-    combinations:Path = Path(combinations)
-    output:Path = Path(output)
-    data:Path = Path(data)
+):
+    '''
+    Generate new slurm script.
+    '''
+    combinations_path:Path = Path(combinations_path)
+
+    combinations_file = combinations_path.absolute().name
+    output_path:Path = Path(output_path)
+    data_path:Path = Path(data_path)
 
     file = f'''#!/bin/bash
 
@@ -289,11 +323,11 @@ data="./data"
 mkdir -p $data
 
 # save path
-save="{output}"
+save="{output_path}"
 mkdir -p $save
 
 # combinations
-comb=$ESN/combinations.json
+comb=$ESN/{combinations_file}
 
 
 ########## COPY ##########
@@ -303,10 +337,10 @@ echo "copying project............"
 cp -r /data/tsa/destevez/dennis/ESN/* $ESN
 
 echo "copying project............"
-cp -r "{combinations}" $ESN
+cp -r "{combinations_path}" $ESN
 
 echo "copying data............"
-cp -r {data.absolute()}/* $data
+cp -r {data_path.absolute()}/* $data
 echo "end of copy"
 
 
