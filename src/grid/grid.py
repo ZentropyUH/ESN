@@ -130,7 +130,6 @@ def grid(
         fig.suptitle('', fontsize=16)
         fig.supxlabel('time')
 
-        # Make this if-else better TODO
         if features == 1:
             axs.plot(xvalues, prediction[:, 0], label="prediction")
             axs.plot(xvalues, true_data[:, 0], label="target")

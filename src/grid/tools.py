@@ -102,41 +102,47 @@ def generate_initial_combinations(output: str):
         "spectral_radio": (0.9, 16 , 0.01, lambda x, y, i: round(x + y * i, 2)),
         "reconection_prob": (0, 6, 0.2, lambda x, y, i: round(x + y*i, 2))
     }
+
+    combinations = {
+        int(i + 1): c
+        for i, c in enumerate(
+            product(
+                *[[elem[3](elem[0], elem[2], i) for i in range(elem[1])] for elem in hyperparameters_to_adjust.values()]
+            )
+        )
+    }
+
     with open(join(output, 'combinations.json'), 'w') as f:
         json.dump(
-            {
-                int(i + 1): c
-                for i, c in enumerate(
-                    product(
-                        *[[elem[3](elem[0], elem[2], i) for i in range(elem[1])] for elem in hyperparameters_to_adjust.values()]
-                    )
-                )
-            },
+            combinations,
             f,
             indent=4,
             sort_keys=True,
             separators=(",", ": "),
         )
+    
+    steps = {
+        "all": [
+            0.2,
+            2,
+            0.1,
+            0.01,
+            0.2
+        ],
+        "sigma": 0.2,
+        "degree": 2,
+        "ritch_regularization": 0.1,
+        "spectral_radio": 0.01,
+        "reconection_prob": 0.2
+    }
     with open(join(output, 'steps.json'), 'w') as f:
         json.dump(
-            {
-                "all": [
-                    0.2,
-                    2,
-                    0.1,
-                    0.01,
-                    0.2
-                ],
-                "sigma": 0.2,
-                "degree": 2,
-                "ritch_regularization": 0.1,
-                "spectral_radio": 0.01,
-                "reconection_prob": 0.2
-            },
+            steps,
             f,
             indent=4,
             separators=(",", ": "),
         )
+    return combinations
 
 
 

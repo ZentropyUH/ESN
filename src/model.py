@@ -265,7 +265,3 @@ def generate_ESN(
 
     model = ESN(inputs, outputs, readout_layer)
     return model
-
-# def load_model(filepath: str):
-#     model: keras.Model = keras.models.load_model(filepath, compile=False)
-#     esn = ESN()

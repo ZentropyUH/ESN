@@ -322,11 +322,106 @@ def grid(
     )
 
 
+
+# INITIALIZE GRID
+@app.command()
+def grid_init(
+    path: str = typer.Option(..., "--path", "-p"),
+    job_name: str = typer.Option(..., "--job-name", "-j"),
+    data_path: str = typer.Option(..., "--data-path", "-dp"),
+    steps: int = typer.Option(1, '--steps', '-s'),
+):
+    info_path = join(path, 'info')
+    makedirs(info_path, exist_ok=True)
+    n_info_path = join(info_path, '0')
+    makedirs(n_info_path, exist_ok=True)
+    n_run_path = join(path, 'run_0')
+    makedirs(n_run_path, exist_ok=True)
+    combinations_path = join(n_info_path, 'combinations.json')
+    output_path = join(n_run_path, 'data')
+    script_file = join(n_info_path, 'script.sh')
+
+    combinations = generate_initial_combinations(n_info_path)
+    script_generator(
+        job_name,
+        (1, len(combinations)),
+        combinations_path,
+        output_path,
+        data_path,
+        script_file,
+        steps
+    )
+
+
+
 @app.command(help='Generate and save the initial hyperparameters combinations in the given path.')
 def initial_combinations(
     output: str = typer.Option(..., "--output", "-o"),
 ):
     generate_initial_combinations(output)
+
+
+@app.command(help='Generate new slurm script.')
+def script(
+    job_name: str = typer.Option(..., "--job-name", "-j"),
+    data_path: str = typer.Option(..., "--data-path", "-dp"),
+    combinations_path: str = typer.Option(..., "--combinations-path", "-cp"),
+    output_path: str = typer.Option(..., "--output-path", "-op"),
+    filepath: str = typer.Option(..., "--file-path", "-fp"),
+    steps: int = typer.Option(1, '--steps', '-s'),
+):
+    combinations = load_hyperparams(combinations_path)
+    script_generator(
+        job_name,
+        (1, len(combinations)),
+        combinations_path,
+        output_path,
+        data_path,
+        filepath,
+        steps
+    )
+
+
+
+# RUN BETWEEN GRID SEARCH
+@app.command()
+def grid_aux(
+    job_name: str = typer.Option(..., "--job-name", "-j"),
+    run_path: str = typer.Option(..., "--run-path", "-rp"),
+    data_path: str = typer.Option(..., "--data-path", "-dp"),
+    info_path: str = typer.Option(..., "--info-path", "-ip"),
+    n_results: int = typer.Option(..., "--n-results", "-nr"),
+    threshold: float = typer.Option(..., "--threshold", "-t"),
+    steps: int = typer.Option(1, '--steps', '-s'),
+):
+    output_path = join(run_path, 'data')
+    results_path = join(run_path, 'results')
+    steps_file = join(info_path, 'steps.json')
+    new_info = join(Path(info_path).absolute().parent, str(int(Path(info_path).absolute().name)+1))
+    makedirs(new_info, exist_ok=True)
+    new_run = join(Path(run_path).absolute().parent, 'run_' + str(int(Path(run_path).absolute().name.split('_')[-1])+1))
+    makedirs(new_run, exist_ok=True)
+
+    best_results(
+        output_path,
+        results_path,
+        n_results,
+        threshold
+    )
+    new_combinations = generate_result_combinations(
+        results_path,
+        steps_file,
+        new_info,
+    )
+    script_generator(
+        job_name,
+        (1, len(new_combinations)),
+        join(new_info, 'combinations.json'),
+        join(new_run, 'data'),
+        data_path,
+        join(new_info, 'script.sh'),
+        steps
+    )
 
 
 @app.command(help='Generate the new hyperparameters combinations from the results from the given path.')
@@ -354,67 +449,6 @@ def best_results(
         output,
         max_size,
         threshold
-    )
-
-
-@app.command(help='Generate new slurm script.')
-def script(
-    job_name: str = typer.Option(..., "--job-name", "-j"),
-    data_path: str = typer.Option(..., "--data-path", "-dp"),
-    combinations_path: str = typer.Option(..., "--combinations-path", "-cp"),
-    output_path: str = typer.Option(..., "--output-path", "-op"),
-    filepath: str = typer.Option(..., "--file-path", "-fp"),
-    steps: int = typer.Option(1, '--steps', '-s'),
-):
-    params = load_hyperparams(combinations_path)
-    script_generator(
-        job_name,
-        (1, len(params)),
-        combinations_path,
-        output_path,
-        data_path,
-        filepath,
-        steps
-    )
-
-
-@app.command()
-def grid_aux(
-    job_name: str = typer.Option(..., "--job-name", "-j"),
-    data: str = typer.Option(..., "--data", "-d"),
-    path: str = typer.Option(..., "--path", "-p"),
-    info: str = typer.Option(..., "--info", "-i"),
-    max_size: int = typer.Option(..., "--max-size", "-ms"),
-    threshold: float = typer.Option(..., "--threshold", "-t"),
-    steps: int = typer.Option(1, '--steps', '-s'),
-):
-    data_path = join(path, 'data')
-    results_path = join(path, 'results')
-    steps_file = join(info, 'steps.json')
-    new_info = join(Path(info).absolute().parent, str(int(Path(info).absolute().name)+1))
-    makedirs(new_info, exist_ok=True)
-    new_run = join(Path(path).absolute().parent, 'run_' + str(int(Path(path).absolute().name.split('_')[-1])+1))
-    makedirs(new_run, exist_ok=True)
-
-    best_results(
-        data_path,
-        results_path,
-        max_size,
-        threshold
-    )
-    new_combinations = generate_result_combinations(
-        results_path,
-        steps_file,
-        new_info,
-    )
-    script_generator(
-        job_name,
-        (1, len(new_combinations)),
-        join(new_info, 'combinations.json'),
-        join(new_run, 'data'),
-        data,
-        join(new_info, 'script.sh'),
-        steps
     )
 
 
