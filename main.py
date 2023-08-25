@@ -453,5 +453,15 @@ def best_results(
 
 
 
+@app.command()
+def results_data(
+    path: str = typer.Option(..., "--path", "-p"),
+    filepath: str = typer.Option(..., "--file-path", "-fp"),
+    threshold: float = typer.Option(..., "--threshold", "-t"),
+):
+    results_info(path, filepath, threshold)
+    
+
+
 if __name__ == "__main__":
     app()

@@ -380,3 +380,47 @@ exit 0
 
     with open(filepath, 'w') as f:
         f.write(file)
+
+
+
+def results_info(path: str, filepath: str, threshold: float):
+    data = []
+    for folder in track(listdir(path), description='Searching best combinations'):
+        folder = join(path, folder)
+        rmse_mean_path = join(folder, 'rmse_mean', 'rmse_mean.csv')
+        params_path = join(folder, 'trained_model', 'params.json')
+
+        with open(rmse_mean_path, 'r') as f:
+            rmse_mean = read_csv(f)
+
+
+        with open(params_path, 'r') as f:
+            params = json.load(f)
+        
+        params = {
+            'reservoir_sigma': params['reservoir_sigma'],
+            'reservoir_degree': params['reservoir_degree'],
+            'regularization': params['regularization'],
+            'spectral_radius': params['spectral_radius'],
+            'rewiring': params['rewiring'],
+        }
+        
+        index = len(rmse_mean)
+        for i, x in enumerate(rmse_mean):
+            if x > threshold:
+                index = i
+                break
+        
+        data.append({
+            'index': index,
+            'params': params,
+        })
+
+    with open(filepath, 'w') as f:
+        json.dump(
+            data,
+            f,
+            indent=4,
+            sort_keys=True,
+            separators=(",", ": "),
+        )
