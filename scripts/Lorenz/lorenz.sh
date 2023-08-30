@@ -5,13 +5,15 @@
 #SBATCH --job-name="lorenz"
 
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=2
-#SBATCH --mem-per-cpu=10000M
+#SBATCH --cpus-per-task=8
+#SBATCH --mem-per-cpu=2000M
 
-#SBATCH --time=14-00:00:00
-#SBATCH --partition=long
+#SBATCH --gres=gpu:A100:1
 
-#SBATCH --array=1529-1660,2197-2216,2236-2273,2312-2349,2388-2404,4008-6070,6072-9536
+#SBATCH --time=4-00:00:00
+#SBATCH --partition=graphic
+
+#SBATCH --array=1-9600
 
 
 ########## MODULES ##########
@@ -32,25 +34,29 @@ mkdir -p $scratch
 cd $scratch
 
 # project path
-ESN=$scratch/ESN
+ESN=./ESN
 mkdir -p $ESN
 
 # output path
-output="$scratch/output"
+output="./output"
 mkdir -p $output
 
 # data path
-data="$scratch/data"
+data="./data"
 mkdir -p $data
 
 # save path
-save="/data/tsa/destevez/dennis/Lorenz_fixed/"
+save="/data/tsa/destevez/_Lorenz/"
 mkdir -p $save
+
+# combinations
+comb=$ESN/src/grid/combinations.json
 
 
 
 ########## COPY ##########
 
+# TODO: Copy project
 # Copy project files to scratch
 echo "copying project............"
 cp -r /data/tsa/destevez/dennis/ESN/* $ESN
@@ -63,9 +69,8 @@ echo "end of copy"
 
 ########## RUN ##########
 
-cd $ESN
 echo "runing............"
-srun python3 tmain.py grid -i $SLURM_ARRAY_TASK_ID -d $data -o $output -u 9000 -tl 20000
+srun python3 ESN/main.py grid -u 6000 -tl 20000 -fl 1000 -tr 1000 -d $data -o $output -i $SLURM_ARRAY_TASK_ID -hp $comb
 echo "end of run"
 
 

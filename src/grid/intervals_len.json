@@ -1,9 +1,0 @@
-{
-    "sigma" : 0.2,
-    "degree":  2, 
-    "ritch_regularization": 0.1,
-    "spectral_radio": 0.01,
-    "reconection_prob": 0.2,
-    "all": [0.2, 2, 0.1, 0.01, 0.2]
-}
-

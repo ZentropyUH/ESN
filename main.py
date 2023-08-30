@@ -1,22 +1,18 @@
 #!/usr/bin/python3
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import typer
-from src.grid.grid_tools import *
+
+from src.grid.tools import *
 from src.utils import load_model_and_params
 
 from t_utils import *
-from src.grid.grid_one import (
-    grid_one,
-    best_combinations,
-    change_folders,
-    detect_not_fished_jobs,
-    calculate_mse,
-)
-from model_functions import _train, _forecast, _plot
-
+from functions import _train, _forecast, _plot
+from src.grid.grid import _grid
+from src.grid.tools import get_best_results, generate_result_combinations, script_generator, generate_initial_combinations
 
 app = typer.Typer()
 
-# TODO: Files names
 
 
 @app.command()
@@ -301,19 +297,170 @@ def plot(
 
 @app.command()
 def grid(
-    index: int = typer.Option(..., "--index", "-i"),
+    units: int = typer.Option(9000, "--units", "-u"),
+    train_length: int = typer.Option(20000, "--train-length", "-tl"),
+    forecast_length: int = typer.Option(1000, "--forecast-length", "-fl"),
+    transient: int = typer.Option(1000, "--transient", "-tr"),
+    steps: int = typer.Option(1, '--steps', '-s'),
+
     data_path: str = typer.Option(..., "--data", "-d"),
     output_path: str = typer.Option(..., "--output", "-o"),
-    units: int = typer.Option(9000, "--units", "-u"),
-    training_lenght: int = typer.Option(20000, "--training-lenght", "-tl"),
+    
+    index: int = typer.Option(..., "--index", "-i"),
+    hyperparameters_path: str = typer.Option(..., "--hyperparameters-path", "-hp"),
 ):
-    grid_one(
-        index,
-        data_path,
-        output_path,
-        units,
-        training_lenght,
+    _grid(
+        units=units,
+        train_length=train_length,
+        forecast_length=forecast_length,
+        transient=transient,
+        steps=steps,
+        data_path=data_path,
+        output_path=output_path,
+        index=index,
+        hyperparameters_path=hyperparameters_path,
     )
+
+
+
+# INITIALIZE GRID
+@app.command()
+def grid_init(
+    path: str = typer.Option(..., "--path", "-p"),
+    job_name: str = typer.Option(..., "--job-name", "-j"),
+    data_path: str = typer.Option(..., "--data-path", "-dp"),
+    steps: int = typer.Option(1, '--steps', '-s'),
+):
+    info_path = join(path, 'info')
+    makedirs(info_path, exist_ok=True)
+    n_info_path = join(info_path, '0')
+    makedirs(n_info_path, exist_ok=True)
+    n_run_path = join(path, 'run_0')
+    makedirs(n_run_path, exist_ok=True)
+    combinations_path = join(n_info_path, 'combinations.json')
+    output_path = join(n_run_path, 'data')
+    script_file = join(n_info_path, 'script.sh')
+
+    combinations = generate_initial_combinations(n_info_path)
+    script_generator(
+        job_name,
+        (1, len(combinations)),
+        combinations_path,
+        output_path,
+        data_path,
+        script_file,
+        steps
+    )
+
+
+
+@app.command(help='Generate and save the initial hyperparameters combinations in the given path.')
+def initial_combinations(
+    output: str = typer.Option(..., "--output", "-o"),
+):
+    generate_initial_combinations(output)
+
+
+@app.command(help='Generate new slurm script.')
+def script(
+    job_name: str = typer.Option(..., "--job-name", "-j"),
+    data_path: str = typer.Option(..., "--data-path", "-dp"),
+    combinations_path: str = typer.Option(..., "--combinations-path", "-cp"),
+    output_path: str = typer.Option(..., "--output-path", "-op"),
+    filepath: str = typer.Option(..., "--file-path", "-fp"),
+    steps: int = typer.Option(1, '--steps', '-s'),
+):
+    combinations = load_hyperparams(combinations_path)
+    script_generator(
+        job_name,
+        (1, len(combinations)),
+        combinations_path,
+        output_path,
+        data_path,
+        filepath,
+        steps
+    )
+
+
+
+# RUN BETWEEN GRID SEARCH
+@app.command()
+def grid_aux(
+    job_name: str = typer.Option(..., "--job-name", "-j"),
+    run_path: str = typer.Option(..., "--run-path", "-rp"),
+    data_path: str = typer.Option(..., "--data-path", "-dp"),
+    info_path: str = typer.Option(..., "--info-path", "-ip"),
+    n_results: int = typer.Option(..., "--n-results", "-nr"),
+    threshold: float = typer.Option(..., "--threshold", "-t"),
+    steps: int = typer.Option(1, '--steps', '-s'),
+):
+    output_path = join(run_path, 'data')
+    results_path = join(run_path, 'results')
+    steps_file = join(info_path, 'steps.json')
+    new_info = join(Path(info_path).absolute().parent, str(int(Path(info_path).absolute().name)+1))
+    makedirs(new_info, exist_ok=True)
+    new_run = join(Path(run_path).absolute().parent, 'run_' + str(int(Path(run_path).absolute().name.split('_')[-1])+1))
+    makedirs(new_run, exist_ok=True)
+
+    best_results(
+        output_path,
+        results_path,
+        n_results,
+        threshold
+    )
+    new_combinations = generate_result_combinations(
+        results_path,
+        steps_file,
+        new_info,
+    )
+    script_generator(
+        job_name,
+        (1, len(new_combinations)),
+        join(new_info, 'combinations.json'),
+        join(new_run, 'data'),
+        data_path,
+        join(new_info, 'script.sh'),
+        steps
+    )
+
+
+@app.command(help='Generate the new hyperparameters combinations from the results from the given path.')
+def new_combinations(
+    path: str = typer.Option(..., "--path", "-p"),
+    output: str = typer.Option(..., "--output", "-o"),
+    steps: str = typer.Option(..., "--steps", "-s"),
+):
+    generate_result_combinations(
+        path = path,
+        steps_file = steps,
+        output = output,
+    )
+
+
+@app.command(help='Get the best results from the given path. Compare by the given `threshold`.')
+def best_results(
+    path: str = typer.Option(..., "--path", "-p"),
+    output: str = typer.Option(..., "--output", "-o"),
+    max_size: int = typer.Option(..., "--max-size", "-ms"),
+    threshold: float = typer.Option(..., "--threshold", "-t"),
+):
+    get_best_results(
+        path,
+        output,
+        max_size,
+        threshold
+    )
+
+
+
+@app.command()
+def results_data(
+    path: str = typer.Option(..., "--path", "-p"),
+    filepath: str = typer.Option(..., "--file-path", "-fp"),
+    threshold: float = typer.Option(..., "--threshold", "-t"),
+):
+    results_info(path, filepath, threshold)
+    
 
 
 if __name__ == "__main__":

@@ -502,7 +502,7 @@ class ReservoirCell(keras.layers.Layer):
 
 import keras.backend
 
-@keras.utils.register_keras_serializable(package="custom")
+@tf.keras.utils.register_keras_serializable(package="custom")
 class Reservoir(keras.layers.Layer):
     def __init__(self,
             func: Callable,

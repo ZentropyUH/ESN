@@ -6,8 +6,11 @@ import numpy as np
 import tensorflow as tf
 from scipy import sparse
 from scipy.sparse import linalg
+
 import keras
-from keras.initializers.initializers import Initializer
+import keras.utils
+import keras.initializers
+from keras.initializers import Initializer
 
 ###############################################
 ################## Initializers ###############
@@ -773,7 +776,7 @@ class WattsStrogatzNX(Initializer):
         degree (int): The degree of the regular graph.
         spectral_radius (float): The spectral radius of the adjacency matrix.
         rewiring_p (float): The probability of rewiring each edge.
-        sigma (float): The standard deviation of the weights.
+        sigma (float): The standard dviation of the weights.
         ones (bool): If True, the weights will be initialized to 1.
 
     Returns:
