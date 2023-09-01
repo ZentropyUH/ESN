@@ -1,7 +1,7 @@
 from os import makedirs, listdir, system
 from os.path import join, isdir, split, isfile
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List
 
 from threading import Thread
 from random import randint
@@ -414,6 +414,7 @@ def results_info(path: str, filepath: str, threshold: float):
         data.append({
             'index': index,
             'params': params,
+            'folder': folder,
         })
 
     with open(filepath, 'w') as f:
@@ -424,3 +425,4 @@ def results_info(path: str, filepath: str, threshold: float):
             sort_keys=True,
             separators=(",", ": "),
         )
+
