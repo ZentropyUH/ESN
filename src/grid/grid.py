@@ -73,7 +73,7 @@ def grid(
     print('Training...')
 
     # Se manda a entrenar con los parametros por defecto, en este caso
-    trained_model, train_params = _train(
+    trained_model = _train(
         data_file=train_data_path,
         filepath=trained_model_path,
         
@@ -108,8 +108,8 @@ def grid(
         print('Forecasting {}...'.format(fn))
         prediction, true_data = _forecast (
             trained_model = trained_model,
-            transient = train_params['transient'],
-            train_length = train_params["train_length"],
+            transient = transient,
+            train_length = train_length,
             data_file= current_data,
             filepath= join(forecast_path, f'{fn}.csv'),
             forecast_length=forecast_length,
@@ -192,7 +192,7 @@ def _grid(
     spectral_radius=params[3]
     rewiring=params[4]
     input_scaling=0.5
-    leak_rate=1.0
+    leak_rate=0.5
 
     grid(
         data_path=data_path,

@@ -181,7 +181,7 @@ def _train(
                 separators=(",", ": ")
             )
 
-    return _model, params
+    return _model
 
 
 def _forecast(
