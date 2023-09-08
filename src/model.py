@@ -183,6 +183,8 @@ class ESN:
             return np.inf
         print(f"Forecast loss: {loss}\n")
 
+        self.model.reset_states()
+
         return predictions
 
     def save(self, filepath: str):
