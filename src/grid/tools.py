@@ -90,6 +90,11 @@ def load_hyperparams(filepath: str) -> Dict:
         combinations = json.load(f)
         return combinations
 
+def generate_combiantions(hyperparams: List[List[float]]):
+    return list(product(*hyperparams))
+
+# print(len(generate_combiantions([[0.2, 0.4, 0.6, 0.8, 1.0], [2, 4, 6, 8], [10e-5, 10e-6, 10e-7, 10e-8, 10e-9], [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]])))
+
 def generate_initial_combinations(output: str):
     '''
     Generate and save the initial hyperparameters combinations in the given path.\n
@@ -354,7 +359,7 @@ echo "end of copy"
 ########## RUN ##########
 
 echo "runing............"
-srun python3 ESN/main.py grid -u 6000 -tl 20000 -fl 1000 -tr 1000 -d $data -o $output -i $SLURM_ARRAY_TASK_ID -hp $comb -s {steps}
+srun python3 ESN/main.py grid -u 5000 -tl 20000 -fl 1000 -tr 1000 -d $data -o $output -i $SLURM_ARRAY_TASK_ID -hp $comb -s {steps}
 echo "end of run"
 
 
