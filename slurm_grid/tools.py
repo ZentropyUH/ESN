@@ -1,19 +1,15 @@
-from os import makedirs, listdir, system
-from os.path import join, isdir, split, isfile
-from pathlib import Path
-from typing import Dict, List
-
-from threading import Thread
-from random import randint
-from itertools import product, chain
-
-import pandas as pd
-import numpy as np
-import csv
 import json
 import shutil
-from rich.progress import track
+import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
+
+from os import makedirs, listdir
+from os.path import join, isfile
+from pathlib import Path
+from typing import Dict, List
+from itertools import product, chain
+from rich.progress import track
 
 
 
@@ -58,15 +54,66 @@ def save_plots(data: list, output_path: str, name: str):
     plt.title("Plot of root mean square error")
     plt.savefig(join(output_path, name))
 
+def plot_prediction(data: np.ndarray, prediction: np.ndarray, filepath: str, dt: float=1):
+    features = prediction.shape[-1]
+    xvalues = np.arange(0, len(prediction)) * dt
+
+    # Make each plot on a different axis
+    fig, axs = plt.subplots(features, 1, sharey=True, figsize=(20, 9.6))
+    fig.tight_layout()
+    fig.subplots_adjust(top=0.9, bottom=0.08, hspace=0.3)
+
+    fig.suptitle('', fontsize=16)
+    fig.supxlabel('time')
+
+    if features == 1:
+        axs.plot(xvalues, data[:, 0], label="target")
+        axs.plot(xvalues, prediction[:, 0], label="prediction", linestyle='--')
+        axs.legend()
+    elif features <= 3:
+        for i in range(features):
+            axs[i].plot(xvalues, data[:, i], label="target")
+            axs[i].plot(xvalues, prediction[:, i], label="prediction", linestyle='--')
+            axs[i].legend()
+    else:
+        yvalues = np.arange(0, prediction.shape[-1])
+        
+        # Making the figure pretty
+        fig, axs = plt.subplots(3, 1, sharey=True, figsize=[20, 9.6])
+        fig.tight_layout()
+        fig.subplots_adjust(top=0.9, bottom=0.08, right=1.1, hspace=0.3)
+
+        fig.suptitle('JAJA', fontsize=16)
+        fig.supxlabel('x')
+
+        model_plot = axs[0].contourf(xvalues, yvalues, data.T, levels=50)
+        axs[0].set_title("Original model")
+
+        prediction_plot = axs[1].contourf(
+            xvalues, yvalues, prediction.T, levels=50
+        )
+        axs[1].set_title("Predicted model")
+
+        error = abs(prediction - data)
+
+        error_plot = axs[2].contourf(xvalues, yvalues, error.T, levels=20)
+        axs[2].set_title("Error")
+
+        # Individually adding the colorbars
+        fig.colorbar(model_plot, ax=axs[0])
+        fig.colorbar(prediction_plot, ax=axs[1])
+        fig.colorbar(error_plot, ax=axs[2])
+
+    plt.savefig(filepath)
 
 
-# Work with csv
-def save_csv(data, name: str, path: str):
+# Work with csv and json
+def save_csv(data, filepath: str):
     '''
     Save the `data` in a .csv.
     '''
     pd.DataFrame(data).to_csv(
-        join(path, name),
+        filepath,
         index=False,
         header=None,
     )
@@ -76,6 +123,16 @@ def read_csv(file: str):
     Read a .csv file and return a numpy array.
     '''
     return pd.read_csv(file).to_numpy()
+
+def save_json(data: Dict, filepath: str):
+    with open(filepath, 'w') as f:
+        json.dump(
+            data,
+            f,
+            indent=4,
+            sort_keys=True,
+            separators=(",", ": "),
+        )
 
 
 
@@ -90,10 +147,18 @@ def load_hyperparams(filepath: str) -> Dict:
         combinations = json.load(f)
         return combinations
 
-def generate_combiantions(hyperparams: List[List[float]]):
-    return list(product(*hyperparams))
+def generate_combiantions(hyperparams: Dict[str, List[float]]):
+    param_name=[]
+    param_value=[]
+    for key in hyperparams.keys():
+        param_name.append(key)
+        param_value.append(hyperparams[key])
+    
+    data = {}
+    for i, c in enumerate(product(*param_value)):
+        data[i+1] = {pname: pvalue for pname, pvalue in zip(param_name, c)}
+    return data
 
-# print(len(generate_combiantions([[0.2, 0.4, 0.6, 0.8, 1.0], [2, 4, 6, 8], [10e-5, 10e-6, 10e-7, 10e-8, 10e-9], [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]])))
 
 def generate_initial_combinations(output: str):
     '''
@@ -269,14 +334,13 @@ def generate_result_combinations(
 
 
 
-def script_generator(
+def generate_slurm_script(
         job_name: str,
         array: tuple,
         combinations_path: str,
         output_path: str,
         data_path: str,
         filepath: str,
-        steps:int
 ):
     '''
     Generate new slurm script.
@@ -359,7 +423,7 @@ echo "end of copy"
 ########## RUN ##########
 
 echo "runing............"
-srun python3 ESN/main.py grid -u 5000 -tl 20000 -fl 1000 -tr 1000 -d $data -o $output -i $SLURM_ARRAY_TASK_ID -hp $comb -s {steps}
+srun python3 ESN/main.py slurm-grid -d $data -o $output -i $SLURM_ARRAY_TASK_ID -hp $comb
 echo "end of run"
 
 
@@ -401,14 +465,6 @@ def results_info(path: str, filepath: str, threshold: float):
 
         with open(params_path, 'r') as f:
             params = json.load(f)
-        
-        params = {
-            'reservoir_sigma': params['reservoir_sigma'],
-            'reservoir_degree': params['reservoir_degree'],
-            'regularization': params['regularization'],
-            'spectral_radius': params['spectral_radius'],
-            'rewiring': params['rewiring'],
-        }
         
         index = len(rmse_mean)
         for i, x in enumerate(rmse_mean):

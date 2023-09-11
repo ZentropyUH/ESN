@@ -1,21 +1,17 @@
 import time
 import json
-from rich.progress import track
+import numpy as np
+from random import randint
+from os.path import join
+from os import makedirs, listdir
 
 from functions import _train, _forecast
-from src.grid.tools import *
-
-
-'''
-<output dir>
----- <name>
----- ---- trained_model
----- ---- forecast
----- ---- forecast_plots
----- ---- time.txt
----- ---- rmse
----- ---- rmse_mean
-'''
+from slurm_grid.tools import (
+    plot_prediction,
+    load_hyperparams,
+    save_plots,
+    save_csv,
+)
 
 
 
@@ -23,19 +19,19 @@ def grid(
         data_path: str,
         output_path: str,
 
-        units: int=6000,
-        train_length: int=20000,
-        forecast_length: int=1000,
-        transient: int=1000,
-        steps: int=1,
+        units: int,
+        train_length: int,
+        forecast_length: int,
+        transient: int,
+        steps: int,
 
-        input_scaling=0.5,
-        leak_rate=1.0,
-        spectral_radius=0.99,
-        rewiring=0.5,
-        reservoir_degree=3,
-        reservoir_sigma=0.5,
-        regularization=1e-4,
+        input_scaling: float,
+        leak_rate: float,
+        spectral_radius: float,
+        rewiring: float,
+        reservoir_degree: int,
+        reservoir_sigma: float,
+        regularization: float,
     ):
     # Select the data to train
     data: list[str] = [join(data_path, p) for p in listdir(data_path)]
@@ -119,29 +115,12 @@ def grid(
         forecast_data.append((prediction, true_data))
 
         # PLOTS
-        features = prediction.shape[-1]
-        xvalues = np.arange(0, forecast_length)
-
-        # Make each plot on a different axis
-        fig, axs = plt.subplots(features, 1, sharey=True, figsize=(20, 9.6))
-        fig.tight_layout()
-        fig.subplots_adjust(top=0.9, bottom=0.08, hspace=0.3)
-
-        fig.suptitle('', fontsize=16)
-        fig.supxlabel('time')
-
-        if features == 1:
-            axs.plot(xvalues, prediction[:, 0], label="prediction")
-            axs.plot(xvalues, true_data[:, 0], label="target")
-            axs.legend()
-        else:
-            for i in range(features):
-                axs[i].plot(xvalues, prediction[:, i], label="prediction")
-                axs[i].plot(xvalues, true_data[:, i], label="target")
-                axs[i].legend()
-
-        plt.savefig(join(forecast_plot_path, str(fn)))
-
+        plot_prediction(
+            data=true_data,
+            prediction=prediction,
+            filepath=join(forecast_plot_path, str(fn)),
+            dt=1,
+        )
 
     forecast_time = (time.time() - start_forecast_time)/len(data)
     
@@ -152,7 +131,7 @@ def grid(
     mean = []
     for i, current in enumerate(rmse):
         # Save current rmse
-        save_csv(current, f'{i}.csv', rmse_path)
+        save_csv(current, join(rmse_path, f'{i}.csv'))
         
         if len(mean) == 0:
             mean = current
@@ -162,7 +141,7 @@ def grid(
     mean = [x / len(data) for x in mean]
 
     # Save the csv
-    save_csv(mean, "rmse_mean.csv", mean_path)
+    save_csv(mean, join(mean_path, 'rmse_mean.csv'))
     save_plots(data=mean, output_path=mean_path, name='rmse_mean_plot.png')
 
     
@@ -171,43 +150,28 @@ def grid(
 
 
 
-def _grid(
-    units: int,
-    train_length: int,
-    forecast_length: int,
-    transient: int,
-    steps: int,
-
+def _slurm_grid(
     data_path: str,
     output_path: str,
-    
     index: int,
     hyperparameters_path: str,
-):
-    
+):  
     params = load_hyperparams(hyperparameters_path)[str(index)]
-    reservoir_sigma=params[0]
-    reservoir_degree=params[1]
-    regularization=params[2]
-    spectral_radius=params[3]
-    rewiring=params[4]
-    input_scaling=0.5
-    leak_rate=0.5
 
     grid(
         data_path=data_path,
         output_path=join(output_path, str(index)),
-        units=units,
-        train_length=train_length,
-        forecast_length=forecast_length,
-        transient=transient,
-        steps=steps,
+        units=params['units'],
+        train_length=params['train_length'],
+        forecast_length=params['forecast_length'],
+        transient=params['transient'],
+        steps=params['steps'],
 
-        input_scaling=input_scaling,
-        leak_rate=leak_rate,
-        spectral_radius=spectral_radius,
-        rewiring=rewiring,
-        reservoir_degree=reservoir_degree,
-        reservoir_sigma=reservoir_sigma,
-        regularization=regularization,
+        input_scaling=params['input_scaling'],
+        leak_rate=params['leak_rate'],
+        spectral_radius=params['spectral_radius'],
+        rewiring=params['rewiring'],
+        reservoir_degree=params['reservoir_degree'],
+        reservoir_sigma=params['reservoir_sigma'],
+        regularization=params['regularization'],
     )

@@ -2,14 +2,24 @@
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import typer
-
-from src.grid.tools import *
-from src.utils import load_model_and_params
+from typing import List
+from os.path import join
+from os import makedirs
+from pathlib import Path
 
 from t_utils import *
+from src.utils import load_model_and_params
 from functions import _train, _forecast, _plot
-from src.grid.grid import _grid
-from src.grid.tools import get_best_results, generate_result_combinations, script_generator, generate_initial_combinations
+
+from slurm_grid.grid import _slurm_grid
+from slurm_grid.tools import (
+    get_best_results,
+    generate_result_combinations,
+    generate_slurm_script,
+    generate_combiantions,
+    results_info,
+    save_json
+)
 
 app = typer.Typer()
 
@@ -296,25 +306,14 @@ def plot(
 
 
 @app.command()
-def grid(
-    units: int = typer.Option(9000, "--units", "-u"),
-    train_length: int = typer.Option(20000, "--train-length", "-tl"),
-    forecast_length: int = typer.Option(1000, "--forecast-length", "-fl"),
-    transient: int = typer.Option(1000, "--transient", "-tr"),
-    steps: int = typer.Option(1, '--steps', '-s'),
-
+def slurm_grid(
     data_path: str = typer.Option(..., "--data", "-d"),
     output_path: str = typer.Option(..., "--output", "-o"),
     
     index: int = typer.Option(..., "--index", "-i"),
     hyperparameters_path: str = typer.Option(..., "--hyperparameters-path", "-hp"),
 ):
-    _grid(
-        units=units,
-        train_length=train_length,
-        forecast_length=forecast_length,
-        transient=transient,
-        steps=steps,
+    _slurm_grid(
         data_path=data_path,
         output_path=output_path,
         index=index,
@@ -325,62 +324,59 @@ def grid(
 
 # INITIALIZE GRID
 @app.command()
-def grid_init(
-    path: str = typer.Option(..., "--path", "-p"),
-    job_name: str = typer.Option(..., "--job-name", "-j"),
-    data_path: str = typer.Option(..., "--data-path", "-dp"),
-    steps: int = typer.Option(1, '--steps', '-s'),
-):
-    info_path = join(path, 'info')
-    makedirs(info_path, exist_ok=True)
-    n_info_path = join(info_path, '0')
-    makedirs(n_info_path, exist_ok=True)
-    n_run_path = join(path, 'run_0')
-    makedirs(n_run_path, exist_ok=True)
-    combinations_path = join(n_info_path, 'combinations.json')
-    output_path = join(n_run_path, 'data')
-    script_file = join(n_info_path, 'script.sh')
+def init_slurm_grid(
+    path: str = typer.Option(..., '--path', '-p', help='Base path to save grid search folders and files.'),
+    job_name: str = typer.Option(..., '--job-name', '-j', help='Slurm job name.'),
+    data_path: str = typer.Option(..., '--data-path', '-dp', help='Path of the System data.'),
 
-    combinations = generate_initial_combinations(n_info_path)
-    script_generator(
+    units: List[int] = typer.Option([5000], '--units', '-u'),
+    train_length: List[int] = typer.Option([20000], '--train-length', '-tl'),
+    forecast_length: List[int] = typer.Option([1000], '--forecast-length', '-fl'),
+    transient: List[int] = typer.Option([1000], '--transient', '-t'),
+    steps: List[int] = typer.Option([1], '--steps', '-s'),
+
+    input_scaling: List[float] = typer.Option(..., '--input-scaling', '-is'),
+    leak_rate: List[float] = typer.Option(..., '--leak-rate', '-lr'),
+    spectral_radius: List[float] = typer.Option(..., '--spectral-radius', '-sr'),
+    rewiring: List[float] = typer.Option(..., '--rewiring', '-rw'),
+    reservoir_degree: List[int] = typer.Option(..., '--reservoir-degree', '-rd'),
+    reservoir_sigma: List[float] = typer.Option(..., '--reservoir-sigma', '-rs'),
+    regularization: List[float] = typer.Option(..., '--regularization', '-rg'),
+):
+    info_path = join(path, 'info_0')
+    makedirs(info_path, exist_ok=True)
+    run_path = join(path, 'run_0')
+    makedirs(run_path, exist_ok=True)
+    combinations_path = join(info_path, 'combinations.json')
+    output_path = join(run_path, 'data')
+    script_file = join(info_path, 'script.sh')
+
+    combinations = generate_combiantions(
+        {
+            'units':units,
+            'train_length': train_length,
+            'forecast_length': forecast_length,
+            'transient': transient,
+            'steps': steps,
+            'input_scaling': input_scaling,
+            'leak_rate': leak_rate,
+            'spectral_radius': spectral_radius,
+            'rewiring': rewiring,
+            'reservoir_degree': reservoir_degree,
+            'reservoir_sigma': reservoir_sigma,
+            'regularization': regularization,
+        }
+    )
+
+    save_json(combinations, combinations_path)
+    generate_slurm_script(
         job_name,
         (1, len(combinations)),
         combinations_path,
         output_path,
         data_path,
         script_file,
-        steps
     )
-
-
-
-@app.command(help='Generate and save the initial hyperparameters combinations in the given path.')
-def initial_combinations(
-    output: str = typer.Option(..., "--output", "-o"),
-):
-    generate_initial_combinations(output)
-
-
-@app.command(help='Generate new slurm script.')
-def script(
-    job_name: str = typer.Option(..., "--job-name", "-j"),
-    data_path: str = typer.Option(..., "--data-path", "-dp"),
-    combinations_path: str = typer.Option(..., "--combinations-path", "-cp"),
-    output_path: str = typer.Option(..., "--output-path", "-op"),
-    filepath: str = typer.Option(..., "--file-path", "-fp"),
-    steps: int = typer.Option(1, '--steps', '-s'),
-):
-    combinations = load_hyperparams(combinations_path)
-    script_generator(
-        job_name,
-        (1, len(combinations)),
-        combinations_path,
-        output_path,
-        data_path,
-        filepath,
-        steps
-    )
-
 
 
 # RUN BETWEEN GRID SEARCH
@@ -413,7 +409,7 @@ def grid_aux(
         steps_file,
         new_info,
     )
-    script_generator(
+    generate_slurm_script(
         job_name,
         (1, len(new_combinations)),
         join(new_info, 'combinations.json'),
@@ -424,30 +420,17 @@ def grid_aux(
     )
 
 
-@app.command(help='Generate the new hyperparameters combinations from the results from the given path.')
-def new_combinations(
-    path: str = typer.Option(..., "--path", "-p"),
-    output: str = typer.Option(..., "--output", "-o"),
-    steps: str = typer.Option(..., "--steps", "-s"),
-):
-    generate_result_combinations(
-        path = path,
-        steps_file = steps,
-        output = output,
-    )
-
-
 @app.command(help='Get the best results from the given path. Compare by the given `threshold`.')
 def best_results(
-    path: str = typer.Option(..., "--path", "-p"),
+    results_path: str = typer.Option(..., "--results-path", "-rp"),
     output: str = typer.Option(..., "--output", "-o"),
-    max_size: int = typer.Option(..., "--max-size", "-ms"),
+    n_results: int = typer.Option(..., "--n-results", "-nr"),
     threshold: float = typer.Option(..., "--threshold", "-t"),
 ):
     get_best_results(
-        path,
+        results_path,
         output,
-        max_size,
+        n_results,
         threshold
     )
 
@@ -455,11 +438,11 @@ def best_results(
 
 @app.command()
 def results_data(
-    path: str = typer.Option(..., "--path", "-p"),
-    filepath: str = typer.Option(..., "--file-path", "-fp"),
+    results_path: str = typer.Option(..., "--results-path", "-rp"),
+    output_file: str = typer.Option(..., "--output-file", "-o"),
     threshold: float = typer.Option(..., "--threshold", "-t"),
 ):
-    results_info(path, filepath, threshold)
+    results_info(results_path, output_file, threshold)
     
 
 
