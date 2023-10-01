@@ -358,10 +358,10 @@ def generate_slurm_script(
 #SBATCH --job-name="{job_name}"
 
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=2
+#SBATCH --cpus-per-task=8
 #SBATCH --mem-per-cpu=2000M
 
-#SBATCH --gres=gpu:A100:1
+
 
 #SBATCH --time=02:00:00
 #SBATCH --partition=graphic
