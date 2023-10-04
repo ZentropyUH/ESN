@@ -191,20 +191,31 @@ def generate_initial_combinations(output: str):
             separators=(",", ": "),
         )
     
+    # steps = {
+    #     "all": [
+    #         0.2,
+    #         2,
+    #         0.1,
+    #         0.01,
+    #         0.2
+    #     ],
+    #     "sigma": 0.2,
+    #     "degree": 2,
+    #     "ritch_regularization": 0.1,
+    #     "spectral_radio": 0.01,
+    #     "reconection_prob": 0.2
+    # }
+
     steps = {
-        "all": [
-            0.2,
-            2,
-            0.1,
-            0.01,
-            0.2
-        ],
-        "sigma": 0.2,
-        "degree": 2,
-        "ritch_regularization": 0.1,
-        "spectral_radio": 0.01,
-        "reconection_prob": 0.2
-    }
+                "sigma" : 0.2,
+                "degree":  2, 
+                "ritch_regularization": 0.1,
+                "spectral_radio": 0.05,
+                "reconection_prob": 0.2,
+                "leak_rate":0.05,
+                "all": [0.2, 2, 0.1, 0.05, 0.2,0.05]
+            }
+
     with open(join(output, 'steps.json'), 'w') as f:
         json.dump(
             steps,
@@ -243,6 +254,7 @@ def get_best_results(path: str, output: str, max_size: int, threshold: float):
             params['regularization'],
             params['spectral_radius'],
             params['rewiring'],
+            params['leak_rate']
         )
         
         best.decide(rmse_mean, params, folder, threshold)
@@ -285,6 +297,7 @@ def generate_result_combinations(
                 params['regularization'],
                 params['spectral_radius'],
                 params['rewiring'],
+                params['leak_rate']
             ]
         )
 
@@ -292,7 +305,12 @@ def generate_result_combinations(
         steps_dict = json.load(f)
         steps_data = steps_dict['all']
         steps_data = [1 if index == 1 else i/10 for index, i in enumerate(steps_data) ]
-
+        steps_dict['reservoir_sigma']=steps_data[0]
+        steps_dict['reservoir_degree']=steps_data[1]
+        steps_dict['regularization']=steps_data[2]
+        steps_dict['spectral_radius']=steps_data[3]
+        steps_dict['rewiring']=steps_data[4]
+        steps_dict['leak_rate']=steps_data[5]
         steps_dict['all'] = steps_data
     
     with open(steps_path, 'w') as f:
@@ -311,15 +329,33 @@ def generate_result_combinations(
             if combinations[i][j] < 10e-15:
                 current_generated_combination.append([round(combinations[i][j],4)])
             else:
-                if j == 2:
+                if j == 2: #regularization
                     current_generated_combination.append([round(combinations[i][j]*steps_data[j], 10), combinations[i][j], round(combinations[i][j]/steps_data[j], 10)])
-                elif j == 1 and combinations[i][j] <= 2:
-                    current_generated_combination.append([3, 2])
+                elif j == 1 and combinations[i][j] <= 2: #reservoir degree
+                    current_generated_combination.append([2, 3])
+                elif j==4 or j==5: #rewiring or leak rate
+                    d=round(combinations[i][j]+steps_data[j], 4)
+                    m=combinations[i][j]
+                    u= round(combinations[i][j]-steps_data[j], 4)
+                    a=[]
+                    if d<1 and d>0:
+                        a.append(d)
+                    if m<1 and m>0:
+                        a.append(m)
+                    if u<1 and u>0:
+                        a.append(u)
+                    current_generated_combination.append(a)
+                    # if combinations[i][j]<0 or combinations[i][j]>1:
+                    #     continue
                 else:
                     current_generated_combination.append([round(combinations[i][j]+steps_data[j], 4), combinations[i][j], round(combinations[i][j]-steps_data[j], 4)])
     
-        new_combinations.append(product(*current_generated_combination))
-    new_combinations = {i+1: x for i, x in enumerate(chain(*new_combinations))}
+        # new_combinations.append(list(product(*current_generated_combination)))
+        new_combinations+=product(*current_generated_combination)
+
+    new_combinations=set(new_combinations)    
+    # new_combinations = {i+1: x for i, x in enumerate(chain(*new_combinations))}
+    new_combinations = {i+1: x for i, x in enumerate(new_combinations)}
 
     with open(combinations_path, 'w') as f:
         json.dump(
@@ -487,3 +523,10 @@ def results_info(path: str, filepath: str, threshold: float):
             separators=(",", ": "),
         )
 
+
+
+generate_result_combinations(
+        path='/home/lauren/Documentos/results',
+        steps_file='/home/lauren/Documentos/ESN/slurm_grid/steps_len_0.json',
+        output='/home/lauren/Documentos/output',
+)
