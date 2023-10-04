@@ -345,16 +345,12 @@ def generate_result_combinations(
                     if u<1 and u>0:
                         a.append(u)
                     current_generated_combination.append(a)
-                    # if combinations[i][j]<0 or combinations[i][j]>1:
-                    #     continue
+
                 else:
                     current_generated_combination.append([round(combinations[i][j]+steps_data[j], 4), combinations[i][j], round(combinations[i][j]-steps_data[j], 4)])
-    
-        # new_combinations.append(list(product(*current_generated_combination)))
-        new_combinations+=product(*current_generated_combination)
+            new_combinations+=product(*current_generated_combination)
 
     new_combinations=set(new_combinations)    
-    # new_combinations = {i+1: x for i, x in enumerate(chain(*new_combinations))}
     new_combinations = {i+1: x for i, x in enumerate(new_combinations)}
 
     with open(combinations_path, 'w') as f:
