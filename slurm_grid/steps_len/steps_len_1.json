@@ -1,0 +1,16 @@
+{
+    "reservoir_sigma": 0.02,
+    "reservoir_degree": 1,
+    "regularization": 0.01,
+    "spectral_radius": 0.005,
+    "rewiring": 0.02,
+    "leak_rate": 0.005,
+    "all": [
+        0.02,
+        1,
+        0.01,
+        0.005,
+        0.02,
+        0.005
+    ]
+}
