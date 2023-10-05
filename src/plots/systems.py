@@ -120,15 +120,15 @@ def plot_forecast(
             xvalues=xvalues,
             yvalues=yvalues,
             data=error,
-            levels=features,
+            levels=features//3,
             title='Error',
             cmap=cmap,
         )
 
         # Individually adding the colorbars
-        fig.colorbar(model_plot, ax=axs[0])
-        fig.colorbar(prediction_plot, ax=axs[1])
-        fig.colorbar(error_plot, ax=axs[2])
+        fig.colorbar(model_plot, ax=axs[0], cmap=cmap)
+        fig.colorbar(prediction_plot, ax=axs[1], cmap=cmap)
+        fig.colorbar(error_plot, ax=axs[2], cmap=cmap)
     
     plt.show()
 
@@ -136,14 +136,15 @@ def plot_forecast(
 def plot_system(
     target,
     length: int,
-    title: str,
-    dt: float=1,
+    title: str = '',
+    dt: float = 1,
     xlabel: str = 't',
     cmap: str = 'viridis'
 ):
     features = target.shape[-1]
-    _target = target[:, :length, :]
+    _target = target[:length]
     xvalues = np.arange(0, length) * dt
+    yvalues = np.arange(0, target.shape[-1])
 
     if features == 1:
         fig, axs = _base_setup_plot(
@@ -172,15 +173,11 @@ def plot_system(
             )
     
     else:
-
-        _target = target[:, :length, :][0]
-        xvalues = np.arange(0, length) * dt
-        yvalues = np.arange(0, target.shape[-1])
-        
         fig, axs = _base_setup_plot(
             features=1,
             title=title,
-            xlabel=xlabel
+            xlabel=xlabel,
+            figsize=(16, 4.6)
         )
         model_plot = _contourf_plot(
             ax=axs,
@@ -190,6 +187,6 @@ def plot_system(
             levels=features,
             cmap=cmap,
         )
-        fig.colorbar(model_plot, ax=axs)
+        fig.colorbar(model_plot, ax=axs, cmap=cmap)
 
     plt.show()
