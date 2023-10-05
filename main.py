@@ -329,6 +329,12 @@ def init_slurm_grid(
     job_name: str = typer.Option(..., '--job-name', '-j', help='Slurm job name.'),
     data_path: str = typer.Option(..., '--data-path', '-dp', help='Path of the System data.'),
 
+    # model: str = typer.Option('ESN', '-m', '--model'),
+    # input_initializer: str = typer.Option('InputMatrix', '-ii', '--input-initializer'),
+    # input_bias_initializer: str = typer.Option('RandomUniform', '-ib', '--input-bias'),
+    # reservoir_activation: str = typer.Option('tanh', '-ra', '--reservoir-activation'),
+    # reservoir_initializer: str = typer.Option('WattsStrogatzNX', '-ri', '--reservoir-initializer'),
+
     units: List[int] = typer.Option([5000], '--units', '-u'),
     train_length: List[int] = typer.Option([20000], '--train-length', '-tl'),
     forecast_length: List[int] = typer.Option([1000], '--forecast-length', '-fl'),
@@ -365,6 +371,11 @@ def init_slurm_grid(
             'reservoir_degree': reservoir_degree,
             'reservoir_sigma': reservoir_sigma,
             'regularization': regularization,
+            # 'model': [model],
+            # 'input_initializer': [input_initializer],
+            # 'input_bias_initializer': [input_bias_initializer],
+            # 'reservoir_activation': [reservoir_activation],
+            # 'reservoir_initializer': [reservoir_initializer],
         }
     )
 

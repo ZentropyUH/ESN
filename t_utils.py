@@ -1,15 +1,14 @@
 from enum import Enum
 
+
 class Choice(str, Enum):
     ...
-
 
 
 class EModel(Choice):
     ESN = 'ESN'
     PESN = 'Parallel-ESN'
     R = 'Reservoir_to_be_implemented'
-
 
 
 class EInputInitializer(Choice):
