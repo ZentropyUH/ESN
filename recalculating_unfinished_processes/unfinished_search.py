@@ -162,7 +162,7 @@ def search_unfinished(path, deep=0):
     )
 
 
-folds=['/data/tsa/destevez/thesis/MG/16.8','/data/tsa/destevez/thesis/MG/17','/data/tsa/destevez/thesis/MG/30']
+folds=['/data/tsa/destevez/thesis/MG/16.8','/data/tsa/destevez/thesis/MG/17.0','/data/tsa/destevez/thesis/MG/30.0']
 # fold = 'destevez@193.175.8.13:/data/tsa/destevez/thesis/MG/16.8'
 # fold='destevez@193.175.8.13:/data/tsa/destevez/thesis/MG/17'
 # fold='destevez@193.175.8.13:/data/tsa/destevez/thesis/MG/30'
