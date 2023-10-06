@@ -521,8 +521,8 @@ def results_info(path: str, filepath: str, threshold: float):
 
 
 
-generate_result_combinations(
-        path='/home/lauren/Documentos/results',
-        steps_file='/home/lauren/Documentos/ESN/slurm_grid/steps_len_0.json',
-        output='/home/lauren/Documentos/output',
-)
+# generate_result_combinations(
+#         path='/home/lauren/Documentos/results',
+#         steps_file='/home/lauren/Documentos/ESN/slurm_grid/steps_len_0.json',
+#         output='/home/lauren/Documentos/output',
+# )
