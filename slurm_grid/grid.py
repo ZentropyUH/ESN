@@ -25,6 +25,12 @@ def grid(
         transient: int,
         steps: int,
 
+        model: str,
+        input_initializer: str,
+        input_bias_initializer: str,
+        reservoir_activation: str,
+        reservoir_initializer: str,
+
         input_scaling: float,
         leak_rate: float,
         spectral_radius: float,
@@ -73,11 +79,11 @@ def grid(
         data_file=train_data_path,
         filepath=trained_model_path,
         
-        model='ESN',
-        input_initializer='InputMatrix',
-        input_bias_initializer='RandomUniform',
-        reservoir_activation='tanh',
-        reservoir_initializer='WattsStrogatzNX',
+        model=model,
+        input_initializer=input_initializer,
+        input_bias_initializer=input_bias_initializer,
+        reservoir_activation=reservoir_activation,
+        reservoir_initializer=reservoir_initializer,
 
         # seed=42,
         units=units,
@@ -166,6 +172,12 @@ def _slurm_grid(
         forecast_length=params['forecast_length'],
         transient=params['transient'],
         steps=params['steps'],
+
+        model=params['model'],
+        input_initializer=params['input_initializer'],
+        input_bias_initializer=params['input_bias_initializer'],
+        reservoir_activation=params['reservoir_activation'],
+        reservoir_initializer=params['reservoir_initializer'],
 
         input_scaling=params['input_scaling'],
         leak_rate=params['leak_rate'],
