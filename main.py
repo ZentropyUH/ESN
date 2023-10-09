@@ -18,7 +18,8 @@ from slurm_grid.tools import (
     generate_slurm_script,
     generate_combiantions,
     results_info,
-    save_json
+    save_json,
+    search_unfinished
 )
 
 app = typer.Typer()
@@ -455,6 +456,14 @@ def results_data(
 ):
     results_info(results_path, output_file, threshold)
     
+
+@app.command()
+def search_unfinished_combinations(
+    path:str =  typer.Option(..., "--path", "-p"),
+    depth = typer.Option(0, "--depth", "-d")):
+    search_unfinished(path,depth)
+
+
 
 
 if __name__ == "__main__":
