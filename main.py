@@ -457,7 +457,11 @@ def results_data(
     results_info(results_path, output_file, threshold)
     
 
-@app.command()
+@app.command(help = '''
+             Search for the combinations that have not been satisfactorily completed and create a script to execute them \n
+             path = specify the folder where the results of the combinations are stored \n
+             depth = depth of the grid
+             ''')
 def search_unfinished_combinations(
     path:str =  typer.Option(..., "--path", "-p"),
     depth = typer.Option(0, "--depth", "-d")):
