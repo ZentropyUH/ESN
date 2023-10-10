@@ -1,16 +1,20 @@
+import os
 import json
 import shutil
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-from os import makedirs, listdir
-from os.path import join, isfile
+from os import listdir
+from os import makedirs
+from os.path import join
+from os.path import isfile
 from pathlib import Path
-from typing import Dict, List
-from itertools import product, chain
+from typing import Dict
+from typing import List
+from itertools import product
 from rich.progress import track
-import os
+
 
 
 class Queue:
@@ -637,13 +641,16 @@ rm -rf $scratch
         f.write(file)
 
 
+def sort_by_int(array: List):
+    return [str(j) for j in sorted([int(i) for i in array])]
+
 def search_unfinished(path, depth, data_path):
     '''Search for the combinations that have not been satisfactorily completed and create a script to execute them
     path = specify the folder where the results of the combinations are stored
     depth = depth of the grid'''
-    info_path = os.path.join(path, f'info_{depth}')
-    comb_path = os.path.join(info_path, 'combinations.json')
-    runs_path = os.path.join(path, f'run_{depth}', 'data')
+    info_path = join(path, f'info_{depth}')
+    comb_path = join(info_path, 'combinations.json')
+    runs_path = join(path, f'run_{depth}', 'data')
     
     combinations = {}
     if os.path.exists(comb_path):
@@ -654,12 +661,15 @@ def search_unfinished(path, depth, data_path):
         return
 
     unfinished = []
-    for i in combinations.keys():
-        if i not in os.listdir(runs_path):
+    folders = sort_by_int(listdir(runs_path))
+    keys = sort_by_int(combinations.keys())
+    for i in track(keys, description='Search unfinished runs'):
+        if folders and i != folders[0]:
             unfinished.append(i)
         else:
-            cpath = os.path.join(runs_path, i)
-            if  'time.txt' not in os.listdir(cpath):
+            folders.pop(0)
+            cpath = join(runs_path, i)
+            if  'time.txt' not in listdir(cpath):
                 unfinished.append(i)
                 shutil.rmtree(cpath)
 
