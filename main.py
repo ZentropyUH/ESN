@@ -1,29 +1,29 @@
 #!/usr/bin/python3
 import os
+# To eliminate tensorflow logs
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import typer
 from typing import List
-from os.path import join
 from os import makedirs
+from os.path import join
 from pathlib import Path
 
 from t_utils import *
 from src.utils import load_model_and_params
-from functions import _train, _forecast, _plot
-
+from functions import _train
+from functions import _forecast
+from functions import _plot
 from slurm_grid.grid import _slurm_grid
-from slurm_grid.tools import (
-    get_best_results,
-    generate_result_combinations,
-    generate_slurm_script,
-    generate_combiantions,
-    results_info,
-    save_json,
-    search_unfinished
-)
+from slurm_grid.tools import get_best_results
+from slurm_grid.tools import generate_result_combinations
+from slurm_grid.tools import generate_slurm_script
+from slurm_grid.tools import generate_combiantions
+from slurm_grid.tools import results_info
+from slurm_grid.tools import save_json
+from slurm_grid.tools import search_unfinished
+
 
 app = typer.Typer()
-
 
 
 @app.command()

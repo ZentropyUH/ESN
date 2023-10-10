@@ -2,43 +2,42 @@ import time
 import json
 import numpy as np
 from random import randint
+from os import listdir
+from os import makedirs
 from os.path import join
-from os import makedirs, listdir
 
-from functions import _train, _forecast
-from slurm_grid.tools import (
-    plot_prediction,
-    load_hyperparams,
-    save_plots,
-    save_csv,
-)
-
+from functions import _train
+from functions import _forecast
+from slurm_grid.tools import save_csv
+from slurm_grid.tools import save_plot
+from slurm_grid.tools import load_hyperparams
+from src.plots.systems import plot_forecast
 
 
 def grid(
-        data_path: str,
-        output_path: str,
+    data_path: str,
+    output_path: str,
 
-        units: int,
-        train_length: int,
-        forecast_length: int,
-        transient: int,
-        steps: int,
+    units: int,
+    train_length: int,
+    forecast_length: int,
+    transient: int,
+    steps: int,
 
-        model: str,
-        input_initializer: str,
-        input_bias_initializer: str,
-        reservoir_activation: str,
-        reservoir_initializer: str,
+    model: str,
+    input_initializer: str,
+    input_bias_initializer: str,
+    reservoir_activation: str,
+    reservoir_initializer: str,
 
-        input_scaling: float,
-        leak_rate: float,
-        spectral_radius: float,
-        rewiring: float,
-        reservoir_degree: int,
-        reservoir_sigma: float,
-        regularization: float,
-    ):
+    input_scaling: float,
+    leak_rate: float,
+    spectral_radius: float,
+    rewiring: float,
+    reservoir_degree: int,
+    reservoir_sigma: float,
+    regularization: float,
+):
     # Select the data to train
     data: list[str] = [join(data_path, p) for p in listdir(data_path)]
     train_index = randint(0, len(data) - 1)
@@ -64,7 +63,7 @@ def grid(
     makedirs(trained_model_path, exist_ok=True)
 
     forecast_plot_path = join(current_path, 'forecast_plots')
-    makedirs(forecast_plot_path)
+    makedirs(forecast_plot_path, exist_ok=True)
 
     # Create time file
     time_file = join(current_path, 'time.txt')
@@ -108,7 +107,7 @@ def grid(
     forecast_data = []
     for fn, current_data in enumerate(data):
         print('Forecasting {}...'.format(fn))
-        prediction, true_data = _forecast (
+        forecast, val_target = _forecast (
             trained_model = trained_model,
             transient = transient,
             train_length = train_length,
@@ -118,12 +117,12 @@ def grid(
             steps=steps,
         )
         print('Forecasting {} finished'.format(fn))
-        forecast_data.append((prediction, true_data))
+        forecast_data.append((forecast, val_target))
 
         # PLOTS
-        plot_prediction(
-            data=true_data,
-            prediction=prediction,
+        plot_forecast(
+            val_target=val_target,
+            forecast=forecast,
             filepath=join(forecast_plot_path, str(fn)),
             dt=1,
         )
@@ -148,12 +147,11 @@ def grid(
 
     # Save the csv
     save_csv(mean, join(mean_path, 'rmse_mean.csv'))
-    save_plots(data=mean, output_path=mean_path, name='rmse_mean_plot.png')
+    save_plot(data=mean, output_path=mean_path, name='rmse_mean_plot.png')
 
     
     with open(time_file, 'w') as f:
         json.dump({'train': train_time, 'forecast': forecast_time}, f)
-
 
 
 def _slurm_grid(

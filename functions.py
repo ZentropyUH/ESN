@@ -4,25 +4,19 @@ import json
 import numpy as np
 import pandas as pd
 from os.path import join
+from keras.initializers import Zeros
+from keras.initializers import RandomUniform
 
-from keras.initializers import RandomUniform, Zeros
-
-from src.customs.custom_initializers import (
-    ErdosRenyi,
-    InputMatrix,
-    RegularNX,
-    WattsStrogatzNX,
-)
-from src.plotters import (
-    plot_contourf_forecast,
-    plot_linear_forecast,
-    plot_rmse,
-    render_video,
-)
-from src.utils import load_data
 from src.model import *
-
-
+from src.utils import load_data
+from src.customs.custom_initializers import ErdosRenyi
+from src.customs.custom_initializers import InputMatrix
+from src.customs.custom_initializers import RegularNX
+from src.customs.custom_initializers import WattsStrogatzNX
+from src.plotters import plot_contourf_forecast
+from src.plotters import plot_linear_forecast
+from src.plotters import plot_rmse
+from src.plotters import render_video
 
 
 def _train(

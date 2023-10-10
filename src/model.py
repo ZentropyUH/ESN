@@ -1,21 +1,23 @@
 import os
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-import time
-from typing import Any
 import numpy as np
 import tensorflow as tf
-from rich.progress import track
-from sklearn.linear_model import ElasticNet, Lasso, Ridge
-
 import keras
 import keras.layers
+from typing import Any
+from time import time
+from rich.progress import track
+from sklearn.linear_model import Lasso
+from sklearn.linear_model import Ridge
+from sklearn.linear_model import ElasticNet
 
-from src.customs.custom_layers import EsnCell, PowerIndex
 from src.utils import tf_ridge_regression
+from src.customs.custom_layers import EsnCell
+from src.customs.custom_layers import PowerIndex
+
 
 # TODO: save predict in scv
 # TODO: separate prediction and evaluation
-
 class ESN:
     def __init__(self, inputs, outputs, readout) -> None:
         self.inputs: keras.layers.Layer = inputs
@@ -52,9 +54,9 @@ class ESN:
         self.reservoir.predict(transient_data)
 
         print("\nHarvesting...\n")
-        start = time.time()
+        start = time()
         harvested_states = self.reservoir.predict(train_data)
-        end = time.time()
+        end = time()
         print(f"Harvesting took: {round(end - start, 2)} seconds.")
         
         print("Calculating the readout matrix...\n")
@@ -86,7 +88,6 @@ class ESN:
             outputs=self.readout(self.reservoir.outputs[0]),
             name="ESN",
         )
-    
 
     def train_test(
         self,
@@ -107,9 +108,9 @@ class ESN:
         self.reservoir.predict(transient_data)
 
         print("\nHarvesting...\n")
-        start = time.time()
+        start = time()
         harvested_states = self.reservoir.predict(train_data)
-        end = time.time()
+        end = time()
         print(f"Harvesting took: {round(end - start, 2)} seconds.")
         
         print("Calculating the readout matrix...\n")
@@ -150,7 +151,6 @@ class ESN:
             outputs=readout_layer(self.reservoir.outputs[0]),
             name="ESN",
         )
-
 
     def forecast(
             self,

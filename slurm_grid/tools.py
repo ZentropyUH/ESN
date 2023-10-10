@@ -1,20 +1,18 @@
-import os
+from os import listdir
+from os import makedirs
+from os.path import join
+from os.path import isfile
+from os.path import exists
 import json
 import shutil
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-
-from os import listdir
-from os import makedirs
-from os.path import join
-from os.path import isfile
 from pathlib import Path
 from typing import Dict
 from typing import List
 from itertools import product
 from rich.progress import track
-
 
 
 class Queue:
@@ -46,7 +44,7 @@ class Queue:
 
 # TODO: make base method for plots
 # BUG: too many plots?
-def save_plots(data: list, output_path: str, name: str):
+def save_plot(data: list, output_path: str, name: str):
     '''
     Save the plot of the given `data` in the given `output_path`/`name`.
     '''
@@ -58,57 +56,6 @@ def save_plots(data: list, output_path: str, name: str):
     plt.title("Plot of root mean square error")
     plt.savefig(join(output_path, name))
 
-def plot_prediction(data: np.ndarray, prediction: np.ndarray, filepath: str, dt: float=1):
-    features = prediction.shape[-1]
-    xvalues = np.arange(0, len(prediction)) * dt
-
-    # Make each plot on a different axis
-    fig, axs = plt.subplots(features, 1, sharey=True, figsize=(20, 9.6))
-    fig.tight_layout()
-    fig.subplots_adjust(top=0.9, bottom=0.08, hspace=0.3)
-
-    fig.suptitle('', fontsize=16)
-    fig.supxlabel('time')
-
-    if features == 1:
-        axs.plot(xvalues, data[:, 0], label="target")
-        axs.plot(xvalues, prediction[:, 0], label="prediction", linestyle='--')
-        axs.legend()
-    elif features <= 3:
-        for i in range(features):
-            axs[i].plot(xvalues, data[:, i], label="target")
-            axs[i].plot(xvalues, prediction[:, i], label="prediction", linestyle='--')
-            axs[i].legend()
-    else:
-        yvalues = np.arange(0, prediction.shape[-1])
-        
-        # Making the figure pretty
-        fig, axs = plt.subplots(3, 1, sharey=True, figsize=[20, 9.6])
-        fig.tight_layout()
-        fig.subplots_adjust(top=0.9, bottom=0.08, right=1.1, hspace=0.3)
-
-        fig.suptitle('JAJA', fontsize=16)
-        fig.supxlabel('x')
-
-        model_plot = axs[0].contourf(xvalues, yvalues, data.T, levels=50)
-        axs[0].set_title("Original model")
-
-        prediction_plot = axs[1].contourf(
-            xvalues, yvalues, prediction.T, levels=50
-        )
-        axs[1].set_title("Predicted model")
-
-        error = abs(prediction - data)
-
-        error_plot = axs[2].contourf(xvalues, yvalues, error.T, levels=20)
-        axs[2].set_title("Error")
-
-        # Individually adding the colorbars
-        fig.colorbar(model_plot, ax=axs[0])
-        fig.colorbar(prediction_plot, ax=axs[1])
-        fig.colorbar(error_plot, ax=axs[2])
-
-    plt.savefig(filepath)
 
 
 # Work with csv and json
@@ -644,6 +591,7 @@ rm -rf $scratch
 def sort_by_int(array: List):
     return [str(j) for j in sorted([int(i) for i in array])]
 
+
 def search_unfinished(path, depth, data_path):
     '''Search for the combinations that have not been satisfactorily completed and create a script to execute them
     path = specify the folder where the results of the combinations are stored
@@ -653,7 +601,7 @@ def search_unfinished(path, depth, data_path):
     runs_path = join(path, f'run_{depth}', 'data')
     
     combinations = {}
-    if os.path.exists(comb_path):
+    if exists(comb_path):
         with open(comb_path, 'r') as f:
             combinations = json.load(f)
     else:
@@ -669,7 +617,7 @@ def search_unfinished(path, depth, data_path):
         else:
             folders.pop(0)
             cpath = join(runs_path, i)
-            if  'time.txt' not in listdir(cpath):
+            if 'time.txt' not in listdir(cpath):
                 unfinished.append(i)
                 shutil.rmtree(cpath)
 
@@ -683,5 +631,5 @@ def search_unfinished(path, depth, data_path):
         output_path=runs_path,
         data_path=data_path,
         combinations_path=comb_path,
-        file_path=os.path.join(info_path, 'script_unfinished.sh')
+        file_path=join(info_path, 'script_unfinished.sh')
     )

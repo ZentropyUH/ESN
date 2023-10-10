@@ -1,6 +1,5 @@
 from typing import List
 from typing import Union
-from typing import Optional
 from typing import Tuple
 import numpy as np
 import matplotlib.pyplot as plt
@@ -43,8 +42,9 @@ def _contourf_plot(
     title: str = '',
     cmap: str = 'viridis'
 ):
-    ax.contourf(xvalues, yvalues, data.T, levels=levels, cmap=cmap)
+    plot = ax.contourf(xvalues, yvalues, data.T, levels=levels, cmap=cmap)
     ax.set_title(title)
+    return plot
 
 
 def plot_forecast(
@@ -53,7 +53,9 @@ def plot_forecast(
     dt: float = 1,
     title: str = '',
     xlabel: str = 't',
-    cmap: str = 'viridis'
+    cmap: str = 'viridis',
+    filepath: str = None,
+    show: bool = False,
 ):
     '''Plots the prediction and the target values.'''
 
@@ -102,7 +104,7 @@ def plot_forecast(
             xvalues=xvalues,
             yvalues=yvalues,
             data=val_target,
-            levels=features,
+            levels=50,
             title='Original model',
             cmap=cmap,
         )
@@ -111,7 +113,7 @@ def plot_forecast(
             xvalues=xvalues,
             yvalues=yvalues,
             data=forecast,
-            levels=features,
+            levels=50,
             title='Predicted model',
             cmap=cmap,
         )
@@ -120,7 +122,7 @@ def plot_forecast(
             xvalues=xvalues,
             yvalues=yvalues,
             data=error,
-            levels=features//3,
+            levels=50,
             title='Error',
             cmap=cmap,
         )
@@ -130,7 +132,10 @@ def plot_forecast(
         fig.colorbar(prediction_plot, ax=axs[1], cmap=cmap)
         fig.colorbar(error_plot, ax=axs[2], cmap=cmap)
     
-    plt.show()
+    if filepath:
+        plt.savefig(filepath)
+    if show:
+        plt.show()
 
 
 def plot_system(
@@ -139,7 +144,9 @@ def plot_system(
     title: str = '',
     dt: float = 1,
     xlabel: str = 't',
-    cmap: str = 'viridis'
+    cmap: str = 'viridis',
+    filepath: str = None,
+    show: bool = False,
 ):
     features = target.shape[-1]
     _target = target[:length]
@@ -184,9 +191,12 @@ def plot_system(
             xvalues=xvalues,
             yvalues=yvalues,
             data=_target,
-            levels=features,
+            levels=50,
             cmap=cmap,
         )
         fig.colorbar(model_plot, ax=axs, cmap=cmap)
 
-    plt.show()
+    if filepath:
+        plt.savefig(filepath)
+    if show:
+        plt.show()
