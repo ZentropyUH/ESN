@@ -549,14 +549,14 @@ def generate_unfinished_script(
 
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
-#SBATCH --mem-per-cpu=2000M
+#SBATCH --mem-per-cpu=4000M
 
 
 
-#SBATCH --time=02:00:00
+#SBATCH --time=4-00:00:00
 #SBATCH --partition=graphic
 
-#SBATCH --array={', '.join(array)}
+#SBATCH --array={','.join(array)}
 
 
 ########## MODULES ##########
@@ -637,12 +637,14 @@ rm -rf $scratch
         f.write(file)
 
 
-def search_unfinished(path, depth=0):
+def search_unfinished(path, depth, data_path):
     '''Search for the combinations that have not been satisfactorily completed and create a script to execute them
     path = specify the folder where the results of the combinations are stored
     depth = depth of the grid'''
-    comb_path = os.path.join(path, f'info_{depth}', 'combinations.json')
-    folder = os.path.join(path, f'run_{depth}')
+    info_path = os.path.join(path, f'info_{depth}')
+    comb_path = os.path.join(info_path, 'combinations.json')
+    runs_path = os.path.join(path, f'run_{depth}', 'data')
+    
     combinations = {}
     if os.path.exists(comb_path):
         with open(comb_path, 'r') as f:
@@ -652,31 +654,24 @@ def search_unfinished(path, depth=0):
         return
 
     unfinished = []
-
     for i in combinations.keys():
-        if i not in os.listdir(folder):
+        if i not in os.listdir(runs_path):
             unfinished.append(i)
         else:
-            if  'time.txt' not in os.listdir(os.path.join(folder, i)):
-                unfinished.append(i) 
-                os.rmdir(os.path.join(folder, i))
+            cpath = os.path.join(runs_path, i)
+            if  'time.txt' not in os.listdir(cpath):
+                unfinished.append(i)
+                shutil.rmtree(cpath)
 
     if len(unfinished) == 0:
         print("All combinations terminated")
         return
 
     generate_unfinished_script(
-        job_name="Recalculating unfinished processes",
+        job_name="unfinished",
         array=unfinished,
-        output_path=folder,
-        data_path=path,
+        output_path=runs_path,
+        data_path=data_path,
         combinations_path=comb_path,
-        file_path=os.path.join(path, 'unfinished.sh')
+        file_path=os.path.join(info_path, 'script_unfinished.sh')
     )
-
-
-# generate_result_combinations(
-#         path='/home/lauren/Documentos/results',
-#         steps_file='/home/lauren/Documentos/ESN/slurm_grid/steps_len_0.json',
-#         output='/home/lauren/Documentos/output',
-# )

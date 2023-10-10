@@ -457,15 +457,12 @@ def results_data(
     results_info(results_path, output_file, threshold)
     
 
-@app.command(help = '''
-             Search for the combinations that have not been satisfactorily completed and create a script to execute them \n
-             path = specify the folder where the results of the combinations are stored \n
-             depth = depth of the grid
-             ''')
+@app.command(help='Search for the combinations that have not been satisfactorily completed and create a script to execute them')
 def search_unfinished_combinations(
-    path:str =  typer.Option(..., "--path", "-p"),
-    depth = typer.Option(0, "--depth", "-d")):
-    search_unfinished(path,depth)
+    data_path: str = typer.Option(..., "--data-path", "-dp"),
+    path:str =  typer.Option(..., "--path", "-p", help='specify the folder where the results of the combinations are stored'),
+    depth = typer.Option(0, "--depth", "-d", help='depth of the grid')):
+    search_unfinished(path, depth, data_path)
 
 
 
