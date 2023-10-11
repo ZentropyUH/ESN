@@ -3,6 +3,8 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 import json
 import numpy as np
 import pandas as pd
+from typing import List
+from os import makedirs
 from os.path import join
 from keras.initializers import Zeros
 from keras.initializers import RandomUniform
@@ -17,6 +19,9 @@ from src.plotters import plot_contourf_forecast
 from src.plotters import plot_linear_forecast
 from src.plotters import plot_rmse
 from src.plotters import render_video
+from slurm_grid.tools import save_json
+from slurm_grid.tools import generate_combiantions
+from slurm_grid.tools import generate_slurm_script
 
 
 def _train(
@@ -180,8 +185,8 @@ def _train(
 
 def _forecast(
     trained_model: ESN,
-    transient,
-    train_length,
+    transient: int,
+    train_length: int,
     data_file: str,
     filepath: str = None,
     forecast_method: str = "classic",
@@ -336,3 +341,4 @@ def _plot(
                 save_path=save_path,
                 xlabel=x_label,
             )
+

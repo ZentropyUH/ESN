@@ -179,15 +179,20 @@ def generate_initial_combinations(output: str):
 
 
 # AUX
-def get_best_results(path: str, output: str, max_size: int, threshold: float):
+def _best_results(
+    results_path: str,
+    output: str,
+    n_results: int,
+    threshold: float
+):
     '''
-    Get the best results(the number of results by `max_size`) from the given `path` and save them in the `output` path.\n
+    Get the best results(the number of results by `n_results`) from the given `path` and save them in the `output` path.\n
     The results are the ones with the lowest mean square error.\n
     Will be stored in the `output` path with the folder name as the index of the result.
     '''
-    best = Queue(max_size)
-    for folder in track(listdir(path), description='Searching best combinations'):
-        folder = join(path, folder)
+    best = Queue(n_results)
+    for folder in track(listdir(results_path), description='Searching best combinations'):
+        folder = join(results_path, folder)
         rmse_mean_path = join(folder, 'rmse_mean', 'rmse_mean.csv')
         params_path = join(folder, 'trained_model', 'params.json')
 
@@ -349,7 +354,7 @@ def generate_slurm_script(
 #SBATCH --time=4-00:00:00
 #SBATCH --partition=graphic
 
-#SBATCH --array={array[0]}-{array[1]}
+#SBATCH --array={array[0]}-{array[1]}%100
 
 
 ########## MODULES ##########
@@ -435,10 +440,14 @@ exit 0
 
 
 
-def results_info(path: str, filepath: str, threshold: float):
+def _results_data(
+    results_path: str,
+    filepath: str,
+    threshold: float
+):
     data = []
-    for folder in track(listdir(path), description='Searching best combinations'):
-        folder = join(path, folder)
+    for folder in track(listdir(results_path), description='Searching best combinations'):
+        folder = join(results_path, folder)
         rmse_mean_path = join(folder, 'rmse_mean', 'rmse_mean.csv')
         params_path = join(folder, 'trained_model', 'params.json')
 
@@ -507,7 +516,7 @@ def generate_unfinished_script(
 #SBATCH --time=4-00:00:00
 #SBATCH --partition=graphic
 
-#SBATCH --array={','.join(array)}
+#SBATCH --array={','.join(array)}%100
 
 
 ########## MODULES ##########
@@ -592,7 +601,11 @@ def sort_by_int(array: List):
     return [str(j) for j in sorted([int(i) for i in array])]
 
 
-def search_unfinished(path, depth, data_path):
+def _search_unfinished_combinations(
+    path: str,
+    depth: int,
+    data_path: str,
+):
     '''Search for the combinations that have not been satisfactorily completed and create a script to execute them
     path = specify the folder where the results of the combinations are stored
     depth = depth of the grid'''
@@ -632,4 +645,112 @@ def search_unfinished(path, depth, data_path):
         data_path=data_path,
         combinations_path=comb_path,
         file_path=join(info_path, 'script_unfinished.sh')
+    )
+
+
+def _init_slurm_grid(
+    path: str,
+    job_name: str,
+    data_path: str,
+
+    model: str,
+    input_initializer: str,
+    input_bias_initializer: str,
+    reservoir_activation: str,
+    reservoir_initializer: str,
+
+    units: List[int],
+    train_length: List[int],
+    forecast_length: List[int],
+    transient: List[int],
+    steps: List[int],
+
+    input_scaling: List[float],
+    leak_rate: List[float],
+    spectral_radius: List[float],
+    rewiring: List[float],
+    reservoir_degree: List[int],
+    reservoir_sigma: List[float],
+    regularization: List[float],
+):
+    run_path = join(path, 'run_0')
+    info_path = join(path, 'info_0')
+    output_path = join(run_path, 'data')
+    params_path = join(info_path, 'info.json')
+    script_file = join(info_path, 'script.sh')
+    combinations_path = join(info_path, 'combinations.json')
+    
+    makedirs(info_path, exist_ok=True)
+    makedirs(run_path, exist_ok=True)
+    save_json(locals(), params_path)
+
+    combinations = generate_combiantions(
+        {
+            'units':units,
+            'train_length': train_length,
+            'forecast_length': forecast_length,
+            'transient': transient,
+            'steps': steps,
+            'input_scaling': input_scaling,
+            'leak_rate': leak_rate,
+            'spectral_radius': spectral_radius,
+            'rewiring': rewiring,
+            'reservoir_degree': reservoir_degree,
+            'reservoir_sigma': reservoir_sigma,
+            'regularization': regularization,
+            'model': [model],
+            'input_initializer': [input_initializer],
+            'input_bias_initializer': [input_bias_initializer],
+            'reservoir_activation': [reservoir_activation],
+            'reservoir_initializer': [reservoir_initializer],
+        }
+    )
+
+    save_json(combinations, combinations_path)
+    generate_slurm_script(
+        job_name,
+        (1, len(combinations)),
+        combinations_path,
+        output_path,
+        data_path,
+        script_file,
+    )
+
+
+def _grid_aux(
+    job_name: str,
+    run_path: str,
+    data_path: str,
+    info_path: str,
+    n_results: int,
+    threshold: float,
+    steps: int,
+):
+    output_path = join(run_path, 'data')
+    results_path = join(run_path, 'results')
+    steps_file = join(info_path, 'steps.json')
+    new_info = join(Path(info_path).absolute().parent, str(int(Path(info_path).absolute().name)+1))
+    makedirs(new_info, exist_ok=True)
+    new_run = join(Path(run_path).absolute().parent, 'run_' + str(int(Path(run_path).absolute().name.split('_')[-1])+1))
+    makedirs(new_run, exist_ok=True)
+
+    _best_results(
+        output_path,
+        results_path,
+        n_results,
+        threshold
+    )
+    new_combinations = generate_result_combinations(
+        results_path,
+        steps_file,
+        new_info,
+    )
+    generate_slurm_script(
+        job_name,
+        (1, len(new_combinations)),
+        join(new_info, 'combinations.json'),
+        join(new_run, 'data'),
+        data_path,
+        join(new_info, 'script.sh'),
+        steps
     )

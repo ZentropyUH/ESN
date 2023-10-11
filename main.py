@@ -14,14 +14,11 @@ from functions import _train
 from functions import _forecast
 from functions import _plot
 from slurm_grid.grid import _slurm_grid
-from slurm_grid.tools import get_best_results
-from slurm_grid.tools import generate_result_combinations
-from slurm_grid.tools import generate_slurm_script
-from slurm_grid.tools import generate_combiantions
-from slurm_grid.tools import results_info
-from slurm_grid.tools import save_json
-from slurm_grid.tools import search_unfinished
-
+from slurm_grid.tools import _best_results
+from slurm_grid.tools import _results_data
+from slurm_grid.tools import _search_unfinished_combinations
+from slurm_grid.tools import _init_slurm_grid
+from slurm_grid.tools import _grid_aux
 
 app = typer.Typer()
 
@@ -306,28 +303,21 @@ def plot(
     _plot(**locals())
 
 
-@app.command()
+@app.command(help='Commad executed by the slurm grid search.')
 def slurm_grid(
-    data_path: str = typer.Option(..., "--data", "-d"),
-    output_path: str = typer.Option(..., "--output", "-o"),
-    
-    index: int = typer.Option(..., "--index", "-i"),
-    hyperparameters_path: str = typer.Option(..., "--hyperparameters-path", "-hp"),
+    data_path: str = typer.Option(..., "--data", "-d", help='Path to the system data.'),
+    output_path: str = typer.Option(..., "--output", "-o", help='Output path.'),
+    index: int = typer.Option(..., "--index", "-i", help='Index of the combination in the combinations.json file.'),
+    hyperparameters_path: str = typer.Option(..., "--hyperparameters-path", "-hp", help='Path to the .json file of the combinations.'),
 ):
-    _slurm_grid(
-        data_path=data_path,
-        output_path=output_path,
-        index=index,
-        hyperparameters_path=hyperparameters_path,
-    )
-
+    _slurm_grid(**locals())
 
 
 # INITIALIZE GRID
-@app.command()
+@app.command(help='Initialize all files and folders for grid search.')
 def init_slurm_grid(
     path: str = typer.Option(..., '--path', '-p', help='Base path to save grid search folders and files.'),
-    job_name: str = typer.Option(..., '--job-name', '-j', help='Slurm job name.'),
+    job_name: str = typer.Option('job', '--job-name', '-j', help='Slurm job name.'),
     data_path: str = typer.Option(..., '--data-path', '-dp', help='Path of the System data.'),
 
     model: str = typer.Option('ESN', '-m', '--model'),
@@ -350,49 +340,12 @@ def init_slurm_grid(
     reservoir_sigma: List[float] = typer.Option(..., '--reservoir-sigma', '-rs'),
     regularization: List[float] = typer.Option(..., '--regularization', '-rg'),
 ):
-    info_path = join(path, 'info_0')
-    makedirs(info_path, exist_ok=True)
-    run_path = join(path, 'run_0')
-    makedirs(run_path, exist_ok=True)
-    combinations_path = join(info_path, 'combinations.json')
-    output_path = join(run_path, 'data')
-    script_file = join(info_path, 'script.sh')
-
-    combinations = generate_combiantions(
-        {
-            'units':units,
-            'train_length': train_length,
-            'forecast_length': forecast_length,
-            'transient': transient,
-            'steps': steps,
-            'input_scaling': input_scaling,
-            'leak_rate': leak_rate,
-            'spectral_radius': spectral_radius,
-            'rewiring': rewiring,
-            'reservoir_degree': reservoir_degree,
-            'reservoir_sigma': reservoir_sigma,
-            'regularization': regularization,
-            'model': [model],
-            'input_initializer': [input_initializer],
-            'input_bias_initializer': [input_bias_initializer],
-            'reservoir_activation': [reservoir_activation],
-            'reservoir_initializer': [reservoir_initializer],
-        }
-    )
-
-    save_json(combinations, combinations_path)
-    generate_slurm_script(
-        job_name,
-        (1, len(combinations)),
-        combinations_path,
-        output_path,
-        data_path,
-        script_file,
-    )
+    _init_slurm_grid(**locals())
 
 
+# FIX
 # RUN BETWEEN GRID SEARCH
-@app.command()
+@app.command(help='Generate the next steps of the grid search from the results of the previous ones.')
 def grid_aux(
     job_name: str = typer.Option(..., "--job-name", "-j"),
     run_path: str = typer.Option(..., "--run-path", "-rp"),
@@ -402,34 +355,7 @@ def grid_aux(
     threshold: float = typer.Option(..., "--threshold", "-t"),
     steps: int = typer.Option(1, '--steps', '-s'),
 ):
-    output_path = join(run_path, 'data')
-    results_path = join(run_path, 'results')
-    steps_file = join(info_path, 'steps.json')
-    new_info = join(Path(info_path).absolute().parent, str(int(Path(info_path).absolute().name)+1))
-    makedirs(new_info, exist_ok=True)
-    new_run = join(Path(run_path).absolute().parent, 'run_' + str(int(Path(run_path).absolute().name.split('_')[-1])+1))
-    makedirs(new_run, exist_ok=True)
-
-    best_results(
-        output_path,
-        results_path,
-        n_results,
-        threshold
-    )
-    new_combinations = generate_result_combinations(
-        results_path,
-        steps_file,
-        new_info,
-    )
-    generate_slurm_script(
-        job_name,
-        (1, len(new_combinations)),
-        join(new_info, 'combinations.json'),
-        join(new_run, 'data'),
-        data_path,
-        join(new_info, 'script.sh'),
-        steps
-    )
+    _grid_aux(**locals())
 
 
 @app.command(help='Get the best results from the given path. Compare by the given `threshold`.')
@@ -439,32 +365,25 @@ def best_results(
     n_results: int = typer.Option(..., "--n-results", "-nr"),
     threshold: float = typer.Option(..., "--threshold", "-t"),
 ):
-    get_best_results(
-        results_path,
-        output,
-        n_results,
-        threshold
-    )
+    _best_results(**locals())
 
 
-
-@app.command()
+@app.command(help='Generate the a .json file with the hyperparameters of every training and the index where the rmse from the results are bigger than the threshold.')
 def results_data(
-    results_path: str = typer.Option(..., "--results-path", "-rp"),
-    output_file: str = typer.Option(..., "--output-file", "-o"),
+    results_path: str = typer.Option(..., "--results-path", "-rp", help='Path of the results from grid search to be analized.'),
+    filepath: str = typer.Option(..., "--filepath", "-fp", help='File path for the output. Must be a .json file.'),
     threshold: float = typer.Option(..., "--threshold", "-t"),
 ):
-    results_info(results_path, output_file, threshold)
+    _results_data(**locals())
     
 
 @app.command(help='Search for the combinations that have not been satisfactorily completed and create a script to execute them')
 def search_unfinished_combinations(
     data_path: str = typer.Option(..., "--data-path", "-dp"),
-    path:str =  typer.Option(..., "--path", "-p", help='specify the folder where the results of the combinations are stored'),
-    depth = typer.Option(0, "--depth", "-d", help='depth of the grid')):
-    search_unfinished(path, depth, data_path)
-
-
+    path:str =  typer.Option(..., "--path", "-p", help='Specify the folder where the results of the combinations are stored'),
+    depth = typer.Option(0, "--depth", "-d", help='Grid depth, to specify the depth of the grid seach.')
+):
+    _search_unfinished_combinations(**locals())
 
 
 if __name__ == "__main__":
