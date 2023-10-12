@@ -19,15 +19,12 @@ from src.plotters import plot_contourf_forecast
 from src.plotters import plot_linear_forecast
 from src.plotters import plot_rmse
 from src.plotters import render_video
-from slurm_grid.tools import save_json
-from slurm_grid.tools import generate_combiantions
-from slurm_grid.tools import generate_slurm_script
 
 
 def _train(
     # Save params
     data_file: str,
-    filepath: str = None,
+    output_dir: str = None,
     # General params
     model: str = "ESN",
     units: int = 6000,
@@ -50,6 +47,11 @@ def _train(
     # Training params
     transient: int = 1000,
     train_length: int = 20000,
+
+    #ignored
+    reservoir_amount: int = None,
+    overlap: int = None,
+    readout_layer: str = None,
 ):
     '''
     Trains an Echo State Network on the data provided in the data file.
@@ -167,11 +169,11 @@ def _train(
         regularization
     )
 
-    if filepath:
-        os.makedirs(filepath, exist_ok=True)
-        _model.save(filepath)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+        _model.save(output_dir)
 
-        with open(join(filepath, 'params.json'), 'w', encoding='utf-8') as f:
+        with open(join(output_dir, 'params.json'), 'w', encoding='utf-8') as f:
             json.dump(
                 params,
                 f,
@@ -341,4 +343,3 @@ def _plot(
                 save_path=save_path,
                 xlabel=x_label,
             )
-

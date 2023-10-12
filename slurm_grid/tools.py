@@ -14,6 +14,8 @@ from typing import List
 from itertools import product
 from rich.progress import track
 
+from slurm_grid.const import SLURM_SCRIPT
+
 
 class Queue:
     '''
@@ -69,11 +71,13 @@ def save_csv(data, filepath: str):
         header=None,
     )
 
+
 def read_csv(file: str):
     '''
     Read a .csv file and return a numpy array.
     '''
     return pd.read_csv(file).to_numpy()
+
 
 def save_json(data: Dict, filepath: str):
     with open(filepath, 'w') as f:
@@ -86,7 +90,6 @@ def save_json(data: Dict, filepath: str):
         )
 
 
-
 # Hyper Parameters
 def load_hyperparams(filepath: str) -> Dict:
     '''
@@ -97,6 +100,7 @@ def load_hyperparams(filepath: str) -> Dict:
     with open(filepath, 'r') as f:
         combinations = json.load(f)
         return combinations
+
 
 def generate_combiantions(hyperparams: Dict[str, List[float]]):
     param_name=[]
@@ -111,73 +115,7 @@ def generate_combiantions(hyperparams: Dict[str, List[float]]):
     return data
 
 
-def generate_initial_combinations(output: str):
-    '''
-    Generate and save the initial hyperparameters combinations in the given path.\n
-    The hyperparameters will be of the form: name: (initial_value, number_of_values, increment, function_of_increment).
-    '''
-    hyperparameters_to_adjust = {
-        "sigma": (0.2, 5, 0.2, lambda x, y, i: round(x + y * i, 2)),
-        "degree": (2, 4, 2, lambda x, y, i: round(x + y * i, 2)),
-        "ritch_regularization": (10e-5, 5, 0.1, lambda x, y, i: round(x * y**i, 8)),
-        "spectral_radio": (0.9, 16 , 0.01, lambda x, y, i: round(x + y * i, 2)),
-        "reconection_prob": (0, 6, 0.2, lambda x, y, i: round(x + y*i, 2))
-    }
-
-    combinations = {
-        int(i + 1): c
-        for i, c in enumerate(
-            product(
-                *[[elem[3](elem[0], elem[2], i) for i in range(elem[1])] for elem in hyperparameters_to_adjust.values()]
-            )
-        )
-    }
-
-    with open(join(output, 'combinations.json'), 'w') as f:
-        json.dump(
-            combinations,
-            f,
-            indent=4,
-            sort_keys=True,
-            separators=(",", ": "),
-        )
-    
-    # steps = {
-    #     "all": [
-    #         0.2,
-    #         2,
-    #         0.1,
-    #         0.01,
-    #         0.2
-    #     ],
-    #     "sigma": 0.2,
-    #     "degree": 2,
-    #     "ritch_regularization": 0.1,
-    #     "spectral_radio": 0.01,
-    #     "reconection_prob": 0.2
-    # }
-
-    steps = {
-                "sigma" : 0.2,
-                "degree":  2, 
-                "ritch_regularization": 0.1,
-                "spectral_radio": 0.05,
-                "reconection_prob": 0.2,
-                "leak_rate":0.05,
-                "all": [0.2, 2, 0.1, 0.05, 0.2,0.05]
-            }
-
-    with open(join(output, 'steps.json'), 'w') as f:
-        json.dump(
-            steps,
-            f,
-            indent=4,
-            separators=(",", ": "),
-        )
-    return combinations
-
-
-
+# FIX
 # AUX
 def _best_results(
     results_path: str,
@@ -218,7 +156,6 @@ def _best_results(
     for i, element in enumerate(best.queue):
         folder = element[1][1]
         shutil.copytree(folder, join(output, str(i)), dirs_exist_ok=True)
-
 
 
 def generate_result_combinations(
@@ -321,7 +258,6 @@ def generate_result_combinations(
     return new_combinations
 
 
-
 def generate_slurm_script(
         job_name: str,
         array: tuple,
@@ -339,105 +275,17 @@ def generate_slurm_script(
     output_path:Path = Path(output_path)
     data_path:Path = Path(data_path)
 
-    file = f'''#!/bin/bash
-
-########## RESOURCES TO USE ##########
-
-#SBATCH --job-name="{job_name}"
-
-#SBATCH --ntasks=1
-#SBATCH --cpus-per-task=8
-#SBATCH --mem-per-cpu=4000M
-
-
-
-#SBATCH --time=4-00:00:00
-#SBATCH --partition=graphic
-
-#SBATCH --array={array[0]}-{array[1]}%100
-
-
-########## MODULES ##########
-
-set -e
-module purge
-module load python/3.10.5
-
-export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
-
-
-########## PATHS ##########
-
-# Create your scratch space
-scratch="/scratch/$USER/$SLURM_JOB_ID"
-mkdir -p $scratch
-cd $scratch
-
-# project path
-ESN=./ESN
-mkdir -p $ESN
-
-# output path
-output="./output"
-mkdir -p $output
-
-# data path
-data="./data"
-mkdir -p $data
-
-# save path
-save="{output_path}"
-mkdir -p $save
-
-# combinations
-comb=$ESN/{combinations_file}
-
-
-########## COPY ##########
-
-# Copy project files to scratch
-echo "copying project............"
-cp -r /data/tsa/destevez/dennis/ESN/* $ESN
-
-echo "copying project............"
-cp -r "{combinations_path}" $ESN
-
-echo "copying data............"
-cp -r {data_path.absolute()}/* $data
-echo "end of copy"
-
-
-
-########## RUN ##########
-
-echo "runing............"
-srun python3 ESN/main.py slurm-grid -d $data -o $output -i $SLURM_ARRAY_TASK_ID -hp $comb
-echo "end of run"
-
-
-
-########## SAVE ##########
-
-echo "saving............"
-cp -r $output/* $save
-echo "end of save"
-
-
-
-########## CLEANUP & EXIT ##########
-
-# Clean up all the shit
-rm -rf $scratch
-
-# Exit gracefully
-exit 0
-
-########## END ##########
-    '''
+    file = SLURM_SCRIPT.format(
+        job_name=job_name,
+        array= "-".join(array),
+        output_path=output_path,
+        combinations_file=combinations_file,
+        combinations_path=combinations_path,
+        data_path=data_path.absolute(),
+    )
 
     with open(filepath, 'w') as f:
         f.write(file)
-
 
 
 def _results_data(
@@ -480,10 +328,6 @@ def _results_data(
         )
 
 
-
-
-
-
 def generate_unfinished_script(
         job_name: str,
         array: list,
@@ -501,98 +345,15 @@ def generate_unfinished_script(
     output_path: Path = Path(output_path)
     data_path: Path = Path(data_path)
 
-    file = f'''#!/bin/bash
+    file = SLURM_SCRIPT.format(
+        job_name=job_name,
+        array= ",".join(array),
+        output_path=output_path,
+        combinations_file=combinations_file,
+        combinations_path=combinations_path,
+        data_path=data_path.absolute(),
+    )
 
-########## RESOURCES TO USE ##########
-
-#SBATCH --job-name="{job_name}"
-
-#SBATCH --ntasks=1
-#SBATCH --cpus-per-task=8
-#SBATCH --mem-per-cpu=4000M
-
-
-
-#SBATCH --time=4-00:00:00
-#SBATCH --partition=graphic
-
-#SBATCH --array={','.join(array)}%100
-
-
-########## MODULES ##########
-
-set -e
-module purge
-module load python/3.10.5
-
-export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
-
-
-########## PATHS ##########
-
-# Create your scratch space
-scratch="/scratch/$USER/$SLURM_JOB_ID"
-mkdir -p $scratch
-cd $scratch
-
-# project path
-ESN=./ESN
-mkdir -p $ESN
-
-# output path
-output="./output"
-mkdir -p $output
-
-# data path
-data="./data"
-mkdir -p $data
-
-# save path
-save="{output_path}"
-mkdir -p $save
-
-# combinations
-comb=$ESN/{combinations_file}
-
-
-########## COPY ##########
-
-# Copy project files to scratch
-echo "copying project............"
-cp -r /data/tsa/destevez/dennis/ESN/* $ESN
-
-echo "copying project............"
-cp -r "{combinations_path}" $ESN
-
-echo "copying data............"
-cp -r {data_path.absolute()}/* $data
-echo "end of copy"
-
-
-
-########## RUN ##########
-
-echo "runing............"
-srun python3 ESN/main.py slurm-grid -d $data -o $output -i $SLURM_ARRAY_TASK_ID -hp $comb
-echo "end of run"
-
-
-
-########## SAVE ##########
-
-echo "saving............"
-cp -r $output/* $save
-echo "end of save"
-
-
-
-########## CLEANUP & EXIT ##########
-
-# Clean up all the shit
-rm -rf $scratch
-
-# Exit gracefully
-'''
     with open(file_path, 'w') as f:
         f.write(file)
 

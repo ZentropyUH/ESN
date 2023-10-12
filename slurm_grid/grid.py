@@ -38,6 +38,9 @@ def grid(
     reservoir_sigma: float,
     regularization: float,
 ):
+    '''
+    Base function to execute the grid search.
+    '''
     # Select the data to train
     data: list[str] = [join(data_path, p) for p in listdir(data_path)]
     train_index = randint(0, len(data) - 1)
@@ -76,7 +79,7 @@ def grid(
     # Se manda a entrenar con los parametros por defecto, en este caso
     trained_model = _train(
         data_file=train_data_path,
-        filepath=trained_model_path,
+        output_dir=trained_model_path,
         
         model=model,
         input_initializer=input_initializer,
@@ -159,7 +162,22 @@ def _slurm_grid(
     output_path: str,
     index: int,
     hyperparameters_path: str,
-):  
+) -> None:
+    '''
+    Execute the grid search for one combination of hyperparameters.
+    
+    Args:
+        data_path (str): Path to the system data folder.
+
+        output_path (str): Folder path to save all the output files and folders from the current grid search step.
+
+        index (int): Index for the selected hyperparameters combination in the .json.
+
+        hyperparameters_path (str): Path to the .json that contains all the hyperparameter combinations to index.
+    
+    Return:
+        None
+    '''
     params = load_hyperparams(hyperparameters_path)[str(index)]
 
     grid(

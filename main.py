@@ -39,11 +39,6 @@ def train(
         "-o",
         help="The directory where the results will be saved. The default is the current directory.",
     ),
-    file_name: str = typer.Option(
-        None,
-        "--file-name",
-        "-fn",
-    ),
     model: EModel = typer.Option("ESN", "--model", "-m", help=""),
     units: int = typer.Option(..., "--units", "-u", help=""),
     input_initializer: EInputInitializer = typer.Option(
@@ -91,10 +86,10 @@ def train(
         help="The spectral radius of the reservoir. The default is 0.99. Only used if ESN or Parallel_ESN is used. If a range of values is given, the script will be executed the specified number of times with different values of the spectral radius. The values will be chosen linearly between the first and the second value. If a list of values is given, the script will be executed the specified number of times with the values in the list.",
     ),
     reservoir_initializer: ReservoirInitializer = typer.Option(
-        "WattsStrogatzOwn",
+        "WattsStrogatzNX",
         "--reservoir-initializer",
         "-ri",
-        help="The initializer for the reservoir weights. The default is WattsStrogatzOwn. Only used if ESN or Parallel_ESN is used.",  # Maybe play later with topologies on ECA and Oscillators. First we have to study impact on EOC.allow_from_autoenv=
+        help="The initializer for the reservoir weights. The default is WattsStrogatzNX. Only used if ESN or Parallel_ESN is used.",  # Maybe play later with topologies on ECA and Oscillators. First we have to study impact on EOC.allow_from_autoenv=
     ),
     rewiring: float = typer.Option(
         0.5,
@@ -152,6 +147,12 @@ def train(
         "--train-length",
         "-tl",
         help="The number of points to be used for training. The default is 10000. If a range of values is given, the script will be executed the specified number of times worg.freedesktop.PackageKit.proxyith different values of the training length. The values will be chosen linearly between the first and the second value. If a list of values is given, the script will be executed the specified number of times with the values in the list.",
+    ),
+    steps: str = typer.Option(
+        1,
+        "--steps",
+        "-s",
+        help="Number of steps among data point to ignore. Used to variate the data dt.",
     ),
 ):
     """Train a specific model on a given data file."""
