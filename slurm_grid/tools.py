@@ -11,11 +11,14 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 from typing import Dict
 from typing import List
+from typing import Any
 from itertools import product
 from rich.progress import track
 
 from slurm_grid.const import SLURM_SCRIPT
-
+from slurm_grid.const import GridFolders
+from slurm_grid.const import RunFolders
+from slurm_grid.const import InfoFiles
 
 class Queue:
     '''
@@ -44,26 +47,69 @@ class Queue:
                 break
 
 
-# TODO: make base method for plots
-# BUG: too many plots?
-def save_plot(data: list, output_path: str, name: str):
+def is_valid_file(filepath: str, extension: str = None):
     '''
-    Save the plot of the given `data` in the given `output_path`/`name`.
+    Raise an exeption if not valid file.
+    
+    Args:
+        filepath (str): Path to the given file.
+
+        extension (str, None): The extension of the file. If None, no extension will be checked.
+    
+    Return:
+        None
+    '''
+    if not exists(filepath):
+        raise FileNotFoundError
+    if extension and not filepath.endswith(extension):
+        raise Exception(f'{filepath} should be a {extension} file.')
+
+
+# BUG: too many plots?
+def save_plot(
+    data: list,
+    filepath: str,
+    xlabel: str = "",
+    ylabel: str = "",
+    title: str = "",
+):
+    '''
+    Base method to plot data in a simple way.
+
+    Args:
+        data (list): Data to plot.
+
+        filepath (str): Path to the output file to be generated.
+
+        xlabel (str): Label for the x axis.
+
+        ylabel (str): Label for the y axis.
+
+        title (str): Title of the plot.
+    
+    Return:
+        None
     '''
     plt.clf()
     plt.figure()
     plt.plot(data)
-    plt.xlabel("Time")
-    plt.ylabel("Mean square error")
-    plt.title("Plot of root mean square error")
-    plt.savefig(join(output_path, name))
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.title(title)
+    plt.savefig(filepath)
 
 
-
-# Work with csv and json
-def save_csv(data, filepath: str):
+def save_csv(data: np.ndarray, filepath: str):
     '''
-    Save the `data` in a .csv.
+    Save the data in a .csv file.
+
+    Args:
+        data (np.ndarray): Data to save.
+        
+        filepath (str): Path to the output file to be generated.
+    
+    Return:
+        None
     '''
     pd.DataFrame(data).to_csv(
         filepath,
@@ -72,14 +118,29 @@ def save_csv(data, filepath: str):
     )
 
 
-def read_csv(file: str):
+def read_csv(filepath: str) -> np.ndarray:
     '''
-    Read a .csv file and return a numpy array.
+    Read a .csv file.
+
+    Args:
+        filepath (str): Path to the .csv file to read.
+    
+    Return:
+        (np.ndarray): The data fron the filepath in numpy format.
     '''
-    return pd.read_csv(file).to_numpy()
+    is_valid_file(filepath, '.csv')
+    return pd.read_csv(filepath).to_numpy()
 
 
 def save_json(data: Dict, filepath: str):
+    '''
+    Save the data into a .json file with some options to make it more human readable.
+    
+    Args:
+        data (Dict): A dictionary with the data to store in .json file.
+
+        filepath (str): The path to the output file.
+    '''
     with open(filepath, 'w') as f:
         json.dump(
             data,
@@ -90,24 +151,37 @@ def save_json(data: Dict, filepath: str):
         )
 
 
-# Hyper Parameters
-def load_hyperparams(filepath: str) -> Dict:
+def load_json(filepath: str) -> Dict:
     '''
-    Load the hyperparameters dictionary from a .json file.
+    Load a .json file.
+
+    Args:
+        filepath (str): The path to the .json file to be loaded.
+    
+    Return:
+        (Dict): Dictionary with the data from the .json file.
     '''
-    if not isfile(filepath) or not filepath.endswith('.json'):
-        raise Exception(f'{filepath} is not a valid file')
+    is_valid_file(filepath, '.json')
     with open(filepath, 'r') as f:
         combinations = json.load(f)
         return combinations
 
 
-def generate_combiantions(hyperparams: Dict[str, List[float]]):
+def generate_combiantions(params: Dict[str, List[Any]]) -> Dict[str, Dict[str, Any]]:
+    '''
+    Generate all the combinations from the given params.
+
+    Args:
+        params (Dict): Dictionary with the params to generate the combinations.
+
+    Return:
+        (Dict): Dictionary with the combinations.
+    '''
     param_name=[]
     param_value=[]
-    for key in hyperparams.keys():
+    for key in params.keys():
         param_name.append(key)
-        param_value.append(hyperparams[key])
+        param_value.append(params[key])
     
     data = {}
     for i, c in enumerate(product(*param_value)):
@@ -124,6 +198,7 @@ def _best_results(
     threshold: float
 ):
     '''
+    # TODO
     Get the best results(the number of results by `n_results`) from the given `path` and save them in the `output` path.\n
     The results are the ones with the lowest mean square error.\n
     Will be stored in the `output` path with the folder name as the index of the result.
@@ -164,6 +239,7 @@ def generate_result_combinations(
         output,
 ):
     '''
+    # TODO
     Generate the new hyperparameters combinations from the results from `path` and save them in the `output` path.\n
     The new combinations are combinations of the old ones and +-10% of the steps of the old ones.
     '''
@@ -267,6 +343,7 @@ def generate_slurm_script(
         filepath: str,
 ):
     '''
+    # TODO
     Generate new slurm script.
     '''
     combinations_path:Path = Path(combinations_path)
@@ -277,7 +354,7 @@ def generate_slurm_script(
 
     file = SLURM_SCRIPT.format(
         job_name=job_name,
-        array= "-".join(array),
+        array= "-".join([str(i) for i in array]),
         output_path=output_path,
         combinations_file=combinations_file,
         combinations_path=combinations_path,
@@ -288,11 +365,45 @@ def generate_slurm_script(
         f.write(file)
 
 
+def generate_unfinished_script(
+        job_name: str,
+        array: list,
+        combinations_path: str,
+        output_path: str,
+        data_path: str,
+        file_path:str
+):
+    '''
+    # TODO
+    Generate new slurm script for all the unfinished combinations.
+    '''
+    combinations_path: Path = Path(combinations_path)
+
+    combinations_file = combinations_path.absolute().name
+    output_path: Path = Path(output_path)
+    data_path: Path = Path(data_path)
+
+    file = SLURM_SCRIPT.format(
+        job_name=job_name,
+        array= ",".join([str(i) for i in array]),
+        output_path=output_path,
+        combinations_file=combinations_file,
+        combinations_path=combinations_path,
+        data_path=data_path.absolute(),
+    )
+
+    with open(file_path, 'w') as f:
+        f.write(file)
+
+
 def _results_data(
     results_path: str,
     filepath: str,
     threshold: float
 ):
+    '''
+    #TODO
+    '''
     data = []
     for folder in track(listdir(results_path), description='Searching best combinations'):
         folder = join(results_path, folder)
@@ -328,37 +439,10 @@ def _results_data(
         )
 
 
-def generate_unfinished_script(
-        job_name: str,
-        array: list,
-        combinations_path: str,
-        output_path: str,
-        data_path: str,
-        file_path:str
-):
-    '''
-    Generate new slurm script for all the unfinished combinations.
-    '''
-    combinations_path: Path = Path(combinations_path)
-
-    combinations_file = combinations_path.absolute().name
-    output_path: Path = Path(output_path)
-    data_path: Path = Path(data_path)
-
-    file = SLURM_SCRIPT.format(
-        job_name=job_name,
-        array= ",".join(array),
-        output_path=output_path,
-        combinations_file=combinations_file,
-        combinations_path=combinations_path,
-        data_path=data_path.absolute(),
-    )
-
-    with open(file_path, 'w') as f:
-        f.write(file)
-
-
 def sort_by_int(array: List):
+    '''
+    Sort str list as int value.
+    '''
     return [str(j) for j in sorted([int(i) for i in array])]
 
 
@@ -367,9 +451,12 @@ def _search_unfinished_combinations(
     depth: int,
     data_path: str,
 ):
-    '''Search for the combinations that have not been satisfactorily completed and create a script to execute them
+    '''
+    # TODO
+    Search for the combinations that have not been satisfactorily completed and create a script to execute them
     path = specify the folder where the results of the combinations are stored
-    depth = depth of the grid'''
+    depth = depth of the grid
+    '''
     info_path = join(path, f'info_{depth}')
     comb_path = join(info_path, 'combinations.json')
     runs_path = join(path, f'run_{depth}', 'data')
@@ -434,12 +521,16 @@ def _init_slurm_grid(
     reservoir_sigma: List[float],
     regularization: List[float],
 ):
-    run_path = join(path, 'run_0')
-    info_path = join(path, 'info_0')
-    output_path = join(run_path, 'data')
-    params_path = join(info_path, 'info.json')
-    script_file = join(info_path, 'script.sh')
-    combinations_path = join(info_path, 'combinations.json')
+    '''
+    Main function to initialize the grid search.\n
+    Generate the folders and the files needed to execute the grid search.
+    '''
+    run_path = join(path, GridFolders.RUN.value.format(depth=0))
+    info_path = join(path, GridFolders.INFO.value.format(depth=0))
+    output_path = join(run_path, RunFolders.RUN_DATA.value)
+    params_path = join(info_path, InfoFiles.INFO_FILE.value)
+    script_file = join(info_path, InfoFiles.SLURM_FILE.value)
+    combinations_path = join(info_path, InfoFiles.COMBINATIONS_FILE.value)
     
     makedirs(info_path, exist_ok=True)
     makedirs(run_path, exist_ok=True)
@@ -487,6 +578,9 @@ def _grid_aux(
     threshold: float,
     steps: int,
 ):
+    '''
+    #TODO
+    '''
     output_path = join(run_path, 'data')
     results_path = join(run_path, 'results')
     steps_file = join(info_path, 'steps.json')

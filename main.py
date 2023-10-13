@@ -4,14 +4,10 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import typer
 from typing import List
-from os import makedirs
-from os.path import join
-from pathlib import Path
 
 from t_utils import *
-from src.utils import load_model_and_params
 from functions import _train
-from functions import _forecast
+from functions import _forecast_from_saved_model
 from functions import _plot
 from slurm_grid.grid import _slurm_grid
 from slurm_grid.tools import _best_results
@@ -148,7 +144,7 @@ def train(
         "-tl",
         help="The number of points to be used for training. The default is 10000. If a range of values is given, the script will be executed the specified number of times worg.freedesktop.PackageKit.proxyith different values of the training length. The values will be chosen linearly between the first and the second value. If a list of values is given, the script will be executed the specified number of times with the values in the list.",
     ),
-    steps: str = typer.Option(
+    steps: int = typer.Option(
         1,
         "--steps",
         "-s",
@@ -205,11 +201,7 @@ def forecast(
     ),
 ):
     """Make predictions with a given model on a data file."""
-    forecast_params = locals()
-    trained_model, model_params = load_model_and_params(trained_model_path)
-    forecast_params.pop("trained_model_path")
-    print(forecast_params)
-    _forecast(trained_model, model_params, **forecast_params)
+    _forecast_from_saved_model(**locals())
 
 
 # FIX: Output path
@@ -356,6 +348,8 @@ def grid_aux(
     threshold: float = typer.Option(..., "--threshold", "-t"),
     steps: int = typer.Option(1, '--steps', '-s'),
 ):
+    # TODO: Adapt method to new changes
+    raise NotImplementedError
     _grid_aux(**locals())
 
 
@@ -366,6 +360,8 @@ def best_results(
     n_results: int = typer.Option(..., "--n-results", "-nr"),
     threshold: float = typer.Option(..., "--threshold", "-t"),
 ):
+    # TODO: Adapt method to new changes
+    raise NotImplementedError
     _best_results(**locals())
 
 
@@ -375,6 +371,8 @@ def results_data(
     filepath: str = typer.Option(..., "--filepath", "-fp", help='File path for the output. Must be a .json file.'),
     threshold: float = typer.Option(..., "--threshold", "-t"),
 ):
+    # TODO: Adapt method to new changes
+    raise NotImplementedError
     _results_data(**locals())
     
 
@@ -384,6 +382,8 @@ def search_unfinished_combinations(
     path:str =  typer.Option(..., "--path", "-p", help='Specify the folder where the results of the combinations are stored'),
     depth = typer.Option(0, "--depth", "-d", help='Grid depth, to specify the depth of the grid seach.')
 ):
+    # TODO: Adapt method to new changes
+    raise NotImplementedError
     _search_unfinished_combinations(**locals())
 
 

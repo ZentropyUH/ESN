@@ -10,8 +10,9 @@ from functions import _train
 from functions import _forecast
 from slurm_grid.tools import save_csv
 from slurm_grid.tools import save_plot
-from slurm_grid.tools import load_hyperparams
+from slurm_grid.tools import load_json
 from src.plots.systems import plot_forecast
+from slurm_grid.const import CaseRun
 
 
 def grid(
@@ -50,26 +51,26 @@ def grid(
     makedirs(current_path, exist_ok=True)
     
     # Create forecast folder
-    forecast_path = join(current_path, 'forecast')
+    forecast_path = join(current_path, CaseRun.FORECAST.value)
     makedirs(forecast_path, exist_ok=True)
     
     # Create folder for the rmse of predictions
-    rmse_path = join(current_path, 'rmse')
+    rmse_path = join(current_path, CaseRun.RMSE.value)
     makedirs(rmse_path, exist_ok=True)
 
     # Create the folder mean
-    mean_path = join(current_path, 'rmse_mean')
+    mean_path = join(current_path, CaseRun.RMSE_MEAN.value)
     makedirs(mean_path, exist_ok=True)
 
     # Create Trained model file
-    trained_model_path = join(current_path, 'trained_model')
+    trained_model_path = join(current_path, CaseRun.TRAINED_MODEL.value)
     makedirs(trained_model_path, exist_ok=True)
 
-    forecast_plot_path = join(current_path, 'forecast_plots')
+    forecast_plot_path = join(current_path, CaseRun.FORECAST_PLOTS.value)
     makedirs(forecast_plot_path, exist_ok=True)
 
     # Create time file
-    time_file = join(current_path, 'time.txt')
+    time_file = join(current_path, CaseRun.TIME_FILE.value)
 
 
     # Train
@@ -115,7 +116,7 @@ def grid(
             transient = transient,
             train_length = train_length,
             data_file= current_data,
-            filepath= join(forecast_path, f'{fn}.csv'),
+            output_dir= join(forecast_path, f'{fn}.csv'),
             forecast_length=forecast_length,
             steps=steps,
         )
@@ -149,9 +150,14 @@ def grid(
     mean = [x / len(data) for x in mean]
 
     # Save the csv
-    save_csv(mean, join(mean_path, 'rmse_mean.csv'))
-    save_plot(data=mean, output_path=mean_path, name='rmse_mean_plot.png')
-
+    save_csv(mean, CaseRun.RMSE_MEAN_FILE.value)
+    save_plot(
+        data=mean,
+        filepath=CaseRun.RMSE_MEAN_PLOT_FILE.value,
+        xlabel="Time",
+        ylabel="Mean square error",
+        title="Plot of root mean square error",
+    )
     
     with open(time_file, 'w') as f:
         json.dump({'train': train_time, 'forecast': forecast_time}, f)
@@ -178,7 +184,7 @@ def _slurm_grid(
     Return:
         None
     '''
-    params = load_hyperparams(hyperparameters_path)[str(index)]
+    params = load_json(hyperparameters_path)[str(index)]
 
     grid(
         data_path=data_path,

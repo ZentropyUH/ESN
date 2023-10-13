@@ -20,15 +20,15 @@ class RunFolders(BaseFolders):
     '''
     Folders for the
     '''
-    RUN_DATA = join(GridFolders.RUN.value, 'data')
-    RUN_RESULTS = join(GridFolders.RUN.value, 'results')
+    RUN_DATA = 'data'
+    RUN_RESULTS = 'results'
 
 
 # INFO FILES
 class InfoFiles(BaseFolders):
-    INFO_FILE = join(GridFolders.INFO.value, 'info.json')
-    COMBINATIONS_FILE = join(GridFolders.INFO.value, 'combinations.json')
-    SLURM_FILE = join(GridFolders.INFO.value, 'script.sh')
+    INFO_FILE = 'info.json'
+    COMBINATIONS_FILE = 'combinations.json'
+    SLURM_FILE = 'script.sh'
 
 
 # GRID FOLDERS
@@ -38,7 +38,7 @@ class CaseRun(BaseFolders):
     RMSE_MEAN = 'rmse_mean'
     TRAINED_MODEL = 'trained_model'
     FORECAST_PLOTS = 'forecast_plots'
-    TIME_FILE = 'time.txt'
+    TIME_FILE = 'time.json'
     RMSE_MEAN_FILE = join('rmse_mean', 'rmse_mean.csv')
     RMSE_MEAN_PLOT_FILE = join('rmse_mean', 'rmse_mean_plot.png')
 

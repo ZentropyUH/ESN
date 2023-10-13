@@ -9,7 +9,8 @@ from os.path import join
 from keras.initializers import Zeros
 from keras.initializers import RandomUniform
 
-from src.model import *
+from src.model import ESN
+from src.model import generate_ESN
 from src.utils import load_data
 from src.customs.custom_initializers import ErdosRenyi
 from src.customs.custom_initializers import InputMatrix
@@ -190,7 +191,7 @@ def _forecast(
     transient: int,
     train_length: int,
     data_file: str,
-    filepath: str = None,
+    output_dir: str = None,
     forecast_method: str = "classic",
     forecast_length: int = 1000,
     steps: int = 1,
@@ -240,14 +241,40 @@ def _forecast(
         case "section":
             raise Exception(f"{forecast_method} is yet to be implemented")
     
-    if filepath:
+    if output_dir:
         pd.DataFrame(predictions).to_csv(
-            filepath,
+            output_dir,
             index=False,
             header=None,
         )
     
     return predictions, val_target[:, :forecast_length, :][0]
+
+
+def _forecast_from_saved_model(
+    trained_model_path: str,
+    data_file: str,
+    output_dir: str,
+    forecast_method: str,
+    forecast_length: int,
+
+    section_initialization_length: int,
+    number_of_sections: int,
+):
+    with open(join(trained_model_path, 'params.json')) as f:
+        params = json.load(f)
+    model = ESN.load(trained_model_path)
+
+    _forecast(
+        trained_model=model,
+        transient=params['transient'],
+        train_length=params['train_length'],
+        data_file=data_file,
+        output_dir=output_dir,
+        forecast_method=forecast_method,
+        forecast_length=forecast_length,
+        steps=params['steps'],
+    )
 
 
 def _plot(

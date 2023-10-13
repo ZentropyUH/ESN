@@ -65,7 +65,7 @@ class ESN:
         transient_data: np.ndarray,
         train_data: np.ndarray,
         train_target: np.ndarray,
-        regularization: int,
+        regularization: float,
     ) -> None:
         '''
         Training proccess of the model.
@@ -77,7 +77,7 @@ class ESN:
 
             train_target (np.ndarray): Target data for the training.
 
-            regularization (int): Regularization value for linear readout.
+            regularization (float): Regularization value for linear readout.
         
         Return:
             None
@@ -125,9 +125,11 @@ class ESN:
 
         self.model = keras.Model(
             inputs=self.reservoir.inputs,
+            # CHECK
             outputs=self.readout(self.reservoir.outputs[0]),
             name="ESN",
         )
+        self.model.build(transient_data.shape)
 
     def train_test(
         self,
@@ -214,6 +216,8 @@ class ESN:
         Return:
             forecast (np.ndarray): Forecasted data.
         '''
+        self.model.reset_states()
+
         forecast_length = min(forecast_length, val_data.shape[1])
         _val_target = val_target[:, :forecast_length, :]
 
@@ -238,8 +242,6 @@ class ESN:
             return np.inf
         print(f"Forecast loss: {loss}\n")
 
-        self.model.reset_states()
-
         return predictions
 
     def save(self, path: str) -> None:
@@ -251,6 +253,7 @@ class ESN:
         '''
         self.model.save(path)
     
+    # BUG: Some trained models cant be loaded. E.g. with bias InputMatrix works ok.
     @staticmethod
     def load(path: str) -> "ESN":
         '''
