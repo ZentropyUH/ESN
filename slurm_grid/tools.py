@@ -600,42 +600,56 @@ def _init_slurm_grid(
 
 
 def _grid_aux(
-    job_name: str,
-    run_path: str,
-    data_path: str,
-    info_path: str,
+    path: str,
     n_results: int,
     threshold: float,
-    steps: int,
 ):
     '''
-    #TODO
+    Auxiliar method to use between grid searchs.\n
+    It will generate the best results from the previous grid search and generate the new combinations and the new slurm script.
+
+    Args:
+        path (str): Path to grid search folders.
+
+        n_results (int): The number of best results to save.
+
+        threshold (float): The threshold to decide if the result is good or not.
+    
+    Return:
+        None
     '''
-    output_path = join(run_path, 'data')
-    results_path = join(run_path, 'results')
-    steps_file = join(info_path, 'steps.json')
-    new_info = join(Path(info_path).absolute().parent, str(int(Path(info_path).absolute().name)+1))
+    n = max([int(i.split('_')[-1]) for i in listdir(path)])
+
+    new_info = join(path, GridFolders.INFO.value.format(depth=n+1))
+    new_run = join(path, GridFolders.RUN.value.format(depth=n+1))
     makedirs(new_info, exist_ok=True)
-    new_run = join(Path(run_path).absolute().parent, 'run_' + str(int(Path(run_path).absolute().name.split('_')[-1])+1))
     makedirs(new_run, exist_ok=True)
+    combinations_path = join(new_info, InfoFiles.COMBINATIONS_FILE.value)
+    new_run_results = join(new_run, RunFolders.RUN_DATA.value)
+    script_file = join(new_info, InfoFiles.SLURM_FILE.value)
+    results_path = join(path, GridFolders.RUN.value.format(depth=n), RunFolders.RUN_DATA.value)
+    output_path = join(new_info, GridFolders.RUN.value.format(depth=n), RunFolders.RUN_RESULTS.value)
+    info_data = join(path, GridFolders.INFO.value.format(depth=n), InfoFiles.INFO_FILE.value)
+
+    params = load_json(info_data)
 
     _best_results(
-        output_path,
-        results_path,
-        n_results,
-        threshold
+        results_path=results_path,
+        output=output_path,
+        n_results=n_results,
+        threshold=threshold
     )
+    # FIX
     new_combinations = generate_result_combinations(
         results_path,
         steps_file,
         new_info,
     )
     generate_slurm_script(
-        job_name,
-        (1, len(new_combinations)),
-        join(new_info, 'combinations.json'),
-        join(new_run, 'data'),
-        data_path,
-        join(new_info, 'script.sh'),
-        steps
+        job_name=params['job_name'],
+        array=(1, len(new_combinations)),
+        combinations_path=combinations_path,
+        output_path=new_run_results,
+        data_path=params['data_path'],
+        filepath=script_file,
     )

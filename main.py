@@ -340,13 +340,9 @@ def init_slurm_grid(
 # RUN BETWEEN GRID SEARCH
 @app.command(help='Generate the next steps of the grid search from the results of the previous ones.')
 def grid_aux(
-    job_name: str = typer.Option(..., "--job-name", "-j"),
-    run_path: str = typer.Option(..., "--run-path", "-rp"),
-    data_path: str = typer.Option(..., "--data-path", "-dp"),
-    info_path: str = typer.Option(..., "--info-path", "-ip"),
+    path: str = typer.Option(..., '--path', '-p', help='Base path to grid search folders'),
     n_results: int = typer.Option(..., "--n-results", "-nr"),
     threshold: float = typer.Option(..., "--threshold", "-t"),
-    steps: int = typer.Option(1, '--steps', '-s'),
 ):
     # TODO: Adapt method to new changes
     raise NotImplementedError
