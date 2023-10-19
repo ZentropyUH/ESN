@@ -69,9 +69,10 @@ def grid(
     forecast_plot_path = join(current_path, CaseRun.FORECAST_PLOTS.value)
     makedirs(forecast_plot_path, exist_ok=True)
 
-    # Create time file
+    # Create files
     time_file = join(current_path, CaseRun.TIME_FILE.value)
-
+    rmse_mean_file = join(current_path, CaseRun.RMSE_MEAN_FILE.value)
+    rmse_mean_plot_file = join(current_path, CaseRun.RMSE_MEAN_PLOT_FILE.value)
 
     # Train
     start_train_time = time.time()
@@ -150,10 +151,10 @@ def grid(
     mean = [x / len(data) for x in mean]
 
     # Save the csv
-    save_csv(mean, CaseRun.RMSE_MEAN_FILE.value)
+    save_csv(mean, rmse_mean_file)
     save_plot(
         data=mean,
-        filepath=CaseRun.RMSE_MEAN_PLOT_FILE.value,
+        filepath=rmse_mean_plot_file,
         xlabel="Time",
         ylabel="Mean square error",
         title="Plot of root mean square error",
