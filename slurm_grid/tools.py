@@ -260,9 +260,14 @@ def generate_result_combinations(
         output,
 ):
     '''
-    # TODO
     Generate the new hyperparameters combinations from the results from `path` and save them in the `output` path.\n
-    The new combinations are combinations of the old ones and +-10% of the steps of the old ones.
+    The new combinations are combinations of the old ones and +-10% of the steps of the old ones.\n
+    Args:\n
+        path (str): folder directory where the results are located 
+        steps_file (str): directory of the .json file where the step sizes are located 
+        output (str): folder directory where the new combinations will be saved
+    Return:\n
+        new_combinations(dict): all the new combinations
     '''
 
     # PATHS
@@ -421,7 +426,7 @@ def generate_unfinished_script(
 
     file = SLURM_SCRIPT.format(
         job_name=job_name,
-        array= ",".join([str(i) for i in array]),
+        array= array,
         output_path=output_path,
         combinations_file=combinations_file,
         combinations_path=combinations_path,
@@ -482,10 +487,13 @@ def _search_unfinished_combinations(
     data_path: str,
 ):
     '''
-    # TODO
-    Search for the combinations that have not been satisfactorily completed and create a script to execute them
-    path = specify the folder where the results of the combinations are stored
-    depth = depth of the grid
+    Search for the combinations that have not been satisfactorily completed and create a script to execute them.\n
+    Args:\n
+        path (str): specify the folder where the results of the combinations are stored
+        depth (int): depth of the grid
+    Return:\n
+        None
+        
     '''
     info_path = join(path, f'info_{depth}')
     comb_path = join(info_path, 'combinations.json')
@@ -517,12 +525,12 @@ def _search_unfinished_combinations(
         return
 
     generate_unfinished_script(
-        job_name="unfinished",
-        array=unfinished,
+        job_name = "unfinished",
+        array = ",".join([str(i) for i in unfinished]) ,
         output_path=runs_path,
-        data_path=data_path,
-        combinations_path=comb_path,
-        file_path=join(info_path, 'script_unfinished.sh')
+        data_path = data_path,
+        combinations_path = comb_path,
+        file_path = join(info_path, 'script_unfinished.sh')
     )
 
 
