@@ -40,9 +40,9 @@ class CaseRun(BaseFolders):
     TRAINED_MODEL = 'trained_model'
     FORECAST_PLOTS = 'forecast_plots'
     TIME_FILE = 'time.json'
-    RMSE_MEAN_FILE = join('rmse_mean', 'rmse_mean.csv')
-    RMSE_MEAN_PLOT_FILE = join('rmse_mean', 'rmse_mean_plot.png')
-    PARAMS_FILE = join('trained_model', 'params.json')
+    RMSE_MEAN_FILE = join(RMSE_MEAN, 'rmse_mean.csv')
+    RMSE_MEAN_PLOT_FILE = join(RMSE_MEAN, 'rmse_mean_plot.png')
+    PARAMS_FILE = join(TRAINED_MODEL, 'params.json')
 
 
 SLURM_SCRIPT = '''#!/bin/bash
@@ -54,13 +54,13 @@ SLURM_SCRIPT = '''#!/bin/bash
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem-per-cpu=4000M
-
+#SBATCH --gres=gpu:1
 
 
 #SBATCH --time=4-00:00:00
 #SBATCH --partition=graphic
 
-#SBATCH --array={array}
+#SBATCH --array={array}%50
 
 
 ########## MODULES ##########

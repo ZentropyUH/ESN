@@ -506,13 +506,15 @@ def _search_unfinished_combinations(
     folders = sort_by_int(listdir(runs_path))
     keys = sort_by_int(combinations.keys())
     for i in track(keys, description='Search unfinished runs'):
-        if folders and i != folders[0]:
+        if not folders:
+            unfinished.append(i)
+        elif i != folders[0]:
             unfinished.append(i)
         else:
             folders.pop(0)
             cpath = join(runs_path, i)
             # TODO: change to cons
-            if 'time.txt' not in listdir(cpath):
+            if CaseRun.TIME_FILE.value not in listdir(cpath):
                 unfinished.append(i)
                 shutil.rmtree(cpath)
 
