@@ -370,12 +370,9 @@ def results_data(
 
 @app.command(help='Search for the combinations that have not been satisfactorily completed and create a script to execute them')
 def search_unfinished_combinations(
-    data_path: str = typer.Option(..., "--data-path", "-dp"),
     path:str =  typer.Option(..., "--path", "-p", help='Specify the folder where the results of the combinations are stored'),
     depth = typer.Option(0, "--depth", "-d", help='Grid depth, to specify the depth of the grid seach.')
 ):
-    # TODO: Adapt method to new changes
-    raise NotImplementedError
     _search_unfinished_combinations(**locals())
 
 

@@ -29,6 +29,7 @@ class InfoFiles(BaseFolders):
     INFO_FILE = 'info.json'
     COMBINATIONS_FILE = 'combinations.json'
     SLURM_FILE = 'script.sh'
+    SLURM_UNFINISHED_FILE = 'script_unfinished.sh'
 
 
 # GRID FOLDERS

@@ -484,7 +484,6 @@ def sort_by_int(array: List):
 def _search_unfinished_combinations(
     path: str,
     depth: int,
-    data_path: str,
 ):
     '''
     Search for the combinations that have not been satisfactorily completed and create a script to execute them.\n
@@ -495,17 +494,13 @@ def _search_unfinished_combinations(
         None
         
     '''
-    info_path = join(path, f'info_{depth}')
-    comb_path = join(info_path, 'combinations.json')
-    runs_path = join(path, f'run_{depth}', 'data')
-    
-    combinations = {}
-    if exists(comb_path):
-        with open(comb_path, 'r') as f:
-            combinations = json.load(f)
-    else:
-        print(f'not exist {comb_path}')
-        return
+    info_path = join(path, GridFolders.INFO.value.format(depth=depth))
+    comb_path = join(info_path, InfoFiles.COMBINATIONS_FILE.value)
+    runs_path = join(path, GridFolders.RUN.value.format(depth=depth), RunFolders.RUN_DATA.value)
+    is_valid_file(comb_path, '.json')
+    combinations = load_json(comb_path)
+    info_data = join(info_path, InfoFiles.INFO_FILE.value)
+    params = load_json(info_data)
 
     unfinished = []
     folders = sort_by_int(listdir(runs_path))
@@ -516,6 +511,7 @@ def _search_unfinished_combinations(
         else:
             folders.pop(0)
             cpath = join(runs_path, i)
+            # TODO: change to cons
             if 'time.txt' not in listdir(cpath):
                 unfinished.append(i)
                 shutil.rmtree(cpath)
@@ -523,14 +519,15 @@ def _search_unfinished_combinations(
     if len(unfinished) == 0:
         print("All combinations terminated")
         return
+    print(f"Unfinished combinations: {len(unfinished)}")
 
     generate_unfinished_script(
         job_name = "unfinished",
         array = ",".join([str(i) for i in unfinished]) ,
         output_path=runs_path,
-        data_path = data_path,
+        data_path = params['data_path'],
         combinations_path = comb_path,
-        file_path = join(info_path, 'script_unfinished.sh')
+        file_path = join(info_path, InfoFiles.SLURM_UNFINISHED_FILE.value)
     )
 
 
