@@ -60,7 +60,7 @@ SLURM_SCRIPT = '''#!/bin/bash
 #SBATCH --time=4-00:00:00
 #SBATCH --partition=graphic
 
-#SBATCH --array={array}
+#SBATCH --array={array}%50
 
 
 ########## MODULES ##########
