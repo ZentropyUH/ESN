@@ -340,13 +340,9 @@ def init_slurm_grid(
 # RUN BETWEEN GRID SEARCH
 @app.command(help='Generate the next steps of the grid search from the results of the previous ones.')
 def grid_aux(
-    job_name: str = typer.Option(..., "--job-name", "-j"),
-    run_path: str = typer.Option(..., "--run-path", "-rp"),
-    data_path: str = typer.Option(..., "--data-path", "-dp"),
-    info_path: str = typer.Option(..., "--info-path", "-ip"),
+    path: str = typer.Option(..., '--path', '-p', help='Base path to grid search folders'),
     n_results: int = typer.Option(..., "--n-results", "-nr"),
     threshold: float = typer.Option(..., "--threshold", "-t"),
-    steps: int = typer.Option(1, '--steps', '-s'),
 ):
     # TODO: Adapt method to new changes
     raise NotImplementedError
@@ -374,12 +370,9 @@ def results_data(
 
 @app.command(help='Search for the combinations that have not been satisfactorily completed and create a script to execute them')
 def search_unfinished_combinations(
-    data_path: str = typer.Option(..., "--data-path", "-dp"),
     path:str =  typer.Option(..., "--path", "-p", help='Specify the folder where the results of the combinations are stored'),
     depth = typer.Option(0, "--depth", "-d", help='Grid depth, to specify the depth of the grid seach.')
 ):
-    # TODO: Adapt method to new changes
-    raise NotImplementedError
     _search_unfinished_combinations(**locals())
 
 
