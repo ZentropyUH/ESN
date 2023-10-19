@@ -53,6 +53,7 @@ class Queue:
         if len(self.queue) > self.max_size:
             self.queue.pop()
 
+
 def find_index(elements: List[float], threshold: int):
     '''
     Find the index where the threshold is exceeded.
@@ -74,7 +75,6 @@ def find_index(elements: List[float], threshold: int):
     return len(elements)
 
 
-
 def is_valid_file(filepath: str, extension: str = None):
     '''
     Raise an exeption if not valid file.
@@ -87,7 +87,7 @@ def is_valid_file(filepath: str, extension: str = None):
     Return:
         None
     '''
-    if not exists(filepath):
+    if not isfile(Path(filepath)):
         raise FileNotFoundError
     if extension and not filepath.endswith(extension):
         raise Exception(f'{filepath} should be a {extension} file.')
@@ -139,6 +139,7 @@ def save_csv(data: np.ndarray, filepath: str):
     Return:
         None
     '''
+    is_valid_file(filepath=filepath, extension='.csv')
     pd.DataFrame(data).to_csv(
         filepath,
         index=False,
@@ -169,6 +170,7 @@ def save_json(data: Dict, filepath: str):
 
         filepath (str): The path to the output file.
     '''
+    is_valid_file(filepath=filepath, extension='.json')
     with open(filepath, 'w') as f:
         json.dump(
             data,
@@ -244,10 +246,9 @@ def _best_results(
     for folder in track(listdir(results_path), description='Searching best combinations'):
         folder = join(results_path, folder)
         rmse_mean_path = join(folder, CaseRun.RMSE_MEAN_FILE.value)
-        with open(rmse_mean_path, 'r') as f:
-            rmse_mean = read_csv(f)
+        rmse_mean = read_csv(rmse_mean_path)
         
-        index = find_index(rmse_mean, folder, threshold)
+        index = find_index(rmse_mean, threshold)
         best.add(index, folder)
     
     for i, element in enumerate(best.queue):
