@@ -54,7 +54,7 @@ SLURM_SCRIPT = '''#!/bin/bash
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem-per-cpu=4000M
-#SBATCH --gpus-per-task=a40:1
+#SBATCH --gpus-per-task=1
 
 
 #SBATCH --time=4-00:00:00
