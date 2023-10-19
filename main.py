@@ -369,8 +369,6 @@ def results_data(
     filepath: str = typer.Option(..., "--filepath", "-fp", help='File path for the output. Must be a .json file.'),
     threshold: float = typer.Option(..., "--threshold", "-t"),
 ):
-    # TODO: Adapt method to new changes
-    raise NotImplementedError
     _results_data(**locals())
     
 

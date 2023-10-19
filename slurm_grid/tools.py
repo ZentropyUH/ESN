@@ -139,7 +139,6 @@ def save_csv(data: np.ndarray, filepath: str):
     Return:
         None
     '''
-    is_valid_file(filepath=filepath, extension='.csv')
     pd.DataFrame(data).to_csv(
         filepath,
         index=False,
@@ -170,7 +169,6 @@ def save_json(data: Dict, filepath: str):
 
         filepath (str): The path to the output file.
     '''
-    is_valid_file(filepath=filepath, extension='.json')
     with open(filepath, 'w') as f:
         json.dump(
             data,
@@ -458,11 +456,8 @@ def _results_data(
         rmse_mean_path = join(folder, CaseRun.RMSE_MEAN_FILE.value)
         params_path = join(folder, CaseRun.PARAMS_FILE.value)
 
-        with open(rmse_mean_path, 'r') as f:
-            rmse_mean = read_csv(f)
-        with open(params_path, 'r') as f:
-            params = json.load(f)
-        
+        rmse_mean = read_csv(rmse_mean_path)
+        params = load_json(params_path)
         index = find_index(rmse_mean, threshold)
         
         data.append({
@@ -471,14 +466,7 @@ def _results_data(
             'folder': folder,
         })
 
-    with open(filepath, 'w') as f:
-        json.dump(
-            data,
-            f,
-            indent=4,
-            sort_keys=True,
-            separators=(",", ": "),
-        )
+    save_json(data=data, filepath=filepath)
 
 
 def sort_by_int(array: List):
