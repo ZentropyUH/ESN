@@ -201,7 +201,16 @@ def _best_results(
     # TODO
     Get the best results(the number of results by `n_results`) from the given `path` and save them in the `output` path.\n
     The results are the ones with the lowest mean square error.\n
-    Will be stored in the `output` path with the folder name as the index of the result.
+    Will be stored in the `output` path with the folder name as the index of the result.\n
+    Args:\n
+        results_path (str): folder in 
+        output (str):
+        n_results (int):
+        threshold (float):
+        
+    Return:\n
+        None
+
     '''
     best = Queue(n_results)
     for folder in track(listdir(results_path), description='Searching best combinations'):
@@ -241,7 +250,10 @@ def generate_result_combinations(
     '''
     # TODO
     Generate the new hyperparameters combinations from the results from `path` and save them in the `output` path.\n
-    The new combinations are combinations of the old ones and +-10% of the steps of the old ones.
+    The new combinations are combinations of the old ones and +-10% of the steps of the old ones.\n
+    Args:\n
+    
+    Return:\n
     '''
 
     # PATHS
