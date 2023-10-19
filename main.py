@@ -360,8 +360,6 @@ def best_results(
     n_results: int = typer.Option(..., "--n-results", "-nr"),
     threshold: float = typer.Option(..., "--threshold", "-t"),
 ):
-    # TODO: Adapt method to new changes
-    raise NotImplementedError
     _best_results(**locals())
 
 

@@ -41,6 +41,7 @@ class CaseRun(BaseFolders):
     TIME_FILE = 'time.json'
     RMSE_MEAN_FILE = join('rmse_mean', 'rmse_mean.csv')
     RMSE_MEAN_PLOT_FILE = join('rmse_mean', 'rmse_mean_plot.png')
+    PARAMS_FILE = join('trained_model', 'params.json')
 
 
 SLURM_SCRIPT = '''#!/bin/bash

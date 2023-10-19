@@ -19,6 +19,8 @@ from slurm_grid.const import SLURM_SCRIPT
 from slurm_grid.const import GridFolders
 from slurm_grid.const import RunFolders
 from slurm_grid.const import InfoFiles
+from slurm_grid.const import CaseRun
+
 
 class Queue:
     '''
@@ -28,7 +30,18 @@ class Queue:
         self.queue = []
         self.max_size = max_size
 
-    def add(self, val, data):
+    def add(self, val: int, data: Any):
+        '''
+        Add a new element to the queue. If the queue is full, the element with the highest value will be removed.
+
+        Args:
+            val (int): Value to compare in queue.
+
+            data (Any): data to store in queue.
+        
+        Return:
+            None
+        '''
         if not self.queue:
             self.queue.append((val, data))
         else:
@@ -40,11 +53,26 @@ class Queue:
         if len(self.queue) > self.max_size:
             self.queue.pop()
 
-    def decide(self, l: list, combination: tuple, folder: str, threshold: int):
-        for i, x in enumerate(l):
-            if x > threshold:
-                self.add(i, (combination, folder))
-                break
+
+def find_index(elements: List[float], threshold: int):
+    '''
+    Find the index where the threshold is exceeded.
+
+    Args:
+        elements (List[float]): List of values to use to find the index that exceed the threshold.
+
+        data (Any): Data to store in queue.
+
+        threshold (float): The threshold to decide if the result is good or not.
+    
+    Return:
+        None
+    '''
+    for i, x in enumerate(elements):
+        if x > threshold:
+            return i
+            break
+    return len(elements)
 
 
 def is_valid_file(filepath: str, extension: str = None):
@@ -59,7 +87,7 @@ def is_valid_file(filepath: str, extension: str = None):
     Return:
         None
     '''
-    if not exists(filepath):
+    if not isfile(Path(filepath)):
         raise FileNotFoundError
     if extension and not filepath.endswith(extension):
         raise Exception(f'{filepath} should be a {extension} file.')
@@ -111,6 +139,7 @@ def save_csv(data: np.ndarray, filepath: str):
     Return:
         None
     '''
+    is_valid_file(filepath=filepath, extension='.csv')
     pd.DataFrame(data).to_csv(
         filepath,
         index=False,
@@ -141,6 +170,7 @@ def save_json(data: Dict, filepath: str):
 
         filepath (str): The path to the output file.
     '''
+    is_valid_file(filepath=filepath, extension='.json')
     with open(filepath, 'w') as f:
         json.dump(
             data,
@@ -189,7 +219,6 @@ def generate_combiantions(params: Dict[str, List[Any]]) -> Dict[str, Dict[str, A
     return data
 
 
-# FIX
 # AUX
 def _best_results(
     results_path: str,
@@ -198,38 +227,32 @@ def _best_results(
     threshold: float
 ):
     '''
-    # TODO
-    Get the best results(the number of results by `n_results`) from the given `path` and save them in the `output` path.\n
-    The results are the ones with the lowest mean square error.\n
-    Will be stored in the `output` path with the folder name as the index of the result.
+    Get the best results fron the giver path.(the number of results by `n_results`) from the given `path` and save them in the `output` path.\n
+    The results are the ones with the lowest index that by which it exceeds the threshold fron the mean square error.\n
+
+    Args:
+        results_path (str): Path to the data to work with.
+
+        output (str): Path to save the output. Will be stored with the folder name as the index of the result.
+
+        n_results (int): The number of best results to save.
+
+        threshold (float): The threshold to decide if the result is good or not.
+    
+        Return:
+            None
     '''
     best = Queue(n_results)
     for folder in track(listdir(results_path), description='Searching best combinations'):
         folder = join(results_path, folder)
-        rmse_mean_path = join(folder, 'rmse_mean', 'rmse_mean.csv')
-        params_path = join(folder, 'trained_model', 'params.json')
-
-        rmse_mean = []
-        with open(rmse_mean_path, 'r') as f:
-            rmse_mean = read_csv(f)
+        rmse_mean_path = join(folder, CaseRun.RMSE_MEAN_FILE.value)
+        rmse_mean = read_csv(rmse_mean_path)
         
-        params = {}
-        with open(params_path, 'r') as f:
-            params = json.load(f)
-        
-        params = (
-            params['reservoir_sigma'],
-            params['reservoir_degree'],
-            params['regularization'],
-            params['spectral_radius'],
-            params['rewiring'],
-            params['leak_rate']
-        )
-        
-        best.decide(rmse_mean, params, folder, threshold)
+        index = find_index(rmse_mean, threshold)
+        best.add(index, folder)
     
     for i, element in enumerate(best.queue):
-        folder = element[1][1]
+        folder = element[1]
         shutil.copytree(folder, join(output, str(i)), dirs_exist_ok=True)
 
 
@@ -343,8 +366,23 @@ def generate_slurm_script(
         filepath: str,
 ):
     '''
-    # TODO
     Generate new slurm script.
+
+    Args:
+        job_name (str): Name of the job.
+
+        array (tuple): Tuple with the range of the array slurm job.
+
+        combinations_path (str): Path to the combinations file.
+
+        output_path (str): Path to the output folder.
+
+        data_path (str): Path to the data folder.
+
+        filepath (str): Path to the output file to be generated as .sh.
+    
+    Return:
+        None
     '''
     combinations_path:Path = Path(combinations_path)
 
@@ -402,26 +440,30 @@ def _results_data(
     threshold: float
 ):
     '''
-    #TODO
+    Get a file with all the parameters from the data and the index where they exceed the threshold.
+
+    Args:
+        results_path (str): Path to the data to analyze.
+
+        filepath (str): Path to the file to save the output.
+
+        threshold (float): The threshold to decide if the result is good or not.
+    
+    Return:
+        None
     '''
     data = []
     for folder in track(listdir(results_path), description='Searching best combinations'):
         folder = join(results_path, folder)
-        rmse_mean_path = join(folder, 'rmse_mean', 'rmse_mean.csv')
-        params_path = join(folder, 'trained_model', 'params.json')
+        rmse_mean_path = join(folder, CaseRun.RMSE_MEAN_FILE.value)
+        params_path = join(folder, CaseRun.PARAMS_FILE.value)
 
         with open(rmse_mean_path, 'r') as f:
             rmse_mean = read_csv(f)
-
-
         with open(params_path, 'r') as f:
             params = json.load(f)
         
-        index = len(rmse_mean)
-        for i, x in enumerate(rmse_mean):
-            if x > threshold:
-                index = i
-                break
+        index = find_index(rmse_mean, threshold)
         
         data.append({
             'index': index,
