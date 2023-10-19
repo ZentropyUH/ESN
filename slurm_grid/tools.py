@@ -514,7 +514,7 @@ def _search_unfinished_combinations(
             folders.pop(0)
             cpath = join(runs_path, i)
             # TODO: change to cons
-            if 'time.txt' not in listdir(cpath):
+            if CaseRun.TIME_FILE.value not in listdir(cpath):
                 unfinished.append(i)
                 shutil.rmtree(cpath)
 
