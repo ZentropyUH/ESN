@@ -1,13 +1,27 @@
 import json
 import numpy as np
 import matplotlib.pyplot as plt
+from typing import Any
 from typing import List
 from typing import Dict
 from typing import Tuple
 from itertools import combinations
 
 
-def _group_results(group_params: List[str], data: Dict, regroup_param: str = None):
+def _group_results(group_params: List[str], data: Dict[str, Any], regroup_param: str = None):
+    '''
+    Given the data and the params to group, return a dict with the index of the data
+    
+    Args:
+        group_params (List[str]): List of params to group.
+        
+        data (Dict): Data to group. The data must have a 'params' key with the params to group and a 'index' key with the index where the data exceed the threshold.
+        
+        regroup_param (str): param to regroup the data.
+        
+    Returns:
+        Dict: dict with the index of the data.
+    '''
     param_data = {}
     for x in data:
         # get tuple of especific params
@@ -37,7 +51,16 @@ def _group_results(group_params: List[str], data: Dict, regroup_param: str = Non
     return param_data
 
 
-def _calculate_mean(data):
+def _apply_functions(data: Dict[str, List[float]]):
+    '''
+    Calculate the mean and the std of every param combination.
+
+    Args:
+        data (Dict[str, List[float]]): dict with the index of the data.
+    
+    Returns:
+        Dict[str, Dict[str, float]]: dict with the mean and the std of every param combination.
+    '''
     # save the mean and the std of every param combination
     new_data = {}
     for i in data:
@@ -47,6 +70,15 @@ def _calculate_mean(data):
 
 
 def _generate_meshgrid(data: Dict[Tuple, float]):
+    '''
+    Generate the meshgrid of the data.
+    
+    Args:
+        data (Dict[Tuple, float]): dict with the mean and the std of every param combination.
+        
+    Returns:
+        Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]: meshgrid of the data.
+    '''
     X = set()
     Y = set()
     for i in data.keys():
@@ -149,7 +181,7 @@ def plot_params_by(
     
     for case in cases:
         grouped_data = _group_results(list(case)+[by_param], data, 'reservoir_degree')
-        _data = {i: _generate_meshgrid(_calculate_mean(grouped_data[i])) for i in sorted(grouped_data.keys())}
+        _data = {i: _generate_meshgrid(_apply_functions(grouped_data[i])) for i in sorted(grouped_data.keys())}
         _plot_grouped_3d(_data, case, by_param, by_param, True)
 
 
@@ -163,7 +195,7 @@ def plot_params(
 
     for case in cases:
         grouped_data = _group_results(case, data)
-        grouped_data = _calculate_mean(grouped_data)
+        grouped_data = _apply_functions(grouped_data)
         X, Y, Z, STD = _generate_meshgrid(grouped_data)
         _plot_3d(X, Y, Z, case, 'Title')
         _plot_3d_std(X, Y, Z, STD, case)

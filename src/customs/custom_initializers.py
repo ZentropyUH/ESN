@@ -884,6 +884,7 @@ custom_initializers = {
     "ErdosRenyi": ErdosRenyi,
     "WattsStrogatzNX": WattsStrogatzNX,
     "Zeros": keras.initializers.Zeros,
+    "RandomUniform": keras.initializers.RandomUniform
 }
 
 keras.utils.get_custom_objects().update(custom_initializers)
