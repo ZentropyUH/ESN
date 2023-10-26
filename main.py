@@ -1,20 +1,9 @@
 #!/usr/bin/python3
-import os
-# To eliminate tensorflow logs
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import typer
 from typing import List
 
 from t_utils import *
-from functions import _train
-from functions import _forecast_from_saved_model
-from functions import _plot
-from slurm_grid.grid import _slurm_grid
-from slurm_grid.tools import _best_results
-from slurm_grid.tools import _results_data
-from slurm_grid.tools import _search_unfinished_combinations
-from slurm_grid.tools import _init_slurm_grid
-from slurm_grid.tools import _grid_aux
+
 
 app = typer.Typer()
 
@@ -152,6 +141,7 @@ def train(
     ),
 ):
     """Train a specific model on a given data file."""
+    from functions import _train
     _train(**locals())
 
 
@@ -201,6 +191,7 @@ def forecast(
     ),
 ):
     """Make predictions with a given model on a data file."""
+    from functions import _forecast_from_saved_model
     _forecast_from_saved_model(**locals())
 
 
@@ -293,6 +284,7 @@ def plot(
     ),
 ):
     """Plot different data."""
+    from functions import _plot
     _plot(**locals())
 
 
@@ -303,6 +295,7 @@ def slurm_grid(
     index: int = typer.Option(..., "--index", "-i", help='Index of the combination in the combinations.json file.'),
     hyperparameters_path: str = typer.Option(..., "--hyperparameters-path", "-hp", help='Path to the .json file of the combinations.'),
 ):
+    from slurm_grid.grid import _slurm_grid
     _slurm_grid(**locals())
 
 
@@ -333,6 +326,7 @@ def init_slurm_grid(
     reservoir_sigma: List[float] = typer.Option(..., '--reservoir-sigma', '-rs'),
     regularization: List[float] = typer.Option(..., '--regularization', '-rg'),
 ):
+    from slurm_grid.tools import _init_slurm_grid
     _init_slurm_grid(**locals())
 
 
@@ -346,6 +340,7 @@ def grid_aux(
 ):
     # TODO: Adapt method to new changes
     raise NotImplementedError
+    from slurm_grid.tools import _grid_aux
     _grid_aux(**locals())
 
 
@@ -356,6 +351,7 @@ def best_results(
     n_results: int = typer.Option(..., "--n-results", "-nr"),
     threshold: float = typer.Option(..., "--threshold", "-t"),
 ):
+    from slurm_grid.tools import _best_results
     _best_results(**locals())
 
 
@@ -365,6 +361,7 @@ def results_data(
     filepath: str = typer.Option(..., "--filepath", "-fp", help='File path for the output. Must be a .json file.'),
     threshold: float = typer.Option(..., "--threshold", "-t"),
 ):
+    from slurm_grid.tools import _results_data
     _results_data(**locals())
     
 
@@ -373,6 +370,7 @@ def search_unfinished_combinations(
     path:str =  typer.Option(..., "--path", "-p", help='Specify the folder where the results of the combinations are stored'),
     depth = typer.Option(0, "--depth", "-d", help='Grid depth, to specify the depth of the grid seach.')
 ):
+    from slurm_grid.tools import _search_unfinished_combinations
     _search_unfinished_combinations(**locals())
 
 
