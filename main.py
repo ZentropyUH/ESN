@@ -142,7 +142,30 @@ def train(
 ):
     """Train a specific model on a given data file."""
     from functions import _train
-    _train(**locals())
+    _train(
+        data_file=data_file,
+        output_dir=output_dir,
+        model=model,
+        units=units,
+        input_initializer=input_initializer,
+        input_bias_initializer=input_bias_initializer,
+        input_scaling=input_scaling,
+        leak_rate=leak_rate,
+        reservoir_activation=reservoir_activation,
+        seed=seed,
+        spectral_radius=spectral_radius,
+        reservoir_initializer=reservoir_initializer,
+        rewiring=rewiring,
+        reservoir_degree=reservoir_degree,
+        reservoir_sigma=reservoir_sigma,
+        reservoir_amount=reservoir_amount,
+        overlap=overlap,
+        readout_layer=readout_layer,
+        regularization=regularization,
+        transient=transient,
+        train_length=train_length,
+        steps=steps,
+    )
 
 
 @app.command()
@@ -192,7 +215,15 @@ def forecast(
 ):
     """Make predictions with a given model on a data file."""
     from functions import _forecast_from_saved_model
-    _forecast_from_saved_model(**locals())
+    _forecast_from_saved_model(
+        trained_model_path=trained_model_path,
+        data_file=data_file,
+        output_dir=output_dir,
+        forecast_method=forecast_method,
+        forecast_length=forecast_length,
+        section_initialization_length=section_initialization_length,
+        number_of_sections=number_of_sections,
+    )
 
 
 # FIX: Output path
@@ -285,7 +316,22 @@ def plot(
 ):
     """Plot different data."""
     from functions import _plot
-    _plot(**locals())
+    _plot(
+        plot_type=plot_type,
+        predictions=predictions,
+        data_file=data_file,
+        lyapunov_exponent=lyapunov_exponent,
+        delta_time=delta_time,
+        plot_points=plot_points,
+        title=title,
+        save_path=save_path,
+        show=show,
+        y_labels=y_labels,
+        y_values=y_values,
+        x_label=x_label,
+        transient=transient,
+        train_length=train_length,
+    )
 
 
 @app.command(help='Commad executed by the slurm grid search.')
@@ -296,7 +342,12 @@ def slurm_grid(
     hyperparameters_path: str = typer.Option(..., "--hyperparameters-path", "-hp", help='Path to the .json file of the combinations.'),
 ):
     from slurm_grid.grid import _slurm_grid
-    _slurm_grid(**locals())
+    _slurm_grid(
+        data_path=data_path,
+        output_path=output_path,
+        index=index,
+        hyperparameters_path=hyperparameters_path,
+    )
 
 
 # INITIALIZE GRID
@@ -327,7 +378,28 @@ def init_slurm_grid(
     regularization: List[float] = typer.Option(..., '--regularization', '-rg'),
 ):
     from slurm_grid.tools import _init_slurm_grid
-    _init_slurm_grid(**locals())
+    _init_slurm_grid(
+        path=path,
+        job_name=job_name,
+        data_path=data_path,
+        model=model,
+        input_initializer=input_initializer,
+        input_bias_initializer=input_bias_initializer,
+        reservoir_activation=reservoir_activation,
+        reservoir_initializer=reservoir_initializer,
+        units=units,
+        train_length=train_length,
+        forecast_length=forecast_length,
+        transient=transient,
+        steps=steps,
+        input_scaling=input_scaling,
+        leak_rate=leak_rate,
+        spectral_radius=spectral_radius,
+        rewiring=rewiring,
+        reservoir_degree=reservoir_degree,
+        reservoir_sigma=reservoir_sigma,
+        regularization=regularization,
+    )
 
 
 # FIX
@@ -341,7 +413,11 @@ def grid_aux(
     # TODO: Adapt method to new changes
     raise NotImplementedError
     from slurm_grid.tools import _grid_aux
-    _grid_aux(**locals())
+    _grid_aux(
+        path=path,
+        n_results=n_results,
+        threshold=threshold,
+    )
 
 
 @app.command(help='Get the best results from the given path. Compare by the given `threshold`.')
@@ -352,7 +428,12 @@ def best_results(
     threshold: float = typer.Option(..., "--threshold", "-t"),
 ):
     from slurm_grid.tools import _best_results
-    _best_results(**locals())
+    _best_results(
+        results_path=results_path,
+        output=output,
+        n_results=n_results,
+        threshold=threshold,
+    )
 
 
 @app.command(help='Generate the a .json file with the hyperparameters of every training and the index where the rmse from the results are bigger than the threshold.')
@@ -362,7 +443,11 @@ def results_data(
     threshold: float = typer.Option(..., "--threshold", "-t"),
 ):
     from slurm_grid.tools import _results_data
-    _results_data(**locals())
+    _results_data(
+        results_path=results_path,
+        filepath=filepath,
+        threshold=threshold,
+    )
     
 
 @app.command(help='Search for the combinations that have not been satisfactorily completed and create a script to execute them')
@@ -371,7 +456,10 @@ def search_unfinished_combinations(
     depth = typer.Option(0, "--depth", "-d", help='Grid depth, to specify the depth of the grid seach.')
 ):
     from slurm_grid.tools import _search_unfinished_combinations
-    _search_unfinished_combinations(**locals())
+    _search_unfinished_combinations(
+        path=path,
+        depth=depth,
+    )
 
 
 if __name__ == "__main__":
