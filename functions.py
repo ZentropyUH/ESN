@@ -1,5 +1,6 @@
 import os
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+# To eliminate tensorflow logs
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import json
 import numpy as np
 import pandas as pd
@@ -254,12 +255,12 @@ def _forecast(
 def _forecast_from_saved_model(
     trained_model_path: str,
     data_file: str,
-    output_dir: str,
-    forecast_method: str,
-    forecast_length: int,
+    forecast_method: str = "classic",
+    forecast_length: int = 1000,
+    output_dir: str = None,
 
-    section_initialization_length: int,
-    number_of_sections: int,
+    section_initialization_length: int = None,
+    number_of_sections: int = None,
 ):
     with open(join(trained_model_path, 'params.json')) as f:
         params = json.load(f)
