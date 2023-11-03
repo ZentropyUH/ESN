@@ -1,45 +1,87 @@
 import os
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-import time
-from typing import Any
 import numpy as np
-import tensorflow as tf
+from typing import Any
+from time import time
 from rich.progress import track
-from sklearn.linear_model import ElasticNet, Lasso, Ridge
 
 import keras
-import keras.layers
+import tensorflow as tf
+from keras.layers import RNN
+from keras.layers import Layer
+from keras.layers import Dense
+from keras.layers import Concatenate
+from sklearn.linear_model import Lasso
+from sklearn.linear_model import Ridge
+from sklearn.linear_model import ElasticNet
 
-from src.customs.custom_layers import EsnCell, PowerIndex
 from src.utils import tf_ridge_regression
+from src.customs.custom_layers import EsnCell
+from src.customs.custom_layers import PowerIndex
 
-# TODO: save predict in scv
+
+# TODO: Add log
 # TODO: separate prediction and evaluation
-
 class ESN:
-    def __init__(self, inputs, outputs, readout) -> None:
-        self.inputs: keras.layers.Layer = inputs
-        self.outputs: keras.layers.Layer = outputs
-        self.readout: keras.layers.Layer = readout
+    '''
+    Base ESN model.\n
+    Works as an assembly class for the layers that are passed to it as input.
+    Groups a set of basic functionalities for an ESN.
+
+    Args:
+        inputs (keras.layers.Layer): The input layer for the ESN model.
+
+        outputs (keras.layers.Layer): The model output layer. Set the logic of the ESN, until this point the model is not trained.
+
+        readout (keras.layers.Layer): The layer that will be trained and will become the model output.
+    '''
+    def __init__(
+        self,
+        inputs: Layer,
+        outputs: Layer,
+        readout: Layer,
+    ) -> None:
+        self.inputs: Layer = inputs
+        self.outputs: Layer = outputs
+        self.readout: Layer = readout
         self.reservoir: keras.Model = None
         self.model: keras.Model = None
     
-    # TODO: Cant predict if not trained
     def __call__(self, *args: Any, **kwds: Any) -> Any:
+        if self.model is None:
+            raise Exception('Model must be trained to predict')
         return self.model(*args, **kwds)
 
-    # TODO: Cant predict if not trained
-    def predict(self, inputs):
+    def predict(self, inputs: np.ndarray) -> np.ndarray:
+        '''
+        #TODO
+        '''
+        if self.model is None:
+            raise Exception('Model must be trained to predict')
         return self.model.predict(inputs)
     
-    # FIX: Exeption for different features
     def train(
         self,
         transient_data: np.ndarray,
         train_data: np.ndarray,
         train_target: np.ndarray,
-        regularization: int,
-    ):
+        regularization: float,
+    ) -> None:
+        '''
+        Training proccess of the model.
+
+        Args:
+            transient_data (np.ndarray): Transient data.
+
+            train_data (np.ndarray): Data to train the model.
+
+            train_target (np.ndarray): Target data for the training.
+
+            regularization (float): Regularization value for linear readout.
+        
+        Return:
+            None
+        '''
         if not self.reservoir:
             self.reservoir = keras.Model(
                 inputs=self.inputs,
@@ -52,9 +94,9 @@ class ESN:
         self.reservoir.predict(transient_data)
 
         print("\nHarvesting...\n")
-        start = time.time()
+        start = time()
         harvested_states = self.reservoir.predict(train_data)
-        end = time.time()
+        end = time()
         print(f"Harvesting took: {round(end - start, 2)} seconds.")
         
         print("Calculating the readout matrix...\n")
@@ -83,10 +125,11 @@ class ESN:
 
         self.model = keras.Model(
             inputs=self.reservoir.inputs,
+            # CHECK
             outputs=self.readout(self.reservoir.outputs[0]),
             name="ESN",
         )
-    
+        self.model.build(transient_data.shape)
 
     def train_test(
         self,
@@ -107,9 +150,9 @@ class ESN:
         self.reservoir.predict(transient_data)
 
         print("\nHarvesting...\n")
-        start = time.time()
+        start = time()
         harvested_states = self.reservoir.predict(train_data)
-        end = time.time()
+        end = time()
         print(f"Harvesting took: {round(end - start, 2)} seconds.")
         
         print("Calculating the readout matrix...\n")
@@ -151,14 +194,30 @@ class ESN:
             name="ESN",
         )
 
-
     def forecast(
-            self,
-            forecast_length: int,
-            forecast_transient_data: np.ndarray,
-            val_data: np.ndarray,
-            val_target: np.ndarray,
-        ):
+        self,
+        forecast_length: int,
+        forecast_transient_data: np.ndarray,
+        val_data: np.ndarray,
+        val_target: np.ndarray,
+    ) -> np.ndarray:
+        '''
+        Forecast proccess of the model.
+
+        Args:
+            forecast_length (int): Number that indicates the number of points in the future to predict.
+
+            forecast_transient_data (np.ndarray): Trancient of the val_data. The model is fited with this data.
+
+            val_data (np.ndarray): True data of the prediction. The forecast starts receiving his first value as input for the prediction.
+
+            val_target (np.ndarray): Target data of the prediction. Used to calculate the loss function.
+        
+        Return:
+            forecast (np.ndarray): Forecasted data.
+        '''
+        self.model.reset_states()
+
         forecast_length = min(forecast_length, val_data.shape[1])
         _val_target = val_target[:, :forecast_length, :]
 
@@ -185,12 +244,28 @@ class ESN:
 
         return predictions
 
-    def save(self, filepath: str):
-        self.model.save(filepath)
+    def save(self, path: str) -> None:
+        '''
+        Save the model in a folder.
+
+        Args:
+            path (str): The destination folder to save all the files of the model.
+        '''
+        self.model.save(path)
     
+    # BUG: Some trained models cant be loaded. E.g. with bias InputMatrix works ok.
     @staticmethod
-    def load(filepath: str):
-        model: keras.Model = keras.models.load_model(filepath, compile=False)
+    def load(path: str) -> "ESN":
+        '''
+        Load the model from folder format.
+
+        Args:
+            path (str): Folder to load the model.
+        
+        Return:
+            model (ESN): Return the loaded instance of the ESN model.
+        '''
+        model: keras.Model = keras.models.load_model(path, compile=False)
         inputs = model.layers[0].output
         outputs = model.layers[-2].output
         readout = model.layers[-1]
@@ -218,13 +293,15 @@ def generate_ESN(
         leak_rate: float = 1.,
         features: int = 1,
         activation: str = 'tanh',
-        input_reservoir_init="InputMatrix",
-        input_bias_init="random_uniform",
-        reservoir_kernel_init="WattsStrogatzNX",
-        exponent=2,
+        input_reservoir_init: str = "InputMatrix",
+        input_bias_init: str = "random_uniform",
+        reservoir_kernel_init: str = "WattsStrogatzNX",
+        exponent: int = 2,
         seed: int = None
-    ):
-    
+    ) -> ESN:
+    '''
+    Assemble all the layers in ESN model.
+    '''
     if seed is None:
         seed = np.random.randint(0, 1000000)
     print(f'\nSeed: {seed}\n')
@@ -243,7 +320,7 @@ def generate_ESN(
         reservoir_initializer=reservoir_kernel_init,
     )
 
-    esn_rnn = keras.layers.RNN(
+    esn_rnn = RNN(
         esn_cell,
         trainable=False,
         stateful=True,
@@ -255,11 +332,11 @@ def generate_ESN(
         esn_rnn
     )
 
-    outputs = keras.layers.Concatenate(name="Concat_ESN_input")(
+    outputs = Concatenate(name="Concat_ESN_input")(
         [inputs, power_index]
     )
 
-    readout_layer = keras.layers.Dense(
+    readout_layer = Dense(
         features, activation="linear", name="readout", trainable=False
     )
 

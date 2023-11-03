@@ -1,34 +1,32 @@
 import os
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+# To eliminate tensorflow logs
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import json
 import numpy as np
 import pandas as pd
+from typing import List
+from os import makedirs
 from os.path import join
+from keras.initializers import Zeros
+from keras.initializers import RandomUniform
 
-from keras.initializers import RandomUniform, Zeros
-
-from src.customs.custom_initializers import (
-    ErdosRenyi,
-    InputMatrix,
-    RegularNX,
-    WattsStrogatzNX,
-)
-from src.plotters import (
-    plot_contourf_forecast,
-    plot_linear_forecast,
-    plot_rmse,
-    render_video,
-)
+from src.model import ESN
+from src.model import generate_ESN
 from src.utils import load_data
-from src.model import *
-
-
+from src.customs.custom_initializers import ErdosRenyi
+from src.customs.custom_initializers import InputMatrix
+from src.customs.custom_initializers import RegularNX
+from src.customs.custom_initializers import WattsStrogatzNX
+from src.plotters import plot_contourf_forecast
+from src.plotters import plot_linear_forecast
+from src.plotters import plot_rmse
+from src.plotters import render_video
 
 
 def _train(
     # Save params
     data_file: str,
-    filepath: str = None,
+    output_dir: str = None,
     # General params
     model: str = "ESN",
     units: int = 6000,
@@ -51,6 +49,11 @@ def _train(
     # Training params
     transient: int = 1000,
     train_length: int = 20000,
+
+    #ignored
+    reservoir_amount: int = None,
+    overlap: int = None,
+    readout_layer: str = None,
 ):
     '''
     Trains an Echo State Network on the data provided in the data file.
@@ -168,11 +171,11 @@ def _train(
         regularization
     )
 
-    if filepath:
-        os.makedirs(filepath, exist_ok=True)
-        _model.save(filepath)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+        _model.save(output_dir)
 
-        with open(join(filepath, 'params.json'), 'w', encoding='utf-8') as f:
+        with open(join(output_dir, 'params.json'), 'w', encoding='utf-8') as f:
             json.dump(
                 params,
                 f,
@@ -181,15 +184,15 @@ def _train(
                 separators=(",", ": ")
             )
 
-    return _model, params
+    return _model
 
 
 def _forecast(
     trained_model: ESN,
-    transient,
-    train_length,
+    transient: int,
+    train_length: int,
     data_file: str,
-    filepath: str = None,
+    output_dir: str = None,
     forecast_method: str = "classic",
     forecast_length: int = 1000,
     steps: int = 1,
@@ -239,14 +242,40 @@ def _forecast(
         case "section":
             raise Exception(f"{forecast_method} is yet to be implemented")
     
-    if filepath:
+    if output_dir:
         pd.DataFrame(predictions).to_csv(
-            filepath,
+            output_dir,
             index=False,
             header=None,
         )
     
     return predictions, val_target[:, :forecast_length, :][0]
+
+
+def _forecast_from_saved_model(
+    trained_model_path: str,
+    data_file: str,
+    forecast_method: str = "classic",
+    forecast_length: int = 1000,
+    output_dir: str = None,
+
+    section_initialization_length: int = None,
+    number_of_sections: int = None,
+):
+    with open(join(trained_model_path, 'params.json')) as f:
+        params = json.load(f)
+    model = ESN.load(trained_model_path)
+
+    _forecast(
+        trained_model=model,
+        transient=params['transient'],
+        train_length=params['train_length'],
+        data_file=data_file,
+        output_dir=output_dir,
+        forecast_method=forecast_method,
+        forecast_length=forecast_length,
+        steps=params['steps'],
+    )
 
 
 def _plot(

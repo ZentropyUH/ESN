@@ -1,18 +1,11 @@
 #!/usr/bin/python3
-import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import typer
-
-from src.grid.tools import *
-from src.utils import load_model_and_params
+from typing import List
 
 from t_utils import *
-from functions import _train, _forecast, _plot
-from src.grid.grid import _grid
-from src.grid.tools import get_best_results, generate_result_combinations, script_generator, generate_initial_combinations
+
 
 app = typer.Typer()
-
 
 
 @app.command()
@@ -30,11 +23,6 @@ def train(
         "--output-dir",
         "-o",
         help="The directory where the results will be saved. The default is the current directory.",
-    ),
-    file_name: str = typer.Option(
-        None,
-        "--file-name",
-        "-fn",
     ),
     model: EModel = typer.Option("ESN", "--model", "-m", help=""),
     units: int = typer.Option(..., "--units", "-u", help=""),
@@ -83,10 +71,10 @@ def train(
         help="The spectral radius of the reservoir. The default is 0.99. Only used if ESN or Parallel_ESN is used. If a range of values is given, the script will be executed the specified number of times with different values of the spectral radius. The values will be chosen linearly between the first and the second value. If a list of values is given, the script will be executed the specified number of times with the values in the list.",
     ),
     reservoir_initializer: ReservoirInitializer = typer.Option(
-        "WattsStrogatzOwn",
+        "WattsStrogatzNX",
         "--reservoir-initializer",
         "-ri",
-        help="The initializer for the reservoir weights. The default is WattsStrogatzOwn. Only used if ESN or Parallel_ESN is used.",  # Maybe play later with topologies on ECA and Oscillators. First we have to study impact on EOC.allow_from_autoenv=
+        help="The initializer for the reservoir weights. The default is WattsStrogatzNX. Only used if ESN or Parallel_ESN is used.",  # Maybe play later with topologies on ECA and Oscillators. First we have to study impact on EOC.allow_from_autoenv=
     ),
     rewiring: float = typer.Option(
         0.5,
@@ -145,9 +133,39 @@ def train(
         "-tl",
         help="The number of points to be used for training. The default is 10000. If a range of values is given, the script will be executed the specified number of times worg.freedesktop.PackageKit.proxyith different values of the training length. The values will be chosen linearly between the first and the second value. If a list of values is given, the script will be executed the specified number of times with the values in the list.",
     ),
+    steps: int = typer.Option(
+        1,
+        "--steps",
+        "-s",
+        help="Number of steps among data point to ignore. Used to variate the data dt.",
+    ),
 ):
     """Train a specific model on a given data file."""
-    _train(**locals())
+    from functions import _train
+    _train(
+        data_file=data_file,
+        output_dir=output_dir,
+        model=model,
+        units=units,
+        input_initializer=input_initializer,
+        input_bias_initializer=input_bias_initializer,
+        input_scaling=input_scaling,
+        leak_rate=leak_rate,
+        reservoir_activation=reservoir_activation,
+        seed=seed,
+        spectral_radius=spectral_radius,
+        reservoir_initializer=reservoir_initializer,
+        rewiring=rewiring,
+        reservoir_degree=reservoir_degree,
+        reservoir_sigma=reservoir_sigma,
+        reservoir_amount=reservoir_amount,
+        overlap=overlap,
+        readout_layer=readout_layer,
+        regularization=regularization,
+        transient=transient,
+        train_length=train_length,
+        steps=steps,
+    )
 
 
 @app.command()
@@ -196,11 +214,16 @@ def forecast(
     ),
 ):
     """Make predictions with a given model on a data file."""
-    forecast_params = locals()
-    trained_model, model_params = load_model_and_params(trained_model_path)
-    forecast_params.pop("trained_model_path")
-    print(forecast_params)
-    _forecast(trained_model, model_params, **forecast_params)
+    from functions import _forecast_from_saved_model
+    _forecast_from_saved_model(
+        trained_model_path=trained_model_path,
+        data_file=data_file,
+        output_dir=output_dir,
+        forecast_method=forecast_method,
+        forecast_length=forecast_length,
+        section_initialization_length=section_initialization_length,
+        number_of_sections=number_of_sections,
+    )
 
 
 # FIX: Output path
@@ -292,29 +315,34 @@ def plot(
     ),
 ):
     """Plot different data."""
-    _plot(**locals())
-
-
-@app.command()
-def grid(
-    units: int = typer.Option(9000, "--units", "-u"),
-    train_length: int = typer.Option(20000, "--train-length", "-tl"),
-    forecast_length: int = typer.Option(1000, "--forecast-length", "-fl"),
-    transient: int = typer.Option(1000, "--transient", "-tr"),
-    steps: int = typer.Option(1, '--steps', '-s'),
-
-    data_path: str = typer.Option(..., "--data", "-d"),
-    output_path: str = typer.Option(..., "--output", "-o"),
-    
-    index: int = typer.Option(..., "--index", "-i"),
-    hyperparameters_path: str = typer.Option(..., "--hyperparameters-path", "-hp"),
-):
-    _grid(
-        units=units,
-        train_length=train_length,
-        forecast_length=forecast_length,
+    from functions import _plot
+    _plot(
+        plot_type=plot_type,
+        predictions=predictions,
+        data_file=data_file,
+        lyapunov_exponent=lyapunov_exponent,
+        delta_time=delta_time,
+        plot_points=plot_points,
+        title=title,
+        save_path=save_path,
+        show=show,
+        y_labels=y_labels,
+        y_values=y_values,
+        x_label=x_label,
         transient=transient,
-        steps=steps,
+        train_length=train_length,
+    )
+
+
+@app.command(help='Commad executed by the slurm grid search.')
+def slurm_grid(
+    data_path: str = typer.Option(..., "--data", "-d", help='Path to the system data.'),
+    output_path: str = typer.Option(..., "--output", "-o", help='Output path.'),
+    index: int = typer.Option(..., "--index", "-i", help='Index of the combination in the combinations.json file.'),
+    hyperparameters_path: str = typer.Option(..., "--hyperparameters-path", "-hp", help='Path to the .json file of the combinations.'),
+):
+    from slurm_grid.grid import _slurm_grid
+    _slurm_grid(
         data_path=data_path,
         output_path=output_path,
         index=index,
@@ -322,145 +350,116 @@ def grid(
     )
 
 
-
 # INITIALIZE GRID
-@app.command()
-def grid_init(
-    path: str = typer.Option(..., "--path", "-p"),
-    job_name: str = typer.Option(..., "--job-name", "-j"),
-    data_path: str = typer.Option(..., "--data-path", "-dp"),
-    steps: int = typer.Option(1, '--steps', '-s'),
-):
-    info_path = join(path, 'info')
-    makedirs(info_path, exist_ok=True)
-    n_info_path = join(info_path, '0')
-    makedirs(n_info_path, exist_ok=True)
-    n_run_path = join(path, 'run_0')
-    makedirs(n_run_path, exist_ok=True)
-    combinations_path = join(n_info_path, 'combinations.json')
-    output_path = join(n_run_path, 'data')
-    script_file = join(n_info_path, 'script.sh')
+@app.command(help='Initialize all files and folders for grid search.')
+def init_slurm_grid(
+    path: str = typer.Option(..., '--path', '-p', help='Base path to save grid search folders and files.'),
+    job_name: str = typer.Option('job', '--job-name', '-j', help='Slurm job name.'),
+    data_path: str = typer.Option(..., '--data-path', '-dp', help='Path of the System data.'),
 
-    combinations = generate_initial_combinations(n_info_path)
-    script_generator(
-        job_name,
-        (1, len(combinations)),
-        combinations_path,
-        output_path,
-        data_path,
-        script_file,
-        steps
+    model: str = typer.Option('ESN', '-m', '--model'),
+    input_initializer: str = typer.Option('InputMatrix', '-ii', '--input-initializer'),
+    input_bias_initializer: str = typer.Option('RandomUniform', '-ib', '--input-bias'),
+    reservoir_activation: str = typer.Option('tanh', '-ra', '--reservoir-activation'),
+    reservoir_initializer: str = typer.Option('WattsStrogatzNX', '-ri', '--reservoir-initializer'),
+
+    units: List[int] = typer.Option([5000], '--units', '-u'),
+    train_length: List[int] = typer.Option([20000], '--train-length', '-tl'),
+    forecast_length: List[int] = typer.Option([1000], '--forecast-length', '-fl'),
+    transient: List[int] = typer.Option([1000], '--transient', '-t'),
+    steps: List[int] = typer.Option([1], '--steps', '-s'),
+
+    input_scaling: List[float] = typer.Option(..., '--input-scaling', '-is'),
+    leak_rate: List[float] = typer.Option(..., '--leak-rate', '-lr'),
+    spectral_radius: List[float] = typer.Option(..., '--spectral-radius', '-sr'),
+    rewiring: List[float] = typer.Option(..., '--rewiring', '-rw'),
+    reservoir_degree: List[int] = typer.Option(..., '--reservoir-degree', '-rd'),
+    reservoir_sigma: List[float] = typer.Option(..., '--reservoir-sigma', '-rs'),
+    regularization: List[float] = typer.Option(..., '--regularization', '-rg'),
+):
+    from slurm_grid.tools import _init_slurm_grid
+    _init_slurm_grid(
+        path=path,
+        job_name=job_name,
+        data_path=data_path,
+        model=model,
+        input_initializer=input_initializer,
+        input_bias_initializer=input_bias_initializer,
+        reservoir_activation=reservoir_activation,
+        reservoir_initializer=reservoir_initializer,
+        units=units,
+        train_length=train_length,
+        forecast_length=forecast_length,
+        transient=transient,
+        steps=steps,
+        input_scaling=input_scaling,
+        leak_rate=leak_rate,
+        spectral_radius=spectral_radius,
+        rewiring=rewiring,
+        reservoir_degree=reservoir_degree,
+        reservoir_sigma=reservoir_sigma,
+        regularization=regularization,
     )
 
 
-
-@app.command(help='Generate and save the initial hyperparameters combinations in the given path.')
-def initial_combinations(
-    output: str = typer.Option(..., "--output", "-o"),
-):
-    generate_initial_combinations(output)
-
-
-@app.command(help='Generate new slurm script.')
-def script(
-    job_name: str = typer.Option(..., "--job-name", "-j"),
-    data_path: str = typer.Option(..., "--data-path", "-dp"),
-    combinations_path: str = typer.Option(..., "--combinations-path", "-cp"),
-    output_path: str = typer.Option(..., "--output-path", "-op"),
-    filepath: str = typer.Option(..., "--file-path", "-fp"),
-    steps: int = typer.Option(1, '--steps', '-s'),
-):
-    combinations = load_hyperparams(combinations_path)
-    script_generator(
-        job_name,
-        (1, len(combinations)),
-        combinations_path,
-        output_path,
-        data_path,
-        filepath,
-        steps
-    )
-
-
-
+# FIX
 # RUN BETWEEN GRID SEARCH
-@app.command()
+@app.command(help='Generate the next steps of the grid search from the results of the previous ones.')
 def grid_aux(
-    job_name: str = typer.Option(..., "--job-name", "-j"),
-    run_path: str = typer.Option(..., "--run-path", "-rp"),
-    data_path: str = typer.Option(..., "--data-path", "-dp"),
-    info_path: str = typer.Option(..., "--info-path", "-ip"),
+    path: str = typer.Option(..., '--path', '-p', help='Base path to grid search folders'),
     n_results: int = typer.Option(..., "--n-results", "-nr"),
     threshold: float = typer.Option(..., "--threshold", "-t"),
-    steps: int = typer.Option(1, '--steps', '-s'),
 ):
-    output_path = join(run_path, 'data')
-    results_path = join(run_path, 'results')
-    steps_file = join(info_path, 'steps.json')
-    new_info = join(Path(info_path).absolute().parent, str(int(Path(info_path).absolute().name)+1))
-    makedirs(new_info, exist_ok=True)
-    new_run = join(Path(run_path).absolute().parent, 'run_' + str(int(Path(run_path).absolute().name.split('_')[-1])+1))
-    makedirs(new_run, exist_ok=True)
-
-    best_results(
-        output_path,
-        results_path,
-        n_results,
-        threshold
-    )
-    new_combinations = generate_result_combinations(
-        results_path,
-        steps_file,
-        new_info,
-    )
-    script_generator(
-        job_name,
-        (1, len(new_combinations)),
-        join(new_info, 'combinations.json'),
-        join(new_run, 'data'),
-        data_path,
-        join(new_info, 'script.sh'),
-        steps
-    )
-
-
-@app.command(help='Generate the new hyperparameters combinations from the results from the given path.')
-def new_combinations(
-    path: str = typer.Option(..., "--path", "-p"),
-    output: str = typer.Option(..., "--output", "-o"),
-    steps: str = typer.Option(..., "--steps", "-s"),
-):
-    generate_result_combinations(
-        path = path,
-        steps_file = steps,
-        output = output,
+    # TODO: Adapt method to new changes
+    raise NotImplementedError
+    from slurm_grid.tools import _grid_aux
+    _grid_aux(
+        path=path,
+        n_results=n_results,
+        threshold=threshold,
     )
 
 
 @app.command(help='Get the best results from the given path. Compare by the given `threshold`.')
 def best_results(
-    path: str = typer.Option(..., "--path", "-p"),
+    results_path: str = typer.Option(..., "--results-path", "-rp"),
     output: str = typer.Option(..., "--output", "-o"),
-    max_size: int = typer.Option(..., "--max-size", "-ms"),
+    n_results: int = typer.Option(..., "--n-results", "-nr"),
     threshold: float = typer.Option(..., "--threshold", "-t"),
 ):
-    get_best_results(
-        path,
-        output,
-        max_size,
-        threshold
+    from slurm_grid.tools import _best_results
+    _best_results(
+        results_path=results_path,
+        output=output,
+        n_results=n_results,
+        threshold=threshold,
     )
 
 
-
-@app.command()
+@app.command(help='Generate the a .json file with the hyperparameters of every training and the index where the rmse from the results are bigger than the threshold.')
 def results_data(
-    path: str = typer.Option(..., "--path", "-p"),
-    filepath: str = typer.Option(..., "--file-path", "-fp"),
+    results_path: str = typer.Option(..., "--results-path", "-rp", help='Path of the results from grid search to be analized.'),
+    filepath: str = typer.Option(..., "--filepath", "-fp", help='File path for the output. Must be a .json file.'),
     threshold: float = typer.Option(..., "--threshold", "-t"),
 ):
-    results_info(path, filepath, threshold)
+    from slurm_grid.tools import _results_data
+    _results_data(
+        results_path=results_path,
+        filepath=filepath,
+        threshold=threshold,
+    )
     
+
+@app.command(help='Search for the combinations that have not been satisfactorily completed and create a script to execute them')
+def search_unfinished_combinations(
+    path:str =  typer.Option(..., "--path", "-p", help='Specify the folder where the results of the combinations are stored'),
+    depth = typer.Option(0, "--depth", "-d", help='Grid depth, to specify the depth of the grid seach.')
+):
+    from slurm_grid.tools import _search_unfinished_combinations
+    _search_unfinished_combinations(
+        path=path,
+        depth=depth,
+    )
 
 
 if __name__ == "__main__":

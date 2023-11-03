@@ -153,8 +153,7 @@ class EsnCell(keras.layers.Layer):
 
         # leak_rate integration
         output = (
-            prev_output * (1 - self.leak_rate) + new_state * self.leak_rate
-        )
+            prev_output * (1 - self.leak_rate) + new_state * self.leak_rate        )
 
         return output, [output]
 
