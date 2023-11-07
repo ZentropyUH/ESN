@@ -232,13 +232,15 @@ def _forecast(
     ############### CHOOSE THE FORECAST METHOD AND FORECAST ###############
     match forecast_method:
         case "classic":
-            predictions = trained_model.forecast(
+            predictions, states_over_time = trained_model.forecast(
                 forecast_length,
                 forecast_transient_data,
                 val_data,
                 val_target
             )
+            
             predictions = predictions[0]
+
         case "section":
             raise Exception(f"{forecast_method} is yet to be implemented")
     
@@ -248,7 +250,24 @@ def _forecast(
             index=False,
             header=None,
         )
-    
+
+        # Extraer el nombre base del archivo sin extensión
+        file_name = os.path.splitext(os.path.basename(output_dir))[0]
+
+         # Crear un directorio para los estados internos si no existe
+        directory_path = os.path.dirname(output_dir)
+        internal_state_dir = os.path.join(directory_path, "internal_state")
+        os.makedirs(internal_state_dir, exist_ok=True)
+        
+        # Convertir los estados a lo largo del tiempo en un DataFrame de pandas y guardarlo en CSV
+        states_over_time_df = pd.DataFrame(states_over_time)
+
+        # Construir el nombre completo del archivo CSV para los estados internos
+        internal_states_csv_path = os.path.join(internal_state_dir, f"{file_name}_states_over_time.csv")
+        
+        # Guardar los estados internos en la carpeta correspondiente
+        states_over_time_df.to_csv(internal_states_csv_path, index=False, header=None)
+
     return predictions, val_target[:, :forecast_length, :][0]
 
 
