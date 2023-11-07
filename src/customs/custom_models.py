@@ -269,15 +269,14 @@ class ESN(keras.Model):
             if verbose > 1:
                 print(f"Distance between states: {distance}")
 
-            esp = distance < 1e-5
 
-            if not esp:
+            if distance >= 1e-5:
                 print(
                     f"ESP is not satisfied, increase transient size. Failed at iteration: {i}"
                 )
                 # Restore previous state
                 self.set_esn_state(current_state)
-                return esp
+                return distance < 1e-5
 
         print("ESP is satisfied\n")
         # Restore previous state
