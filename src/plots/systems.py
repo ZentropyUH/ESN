@@ -149,7 +149,7 @@ def plot_system(
     show: bool = False,
 ):
     features = target.shape[-1]
-    _target = target[:length]
+    _target = target[0][:length]
     xvalues = np.arange(0, length) * dt
     yvalues = np.arange(0, target.shape[-1])
 
@@ -163,7 +163,7 @@ def plot_system(
         _base_plot(
             ax=axs,
             xvalues=xvalues,
-            val_target=_target[0, :],
+            val_target=_target,
         )
     
     elif features <= 3:
@@ -176,7 +176,7 @@ def plot_system(
             _base_plot(
                 ax=axs[i],
                 xvalues=xvalues,
-                val_target=_target[0, :, i],
+                val_target=_target[:, i],
             )
     
     else:
