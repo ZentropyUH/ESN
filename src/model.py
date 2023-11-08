@@ -15,7 +15,7 @@ from sklearn.linear_model import Lasso
 from sklearn.linear_model import Ridge
 from sklearn.linear_model import ElasticNet
 
-from src.utils import tf_ridge_regression
+from src.utils import tf_ridge_regression, get_esn_state
 from src.customs.custom_layers import EsnCell
 from src.customs.custom_layers import PowerIndex
 
@@ -227,10 +227,15 @@ class ESN:
         self.predict(forecast_transient_data)
         
         predictions = val_data[:, :1, :]
+        states_over_time = []  # List to store the states at each time step
+
         print("\n    Predicting...\n")
         for _ in track(range(forecast_length)):
             pred = self.model(predictions[:, -1:, :])
             predictions = np.hstack((predictions, pred))
+
+            current_states = get_esn_state(self.model) # Get the current state of the ESN
+            states_over_time.append(current_states)  # Store the state
         
         predictions = predictions[:, 1:, :]
         print("    Predictions shape: ", predictions.shape)
@@ -242,7 +247,7 @@ class ESN:
             return np.inf
         print(f"Forecast loss: {loss}\n")
 
-        return predictions
+        return predictions, states_over_time
 
     def save(self, path: str) -> None:
         '''
@@ -325,6 +330,7 @@ def generate_ESN(
         trainable=False,
         stateful=True,
         return_sequences=True,
+        return_state=True,
         name="esn_rnn",
     )(inputs)
 

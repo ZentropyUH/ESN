@@ -222,3 +222,23 @@ if __name__ == "__main__":
         return x + 1
 
     print(compose_n_times(10)(f)(0))
+
+
+# Get the state of the ESN function
+def get_esn_state(model):
+    """Return the state of the ESN cell.
+
+    Args:
+        model (Model): The Keras model containing the ESN RNN layer.
+
+    Returns:
+        np array
+    """
+    # Access the ESN RNN layer by name and retrieve its last state
+    esn_rnn_layer = model.get_layer("esn_rnn")
+    state_h = esn_rnn_layer.states[0]
+
+    # Convert the tensor to a NumPy array
+    states = np.squeeze(state_h.numpy())
+
+    return states

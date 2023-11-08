@@ -212,6 +212,12 @@ def forecast(
         "-nos",
         help="The number of sections to be used for forecasting. The default is 10.",
     ),
+    internal_states: bool = typer.Option(
+        True,
+        "--internal-states/--no-show",
+        "-is",
+        help="Whether to save the inernal state values over the time or not. The default is True.",
+    ),
 ):
     """Make predictions with a given model on a data file."""
     from functions import _forecast_from_saved_model
@@ -223,6 +229,7 @@ def forecast(
         forecast_length=forecast_length,
         section_initialization_length=section_initialization_length,
         number_of_sections=number_of_sections,
+        internal_states=internal_states
     )
 
 
