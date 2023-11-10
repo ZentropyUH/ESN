@@ -1,7 +1,7 @@
 import os
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 import numpy as np
-from typing import Any
+from typing import Any, Union, Tuple, List, Optional
 from time import time
 from rich.progress import track
 
@@ -194,27 +194,32 @@ class ESN:
             name="ESN",
         )
 
+    
+            # function code here
     def forecast(
-        self,
-        forecast_length: int,
-        forecast_transient_data: np.ndarray,
-        val_data: np.ndarray,
-        val_target: np.ndarray,
-    ) -> np.ndarray:
+            self,
+            forecast_length: int,
+            forecast_transient_data: np.ndarray,
+            val_data: np.ndarray,
+            val_target: np.ndarray,
+            return_states: bool = False,
+        ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
         '''
-        Forecast proccess of the model.
+        Forecast the model for a given number of steps.
 
         Args:
-            forecast_length (int): Number that indicates the number of points in the future to predict.
+            forecast_length (int): Number of steps to forecast.
 
-            forecast_transient_data (np.ndarray): Trancient of the val_data. The model is fited with this data.
+            forecast_transient_data (np.ndarray): Transient data of the val_data. The model is fitted with this data.
 
-            val_data (np.ndarray): True data of the prediction. The forecast starts receiving his first value as input for the prediction.
+            val_data (np.ndarray): True data of the prediction. The forecast starts receiving its first value as input for the prediction.
 
             val_target (np.ndarray): Target data of the prediction. Used to calculate the loss function.
-        
-        Return:
-            forecast (np.ndarray): Forecasted data.
+
+            return_states (bool): Whether to return the states of the ESN.
+
+        Returns:
+            Tuple[np.ndarray, Optional[np.ndarray]]: A tuple containing the forecasted data and the states of the ESN (if return_states is True).
         '''
         self.model.reset_states()
 
@@ -227,15 +232,19 @@ class ESN:
         self.predict(forecast_transient_data)
         
         predictions = val_data[:, :1, :]
-        states_over_time = []  # List to store the states at each time step
+        
+        # Making the states an array of shape (0, units)
+        states_over_time = np.empty((0, self.model.get_layer("esn_rnn").cell.units)) if return_states else None
 
         print("\n    Predicting...\n")
         for _ in track(range(forecast_length)):
             pred = self.model(predictions[:, -1:, :])
             predictions = np.hstack((predictions, pred))
-
-            current_states = get_esn_state(self.model) # Get the current state of the ESN
-            states_over_time.append(current_states)  # Store the state
+            
+            if return_states:
+                # Getting the states of the ESN, also reducing the dimensionality
+                current_states = self.model.get_layer("esn_rnn").states[0]
+                states_over_time = np.vstack((states_over_time, current_states))
         
         predictions = predictions[:, 1:, :]
         print("    Predictions shape: ", predictions.shape)
@@ -330,11 +339,10 @@ def generate_ESN(
         trainable=False,
         stateful=True,
         return_sequences=True,
-        return_state=True,
         name="esn_rnn",
     )(inputs)
 
-    power_index = PowerIndex(exponent=exponent, index=2, name="power_index")(
+    power_index = PowerIndex(exponent=exponent, index=2, name="pwr")(
         esn_rnn
     )
 
