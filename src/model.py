@@ -18,6 +18,7 @@ from sklearn.linear_model import ElasticNet
 from src.utils import tf_ridge_regression, get_esn_state
 from src.customs.custom_layers import EsnCell
 from src.customs.custom_layers import PowerIndex
+from src.customs.custom_layers import simple_esn
 
 
 # TODO: Add log
@@ -37,15 +38,16 @@ class ESN:
     '''
     def __init__(
         self,
-        inputs: Layer,
-        outputs: Layer,
+        reservoir: Layer,
         readout: Layer,
     ) -> None:
-        self.inputs: Layer = inputs
-        self.outputs: Layer = outputs
+
+        
         self.readout: Layer = readout
-        self.reservoir: keras.Model = None
+        self.reservoir: keras.layers.Layer = reservoir
         self.model: keras.Model = None
+        
+        self.built = False
     
     def __call__(self, *args: Any, **kwds: Any) -> Any:
         if self.model is None:
@@ -54,7 +56,16 @@ class ESN:
 
     def predict(self, inputs: np.ndarray) -> np.ndarray:
         '''
-        #TODO
+        Predicts the output of the model for the given inputs.
+
+        Args:
+            inputs (np.ndarray): The input data to predict the output for.
+
+        Returns:
+            np.ndarray: The predicted output for the given inputs.
+
+        Raises:
+            Exception: If the model has not been trained yet.
         '''
         if self.model is None:
             raise Exception('Model must be trained to predict')
@@ -82,11 +93,6 @@ class ESN:
         Return:
             None
         '''
-        if not self.reservoir:
-            self.reservoir = keras.Model(
-                inputs=self.inputs,
-                outputs=self.outputs
-            )
         
         print("\nEnsuring ESP...\n")
         if not self.reservoir.built:
@@ -126,10 +132,10 @@ class ESN:
         self.model = keras.Model(
             inputs=self.reservoir.inputs,
             # CHECK
-            outputs=self.readout(self.reservoir.outputs[0]),
+            outputs=self.readout(self.reservoir.output),
             name="ESN",
         )
-        self.model.build(transient_data.shape)
+        
 
     def train_test(
         self,
@@ -196,6 +202,7 @@ class ESN:
 
     
             # function code here
+
     def forecast(
             self,
             forecast_length: int,
@@ -265,7 +272,7 @@ class ESN:
         Args:
             path (str): The destination folder to save all the files of the model.
         '''
-        self.model.save(path)
+        self.model.save(path, include_optimizer=False)
     
     # BUG: Some trained models cant be loaded. E.g. with bias InputMatrix works ok.
     @staticmethod
@@ -280,21 +287,20 @@ class ESN:
             model (ESN): Return the loaded instance of the ESN model.
         '''
         model: keras.Model = keras.models.load_model(path, compile=False)
-        inputs = model.layers[0].output
-        outputs = model.layers[-2].output
-        readout = model.layers[-1]
+        inputs = model.get_layer("Input").output
+        outputs = model.get_layer("res_output").output
+        readout = model.get_layer("readout")
         reservoir = keras.Model(
             inputs=inputs,
             outputs=outputs,
         )
         model = keras.Model(
             inputs=reservoir.inputs,
-            outputs=readout(reservoir.outputs[0]),
+            outputs=readout(reservoir.output),
             name="ESN",
         )
         esn = ESN(
-            inputs,
-            outputs,
+            reservoir,
             readout
         )
         esn.reservoir = reservoir
@@ -316,43 +322,26 @@ def generate_ESN(
     '''
     Assemble all the layers in ESN model.
     '''
+    #TODO: see who handles the seed and how
     if seed is None:
         seed = np.random.randint(0, 1000000)
     print(f'\nSeed: {seed}\n')
     np.random.seed(seed)
     tf.random.set_seed(seed)
 
-    inputs = keras.Input(batch_shape=(1, None, features), name='Input')
-
-    esn_cell = EsnCell(
-        units=units,
-        name="EsnCell",
-        activation=activation,
-        leak_rate=leak_rate,
-        input_initializer=input_reservoir_init,
-        input_bias_initializer=input_bias_init,
-        reservoir_initializer=reservoir_kernel_init,
-    )
-
-    esn_rnn = RNN(
-        esn_cell,
-        trainable=False,
-        stateful=True,
-        return_sequences=True,
-        name="esn_rnn",
-    )(inputs)
-
-    power_index = PowerIndex(exponent=exponent, index=2, name="pwr")(
-        esn_rnn
-    )
-
-    outputs = Concatenate(name="Concat_ESN_input")(
-        [inputs, power_index]
-    )
+    reservoir = simple_esn(units=units,
+                           leak_rate=leak_rate,
+                           activation=activation,
+                           seed=seed,
+                           features=features,
+                           input_reservoir_init=input_reservoir_init,
+                           input_bias_init=input_bias_init,
+                           reservoir_kernel_init=reservoir_kernel_init,
+                           exponent=exponent)
 
     readout_layer = Dense(
         features, activation="linear", name="readout", trainable=False
     )
 
-    model = ESN(inputs, outputs, readout_layer)
+    model = ESN(reservoir, readout_layer)
     return model
