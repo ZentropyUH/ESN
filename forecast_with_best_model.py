@@ -1,7 +1,7 @@
 import os
 import sys
 import pandas as pd
-from ..functions import _forecast_from_saved_model
+from functions import _forecast_from_saved_model
 from LZ.main import generate_plots
 
 def forecast_and_save(model_path, data_folder, output_folder, forecast_length):
