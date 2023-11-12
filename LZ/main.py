@@ -1,9 +1,9 @@
 import os
 
-from utils import group_dimensions_for_plot
-from binarize import mean_per_col_for_folder
-from plotters import map
-from LZ import lzProc
+from LZ.utils import group_dimensions_for_plot
+from LZ.binarize import mean_per_col_for_folder
+from LZ.plotters import map
+from LZ.lz import lzProc
 
 SISTEMA = "Lorenz" 
 X_AXI = "Asymptotic entropy density"
@@ -51,4 +51,4 @@ def generate_plots(data_path: str, root_path: str):
         map(plot_path + "/" + _file , X_AXI, Y_AXI , plot_path)
     #endregion
 
-generate_plots("/home/sheyla/tesis/DATA/ORIGINAL/GLOBAL/Lorenz/Lorenz-data", PATH)
+#generate_plots("/home/sheyla/tesis/DATA/ORIGINAL/GLOBAL/Lorenz/Lorenz-data", PATH)
