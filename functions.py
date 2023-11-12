@@ -237,7 +237,8 @@ def _forecast(
                 forecast_length,
                 forecast_transient_data,
                 val_data,
-                val_target
+                val_target,
+                return_states
             )
             
             predictions = predictions[0]

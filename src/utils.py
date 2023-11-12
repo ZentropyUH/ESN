@@ -1,13 +1,12 @@
 """Define some general utility functions."""
 
+import json
+import re
+
 import numpy as np
 import pandas as pd
-import re
-import json
-from src.customs.custom_models import ESN, ParallelESN
-from keras.models import load_model
 import tensorflow as tf
-
+from keras.models import load_model
 
 #### Parameters ####
 
