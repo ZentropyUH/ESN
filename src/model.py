@@ -239,9 +239,9 @@ class ESN:
         self.predict(forecast_transient_data)
         
         predictions = val_data[:, :1, :]
-        
         # Making the states an array of shape (0, units)
         states_over_time = np.empty((0, self.model.get_layer("esn_rnn").cell.units)) if return_states else None
+
 
         print("\n    Predicting...\n")
         for _ in track(range(forecast_length)):
@@ -251,7 +251,7 @@ class ESN:
             if return_states:
                 # Getting the states of the ESN, also reducing the dimensionality
                 current_states = self.model.get_layer("esn_rnn").states[0]
-                states_over_time = np.vstack((states_over_time, current_states))
+                states_over_time = np.vstack((states_over_time, current_states
         
         predictions = predictions[:, 1:, :]
         print("    Predictions shape: ", predictions.shape)

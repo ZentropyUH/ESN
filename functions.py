@@ -196,7 +196,7 @@ def _forecast(
     forecast_method: str = "classic",
     forecast_length: int = 1000,
     steps: int = 1,
-    return_states: bool = False
+    internal_states: bool = False
 ):
     '''
     Load a model and forecast the data.
@@ -253,7 +253,7 @@ def _forecast(
             header=None,
         )
 
-    if states_over_time:
+    if internal_states:
         # Extraer el nombre base del archivo sin extensión
         file_name = os.path.splitext(os.path.basename(output_dir))[0]
 
