@@ -277,10 +277,11 @@ class InputSplitter(keras.layers.Layer):
         Returns:
             tf.Tensor: Tensor of shape (partitions, batch_size, T, D/partitions + 2*overlap)
         """
+        print("caca: ", inputs.shape)
         if self.partitions == 1:
-            return inputs.reshape(1, *inputs.shape)
+            return inputs
 
-        features = inputs.shape[-1]  # Change this to a[-1] later
+        features = inputs.shape[-1]
 
         assert (
             features % self.partitions == 0
@@ -536,8 +537,7 @@ def simple_esn(units: int,
                input_reservoir_init: str = "InputMatrix",
                input_bias_init: str = "random_uniform",
                reservoir_kernel_init: str = "WattsStrogatzNX",
-               exponent: int = 2,
-               seed: int = None):
+               exponent: int = 2):
     
     inputs = keras.Input(batch_shape=(1, None, features), name='Input')
     
@@ -574,9 +574,66 @@ def simple_esn(units: int,
     
     return reservoir
 
+def parallel_esn(units: int, 
+                 leak_rate: float = 1, 
+                 features: int = 1,
+                 activation: str = 'tanh',
+                 input_reservoir_init: str = "InputMatrix",
+                 input_bias_init: str = "random_uniform",
+                 reservoir_kernel_init: str = "WattsStrogatzNX",
+                 exponent: int = 2,
+                 partitions: int = 1,
+                 overlap: int = 0):
+    
+    assert features % partitions == 0, "Input length must be divisible by partitions"
+    
+    assert features // partitions > overlap, "Overlap must be smaller than the length of the partitions"
+    
+    inputs = keras.Input(batch_shape=(1, None, features), name='Input')
+    
+    print(inputs.shape)
+    
+    inputs_splitted = InputSplitter(partitions=partitions, overlap=overlap, name="splitter")(inputs)
+    
+    
+    # Create the reservoirs
+    reservoir_outputs = []
+    for i in range(partitions):
+        
+        esn_cell = EsnCell(
+            units=units,
+            name="EsnCell",
+            activation=activation,
+            leak_rate=leak_rate,
+            input_initializer=input_reservoir_init,
+            input_bias_initializer=input_bias_init,
+            reservoir_initializer=reservoir_kernel_init,
+        )
 
-def parallel_esn():
-    pass
+        reservoir = keras.layers.RNN(
+                esn_cell,
+                trainable=False,
+                stateful=True,
+                return_sequences=True,
+                name=f"esn_rnn_{i}",
+            )
+        
+        print("input splitted: ", inputs_splitted)
+        print("input splitted shape: ", inputs_splitted[i].shape)
+        
+        reservoir_output = reservoir(inputs_splitted[i])
+        reservoir_output = PowerIndex(exponent=exponent, index=i, name=f"pwr_{i}")(reservoir_output)
+        reservoir_outputs.append(reservoir_output)
+    
+    # Concatenate the power indices
+    output = keras.layers.Concatenate(name="res_output")(reservoir_outputs)
+    
+    parallel_reservoir = keras.Model(
+        inputs=inputs,
+        outputs=output,
+    )
+    
+    return parallel_reservoir
 
 
 custom_layers = {

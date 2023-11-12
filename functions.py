@@ -238,20 +238,22 @@ def _forecast(
                 forecast_transient_data,
                 val_data,
                 val_target,
-                return_states
+                internal_states
             )
             
             predictions = predictions[0]
 
         case "section":
             raise Exception(f"{forecast_method} is yet to be implemented")
-    
+
+        
     if output_dir:
         pd.DataFrame(predictions).to_csv(
             output_dir,
             index=False,
             header=None,
         )
+
 
     if internal_states:
         # Extraer el nombre base del archivo sin extensión

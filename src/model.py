@@ -18,7 +18,7 @@ from sklearn.linear_model import ElasticNet
 from src.utils import tf_ridge_regression, get_esn_state
 from src.customs.custom_layers import EsnCell
 from src.customs.custom_layers import PowerIndex
-from src.customs.custom_layers import simple_esn
+from src.customs.custom_layers import simple_esn, parallel_esn
 
 
 # TODO: Add log
@@ -209,7 +209,7 @@ class ESN:
             forecast_transient_data: np.ndarray,
             val_data: np.ndarray,
             val_target: np.ndarray,
-            return_states: bool = False,
+            internal_states: bool = False,
         ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
         '''
         Forecast the model for a given number of steps.
@@ -223,10 +223,10 @@ class ESN:
 
             val_target (np.ndarray): Target data of the prediction. Used to calculate the loss function.
 
-            return_states (bool): Whether to return the states of the ESN.
+            internal_states (bool): Whether to return the states of the ESN.
 
         Returns:
-            Tuple[np.ndarray, Optional[np.ndarray]]: A tuple containing the forecasted data and the states of the ESN (if return_states is True).
+            Tuple[np.ndarray, Optional[np.ndarray]]: A tuple containing the forecasted data and the states of the ESN (if internal_states is True).
         '''
         self.model.reset_states()
 
@@ -240,7 +240,7 @@ class ESN:
         
         predictions = val_data[:, :1, :]
         # Making the states an array of shape (0, units)
-        states_over_time = np.empty((0, self.model.get_layer("esn_rnn").cell.units)) if return_states else None
+        states_over_time = np.empty((0, self.model.get_layer("esn_rnn").cell.units)) if internal_states else None
 
 
         print("\n    Predicting...\n")
@@ -248,8 +248,9 @@ class ESN:
             pred = self.model(predictions[:, -1:, :])
             predictions = np.hstack((predictions, pred))
             
-            if return_states:
+            if internal_states:
                 # Getting the states of the ESN, also reducing the dimensionality
+                #TODO: Make this generic to other type of reservoirs, not only simple_esn
                 current_states = self.model.get_layer("esn_rnn").states[0]
                 states_over_time = np.vstack((states_over_time, current_states
         
@@ -288,7 +289,7 @@ class ESN:
         '''
         model: keras.Model = keras.models.load_model(path, compile=False)
         inputs = model.get_layer("Input").output
-        outputs = model.get_layer("res_output").output
+        outputs = model.get_layer("Concat_ESN_input").output
         readout = model.get_layer("readout")
         reservoir = keras.Model(
             inputs=inputs,
@@ -332,7 +333,6 @@ def generate_ESN(
     reservoir = simple_esn(units=units,
                            leak_rate=leak_rate,
                            activation=activation,
-                           seed=seed,
                            features=features,
                            input_reservoir_init=input_reservoir_init,
                            input_bias_init=input_bias_init,
@@ -343,5 +343,45 @@ def generate_ESN(
         features, activation="linear", name="readout", trainable=False
     )
 
+    model = ESN(reservoir, readout_layer)
+    return model
+
+def generate_Parallel_ESN(units: int,
+                          partitions: int = 1,
+                          overlap: int = 0,
+                          leak_rate: float = 1.,
+                          features: int = 1,
+                          activation: str = 'tanh',
+                          input_reservoir_init: str = "InputMatrix",
+                          input_bias_init: str = "random_uniform",
+                          reservoir_kernel_init: str = "WattsStrogatzNX",
+                          exponent: int = 2,
+                          seed: int = None
+                        ) -> ESN:
+    '''
+    Assemble all the layers in a parallel ESN model.
+    '''
+    
+    if seed is None:
+        seed = np.random.randint(0, 1000000)
+    print(f'\nSeed: {seed}\n')
+    np.random.seed(seed)
+    tf.random.set_seed(seed)
+    
+    reservoir = parallel_esn(units=units,
+                             partitions=partitions,
+                             overlap=overlap,
+                             leak_rate=leak_rate,
+                             activation=activation,
+                             features=features,
+                             input_reservoir_init=input_reservoir_init,
+                             input_bias_init=input_bias_init,
+                             reservoir_kernel_init=reservoir_kernel_init,
+                             exponent=exponent)
+    
+    readout_layer = Dense(
+        features, activation="linear", name="readout", trainable=False
+    )
+    
     model = ESN(reservoir, readout_layer)
     return model
