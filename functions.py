@@ -196,7 +196,7 @@ def _forecast(
     forecast_method: str = "classic",
     forecast_length: int = 1000,
     steps: int = 1,
-    return_states: bool = False
+    internal_states: bool = False
 ):
     '''
     Load a model and forecast the data.
@@ -238,14 +238,15 @@ def _forecast(
                 forecast_transient_data,
                 val_data,
                 val_target,
-                return_states
+                internal_states
             )
             
             predictions = predictions[0]
 
         case "section":
             raise Exception(f"{forecast_method} is yet to be implemented")
-    
+
+        
     if output_dir:
         pd.DataFrame(predictions).to_csv(
             output_dir,
