@@ -11,7 +11,6 @@ app = typer.Typer()
 @app.command()
 def train(
     # region General params
-    # General params
     data_file: str = typer.Option(
         ...,
         "--data-file",
@@ -24,13 +23,23 @@ def train(
         "-o",
         help="The directory where the results will be saved. The default is the current directory.",
     ),
-    model: EModel = typer.Option("ESN", "--model", "-m", help=""),
-    units: int = typer.Option(..., "--units", "-u", help=""),
+    model: EModel = typer.Option(
+        "ESN", 
+        "--model", 
+        "-m", 
+        help="Type of ESN model to be used. The default is ESN (classic)."
+    ),
+    units: int = typer.Option(
+        ..., 
+        "--units", 
+        "-u", 
+        help="Number of units of the reservoir. In case of Parallel_ESN, it is the number of units of each reservoir."
+    ),
     input_initializer: EInputInitializer = typer.Option(
         "InputMatrix",
         "--input-initializer",
         "-ii",
-        help="",
+        help="The initializer for the input weights. The default is InputMatrix.",
     ),
     input_bias_initializer: InputBiasInitializer = typer.Option(
         "RandomUniform",
@@ -63,7 +72,7 @@ def train(
         help="The seed to be used for the random number generator. If not specified, it is randomly generated.",
     ),
     # endregion
-    # Classic Cases
+    # region Classic Cases
     spectral_radius: float = typer.Option(
         0.99,
         "--spectral-radius",
@@ -94,20 +103,22 @@ def train(
         "-rs",
         help="The standard deviation for the reservoir weights. The default is 0.5. Only used if ESN or Parallel_ESN is used.",
     ),
-    # Parallel cases
+    # endregion
+    # region Parallel cases
     reservoir_amount: int = typer.Option(
-        10,
+        1,
         "--reservoir-amount",
         "-ra",
         help="The number of reservoirs to be used. The default is 10. Only used if Parallel_ESN is used or other parallel scheme.",
     ),
     overlap: int = typer.Option(
-        6,
+        0,
         "--overlap",
         "-ol",
         help="The number of overlapping units between reservoirs. The default is 6. Only used if Parallel_ESN is used.",
     ),
-    # Readout params
+    # endregion
+    # region Readout params
     readout_layer: ReadoutLayer = typer.Option(
         "linear",
         "--readout-layer",
@@ -120,7 +131,8 @@ def train(
         "-rg",
         help="The regularization parameter. The default is 1e-4.",
     ),
-    # Training params
+    # endregion
+    # region Training params
     transient: int = typer.Option(
         1000,
         "--transient",
@@ -139,6 +151,7 @@ def train(
         "-s",
         help="Number of steps among data point to ignore. Used to variate the data dt.",
     ),
+    # endregion
 ):
     """Train a specific model on a given data file."""
     from functions import _train

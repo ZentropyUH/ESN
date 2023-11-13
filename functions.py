@@ -12,6 +12,7 @@ from keras.initializers import RandomUniform
 
 from src.model import ESN
 from src.model import generate_ESN
+from src.model import generate_Parallel_ESN
 from src.utils import load_data
 from src.customs.custom_initializers import ErdosRenyi
 from src.customs.custom_initializers import InputMatrix
@@ -159,7 +160,20 @@ def _train(
             )
 
         case "Parallel-ESN":
-            raise Exception(f"{model} is yet to be implemented")
+            
+            _model = generate_Parallel_ESN(
+                units=units,
+                partitions=reservoir_amount,
+                overlap=overlap,
+                leak_rate=leak_rate,
+                features=features,
+                activation=reservoir_activation,
+                input_reservoir_init=input_initializer,
+                input_bias_init=input_bias_initializer,
+                reservoir_kernel_init=reservoir_initializer,
+                exponent=2,
+                seed=seed,
+            )
 
         case "Reservoir":
             raise Exception(f"{model} is yet to be implemented")
