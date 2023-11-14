@@ -273,7 +273,7 @@ class InputSplitter(keras.layers.Layer):
         # Shape validation
         batch_size, sequence_length, features = inputs.shape
         assert features % self.partitions == 0, "Feature dimension must be divisible by partitions"
-        assert features // self.partitions > self.overlap, "Overlap must be smaller than the length of the partitions."
+        assert features // self.partitions + 1 > self.overlap, "Overlap must be smaller than the length of the partitions."
         
         
 
@@ -549,10 +549,6 @@ def parallel_esn(units: int,
                  partitions: int = 1,
                  overlap: int = 0):
     
-    assert features % partitions == 0, "Input length must be divisible by partitions"
-    
-    assert features // partitions > overlap, "Overlap must be smaller than the length of the partitions"
-    
     inputs = keras.Input(batch_shape=(1, None, features), name='Input')
         
     inputs_splitted = InputSplitter(partitions=partitions, overlap=overlap, name="splitter")(inputs)
@@ -586,7 +582,7 @@ def parallel_esn(units: int,
     
     
     # Concatenate the power indices
-    output = keras.layers.Concatenate(name="res_output")(reservoir_outputs)
+    output = keras.layers.Concatenate(name="esn_rnn")(reservoir_outputs)
     
     output = keras.layers.Concatenate(name="Concat_ESN_input")([inputs, output])
     

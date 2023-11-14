@@ -226,7 +226,7 @@ def forecast(
         help="The number of sections to be used for forecasting. The default is 10.",
     ),
     internal_states: bool = typer.Option(
-        True,
+        False,
         "--internal-states/--no-show",
         "-is",
         help="Whether to save the inernal state values over the time or not. The default is True.",
