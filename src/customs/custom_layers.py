@@ -549,6 +549,7 @@ def parallel_esn(units: int,
                  partitions: int = 1,
                  overlap: int = 0):
     
+    # FIX
     assert features % partitions == 0, "Input length must be divisible by partitions"
     
     assert features // partitions > overlap, "Overlap must be smaller than the length of the partitions"

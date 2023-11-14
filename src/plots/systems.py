@@ -51,6 +51,7 @@ def plot_forecast(
     forecast: np.ndarray,
     val_target: np.ndarray,
     dt: float = 1,
+    lyapunov_exponent: float = 1,
     title: str = '',
     xlabel: str = 't',
     cmap: str = 'viridis',
@@ -60,6 +61,7 @@ def plot_forecast(
     '''Plots the prediction and the target values.'''
 
     # initial data
+    dt = dt * lyapunov_exponent
     forecast_length = forecast.shape[0]
     features = forecast.shape[-1]
     xvalues = np.arange(0, forecast_length) * dt
@@ -92,7 +94,7 @@ def plot_forecast(
             )
     else:
         # calculate error between forecast and target
-        error = abs(forecast - val_target)
+        error = forecast - val_target
 
         fig, axs = _base_setup_plot(
             features=3,
@@ -143,13 +145,15 @@ def plot_system(
     length: int,
     title: str = '',
     dt: float = 1,
+    lyapunov_exponent: float = 1,
     xlabel: str = 't',
     cmap: str = 'viridis',
     filepath: str = None,
     show: bool = False,
 ):
+    dt = dt * lyapunov_exponent
     features = target.shape[-1]
-    _target = target[:length]
+    _target = target[0][:length]
     xvalues = np.arange(0, length) * dt
     yvalues = np.arange(0, target.shape[-1])
 
@@ -163,7 +167,7 @@ def plot_system(
         _base_plot(
             ax=axs,
             xvalues=xvalues,
-            val_target=_target[0, :],
+            val_target=_target,
         )
     
     elif features <= 3:
@@ -176,7 +180,7 @@ def plot_system(
             _base_plot(
                 ax=axs[i],
                 xvalues=xvalues,
-                val_target=_target[0, :, i],
+                val_target=_target[:, i],
             )
     
     else:
