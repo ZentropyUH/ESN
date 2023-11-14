@@ -11,7 +11,6 @@ app = typer.Typer()
 @app.command()
 def train(
     # region General params
-    # General params
     data_file: str = typer.Option(
         ...,
         "--data-file",
@@ -24,13 +23,23 @@ def train(
         "-o",
         help="The directory where the results will be saved. The default is the current directory.",
     ),
-    model: EModel = typer.Option("ESN", "--model", "-m", help=""),
-    units: int = typer.Option(..., "--units", "-u", help=""),
+    model: EModel = typer.Option(
+        "ESN", 
+        "--model", 
+        "-m", 
+        help="Type of ESN model to be used. The default is ESN (classic)."
+    ),
+    units: int = typer.Option(
+        ..., 
+        "--units", 
+        "-u", 
+        help="Number of units of the reservoir. In case of Parallel_ESN, it is the number of units of each reservoir."
+    ),
     input_initializer: EInputInitializer = typer.Option(
         "InputMatrix",
         "--input-initializer",
         "-ii",
-        help="",
+        help="The initializer for the input weights. The default is InputMatrix.",
     ),
     input_bias_initializer: InputBiasInitializer = typer.Option(
         "RandomUniform",
@@ -42,13 +51,13 @@ def train(
         0.5,
         "--input-scaling",
         "-is",
-        help="The input scaling parameter. The default is 0.5. If a range of values is given, the script will be executed the specified number of times with different values of the input scaling parameter. The values will be chosen linearly between the first and the second value. If a list of values is given, the script will be executed the specified number of times with the values in the list.",
+        help="The input scaling parameter. The default is 0.5.",
     ),
     leak_rate: float = typer.Option(
         1.0,
         "--leak-rate",
         "-lr",
-        help="The leak rate of the reservoir. The default is 1. If a range of values is given, the script will be executed the specified number of times with different values of the leak rate. The values will be chosen linearly between the first and the second value. If a list of values is given, the script will be executed the specified number of times with the values in the list.",
+        help="The leak rate of the reservoir. The default is 1.",
     ),
     reservoir_activation: ReservoirActivation = typer.Option(
         "tanh",
@@ -63,51 +72,53 @@ def train(
         help="The seed to be used for the random number generator. If not specified, it is randomly generated.",
     ),
     # endregion
-    # Classic Cases
+    # region Classic Cases
     spectral_radius: float = typer.Option(
         0.99,
         "--spectral-radius",
         "-sr",
-        help="The spectral radius of the reservoir. The default is 0.99. Only used if ESN or Parallel_ESN is used. If a range of values is given, the script will be executed the specified number of times with different values of the spectral radius. The values will be chosen linearly between the first and the second value. If a list of values is given, the script will be executed the specified number of times with the values in the list.",
+        help="The spectral radius of the reservoir. The default is 0.99.",
     ),
     reservoir_initializer: ReservoirInitializer = typer.Option(
         "WattsStrogatzNX",
         "--reservoir-initializer",
         "-ri",
-        help="The initializer for the reservoir weights. The default is WattsStrogatzNX. Only used if ESN or Parallel_ESN is used.",  # Maybe play later with topologies on ECA and Oscillators. First we have to study impact on EOC.allow_from_autoenv=
+        help="The initializer for the reservoir weights. The default is WattsStrogatzNX. Only used if ESN or Parallel_ESN is used.",  # Maybe play later with topologies on ECA and Oscillators. First we have to study impact on EOC
     ),
     rewiring: float = typer.Option(
         0.5,
         "--rewiring",
         "-rw",
-        help="The rewiring probability of the WattsStrogatz graph. The default is 0.5. Only used if ESN or Parallel_ESN is used. If a range of values is given, the script will be executed the specified number of times with different values of the degree parameter. The values will be chosen linearly between the first and the second value. If a list of values is given, the script will be executed the specified number of times with the values in the list.",
+        help="The rewiring probability of the WattsStrogatz graph. The default is 0.5. Only used if ESN or Parallel_ESN is used.",
     ),
     reservoir_degree: int = typer.Option(
         3,
         "--reservoir-degree",
         "-rd",
-        help="The degree of the reservoir. The default is 3. Only used if ESN or Parallel_ESN is used. If a range of values is given, the script will be executed the specified number of times with different values of the degree parameter. The values will be chosen linearly between the first and the second value. If a list of values is given, the script will be executed the specified number of times with the values in the list.",
+        help="The degree of the reservoir. The default is 3. Only used if ESN or Parallel_ESN is used.",
     ),
     reservoir_sigma: float = typer.Option(
         0.5,
         "--reservoir-sigma",
         "-rs",
-        help="The standard deviation for the reservoir weights. The default is 0.5. Only used if ESN or Parallel_ESN is used. If a range of values is given, the script will be executed the specified number of times with different values of the sigma parameter. The values will be chosen linearly between the first and the second value. If a list of values is given, the script will be executed the specified number of times with the values in the list.",
+        help="The standard deviation for the reservoir weights. The default is 0.5. Only used if ESN or Parallel_ESN is used.",
     ),
-    # Parallel cases
+    # endregion
+    # region Parallel cases
     reservoir_amount: int = typer.Option(
-        10,
+        1,
         "--reservoir-amount",
         "-ra",
         help="The number of reservoirs to be used. The default is 10. Only used if Parallel_ESN is used or other parallel scheme.",
     ),
     overlap: int = typer.Option(
-        6,
+        0,
         "--overlap",
         "-ol",
-        help="The number of overlapping units between reservoirs. The default is 6. Only used if Parallel_ESN is used or other parallel scheme. If a range of values is given, the script will be executed the specified number of times with different values of the overlap parameter. The values will be chosen linearly between the first and the second value. If a list of values is given, the script will be executed the specified number of times with the values in the list.",
+        help="The number of overlapping units between reservoirs. The default is 6. Only used if Parallel_ESN is used.",
     ),
-    # Readout params
+    # endregion
+    # region Readout params
     readout_layer: ReadoutLayer = typer.Option(
         "linear",
         "--readout-layer",
@@ -118,9 +129,10 @@ def train(
         1e-4,
         "--regularization",
         "-rg",
-        help="The regularization parameter. The default is 1e-4. If a range of values is given, the script will be executed the specified number of times with different values of the regularization parameter. The values will be chosen logarithmically between the first and the second value. If a list of values is given, the script will be executed the specified number of times with the values in the list.",
+        help="The regularization parameter. The default is 1e-4.",
     ),
-    # Training params
+    # endregion
+    # region Training params
     transient: int = typer.Option(
         1000,
         "--transient",
@@ -131,7 +143,7 @@ def train(
         10000,
         "--train-length",
         "-tl",
-        help="The number of points to be used for training. The default is 10000. If a range of values is given, the script will be executed the specified number of times worg.freedesktop.PackageKit.proxyith different values of the training length. The values will be chosen linearly between the first and the second value. If a list of values is given, the script will be executed the specified number of times with the values in the list.",
+        help="The number of points to be used for training. The default is 10000.",
     ),
     steps: int = typer.Option(
         1,
@@ -139,6 +151,7 @@ def train(
         "-s",
         help="Number of steps among data point to ignore. Used to variate the data dt.",
     ),
+    # endregion
 ):
     """Train a specific model on a given data file."""
     from functions import _train
@@ -212,6 +225,12 @@ def forecast(
         "-nos",
         help="The number of sections to be used for forecasting. The default is 10.",
     ),
+    internal_states: bool = typer.Option(
+        True,
+        "--internal-states/--no-show",
+        "-is",
+        help="Whether to save the inernal state values over the time or not. The default is True.",
+    ),
 ):
     """Make predictions with a given model on a data file."""
     from functions import _forecast_from_saved_model
@@ -223,6 +242,7 @@ def forecast(
         forecast_length=forecast_length,
         section_initialization_length=section_initialization_length,
         number_of_sections=number_of_sections,
+        internal_states=internal_states
     )
 
 

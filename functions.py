@@ -12,6 +12,7 @@ from keras.initializers import RandomUniform
 
 from src.model import ESN
 from src.model import generate_ESN
+from src.model import generate_Parallel_ESN
 from src.utils import load_data
 from src.customs.custom_initializers import ErdosRenyi
 from src.customs.custom_initializers import InputMatrix
@@ -159,7 +160,20 @@ def _train(
             )
 
         case "Parallel-ESN":
-            raise Exception(f"{model} is yet to be implemented")
+            
+            _model = generate_Parallel_ESN(
+                units=units,
+                partitions=reservoir_amount,
+                overlap=overlap,
+                leak_rate=leak_rate,
+                features=features,
+                activation=reservoir_activation,
+                input_reservoir_init=input_initializer,
+                input_bias_init=input_bias_initializer,
+                reservoir_kernel_init=reservoir_initializer,
+                exponent=2,
+                seed=seed,
+            )
 
         case "Reservoir":
             raise Exception(f"{model} is yet to be implemented")
@@ -196,6 +210,7 @@ def _forecast(
     forecast_method: str = "classic",
     forecast_length: int = 1000,
     steps: int = 1,
+    internal_states: bool = False
 ):
     '''
     Load a model and forecast the data.
@@ -232,23 +247,46 @@ def _forecast(
     ############### CHOOSE THE FORECAST METHOD AND FORECAST ###############
     match forecast_method:
         case "classic":
-            predictions = trained_model.forecast(
+            predictions, states_over_time = trained_model.forecast(
                 forecast_length,
                 forecast_transient_data,
                 val_data,
-                val_target
+                val_target,
+                internal_states
             )
+            
             predictions = predictions[0]
+
         case "section":
             raise Exception(f"{forecast_method} is yet to be implemented")
-    
+
+        
     if output_dir:
         pd.DataFrame(predictions).to_csv(
             output_dir,
             index=False,
             header=None,
         )
-    
+
+
+    if internal_states:
+        # Extraer el nombre base del archivo sin extensión
+        file_name = os.path.splitext(os.path.basename(output_dir))[0]
+
+         # Crear un directorio para los estados internos si no existe
+        directory_path = os.path.dirname(output_dir)
+        internal_state_dir = os.path.join(directory_path, "internal_state")
+        os.makedirs(internal_state_dir, exist_ok=True)
+        
+        # Convertir los estados a lo largo del tiempo en un DataFrame de pandas y guardarlo en CSV
+        states_over_time_df = pd.DataFrame(states_over_time)
+
+        # Construir el nombre completo del archivo CSV para los estados internos
+        internal_states_csv_path = os.path.join(internal_state_dir, f"{file_name}_states_over_time.csv")
+        
+        # Guardar los estados internos en la carpeta correspondiente
+        states_over_time_df.to_csv(internal_states_csv_path, index=False, header=None)
+
     return predictions, val_target[:, :forecast_length, :][0]
 
 
@@ -261,6 +299,8 @@ def _forecast_from_saved_model(
 
     section_initialization_length: int = None,
     number_of_sections: int = None,
+
+    internal_states: bool = False
 ):
     with open(join(trained_model_path, 'params.json')) as f:
         params = json.load(f)
@@ -275,6 +315,7 @@ def _forecast_from_saved_model(
         forecast_method=forecast_method,
         forecast_length=forecast_length,
         steps=params['steps'],
+        internal_states=internal_states
     )
 
 
