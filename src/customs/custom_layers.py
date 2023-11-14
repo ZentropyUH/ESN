@@ -549,6 +549,11 @@ def parallel_esn(units: int,
                  partitions: int = 1,
                  overlap: int = 0):
     
+    # FIX
+    assert features % partitions == 0, "Input length must be divisible by partitions"
+    
+    assert features // partitions > overlap, "Overlap must be smaller than the length of the partitions"
+    
     inputs = keras.Input(batch_shape=(1, None, features), name='Input')
         
     inputs_splitted = InputSplitter(partitions=partitions, overlap=overlap, name="splitter")(inputs)
