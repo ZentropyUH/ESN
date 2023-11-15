@@ -204,3 +204,9 @@ def plot_system(
         plt.savefig(filepath)
     if show:
         plt.show()
+
+
+
+def linear_plot(
+    
+)

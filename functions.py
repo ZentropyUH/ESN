@@ -222,7 +222,7 @@ def forecast(
         number_of_sections: int = 10,
 
     Returns:
-        None
+        tuple: A tuple containing the predicted values and the true values.
     '''
 
     (

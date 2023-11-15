@@ -122,6 +122,13 @@ def plot_ESN(
         train_length=train_length,
     )
 
+@app.command(
+    name="caca",
+    no_args_is_help=True,
+    help="",
+)
+def caca():
+    pass
 
 if __name__ == "__main__":
     app()
