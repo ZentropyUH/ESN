@@ -1,14 +1,14 @@
 import os
 import sys
 import pandas as pd
-from functions import _forecast_from_saved_model
+from functions import forecast_from_saved_model
 from LZ.main import generate_plots
 
 def forecast_and_save(model_path, data_folder, output_folder, forecast_length):
 
     #  Ver si las carpetas de datos y de salida existen
     if not os.path.exists(data_folder):
-        raise ValueError(f"La carpeta de datos no existe: {data_folder}")
+        raise ValueError(f"The folder does not exist: {data_folder}")
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 
@@ -21,14 +21,15 @@ def forecast_and_save(model_path, data_folder, output_folder, forecast_length):
 
             print(f"Processing file {file}")
             
-            _forecast_from_saved_model(trained_model_path=model_path, 
+            forecast_from_saved_model(trained_model_path=model_path, 
                                     data_file=data_path,
                                     output_dir=output_path,
                                     forecast_method="classic",
                                     forecast_length=forecast_length,
                                     section_initialization_length=50,
                                     number_of_sections=10,
-                                    internal_states=True
+                                    internal_states=True,
+                                    feedback_metrics=False
                                     )
 
             print("Forecast end for all files")
@@ -39,9 +40,3 @@ def forecast_and_save(model_path, data_folder, output_folder, forecast_length):
 if __name__ == "__main__":
     output = forecast_and_save(sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4]))
     generate_plots(output, "/data/tsa/destevez/sheyls/DATA/ARTIFICIAL/Lorenz")
-
-# /data/tsa/destevez/thesis/Lorenz/run_0/results/0/trained_model -> p1
-#/data/tsa/destevez/sheyls/DATA/ORIGINAL/GLOBAL/Lorenz/Lorenz-data -> p2
-#/data/tsa/destevez/sheyls/DATA/ARTIFICIAL/Lorenz/Lorenz-data -> p3
-# 156000 -> p4
-#/data/tsa/destevez/sheyls/DATA/ARTIFICIAL/Lorenz -> artificial

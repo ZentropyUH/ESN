@@ -30,7 +30,6 @@ def lzProc(save_folder_path: str, params: tuple = ("bauto",), root_folder_path: 
     json_path = ""
     
     if len(params) == 3:
-            print("fuc")
             main_file = os.path.basename(params[1])
             secundary_file = os.path.basename(params[2])
 
@@ -51,6 +50,7 @@ def lzProc(save_folder_path: str, params: tuple = ("bauto",), root_folder_path: 
             file_path = os.path.join(params[2] + ".lz76")
             output_path = os.path.join(lz76_path, base_name + ".lz76")
             shutil.move(file_path, output_path)
+            
             data_extract(lz76_path, json_path, base_name)
 
             # return the path to de json with the data
@@ -77,6 +77,7 @@ def lzProc(save_folder_path: str, params: tuple = ("bauto",), root_folder_path: 
             file_path = os.path.join(params[1] + ".lz76")
             output_path = os.path.join(lz76_path, base_name + ".lz76")
             shutil.move(file_path, output_path)
+
             data_extract(lz76_path, json_path)
 
             # return the path to de json with the data
