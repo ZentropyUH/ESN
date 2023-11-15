@@ -205,6 +205,7 @@ def forecast(
     forecast_length: int = 1000,
     steps: int = 1,
     internal_states: bool = False,
+    feedback_metrics: bool = True,
     **kwargs,
 ):
     '''
@@ -247,7 +248,8 @@ def forecast(
                 forecast_transient_data,
                 val_data,
                 val_target,
-                internal_states
+                internal_states,
+                feedback_metrics
             )
             
             predictions = predictions[0]
@@ -296,6 +298,7 @@ def forecast_from_saved_model(
     number_of_sections: int = None,
 
     internal_states: bool = False,
+    feedback_metrics: bool = True,
     **kwargs,
 ):
     with open(join(trained_model_path, 'params.json')) as f:
@@ -311,7 +314,8 @@ def forecast_from_saved_model(
         forecast_method=forecast_method,
         forecast_length=forecast_length,
         steps=params['steps'],
-        internal_states=internal_states
+        internal_states=internal_states,
+        feedback_metrics=feedback_metrics
     )
 
 

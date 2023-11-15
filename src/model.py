@@ -206,6 +206,7 @@ class ESN:
             val_data: np.ndarray,
             val_target: np.ndarray,
             internal_states: bool = False,
+            feedback_metrics: bool = True
         ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
         '''
         Forecast the model for a given number of steps.
@@ -221,12 +222,16 @@ class ESN:
 
             internal_states (bool): Whether to return the states of the ESN.
 
+            feedback_metrics: (bool): Whether to include comparison metrics with the original data.
+
+
         Returns:
             Tuple[np.ndarray, Optional[np.ndarray]]: A tuple containing the forecasted data and the states of the ESN (if internal_states is True).
         '''
         self.model.reset_states()
 
-        forecast_length = min(forecast_length, val_data.shape[1])
+        forecast_length = min(forecast_length, val_data.shape[1]) if feedback_metrics else forecast_length
+
         _val_target = val_target[:, :forecast_length, :]
 
         print(f"Forecasting free running sequence {forecast_length} steps ahead.\n")
@@ -238,7 +243,6 @@ class ESN:
         # Making the states an array of shape (0, units)
         states_over_time = np.empty((0, self.model.get_layer("esn_rnn").cell.units)) if internal_states else None
 
-
         print("\n    Predicting...\n")
         for _ in track(range(forecast_length)):
             pred = self.model(predictions[:, -1:, :])
@@ -248,17 +252,18 @@ class ESN:
                 # Getting the states of the ESN, also reducing the dimensionality
                 #TODO: Make this generic to other type of reservoirs, not only simple_esn
                 current_states = self.model.get_layer("esn_rnn").states[0]
-                states_over_time = np.vstack(states_over_time, current_states)
+                states_over_time = np.vstack((states_over_time, current_states))
         
         predictions = predictions[:, 1:, :]
         print("    Predictions shape: ", predictions.shape)
 
-        try:
-            loss = np.mean((predictions[0] - _val_target[0]) ** 2)
-        except ValueError:
-            print("Error calculating the loss.")
-            return np.inf
-        print(f"Forecast loss: {loss}\n")
+        if feedback_metrics:
+            try:
+                loss = np.mean((predictions[0] - _val_target[0]) ** 2)
+            except ValueError:
+                print("Error calculating the loss.")
+                return np.inf
+            print(f"Forecast loss: {loss}\n")
 
         return predictions, states_over_time
 
