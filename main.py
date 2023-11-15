@@ -11,7 +11,6 @@ from cli import app_train
 app = Typer(
     help="A tool for forecasting chaotic systems using Echo State Networks.",
     no_args_is_help=True,
-    rich_markup_mode="rich",
 )
 
 

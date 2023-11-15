@@ -3,14 +3,10 @@ from typer import Option
 
 from cli.enums import *
 
-
 app = Typer(
     help="",
     no_args_is_help=True,
-    rich_markup_mode="rich",
 )
-
-
 @app.command(
     name="forecast",
     no_args_is_help=True,
@@ -59,10 +55,16 @@ def forecast_ESN(
         help="The number of sections to be used for forecasting. The default is 10.",
     ),
     internal_states: bool = Option(
-        True,
+        False,
         "--internal-states/--no-show",
         "-is",
-        help="Whether to save the inernal state values over the time or not. The default is True.",
+        help="Whether to save the inernal state values over the time or not. The default is False.",
+    ),
+    feedback_metrics: bool = Option(
+        True,
+        "--feedback",
+        "-fb",
+        help="Whether to include comparison metrics with the original data. Default is True.",
     ),
 ):
     """Make predictions with a given model on a data file."""
@@ -75,7 +77,8 @@ def forecast_ESN(
         forecast_length=forecast_length,
         section_initialization_length=section_initialization_length,
         number_of_sections=number_of_sections,
-        internal_states=internal_states
+        internal_states=internal_states,
+        feedback_metrics=feedback_metrics
     )
 
 
