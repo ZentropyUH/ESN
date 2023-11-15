@@ -1,23 +1,19 @@
 import os
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 import numpy as np
-from typing import Any, Union, Tuple, List, Optional
+from typing import Any, Tuple, Optional
 from time import time
 from rich.progress import track
 
 import keras
 import tensorflow as tf
-from keras.layers import RNN
 from keras.layers import Layer
 from keras.layers import Dense
-from keras.layers import Concatenate
 from sklearn.linear_model import Lasso
 from sklearn.linear_model import Ridge
 from sklearn.linear_model import ElasticNet
 
-from src.utils import tf_ridge_regression, get_esn_state
-from src.customs.custom_layers import EsnCell
-from src.customs.custom_layers import PowerIndex
+from src.utils import tf_ridge_regression
 from src.customs.custom_layers import simple_esn, parallel_esn
 
 
