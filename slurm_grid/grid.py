@@ -6,8 +6,8 @@ from os import listdir
 from os import makedirs
 from os.path import join
 
-from functions import _train
-from functions import _forecast
+from functions import train
+from functions import forecast
 from slurm_grid.tools import save_csv
 from slurm_grid.tools import save_plot
 from slurm_grid.tools import load_json
@@ -38,6 +38,7 @@ def grid(
     reservoir_degree: int,
     reservoir_sigma: float,
     regularization: float,
+    **kwargs,
 ):
     '''
     Base function to execute the grid search.
@@ -79,7 +80,7 @@ def grid(
     print('Training...')
 
     # Se manda a entrenar con los parametros por defecto, en este caso
-    trained_model = _train(
+    trained_model = train(
         data_file=train_data_path,
         output_dir=trained_model_path,
         
@@ -102,6 +103,7 @@ def grid(
         reservoir_degree=reservoir_degree,
         reservoir_sigma=reservoir_sigma,
         regularization=regularization,
+        **kwargs,
     )
 
     print('Training finished')
@@ -112,7 +114,7 @@ def grid(
     forecast_data = []
     for fn, current_data in enumerate(data):
         print('Forecasting {}...'.format(fn))
-        forecast, val_target = _forecast (
+        _forecast, val_target = forecast(
             trained_model = trained_model,
             transient = transient,
             train_length = train_length,
@@ -120,14 +122,15 @@ def grid(
             output_dir= join(forecast_path, f'{fn}.csv'),
             forecast_length=forecast_length,
             steps=steps,
+            **kwargs,
         )
         print('Forecasting {} finished'.format(fn))
-        forecast_data.append((forecast, val_target))
+        forecast_data.append((_forecast, val_target))
 
         # PLOTS
         plot_forecast(
             val_target=val_target,
-            forecast=forecast,
+            forecast=_forecast,
             filepath=join(forecast_plot_path, str(fn)),
             dt=1,
         )
@@ -164,7 +167,7 @@ def grid(
         json.dump({'train': train_time, 'forecast': forecast_time}, f)
 
 
-def _slurm_grid(
+def slurm_grid(
     data_path: str,
     output_path: str,
     index: int,
@@ -190,23 +193,5 @@ def _slurm_grid(
     grid(
         data_path=data_path,
         output_path=join(output_path, str(index)),
-        units=params['units'],
-        train_length=params['train_length'],
-        forecast_length=params['forecast_length'],
-        transient=params['transient'],
-        steps=params['steps'],
-
-        model=params['model'],
-        input_initializer=params['input_initializer'],
-        input_bias_initializer=params['input_bias_initializer'],
-        reservoir_activation=params['reservoir_activation'],
-        reservoir_initializer=params['reservoir_initializer'],
-
-        input_scaling=params['input_scaling'],
-        leak_rate=params['leak_rate'],
-        spectral_radius=params['spectral_radius'],
-        rewiring=params['rewiring'],
-        reservoir_degree=params['reservoir_degree'],
-        reservoir_sigma=params['reservoir_sigma'],
-        regularization=params['regularization'],
+        **params,
     )

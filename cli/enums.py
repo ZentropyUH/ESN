@@ -5,48 +5,47 @@ class Choice(str, Enum):
     ...
 
 
-class EModel(Choice):
+class EnumModel(Choice):
     ESN = 'ESN'
     PESN = 'Parallel-ESN'
-    R = 'Reservoir_to_be_implemented'
 
 
-class EInputInitializer(Choice):
+class EnumInputInitializer(Choice):
     IM = 'InputMatrix'
     RU = 'RandomUniform'
 
 
-class InputBiasInitializer(Choice):
+class EnumInputBiasInitializer(Choice):
     IM = 'InputMatrix'
     RU = 'RandomUniform'
     N = 'None'
 
 
-class ReservoirActivation(Choice):
+class EnumReservoirActivation(Choice):
     Tanh = 'tanh'
     Relu = 'relu'
     S = 'sigmoid'
     I = 'identity'
 
 
-class ReservoirInitializer(Choice):
+class EnumReservoirInitializer(Choice):
     RNX = 'RegularNX'
     ER = 'ErdosRenyi'
     WSNX = 'WattsStrogatzNX'
 
 
-class ReadoutLayer(Choice):
+class EnumReadoutLayer(Choice):
     Linear = 'linear'
     SGD = 'sgd'
     MLP = 'mlp'
 
 
-class ForecastMethod(Choice):
+class EnumForecastMethod(Choice):
     Classic = 'classic'
     Section = 'section'
 
 
-class PlotType(Choice):
+class EnumPlotType(Choice):
     Linear = 'linear'
     Contourf = 'contourf'
     RMSE = 'rmse',
