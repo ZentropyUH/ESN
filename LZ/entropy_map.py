@@ -14,13 +14,15 @@ PATH = f"/home/sheyla/tesis/DATA/ORIGINAL/GLOBAL/{SISTEMA}"
 
 def generate_plots(data_path: str, root_path: str):
     """
-    data_path -> Ruta a la data original (carpeta con varios archivos csv)
-    root_path -> Ruta a la carpeta raiz donde se crearán las demás
+    Generate a dimension-wise entropy map for a given dataset.
 
-    Generar un mapa de entropía por dimension dado una data
+    data_path -> Path to the original data (folder containing multiple CSV files).
+    root_path -> Path to the root folder where other files will be created.
     """
+
     #region Binarize
     bin_path = os.path.join(root_path, "Bin")
+
     if not os.path.exists(bin_path):
         os.makedirs(bin_path)
 
@@ -32,9 +34,9 @@ def generate_plots(data_path: str, root_path: str):
     if not os.path.exists(lz_path):
         os.makedirs(lz_path)
 
-    filelist = os.listdir(bin_path)
-    for _file in filelist:
-        lzProc(bin_path + "/" +  _file ,lz_path)
+    folderlist = os.listdir(bin_path)
+    for folder in folderlist:
+        lzProc(lz_path, root_folder_path= bin_path + "/" + folder)
     #endregion
 
     #region Plot
@@ -51,4 +53,5 @@ def generate_plots(data_path: str, root_path: str):
         map(plot_path + "/" + _file , X_AXI, Y_AXI , plot_path)
     #endregion
 
-#generate_plots("/home/sheyla/tesis/DATA/ORIGINAL/GLOBAL/Lorenz/Lorenz-data", PATH)
+if __name__ == '__main__':
+    generate_plots(sys.argv[1], sys.argv[2])
