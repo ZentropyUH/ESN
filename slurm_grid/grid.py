@@ -24,6 +24,8 @@ def grid(
     forecast_length: int,
     transient: int,
     steps: int,
+    dt: float,
+    lyapunov_exponent: float,
 
     model: str,
     input_initializer: str,
@@ -132,7 +134,9 @@ def grid(
             val_target=val_target,
             forecast=_forecast,
             filepath=join(forecast_plot_path, str(fn)),
-            dt=1,
+            dt=dt,
+            lyapunov_exponent=lyapunov_exponent,
+            cmap="jet",
         )
 
     forecast_time = (time.time() - start_forecast_time)/len(data)

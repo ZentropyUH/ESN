@@ -108,6 +108,14 @@ def init_slurm_grid_command(
         [1],
         '--steps', '-s'
     ),
+    delta_time: List[float] = Option(
+        [1],
+        '--delta-time', '-dt'
+    ),
+    lyapunov_exponent: List[float] = Option(
+        [1],
+        '--lyapunov-exponent', '-ly'
+    ),
     input_scaling: List[float] = Option(
         ...,
         '--input-scaling', '-is'
@@ -160,6 +168,8 @@ def init_slurm_grid_command(
         forecast_length=forecast_length,
         transient=transient,
         steps=steps,
+        dt=delta_time,
+        lyapunov_exponent=lyapunov_exponent,
         input_scaling=input_scaling,
         leak_rate=leak_rate,
         spectral_radius=spectral_radius,
