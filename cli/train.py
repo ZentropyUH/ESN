@@ -7,7 +7,6 @@ from cli.enums import *
 app = Typer(
     help="",
     no_args_is_help=True,
-    rich_markup_mode="rich",
 )
 
 
