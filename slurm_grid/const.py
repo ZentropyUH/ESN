@@ -117,7 +117,7 @@ echo "end of copy"
 ########## RUN ##########
 
 echo "runing............"
-srun python3 ESN/main.py slurm-grid -d $data -o $output -i $SLURM_ARRAY_TASK_ID -hp $comb
+srun python3 ESN/main.py grid slurm_grid -d $data -o $output -i $SLURM_ARRAY_TASK_ID -hp $comb
 echo "end of run"
 
 
