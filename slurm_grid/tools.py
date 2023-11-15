@@ -218,7 +218,7 @@ def generate_combiantions(params: Dict[str, List[Any]]) -> Dict[str, Dict[str, A
 
 
 # AUX
-def _best_results(
+def best_results(
     results_path: str,
     output: str,
     n_results: int,
@@ -439,7 +439,7 @@ def generate_unfinished_script(
         f.write(file)
 
 
-def _results_data(
+def results_data(
     results_path: str,
     filepath: str,
     threshold: float
@@ -483,7 +483,7 @@ def sort_by_int(array: List):
     return [str(j) for j in sorted([int(i) for i in array])]
 
 
-def _search_unfinished_combinations(
+def search_unfinished_combinations(
     path: str,
     depth: int,
 ):
@@ -535,11 +535,10 @@ def _search_unfinished_combinations(
     )
 
 
-def _init_slurm_grid(
+def init_slurm_grid(
     path: str,
     job_name: str,
     data_path: str,
-
     model: str,
     input_initializer: str,
     input_bias_initializer: str,
@@ -551,14 +550,15 @@ def _init_slurm_grid(
     forecast_length: List[int],
     transient: List[int],
     steps: List[int],
-
     input_scaling: List[float],
     leak_rate: List[float],
-    spectral_radius: List[float],
-    rewiring: List[float],
     reservoir_degree: List[int],
     reservoir_sigma: List[float],
+
+    spectral_radius: List[float],
     regularization: List[float],
+    rewiring: List[float],
+    **kwargs,
 ):
     '''
     Main function to initialize the grid search.\n
@@ -573,27 +573,33 @@ def _init_slurm_grid(
     
     makedirs(info_path, exist_ok=True)
     makedirs(run_path, exist_ok=True)
-    save_json(locals(), params_path)
+    params = locals().copy()
+    args = params.pop('kwargs')
+    params.update(args)
+    save_json(params, params_path)
 
     combinations = generate_combiantions(
         {
-            'units':units,
-            'train_length': train_length,
-            'forecast_length': forecast_length,
-            'transient': transient,
-            'steps': steps,
-            'input_scaling': input_scaling,
-            'leak_rate': leak_rate,
-            'spectral_radius': spectral_radius,
-            'rewiring': rewiring,
-            'reservoir_degree': reservoir_degree,
-            'reservoir_sigma': reservoir_sigma,
-            'regularization': regularization,
-            'model': [model],
-            'input_initializer': [input_initializer],
-            'input_bias_initializer': [input_bias_initializer],
-            'reservoir_activation': [reservoir_activation],
-            'reservoir_initializer': [reservoir_initializer],
+            **{
+                'units':units,
+                'train_length': train_length,
+                'forecast_length': forecast_length,
+                'transient': transient,
+                'steps': steps,
+                'input_scaling': input_scaling,
+                'leak_rate': leak_rate,
+                'spectral_radius': spectral_radius,
+                'rewiring': rewiring,
+                'reservoir_degree': reservoir_degree,
+                'reservoir_sigma': reservoir_sigma,
+                'regularization': regularization,
+                'model': [model],
+                'input_initializer': [input_initializer],
+                'input_bias_initializer': [input_bias_initializer],
+                'reservoir_activation': [reservoir_activation],
+                'reservoir_initializer': [reservoir_initializer],
+            },
+            **kwargs,
         }
     )
 
@@ -608,7 +614,7 @@ def _init_slurm_grid(
     )
 
 
-def _grid_aux(
+def grid_aux(
     path: str,
     n_results: int,
     threshold: float,
@@ -642,7 +648,7 @@ def _grid_aux(
 
     params = load_json(info_data)
 
-    _best_results(
+    best_results(
         results_path=results_path,
         output=output_path,
         n_results=n_results,
