@@ -103,7 +103,7 @@ comb=$ESN/{combinations_file}
 
 # Copy project files to scratch
 echo "copying project............"
-cp -r /data/tsa/destevez/dennis/ESN/* $ESN
+cp -r {repo}/* $ESN
 
 echo "copying project............"
 cp -r "{combinations_path}" $ESN

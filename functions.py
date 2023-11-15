@@ -4,14 +4,13 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import json
 import numpy as np
 import pandas as pd
-from typing import List
-from os import makedirs
 from os.path import join
 from keras.initializers import Zeros
 from keras.initializers import RandomUniform
 
 from src.model import ESN
 from src.model import generate_ESN
+from src.model import generate_Parallel_ESN
 from src.utils import load_data
 from src.customs.custom_initializers import ErdosRenyi
 from src.customs.custom_initializers import InputMatrix
@@ -23,37 +22,29 @@ from src.plotters import plot_rmse
 from src.plotters import render_video
 
 
-def _train(
-    # Save params
+def train(
     data_file: str,
+    model: str,
+    units: int,
+    steps: int,
+    transient: int,
+    train_length: int,
+    input_initializer: str,
+    input_bias_initializer: str,
+    input_scaling: float,
+    leak_rate: float,
+    reservoir_activation: str,
+    reservoir_initializer: str,
+    reservoir_degree: int,
+    reservoir_sigma: float,
+
+    spectral_radius: float, #FIX ?
+    regularization: float, #FIX
+    readout_layer: str = None, #FIX
+
     output_dir: str = None,
-    # General params
-    model: str = "ESN",
-    units: int = 6000,
-    steps: int = 1,
-
-    input_initializer: str = "InputMatrix",
-    input_bias_initializer: str = "RandomUniform",
-    input_scaling: float = 0.5,
-    leak_rate: float = 1.0,
-    reservoir_activation: str = "tanh",
     seed: int | None = None,
-    # Classic Cases
-    spectral_radius: float = 0.99,
-    reservoir_initializer: str = "WattsStrogatzOwn",
-    rewiring: float = 0.5,
-    reservoir_degree: int = 3,
-    reservoir_sigma: float = 0.5,
-    # Readout params
-    regularization: float = 1e-4,
-    # Training params
-    transient: int = 1000,
-    train_length: int = 20000,
-
-    #ignored
-    reservoir_amount: int = None,
-    overlap: int = None,
-    readout_layer: str = None,
+    **kwargs,
 ):
     '''
     Trains an Echo State Network on the data provided in the data file.
@@ -77,6 +68,8 @@ def _train(
     if seed is None:
         seed = np.random.randint(0, 100000000)
     params = locals().copy()
+    args = params.pop('kwargs')
+    params.update(args)
 
     # Only the training data needed
     (
@@ -135,6 +128,7 @@ def _train(
                 sigma=reservoir_sigma,
             )
         case "WattsStrogatzNX":
+            rewiring = kwargs["rewiring"]
             reservoir_initializer = WattsStrogatzNX(
                 degree=reservoir_degree,
                 spectral_radius=spectral_radius,
@@ -159,7 +153,21 @@ def _train(
             )
 
         case "Parallel-ESN":
-            raise Exception(f"{model} is yet to be implemented")
+            overlap = kwargs["overlap"]
+            reservoir_amount = kwargs["reservoir_amount"]
+            _model = generate_Parallel_ESN(
+                units=units,
+                partitions=reservoir_amount,
+                overlap=overlap,
+                leak_rate=leak_rate,
+                features=features,
+                activation=reservoir_activation,
+                input_reservoir_init=input_initializer,
+                input_bias_init=input_bias_initializer,
+                reservoir_kernel_init=reservoir_initializer,
+                exponent=2,
+                seed=seed,
+            )
 
         case "Reservoir":
             raise Exception(f"{model} is yet to be implemented")
@@ -187,7 +195,7 @@ def _train(
     return _model
 
 
-def _forecast(
+def forecast(
     trained_model: ESN,
     transient: int,
     train_length: int,
@@ -196,7 +204,8 @@ def _forecast(
     forecast_method: str = "classic",
     forecast_length: int = 1000,
     steps: int = 1,
-    internal_states: bool = False
+    internal_states: bool = False,
+    **kwargs,
 ):
     '''
     Load a model and forecast the data.
@@ -276,7 +285,7 @@ def _forecast(
     return predictions, val_target[:, :forecast_length, :][0]
 
 
-def _forecast_from_saved_model(
+def forecast_from_saved_model(
     trained_model_path: str,
     data_file: str,
     forecast_method: str = "classic",
@@ -286,13 +295,14 @@ def _forecast_from_saved_model(
     section_initialization_length: int = None,
     number_of_sections: int = None,
 
-    internal_states: bool = False
+    internal_states: bool = False,
+    **kwargs,
 ):
     with open(join(trained_model_path, 'params.json')) as f:
         params = json.load(f)
     model = ESN.load(trained_model_path)
 
-    _forecast(
+    forecast(
         trained_model=model,
         transient=params['transient'],
         train_length=params['train_length'],
@@ -305,7 +315,7 @@ def _forecast_from_saved_model(
     )
 
 
-def _plot(
+def plot(
     plot_type,
     predictions,
     data_file,

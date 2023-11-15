@@ -260,85 +260,49 @@ class PowerIndex(keras.layers.Layer):
 # For the ParallelReservoir model
 @tf.keras.utils.register_keras_serializable(package="custom")
 class InputSplitter(keras.layers.Layer):
-    """Splits the input tensor into partitions with overlap on both sides."""
-
-    def __init__(self, partitions, overlap, **kwargs) -> None:
-        """Initialize the layer."""
+    def __init__(self, partitions, overlap, **kwargs):
+        super(InputSplitter, self).__init__(**kwargs)
         self.partitions = partitions
         self.overlap = overlap
-        super().__init__(**kwargs)
 
-    def call(self, inputs) -> tf.Tensor:
-        """Compute the output tensor.
-
-        Args:
-            inputs (tf.Tensor): Input tensor of shape (batch_size, T, D)
-
-        Returns:
-            tf.Tensor: Tensor of shape (partitions, batch_size, T, D/partitions + 2*overlap)
-        """
-        print("caca: ", inputs.shape)
+    def call(self, inputs):
+        # Handling the case when partitions are 1
         if self.partitions == 1:
-            return inputs
+            return [inputs]
 
-        features = inputs.shape[-1]
+        # Shape validation
+        batch_size, sequence_length, features = inputs.shape
+        assert features % self.partitions == 0, "Feature dimension must be divisible by partitions"
+        assert features // self.partitions > self.overlap, "Overlap must be smaller than the length of the partitions."
+        
+        
 
-        assert (
-            features % self.partitions == 0
-        ), "Input length must be divisible by partitions"
+        # Calculating the width of each partition including overlap
+        partition_width = features // self.partitions + 2 * self.overlap
 
-        input_clusters = [0 for _ in range(self.partitions)]
+        # Applying circular wrapping
+        wrapped_inputs = tf.concat([inputs[:, :, -self.overlap:], inputs, inputs[:, :, :self.overlap]], axis=-1)
 
-        # input_clusters = tf.Variable(input_clusters, dtype=tf.float32)
-
-        # First roll the input tensor to the right by overlap
-        inputs = tf.roll(inputs, self.overlap, axis=-1)
-
+        # Slicing the input tensor into partitions
+        partitions = []
         for i in range(self.partitions):
-            # Take into account the overlap on both sides is guaranteed
-            # since we rolled the input tensor to the right by overlap before
-            slicee = inputs[
-                :, :, : features // self.partitions + 2 * self.overlap
-            ]
-            
-            input_clusters[i] = slicee
+            start = i * (features // self.partitions)
+            end = start + partition_width
+            partitions.append(wrapped_inputs[:, :, start:end])
 
-            # Just roll the input tensor to the left by N/partitions,
-            # this will take care of the overlap on the left side
-            inputs = tf.roll(
-                inputs, shift=-features // self.partitions, axis=-1
-            )
+        return partitions
 
-        input_clusters = tf.convert_to_tensor(input_clusters)
+    def compute_output_shape(self, input_shape):
+        batch_size, sequence_length, features = input_shape
+        partition_width = features // self.partitions + 2 * self.overlap
+        return [(batch_size, sequence_length, partition_width) for _ in range(self.partitions)]
 
-        return input_clusters
-
-    def compute_output_shape(self, input_shape) -> tf.TensorShape:
-        """Compute the output shape.
-
-        Args:
-            input_shape (tf.TensorShape): Input shape.
-
-        Returns:
-            tf.TensorShape: Output shape same as input shape.
-        """
-        batches = input_shape[0]
-        timesteps = input_shape[1]
-        features = input_shape[2]
-
-        shape = (
-            self.partitions,
-            batches,
-            timesteps,
-            features // self.partitions + 2 * self.overlap,
-        )
-
-        return tf.TensorShape(shape)
-
-    def get_config(self) -> Dict:
-        """Get the config dictionary of the layer for serialization."""
-        config = super().get_config()
-        config.update({"partitions": self.partitions, "overlap": self.overlap})
+    def get_config(self):
+        config = super(InputSplitter, self).get_config()
+        config.update({
+            'partitions': self.partitions,
+            'overlap': self.overlap
+        })
         return config
 
     @classmethod
@@ -563,7 +527,7 @@ def simple_esn(units: int,
         esn_rnn
     )
     
-    output = keras.layers.Concatenate(name="res_output")(
+    output = keras.layers.Concatenate(name="Concat_ESN_input")(
         [inputs, power_index]
     )
     
@@ -585,14 +549,13 @@ def parallel_esn(units: int,
                  partitions: int = 1,
                  overlap: int = 0):
     
+    # FIX
     assert features % partitions == 0, "Input length must be divisible by partitions"
     
     assert features // partitions > overlap, "Overlap must be smaller than the length of the partitions"
     
     inputs = keras.Input(batch_shape=(1, None, features), name='Input')
-    
-    print(inputs.shape)
-    
+        
     inputs_splitted = InputSplitter(partitions=partitions, overlap=overlap, name="splitter")(inputs)
     
     
@@ -617,16 +580,16 @@ def parallel_esn(units: int,
                 return_sequences=True,
                 name=f"esn_rnn_{i}",
             )
-        
-        print("input splitted: ", inputs_splitted)
-        print("input splitted shape: ", inputs_splitted[i].shape)
-        
+                
         reservoir_output = reservoir(inputs_splitted[i])
         reservoir_output = PowerIndex(exponent=exponent, index=i, name=f"pwr_{i}")(reservoir_output)
         reservoir_outputs.append(reservoir_output)
     
+    
     # Concatenate the power indices
     output = keras.layers.Concatenate(name="res_output")(reservoir_outputs)
+    
+    output = keras.layers.Concatenate(name="Concat_ESN_input")([inputs, output])
     
     parallel_reservoir = keras.Model(
         inputs=inputs,
