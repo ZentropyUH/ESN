@@ -12,7 +12,7 @@ app = Typer(
 
 
 @app.command(
-    name="slurm_grid",
+    name="slurm-grid",
     no_args_is_help=True,
     help='Commad executed by the slurm grid search.'
 )
@@ -48,7 +48,7 @@ def slurm_grid_command(
 
 
 @app.command(
-    name="init_slurm_grid",
+    name="init-slurm_grid",
     no_args_is_help=True,
     help='Initialize all files and folders for grid search.'
 )
@@ -184,7 +184,7 @@ def init_slurm_grid_command(
 
 # FIX
 @app.command(
-    name="grid_aux",
+    name="grid-aux",
     no_args_is_help=True,
     help='Generate the next steps of the grid search from the results of the previous ones.',
 )
@@ -214,7 +214,7 @@ def grid_aux_command(
 
 
 @app.command(
-    name="best_results",
+    name="best-results",
     no_args_is_help=True,
     help='Get the best results from the given path. Compare by the given `threshold`.',
 )
@@ -234,7 +234,7 @@ def best_results_command(
 
 
 @app.command(
-    name="results_data",
+    name="results-data",
     no_args_is_help=True,
     help='Generate the a .json file with the hyperparameters of every training and the index where the rmse from the results are bigger than the threshold.',
 )
@@ -252,7 +252,7 @@ def results_data_command(
     
 
 @app.command(
-    name="search_unfinished_combinations",
+    name="search-unfinished-combinations",
     no_args_is_help=True,
     help='Search for the combinations that have not been satisfactorily completed and create a script to execute them.',
 )
