@@ -48,7 +48,7 @@ def slurm_grid_command(
 
 
 @app.command(
-    name="init-slurm_grid",
+    name="init-slurm-grid",
     no_args_is_help=True,
     help='Initialize all files and folders for grid search.'
 )
