@@ -31,7 +31,8 @@ def train_ESN(
         "ESN", 
         "--model", 
         "-m", 
-        help="Type of ESN model to be used. The default is ESN (classic)."
+        help="Type of ESN model to be used. The default is ESN (classic).",
+        autocompletion=EnumModel.list,
     ),
     units: int = Option(
         ..., 
@@ -44,12 +45,14 @@ def train_ESN(
         "--input-initializer",
         "-ii",
         help="The initializer for the input weights. The default is InputMatrix.",
+        autocompletion=EnumInputInitializer.list,
     ),
     input_bias_initializer: EnumInputBiasInitializer = Option(
         "RandomUniform",
         "--input-bias-initializer",
         "-ib",
         help="The initializer for the input bias weights. The default is RandomUniform.",
+        autocompletion=EnumInputBiasInitializer.list,
     ),
     input_scaling: float = Option(
         0.5,
@@ -68,6 +71,7 @@ def train_ESN(
         "--reservoir-activation",
         "-a",
         help="The activation function of the reservoir. The default is tanh. Only used if ESN or Parallel_ESN is used.",
+        autocompletion=EnumReservoirActivation.list,
     ),
     seed: int = Option(
         None,
@@ -86,6 +90,7 @@ def train_ESN(
         "--reservoir-initializer",
         "-ri",
         help="The initializer for the reservoir weights. The default is WattsStrogatzNX. Only used if ESN or Parallel_ESN is used.",  # Maybe play later with topologies on ECA and Oscillators. First we have to study impact on EOC
+        autocompletion=EnumReservoirInitializer.list,
     ),
     rewiring: float = Option(
         0.5,
@@ -122,6 +127,7 @@ def train_ESN(
         "--readout-layer",
         "-rl",
         help="The type of readout layer of the model; 'linear' if the layer is a linear regression using Ridge (Tikhonov) regularization scheme; 'sgd' if the readout should be a linear regression to be calculated iteratively with stochastic gradient descent; 'mlp' if the readout is to be chosen as a multilayer perceptron. If 'mlp' is chosen more options should be provided.",
+        autocompletion=EnumReadoutLayer.list,
     ),
     regularization: float = Option(
         1e-4,

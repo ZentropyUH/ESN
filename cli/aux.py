@@ -11,57 +11,27 @@ app = Typer(
 
 
 @app.command(
-    name="best_results",
+    name="KS-ly",
     no_args_is_help=True,
-    help='Get the best results from the given path. Compare by the given `threshold`.',
+    help="Estimation of the i-th largest Lyapunov Time of the KS model, based on the paper: 'Lyapunov Exponents of the Kuramoto-Sivashinsky PDE. arxiv:1902.09651v1'",
 )
-def best_results_command(
-    results_path: str = Option(..., "--results-path", "-rp"),
-    output: str = Option(..., "--output", "-o"),
-    n_results: int = Option(..., "--n-results", "-nr"),
-    threshold: float = Option(..., "--threshold", "-t"),
+def KS_ly(
+    i_th: int = Option(
+        1,
+        "--i-th",
+        "-i",
+        help="The i-th largest Lyapunov Time of the KS model.",
+    ),
+    length_scale: int = Option(
+        ...,
+        "--length-scale",
+        "-l",
+        help="The length scale of the KS model.",
+    ),
 ):
-    from slurm_grid.tools import best_results
-    best_results(
-        results_path=results_path,
-        output=output,
-        n_results=n_results,
-        threshold=threshold,
-    )
-
-
-@app.command(
-    name="results_data",
-    no_args_is_help=True,
-    help='Generate the a .json file with the hyperparameters of every training and the index where the rmse from the results are bigger than the threshold.',
-)
-def results_data_command(
-    results_path: str = Option(..., "--results-path", "-rp", help='Path of the results from grid search to be analized.'),
-    filepath: str = Option(..., "--filepath", "-fp", help='File path for the output. Must be a .json file.'),
-    threshold: float = Option(..., "--threshold", "-t"),
-):
-    from slurm_grid.tools import results_data
-    results_data(
-        results_path=results_path,
-        filepath=filepath,
-        threshold=threshold,
-    )
-    
-
-@app.command(
-    name="search_unfinished_combinations",
-    no_args_is_help=True,
-    help='Search for the combinations that have not been satisfactorily completed and create a script to execute them.',
-)
-def search_unfinished_combinations_command(
-    path:str =  Option(..., "--path", "-p", help='Specify the folder where the results of the combinations are stored'),
-    depth = Option(0, "--depth", "-d", help='Grid depth, to specify the depth of the grid seach.')
-):
-    from slurm_grid.tools import search_unfinished_combinations
-    search_unfinished_combinations(
-        path=path,
-        depth=depth,
-    )
+    from src.utils import lyap_ks
+    value = lyap_ks(i_th, length_scale)
+    print(f"Lyapunov Time of the KS model: {value}")
 
 
 if __name__ == "__main__":
