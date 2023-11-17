@@ -8,11 +8,11 @@ from os.path import join
 
 from functions import train
 from functions import forecast
-from slurm_grid.tools import save_csv
-from slurm_grid.tools import save_plot
-from slurm_grid.tools import load_json
-from src.plots.systems import plot_forecast
-from slurm_grid.const import CaseRun
+from grid.tools import save_csv
+from grid.tools import save_plot
+from grid.tools import load_json
+from research.plots import plot_forecast
+from grid.const import CaseRun
 
 
 def grid(

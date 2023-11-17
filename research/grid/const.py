@@ -60,12 +60,11 @@ SLURM_SCRIPT = '''#!/bin/bash
 #SBATCH --time=4-00:00:00
 #SBATCH --partition=graphic
 
-#SBATCH --array={array}%50
+#SBATCH --array={array}%{jobs_limit}
 
 
 ########## MODULES ##########
 
-set -e
 module purge
 module load python/3.10.5
 
@@ -117,7 +116,7 @@ echo "end of copy"
 ########## RUN ##########
 
 echo "runing............"
-srun python3 ESN/main.py slurm-grid -d $data -o $output -i $SLURM_ARRAY_TASK_ID -hp $comb
+srun python3 ESN/main.py grid grid -d $data -o $output -i $SLURM_ARRAY_TASK_ID -hp $comb
 echo "end of run"
 
 

@@ -15,11 +15,11 @@ from typing import Any
 from itertools import product
 from rich.progress import track
 
-from slurm_grid.const import SLURM_SCRIPT
-from slurm_grid.const import GridFolders
-from slurm_grid.const import RunFolders
-from slurm_grid.const import InfoFiles
-from slurm_grid.const import CaseRun
+from grid.const import SLURM_SCRIPT
+from grid.const import GridFolders
+from grid.const import RunFolders
+from grid.const import InfoFiles
+from grid.const import CaseRun
 
 
 class Queue:
@@ -367,6 +367,7 @@ def generate_slurm_script(
         output_path: str,
         data_path: str,
         filepath: str,
+        jobs_limit: int,
 ):
     '''
     Generate new slurm script.
@@ -401,6 +402,7 @@ def generate_slurm_script(
         combinations_file=combinations_file,
         combinations_path=combinations_path,
         data_path=data_path.absolute(),
+        jobs_limit=jobs_limit,
     )
 
     with open(filepath, 'w') as f:
@@ -413,7 +415,8 @@ def generate_unfinished_script(
         combinations_path: str,
         output_path: str,
         data_path: str,
-        file_path:str
+        file_path:str,
+        jobs_limit: int,
 ):
     '''
     # TODO
@@ -433,6 +436,7 @@ def generate_unfinished_script(
         combinations_file=combinations_file,
         combinations_path=combinations_path,
         data_path=data_path.absolute(),
+        jobs_limit=jobs_limit,
     )
 
     with open(file_path, 'w') as f:
@@ -538,6 +542,7 @@ def search_unfinished_combinations(
 def init_slurm_grid(
     path: str,
     job_name: str,
+    jobs_limit: int,
     data_path: str,
     model: str,
     input_initializer: str,
@@ -615,6 +620,7 @@ def init_slurm_grid(
         output_path,
         data_path,
         script_file,
+        jobs_limit,
     )
 
 
@@ -671,4 +677,5 @@ def grid_aux(
         output_path=new_run_results,
         data_path=params['data_path'],
         filepath=script_file,
+        jobs_limit=params['jobs_limit'],
     )
