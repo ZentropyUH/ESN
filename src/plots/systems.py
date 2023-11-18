@@ -671,4 +671,64 @@ def max_return_map(
     if show:
         plt.show()
     
+def min_return_map(
+    target: np.ndarray,
+    forecast: np.ndarray = None,
     
+    target_labels: Union[str, Iterable[str]] = 'system',
+    forecast_labels: Union[str, Iterable[str]] = 'forecast',
+    
+    title: str = '',
+    filepath: str = None,
+    show: bool = False,  
+) -> None:
+    
+    features = target.shape[-1]
+    
+    
+    
+    if isinstance(target_labels, str):
+        target_labels = [''.join([target_labels, f'_{letter(i)}']) for i in range(features)]
+    if isinstance(forecast_labels, str) and forecast is not None:
+        forecast_labels = [''.join([forecast_labels, f'_{letter(i)}']) for i in range(features)]
+    
+    fig, axs = _base_setup_plot(
+        features=1,
+        cols=features,
+        title=title,
+        figsize=(18, 6),
+        sharey=False,
+    )
+        
+    
+    for i in range(features):
+        
+        dimension = target[:, -(i+1)]
+        peaks, _ = find_peaks(-dimension)
+        maxima = dimension[peaks]
+        
+        
+        if forecast is not None:
+            fdimension = forecast[:, -(i+1)]
+            fpeaks, _ = find_peaks(-fdimension)
+            fmaxima = fdimension[fpeaks]
+        
+                
+        _base_scatter(
+            ax=axs[0][i],
+            xvalues=maxima[:-1],
+            val_target=maxima[1:],
+            fxvalues=fmaxima[:-1] if forecast is not None else None,
+            forecast=fmaxima[1:] if forecast is not None else None,
+            label=target_labels[i],
+            target_label=forecast_labels[i],
+        )
+        
+        
+            
+    
+    if filepath:
+        plt.savefig(filepath)
+        
+    if show:
+        plt.show()
