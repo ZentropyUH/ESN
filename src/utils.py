@@ -9,6 +9,8 @@ import pandas as pd
 
 #### Parameters ####
 
+# given i it starts from letter x and goes cyclically, when x reached starts xx, xy, etc.
+letter = lambda n: 'x' * ((n + 23) // 26) + chr(ord('a') + (n + 23) % 26)
 
 def lyap_ks(i, l):
     """Estimation of the i-th largest Lyapunov Time of the KS model.
@@ -91,6 +93,10 @@ def load_data(
     """
     data = pd.read_csv(name).to_numpy()
 
+    features = data.shape[-1]
+
+    data = data.reshape(1, -1, features)
+
     # Take the elements of the data skipping every step elements.
     data = data[::step]
 
@@ -104,24 +110,24 @@ def load_data(
     # Index up to the training end.
     train_index = transient + train_length
 
-    if train_index > data.shape[0]:
+    if train_index > data.shape[1]:
         raise ValueError(
             f"The train size is out of range. Data size is: "
             f"{data.shape[0]} and train size + transient is: {train_index}"
         )
 
     # Transient data (For ESP purposes)
-    transient_data = data[:transient, :]
+    transient_data = data[:, :transient, :]
 
-    train_data = data[transient:train_index, :]
-    train_target = data[transient + 1 : train_index + 1, :]
+    train_data = data[:, transient:train_index, :]
+    train_target = data[:, transient + 1 : train_index + 1, :]
 
     # Forecast transient (For ESP purposes).
     # These are the last 'transient' values of the training data
-    forecast_transient_data = train_data[-transient:, :]
+    forecast_transient_data = train_data[:, -transient:, :]
 
-    val_data = data[train_index:-1, :]
-    val_target = data[train_index + 1 :, :]
+    val_data = data[:, train_index:-1, :]
+    val_target = data[:, train_index + 1 :, :]
 
     return (
         transient_data,
