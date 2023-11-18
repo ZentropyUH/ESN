@@ -1,17 +1,19 @@
-from typing import List
-from typing import Union
-from typing import Tuple
-from typing import Iterable
-import numpy as np
+from typing import Iterable, List, Tuple, Union
+
 import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.animation import FuncAnimation
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
+from mpl_toolkits.mplot3d import Axes3D
 from scipy.signal import find_peaks
+
 from src.utils import letter
 
 #TODO: Parameter control and assertions
 #TODO: Change _base_plot label and target_label to target_label and forecast_label, means refactoring
 #TODO: make possible to choose letter or number for the labels
+#TODO: Make it so that if the data is too long in the linear plots, the screenview starts moving right when data reaches the middle and continues moving right until the end of the data with the same speed (Hard one )
 #TODO: Check everything is working as expected
 
 def _base_setup_plot(
@@ -291,6 +293,60 @@ def plot_system(
 
 #### NEW GENERATION PLOTS ####
 
+def animate_drawing(
+    fig: Figure, 
+    axs: Union[Axes, List[Axes]],
+    interval: int = 50
+) -> FuncAnimation:
+    axs = np.array(axs).flatten()
+
+    lines_2d, lines_3d, line_data_2d, line_data_3d = [], [], [], []
+    markers_2d, markers_3d = [], []
+
+    # Separate 2D and 3D lines and create markers
+    for ax in axs:
+        if isinstance(ax, Axes3D):
+            for line in ax.lines:
+                lines_3d.append(line)
+                x, y, z = line.get_data_3d()
+                line_data_3d.append((x, y, z))
+                markers_3d.append(ax.plot(x[0], y[0], z[0], marker='o', color='red', markersize=5)[0])
+        else:
+            for line in ax.lines:
+                lines_2d.append(line)
+                x, y = line.get_data()
+                line_data_2d.append((x, y))
+                markers_2d.append(ax.plot(x[0], y[0], marker='o', color='red', markersize=5)[0])
+
+    def init():
+        for line in lines_2d:
+            line.set_data([], [])
+        for marker in markers_2d:
+            marker.set_data([], [])
+        for line in lines_3d:
+            line.set_data_3d([], [], [])
+        for marker in markers_3d:
+            marker.set_data_3d([], [], [])
+        return lines_2d + lines_3d + markers_2d + markers_3d
+
+    def animate(i):
+        for j, line in enumerate(lines_2d):
+            x, y = line_data_2d[j]
+            line.set_data(x[:i], y[:i])
+            markers_2d[j].set_data(x[i-1:i], y[i-1:i])
+        for j, line in enumerate(lines_3d):
+            x, y, z = line_data_3d[j]
+            line.set_data_3d(x[:i], y[:i], z[:i])
+            markers_3d[j].set_data_3d(x[i-1:i], y[i-1:i], z[i-1:i])
+        return lines_2d + lines_3d + markers_2d + markers_3d
+
+    max_frames_2d = len(max(line_data_2d, key=lambda x: len(x[0]))[0]) if line_data_2d else 0
+    max_frames_3d = len(max(line_data_3d, key=lambda x: len(x[0]))[0]) if line_data_3d else 0
+    max_frames = max(max_frames_2d, max_frames_3d)
+
+    anim = FuncAnimation(fig, animate, init_func=init, frames=max_frames, interval=interval, blit=True)
+    return anim
+
 
 def linear_single_plot(
     target: np.ndarray,
@@ -307,6 +363,8 @@ def linear_single_plot(
     xlabel: str = r'\Lambda t',
     filepath: str = None,
     show: bool = False,
+    animate: bool = False,
+    frame_interval: int = 20,
 ) -> None:
     
     assert start >= 0, 'Start index must be greater or equal to 0.'
@@ -357,12 +415,22 @@ def linear_single_plot(
             label=target_labels[i],
             target_label=forecast_labels[i] if forecast is not None else None,
         )
-        
-    if filepath:
-        plt.savefig(filepath)
     
-    if show:
-        plt.show()
+    if animate:
+        anim = animate_drawing(fig, axs, interval=frame_interval)
+        
+        if filepath:
+            anim.save(filepath, writer='ffmpeg')
+        
+        if show:
+            plt.show()
+    else:
+        
+        if filepath:
+            plt.savefig(filepath)
+        
+        if show:
+            plt.show()
 
 def linear_multiplot(
     target: np.ndarray,
@@ -377,6 +445,8 @@ def linear_multiplot(
     xlabel: str = r'$\Lambda t$',
     filepath: str = None,
     show: bool = False,
+    animate: bool = False,
+    frame_interval: int = 20,
 ) -> None:
     
     assert start >= 0, 'Start index must be greater or equal to 0.'
@@ -418,12 +488,22 @@ def linear_multiplot(
             label=target_labels[i],
             target_label=forecast_labels[i] if forecast is not None else None,
         )
-                
-    if filepath:
-        plt.savefig(filepath)
     
-    if show:
-        plt.show()
+    if animate:
+        anim = animate_drawing(fig, axs, interval=frame_interval)
+        
+        if filepath:
+            anim.save(filepath, writer='ffmpeg')
+        
+        if show:
+            plt.show()
+    else:
+        
+        if filepath:
+            plt.savefig(filepath)
+
+        if show:
+            plt.show()
 
 def contourf_plot(
     target: np.ndarray,
@@ -540,6 +620,8 @@ def plot3D(
     filepath: str = None,
     single_plot: bool = True,
     show: bool = False,
+    animate: bool = False,
+    frame_interval: int = 20,
 ) -> None:
     
     assert start >= 0, 'Start index must be greater or equal to 0.'
@@ -565,8 +647,7 @@ def plot3D(
         single_plot=single_plot,
         title=title,
         figsize=None
-    )
-    
+    )   
     
     if single_plot:
         _base_plot_3D(
@@ -603,11 +684,21 @@ def plot3D(
         
         axs[1].set_title(forecast_label)
     
-    if filepath:
-        plt.savefig(filepath)
+    if animate:
+        anim = animate_drawing(fig, axs, interval=frame_interval)
+        
+        if filepath:
+            anim.save(filepath, writer='ffmpeg')
+        
+        if show:
+            plt.show()
     
-    if show:
-        plt.show()
+    else:    
+        if filepath:
+            plt.savefig(filepath)
+        
+        if show:
+            plt.show()
 
 def max_return_map(
     target: np.ndarray,

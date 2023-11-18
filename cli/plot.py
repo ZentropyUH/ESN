@@ -120,6 +120,20 @@ def linear_single(
         "-s",
         help="Show the plot.",
     ),
+    
+    animate: bool = Option(
+        False,
+        "--animate/--no-animate",
+        "-a",
+        help="Animate the plot.",
+    ),
+    
+    frame_interval: int = Option(
+        20,
+        "--frame-interval",
+        "-ai",
+        help="Frame interval of the animation.",
+    ),
 ):
     
     from src.plots.systems import linear_single_plot
@@ -165,6 +179,9 @@ def linear_single(
         xlabel=xlabel,
         filepath=filepath,
         show=show,
+        animate=animate,
+        frame_interval=frame_interval,
+        
     )
 
 
@@ -271,6 +288,20 @@ def linear_multi(
         "-s",
         help="Show the plot.",
     ),
+    
+    animate: bool = Option(
+        False,
+        "--animate/--no-animate",
+        "-a",
+        help="Animate the plot.",
+    ),
+    
+    frame_interval: int = Option(
+        20,
+        "--frame-interval",
+        "-ai",
+        help="Frame interval of the animation.",
+    ),
 ):
     if len(target_label) == 1:
         target_label = target_label[0]
@@ -318,6 +349,8 @@ def linear_multi(
         xlabel=xlabel,
         filepath=filepath,
         show=show,
+        animate=animate,
+        frame_interval=frame_interval,
     )
 
 
@@ -594,6 +627,20 @@ def plot_3D(
         help="Show the plot.",
     ),
     
+    animate: bool = Option(
+        False,
+        "--animate/--no-animate",
+        "-a",
+        help="Animate the plot.",
+    ),
+    
+    frame_interval: int = Option(
+        20,
+        "--frame-interval",
+        "-ai",
+        help="Frame interval of the animation.",
+    ),
+    
 ):
     if len(xlabels) == 1:
         xlabels = xlabels[0]
@@ -621,10 +668,6 @@ def plot_3D(
             
         forecast = pd.read_csv(forecast_file, header=None).to_numpy()
         
-    
-    
-        
-    
     else:
         data = pd.read_csv(data_file, header=None).to_numpy()
         forecast = None
@@ -643,6 +686,8 @@ def plot_3D(
         filepath=filepath,
         single_plot=single_plot,
         show=show,
+        animate=animate,
+        frame_interval=frame_interval,
     )
 
 @app.command(
@@ -806,6 +851,7 @@ def min_return(
         filepath=filepath,
         show=show,
     )
+
 
 if __name__ == "__main__":
     app()
