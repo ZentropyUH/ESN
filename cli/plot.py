@@ -46,7 +46,7 @@ def linear_single(
     
     train_length: int = Option(
         10000,
-        "--trained-length",
+        "--train-length",
         "-tl",
         help="Trained length of the data.",
     ),
@@ -197,7 +197,7 @@ def linear_multi(
     
     train_length: int = Option(
         10000,
-        "--trained-length",
+        "--train-length",
         "-tl",
         help="Trained length of the data.",
     ),
@@ -280,7 +280,7 @@ def linear_multi(
     from src.plots.systems import linear_multiplot
     
     if forecast_file is not None:
-        
+
         if transient != 0 or train_length != 0:
             (
                 _,
@@ -605,6 +605,7 @@ def plot_3D(
     from src.plots.systems import plot3D
     
     if forecast_file is not None:
+
         if transient != 0 or train_length != 0:
             (
                 _,
@@ -621,13 +622,13 @@ def plot_3D(
         forecast = pd.read_csv(forecast_file, header=None).to_numpy()
         
     
+    
+        
+    
     else:
         data = pd.read_csv(data_file, header=None).to_numpy()
         forecast = None
         
-    data = pd.read_csv(data_file, header=None).to_numpy()
-    
-    
     plot3D(
         target=data,
         forecast=forecast,

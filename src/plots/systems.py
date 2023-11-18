@@ -18,7 +18,7 @@ def _base_setup_plot(
     features: int,
     cols: int = 1,
     title: str = '',
-    xlabel: str = 't',
+    xlabel: str = '',
     figsize: Tuple[float, float] = (20, 9.6),
     sharey: bool = True,
 ) -> Union[Tuple[Figure, Axes], Tuple[Figure, List[Axes]]]:
@@ -97,6 +97,7 @@ def _base_plot_3D(
     xlabels: Union[str, Iterable[str]] = 'x',
     ylabels: Union[str, Iterable[str]] = 'y',
     zlabels: Union[str, Iterable[str]] = 'z',
+    color: str = None,
 ) -> None:
     
     # Handling different types of labels
@@ -107,7 +108,7 @@ def _base_plot_3D(
     if isinstance(zlabels, str):
         zlabels = [''.join([zlabels, f'_{i}']) for i in range(2)]
     
-    ax.plot(target[:, 0], target[:, 1], target[:, 2], label=target_label, lw=1.5)
+    ax.plot(target[:, 0], target[:, 1], target[:, 2], label=target_label, lw=1.5, color=color)
     
     if forecast is not None:
         ax.plot(forecast[:, 0], forecast[:, 1], forecast[:, 2], label=forecast_label, linestyle='--', lw=0.8)
@@ -389,18 +390,11 @@ def linear_multiplot(
         target_labels = [''.join([target_labels, f'_{i}']) for i in range(features)]
     if isinstance(forecast_labels, str) and forecast is not None:
         forecast_labels = [''.join([forecast_labels, f'_{i}']) for i in range(features)]
-    
-    if forecast is not None:
-        length = min(forecast.shape[0], target.shape[0])
-        forecast = forecast[:length]
-        target = target[:length]
-    
+        
     
     if end is None:
         end = target.shape[0]
-    
-    length = end - start
-    
+        
     target = target[start:end]
     
     if forecast is not None:
@@ -604,6 +598,7 @@ def plot3D(
             xlabels=xlabels[1],
             ylabels=ylabels[1],
             zlabels=zlabels[1],
+            color='orange'
         )
         
         axs[1].set_title(forecast_label)
@@ -620,8 +615,6 @@ def max_return_map(
     
     target_labels: Union[str, Iterable[str]] = 'system',
     forecast_labels: Union[str, Iterable[str]] = 'forecast',
-    
-    xlabel: str = 'x(t)',
     
     title: str = '',
     filepath: str = None,
@@ -641,8 +634,6 @@ def max_return_map(
         features=1,
         cols=features,
         title=title,
-        xlabel=xlabel,
-        # more of a square shape
         figsize=(18, 6),
         sharey=False,
     )
@@ -650,16 +641,17 @@ def max_return_map(
     
     for i in range(features):
         
-        dimension = target[:, i]
+        dimension = target[:, -(i+1)]
         peaks, _ = find_peaks(dimension)
         maxima = dimension[peaks]
         
         
         if forecast is not None:
-            fdimension = forecast[:, i]
+            fdimension = forecast[:, -(i+1)]
             fpeaks, _ = find_peaks(fdimension)
-            fmaxima = dimension[fpeaks]
+            fmaxima = fdimension[fpeaks]
         
+                
         _base_scatter(
             ax=axs[0][i],
             xvalues=maxima[:-1],
