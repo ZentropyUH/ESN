@@ -135,6 +135,7 @@ def linear_single(
                 _,
                 data
             ) = load_data(data_file, transient, train_length)
+            data=data[0]
         else:
             data = pd.read_csv(data_file, header=None).to_numpy()
 
@@ -289,6 +290,7 @@ def linear_multi(
                 _,
                 data
             ) = load_data(data_file, transient, train_length)
+            data=data[0]
         else:
             data = pd.read_csv(data_file, header=None).to_numpy()
             
@@ -450,6 +452,7 @@ def contourf(
                 _,
                 data
             ) = load_data(data_file, transient, train_length)
+            data=data[0]
         else:
             data = pd.read_csv(data_file, header=None).to_numpy()
             
@@ -611,6 +614,7 @@ def plot_3D(
                 _,
                 data
             ) = load_data(data_file, transient, train_length)
+            data=data[0]
         else:
             data = pd.read_csv(data_file, header=None).to_numpy()
             

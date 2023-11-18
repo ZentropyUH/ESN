@@ -7,9 +7,11 @@ import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from scipy.signal import find_peaks
+from src.utils import letter
 
 #TODO: Parameter control and assertions
 #TODO: Change _base_plot label and target_label to target_label and forecast_label, means refactoring
+#TODO: make possible to choose letter or number for the labels
 #TODO: Check everything is working as expected
 
 def _base_setup_plot(
@@ -352,6 +354,7 @@ def linear_single_plot(
             val_target=target[:, i],
             forecast=forecast[:, i] if forecast is not None else None,
             label=target_labels[i],
+            target_label=forecast_labels[i] if forecast is not None else None,
         )
         
     if filepath:
@@ -419,6 +422,7 @@ def linear_multiplot(
             val_target=target[:, i],
             forecast=forecast[:, i] if forecast is not None else None,
             label=target_labels[i],
+            target_label=forecast_labels[i] if forecast is not None else None,
         )
                 
     if filepath:
@@ -626,8 +630,7 @@ def max_return_map(
     
     features = target.shape[-1]
     
-    # given i it starts from letter x and goes cyclically, when x reached starts xx, xy, etc.
-    letter = lambda n: 'x' * ((n + 23) // 26) + chr(ord('a') + (n + 23) % 26)
+    
     
     if isinstance(target_labels, str):
         target_labels = [''.join([target_labels, f'_{letter(i)}']) for i in range(features)]
