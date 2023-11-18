@@ -726,5 +726,86 @@ def max_return(
         show=show,
     )
 
+@app.command(
+    name="min-return",
+    no_args_is_help=True,
+    help="",
+)
+def min_return(
+    data_file: str = Option(
+        ...,
+        "--data-file",
+        "-df",
+        help="Data to be plotted.",
+    ),
+    
+    forecast_file: str = Option(
+        None,
+        "--forecast-file",
+        "-ff",
+        help="Forecast of the data.",
+    ),
+    
+    target_label: List[str] = Option(
+        ["Original"],
+        "--target-label",
+        "-tl",
+        help="Label of the target data.",
+    ),
+    
+    forecast_label: List[str] = Option(
+        ["Forecast"],
+        "--forecast-label",
+        "-fl",
+        help="Label of the forecast data.",
+    ),
+    
+            
+    title: str = Option(
+        "Min Return Plot",
+        "--title",
+        "-t",
+        help="Title of the plot.",
+    ),
+    
+    filepath: str = Option(
+        None,
+        "--filepath",
+        "-fp",
+        help="Filepath of the plot.",
+    ),
+    
+    show: bool = Option(
+        False,
+        "--show/--no-show",
+        "-s",
+        help="Show the plot.",
+    ),
+):
+    if len(target_label) == 1:
+        target_label = target_label[0]
+    if len(forecast_label) == 1:
+        forecast_label = forecast_label[0]
+    
+    from src.plots.systems import min_return_map
+    
+    if forecast_file is not None:
+        forecast = pd.read_csv(forecast_file, header=None).to_numpy()
+    else:
+        forecast = None
+
+    data = pd.read_csv(data_file, header=None).to_numpy()
+
+        
+    min_return_map(
+        target=data,
+        forecast=forecast,
+        target_labels=target_label,
+        forecast_labels=forecast_label,
+        title=title,
+        filepath=filepath,
+        show=show,
+    )
+
 if __name__ == "__main__":
     app()
