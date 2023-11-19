@@ -395,7 +395,7 @@ def generate_slurm_script(
     data_path:Path = Path(data_path)
 
     file = SLURM_SCRIPT.format(
-        repo=Path(__file__).parent.parent.absolute(),
+        repo=Path(__file__).parent.parent.parent.absolute(),
         job_name=job_name,
         array= "-".join([str(i) for i in array]),
         output_path=output_path,
@@ -429,7 +429,7 @@ def generate_unfinished_script(
     data_path: Path = Path(data_path)
 
     file = SLURM_SCRIPT.format(
-        repo=Path(__file__).parent.parent.absolute(),
+        repo=Path(__file__).parent.parent.parent.absolute(),
         job_name=job_name,
         array= array,
         output_path=output_path,
