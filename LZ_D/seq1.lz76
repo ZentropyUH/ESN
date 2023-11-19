@@ -1,0 +1,74 @@
+[Input file: seq1 ]
+
+[Length: 1688  ]
+
+[LZ76 epsilon factor: 0.848987  ]
+
+[Density: 0.464455  ]
+
+[LZ76: 27  ]
+
+[Shannon entropy over factor sizes: 3.48213  ]
+
+[Maximum factor size: 1470  ]
+
+[Average factor size: 62.5185  ]
+
+[Standard deviation over factor size: 62.5211  ]
+
+[LZ76 Entropy density: 0.177838  ]
+
+[LZ76 Standard deviation entropy density: 0.0348545  ]
+
+[LZ76 Excess entropy shuffling: 13.1664  ]
+
+[LZ76 Excess entropy as mutual information: 27  ]
+
+[Redundancy: 0.243822  ]
+
+[LZ76 Multi information: 0.870137  ]
+
+[Second input file: seq1 ]
+
+[Length: 1688  ]
+
+[LZ76 epsilon factor: 0.848987  ]
+
+[Density: 0.464455  ]
+
+[LZ76: 27  ]
+
+[Shannon entropy over factor sizes: 3.48213  ]
+
+[Maximum factor size: 1470  ]
+
+[Average factor size: 62.5185  ]
+
+[Standard deviation over factor size: 62.5211  ]
+
+[LZ76 Entropy density: 0.177838  ]
+
+[LZ76 Standard deviation entropy density: 0.0348545  ]
+
+[LZ76 Excess entropy shuffling: 12.9949  ]
+
+[LZ76 Excess entropy as mutual information: 27  ]
+
+[Redundancy: 0.240646  ]
+
+[LZ76 Multi information: 0.870137  ]
+
+[Comparing inputs: 
+
+[Hamming compare: 0  ]
+
+[Non-normalized DLZ compare: 0  ]
+
+[Normalized DLZ compare: 0  ]
+
+[Mutual Information compare: 27  ]
+
+[Redundancy compare: 0.5  ]
+
+ ]
+

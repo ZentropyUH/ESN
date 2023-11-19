@@ -1,0 +1,36 @@
+[Input file: seqs ]
+
+[Length: 1000 1000  ]
+
+[LZ76 epsilon factor: 0.894046 0.894046  ]
+
+[Density: 0.49 0.495  ]
+
+[LZ76: 104 105  ]
+
+[Shannon entropy over factor sizes: 3.39839 3.39396  ]
+
+[Maximum factor size: 17 19  ]
+
+[Average factor size: 9.61538 9.52381  ]
+
+[Standard deviation over factor size: 7.12894 7.31621  ]
+
+[LZ76 Entropy density: 1.04641 1.05637  ]
+
+[LZ76 Standard deviation entropy density: 0.07644 0.0795713  ]
+
+[LZ76 Excess entropy shuffling: 0.3787 0.229213  ]
+
+[LZ76 Excess entropy as mutual information: 16 17  ]
+
+[Redundancy: 0.00315583 0.0018788  ]
+
+[LZ76 Multi information: 0.00996578 0.00996578  ]
+
+[Normalized LZ76 distance between succesive lines: 0.780952  ]
+
+[Non-normalized DLZ compare: 82  ]
+
+[Mutual information between succesive lines: 23  ]
+
