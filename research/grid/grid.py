@@ -8,11 +8,11 @@ from os.path import join
 
 from functions import train
 from functions import forecast
-from grid.tools import save_csv
-from grid.tools import save_plot
-from grid.tools import load_json
+from research.grid.tools import save_csv
+from research.grid.tools import save_plot
+from research.grid.tools import load_json
 from research.plots import plot_forecast
-from grid.const import CaseRun
+from research.grid.const import CaseRun
 
 
 def grid(

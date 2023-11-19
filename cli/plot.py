@@ -136,7 +136,7 @@ def linear_single(
     ),
 ):
     
-    from src.plots.systems import linear_single_plot
+    from research.plots.systems import linear_single_plot
     
     if forecast_file is not None:
         
@@ -308,7 +308,7 @@ def linear_multi(
     if len(forecast_label) == 1:
         forecast_label = forecast_label[0]
     
-    from src.plots.systems import linear_multiplot
+    from research.plots.systems import linear_multiplot
     
     if forecast_file is not None:
 
@@ -472,7 +472,7 @@ def contourf(
     ),
 ):
     
-    from src.plots.systems import contourf_plot
+    from research.plots.systems import contourf_plot
     
     if forecast_file is not None:
         
@@ -649,7 +649,7 @@ def plot_3D(
     if len(zlabels) == 1:
         zlabels = zlabels[0]
     
-    from src.plots.systems import plot3D
+    from research.plots.systems import plot3D
     
     if forecast_file is not None:
 
@@ -751,7 +751,7 @@ def max_return(
     if len(forecast_label) == 1:
         forecast_label = forecast_label[0]
     
-    from src.plots.systems import max_return_map
+    from research.plots.systems import max_return_map
     
     if forecast_file is not None:
         forecast = pd.read_csv(forecast_file, header=None).to_numpy()
@@ -832,7 +832,7 @@ def min_return(
     if len(forecast_label) == 1:
         forecast_label = forecast_label[0]
     
-    from src.plots.systems import min_return_map
+    from research.plots.systems import min_return_map
     
     if forecast_file is not None:
         forecast = pd.read_csv(forecast_file, header=None).to_numpy()
