@@ -15,11 +15,11 @@ from typing import Any
 from itertools import product
 from rich.progress import track
 
-from grid.const import SLURM_SCRIPT
-from grid.const import GridFolders
-from grid.const import RunFolders
-from grid.const import InfoFiles
-from grid.const import CaseRun
+from research.grid.const import SLURM_SCRIPT
+from research.grid.const import GridFolders
+from research.grid.const import RunFolders
+from research.grid.const import InfoFiles
+from research.grid.const import CaseRun
 
 
 class Queue:
