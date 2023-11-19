@@ -2,7 +2,9 @@ from enum import Enum
 
 
 class Choice(str, Enum):
-    ...
+    @classmethod
+    def list(cls):
+        return list(map(lambda c: c.value, cls))
 
 
 class EnumModel(Choice):

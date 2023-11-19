@@ -35,6 +35,7 @@ def forecast_ESN(
         "--forecast-method",
         "-fm",
         help="The method to be used for forecasting. The default is Classic.",
+        autocompletion=EnumForecastMethod.list,
     ),
     forecast_length: int = Option(
         1000,
