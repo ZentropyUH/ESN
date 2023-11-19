@@ -5,11 +5,12 @@ import re
 
 import numpy as np
 import pandas as pd
-import tensorflow as tf
-from keras.models import load_model
+
 
 #### Parameters ####
 
+# given i it starts from letter x and goes cyclically, when x reached starts xx, xy, etc.
+letter = lambda n: 'x' * ((n + 23) // 26) + chr(ord('a') + (n + 23) % 26)
 
 def lyap_ks(i, l):
     """Estimation of the i-th largest Lyapunov Time of the KS model.
@@ -70,9 +71,6 @@ def load_data(
 
         train_length (int, optional): The length of the training data. Defaults to 5000.
 
-        init_transient (int, optional): The initial transient of the data. Defaults to 0.
-            This amount of initial values are to be ignored to ensure stationarity of the system.
-
         step: Sets the number of steps between data sampling. i. e. takes values every 'step' steps
 
     Returns:
@@ -95,6 +93,10 @@ def load_data(
     """
     data = pd.read_csv(name).to_numpy()
 
+    features = data.shape[-1]
+
+    data = data.reshape(1, -1, features)
+
     # Take the elements of the data skipping every step elements.
     data = data[::step]
 
@@ -105,19 +107,13 @@ def load_data(
             f"Picking values every {step} steps.",
         )
 
-    # Check the columns of the data (D)
-    features = data.shape[-1]
-
-    # Reshape it to have batches as a dimension. For keras convention purposes.
-    data = data.reshape(1, -1, features)
-
     # Index up to the training end.
     train_index = transient + train_length
 
     if train_index > data.shape[1]:
         raise ValueError(
             f"The train size is out of range. Data size is: "
-            f"{data.shape[1]} and train size + transient is: {train_index}"
+            f"{data.shape[0]} and train size + transient is: {train_index}"
         )
 
     # Transient data (For ESP purposes)
@@ -144,6 +140,7 @@ def load_data(
 
 
 def load_model_and_params(model_path: str):
+    from keras.models import load_model
     # Load the param json from the model location
     with open(model_path + "/params.json", encoding="utf-8") as f:
         params = json.load(f)
@@ -169,50 +166,6 @@ def compose_n_times(n):
     return decorator
 
 
-def tf_ridge_regression(X, Y, beta, method="pinv"):
-    """Solve the ridge regression problem using the closed-form solution, i. e. solve the equation XW = Y.
-    Args:
-        X (tf.Tensor): The input data matrix of shape (N, D_1).
-        Y (tf.Tensor): The target data matrix of shape (N, D_2).
-        method (str): The method to use for the regression ('svd', 'qr', or 'pinv').
-    Returns:
-        tuple: A tuple with:
-            w (tf.Tensor): The weights of the ridge regression model of shape (D, 1).
-            b (tf.Tensor): The bias of the ridge regression model of shape (1,).
-    """
-    print(f"Making Ridge with {method} method.")
-
-    # Cast X and Y to float32
-    X = tf.cast(X, tf.float32)
-    Y = tf.cast(Y, tf.float32)
-
-    # Add a column of ones to X for the bias term
-    ones = tf.ones((tf.shape(X)[0], 1), dtype=X.dtype)
-    X = tf.concat([ones, X], 1)
-
-    # Calculate the ridge regression weights using the chosen method
-    XtX = tf.linalg.matmul(tf.transpose(X), X)
-    XtY = tf.linalg.matmul(tf.transpose(X), Y)
-    reg_term = beta * tf.eye(tf.shape(XtX)[0], dtype=XtX.dtype)
-
-    if method == "svd":
-        s, u, v = tf.linalg.svd(XtX + reg_term)
-        w = tf.matmul(
-            v,
-            tf.matmul(tf.linalg.diag(1 / s), tf.matmul(tf.transpose(u), XtY)),
-        )
-
-    elif method == "qr":
-        q, r = tf.linalg.qr(XtX + reg_term)
-        w = tf.linalg.solve(r, tf.matmul(tf.transpose(q), XtY))
-
-    elif method == "pinv":
-        pseudo_inv = tf.linalg.pinv(XtX + reg_term)
-        w = tf.matmul(pseudo_inv, XtY)
-
-    else:
-        raise ValueError("Invalid method. Choose from 'svd', 'qr', or 'pinv'.")
-    return w[1:], w[0]  # Exclude the bias term from the weights
 
 
 if __name__ == "__main__":

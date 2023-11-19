@@ -13,7 +13,7 @@ from sklearn.linear_model import Lasso
 from sklearn.linear_model import Ridge
 from sklearn.linear_model import ElasticNet
 
-from src.utils import tf_ridge_regression
+# from src.utils import tf_ridge_regression
 from src.customs.custom_layers import simple_esn, parallel_esn
 
 
@@ -133,68 +133,68 @@ class ESN:
         )
         
 
-    def train_test(
-        self,
-        transient_data: np.ndarray,
-        train_data: np.ndarray,
-        train_target: np.ndarray,
-        regularization: int,
-    ):
-        if not self.reservoir:
-            self.reservoir = keras.Model(
-                inputs=self.inputs,
-                outputs=self.outputs
-            )
+    # def train_test(
+    #     self,
+    #     transient_data: np.ndarray,
+    #     train_data: np.ndarray,
+    #     train_target: np.ndarray,
+    #     regularization: int,
+    # ):
+    #     if not self.reservoir:
+    #         self.reservoir = keras.Model(
+    #             inputs=self.inputs,
+    #             outputs=self.outputs
+    #         )
         
-        print("\nEnsuring ESP...\n")
-        if not self.reservoir.built:
-            self.reservoir.build(input_shape=transient_data.shape)
-        self.reservoir.predict(transient_data)
+    #     print("\nEnsuring ESP...\n")
+    #     if not self.reservoir.built:
+    #         self.reservoir.build(input_shape=transient_data.shape)
+    #     self.reservoir.predict(transient_data)
 
-        print("\nHarvesting...\n")
-        start = time()
-        harvested_states = self.reservoir.predict(train_data)
-        end = time()
-        print(f"Harvesting took: {round(end - start, 2)} seconds.")
+    #     print("\nHarvesting...\n")
+    #     start = time()
+    #     harvested_states = self.reservoir.predict(train_data)
+    #     end = time()
+    #     print(f"Harvesting took: {round(end - start, 2)} seconds.")
         
-        print("Calculating the readout matrix...\n")
+    #     print("Calculating the readout matrix...\n")
 
-        readout_matrix, readout_bias = tf_ridge_regression(
-            harvested_states[0], train_target[0], regularization, 'svd'
-        )
+    #     readout_matrix, readout_bias = tf_ridge_regression(
+    #         harvested_states[0], train_target[0], regularization, 'svd'
+    #     )
 
-        readout_layer = self.readout
+    #     readout_layer = self.readout
 
-        readout_layer.build(harvested_states[0].shape)
+    #     readout_layer.build(harvested_states[0].shape)
 
-        # Applying the readout weights
-        readout_layer.set_weights([readout_matrix, readout_bias])
+    #     # Applying the readout weights
+    #     readout_layer.set_weights([readout_matrix, readout_bias])
 
-        # readout = Ridge(alpha=regularization, tol=0, solver=solver)
+    #     # readout = Ridge(alpha=regularization, tol=0, solver=solver)
 
-        # readout.fit(harvested_states[0], train_target[0])
+    #     # readout.fit(harvested_states[0], train_target[0])
 
-        # Training error of the readout
-        predicted = readout_layer(harvested_states[0])
+    #     # Training error of the readout
+    #     predicted = readout_layer(harvested_states[0])
         
-        predicted_1 = tf.matmul(harvested_states[0], readout_matrix) + readout_bias
+    #     predicted_1 = tf.matmul(harvested_states[0], readout_matrix) + readout_bias
         
-        print("Comparing the layer and the real stuff", tf.reduce_mean(predicted - predicted_1))
+    #     print("Comparing the layer and the real stuff", tf.reduce_mean(predicted - predicted_1))
 
-        training_loss = np.mean(np.abs((predicted - train_target[0])))
+    #     training_loss = np.mean(np.abs((predicted - train_target[0])))
 
-        print(f"Training loss: {training_loss}\n")
+    #     print(f"Training loss: {training_loss}\n")
         
-        # Show NRMSE of the readout with respect to the training data
+    #     # Show NRMSE of the readout with respect to the training data
         
-        NRMSE = np.sqrt(np.mean(np.square(predicted - train_target[0]))) / np.std(train_target[0])
-        print(f"NRMSE: {NRMSE}\n")
+    #     NRMSE = np.sqrt(np.mean(np.square(predicted - train_target[0]))) / np.std(train_target[0])
+    #     print(f"NRMSE: {NRMSE}\n")
 
-        self.model = keras.Model(
-            inputs=self.reservoir.inputs,
-            outputs=readout_layer(self.reservoir.outputs[0]),
-            name="ESN",
-        )
+    #     self.model = keras.Model(
+    #         inputs=self.reservoir.inputs,
+    #         outputs=readout_layer(self.reservoir.outputs[0]),
+    #         name="ESN",
+    #     )
 
     
             # function code here
@@ -206,6 +206,7 @@ class ESN:
             val_data: np.ndarray,
             val_target: np.ndarray,
             internal_states: bool = False,
+            feedback_metrics: bool = True
         ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
         '''
         Forecast the model for a given number of steps.
@@ -221,12 +222,16 @@ class ESN:
 
             internal_states (bool): Whether to return the states of the ESN.
 
+            feedback_metrics: (bool): Whether to include comparison metrics with the original data.
+
+
         Returns:
             Tuple[np.ndarray, Optional[np.ndarray]]: A tuple containing the forecasted data and the states of the ESN (if internal_states is True).
         '''
         self.model.reset_states()
 
-        forecast_length = min(forecast_length, val_data.shape[1])
+        forecast_length = min(forecast_length, val_data.shape[1]) if feedback_metrics else forecast_length
+
         _val_target = val_target[:, :forecast_length, :]
 
         print(f"Forecasting free running sequence {forecast_length} steps ahead.\n")
@@ -238,7 +243,6 @@ class ESN:
         # Making the states an array of shape (0, units)
         states_over_time = np.empty((0, self.model.get_layer("esn_rnn").cell.units)) if internal_states else None
 
-
         print("\n    Predicting...\n")
         for _ in track(range(forecast_length)):
             pred = self.model(predictions[:, -1:, :])
@@ -248,17 +252,18 @@ class ESN:
                 # Getting the states of the ESN, also reducing the dimensionality
                 #TODO: Make this generic to other type of reservoirs, not only simple_esn
                 current_states = self.model.get_layer("esn_rnn").states[0]
-                states_over_time = np.vstack(states_over_time, current_states)
+                states_over_time = np.vstack((states_over_time, current_states))
         
         predictions = predictions[:, 1:, :]
         print("    Predictions shape: ", predictions.shape)
 
-        try:
-            loss = np.mean((predictions[0] - _val_target[0]) ** 2)
-        except ValueError:
-            print("Error calculating the loss.")
-            return np.inf
-        print(f"Forecast loss: {loss}\n")
+        if feedback_metrics:
+            try:
+                loss = np.mean((predictions[0] - _val_target[0]) ** 2)
+            except ValueError:
+                print("Error calculating the loss.")
+                return np.inf
+            print(f"Forecast loss: {loss}\n")
 
         return predictions, states_over_time
 
