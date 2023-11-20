@@ -160,7 +160,7 @@ def plot_forecast(
             xlabel=xlabel
         )
         _base_plot(
-            ax=axs,
+            ax=axs[0],
             xvalues=xvalues,
             val_target=val_target[:, 0],
             forecast=forecast[:, 0],
@@ -250,7 +250,7 @@ def plot_system(
             figsize=(16, 6.6)
         )
         _base_plot(
-            ax=axs,
+            ax=axs[0],
             xvalues=xvalues,
             val_target=_target,
         )

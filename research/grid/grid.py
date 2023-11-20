@@ -5,6 +5,7 @@ from random import randint
 from os import listdir
 from os import makedirs
 from os.path import join
+from os.path import isfile
 
 from functions import train
 from functions import forecast
@@ -46,7 +47,10 @@ def grid(
     Base function to execute the grid search.
     '''
     # Select the data to train
-    data: list[str] = [join(data_path, p) for p in listdir(data_path)]
+    if isfile(data_path):
+        data: list[str] = [data_path]
+    else:
+        data: list[str] = [join(data_path, p) for p in listdir(data_path)]
     train_index = randint(0, len(data) - 1)
     train_data_path = data[train_index]
 

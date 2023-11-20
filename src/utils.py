@@ -95,10 +95,11 @@ def load_data(
 
     features = data.shape[-1]
 
+    data = data[::step]
+
     data = data.reshape(1, -1, features)
 
     # Take the elements of the data skipping every step elements.
-    data = data[::step]
 
     if step > 1:
         print(
