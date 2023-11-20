@@ -294,9 +294,6 @@ def forecast_from_saved_model(
     forecast_length: int = 1000,
     output_dir: str = None,
 
-    section_initialization_length: int = None,
-    number_of_sections: int = None,
-
     internal_states: bool = False,
     feedback_metrics: bool = True,
     **kwargs,
