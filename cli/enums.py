@@ -52,3 +52,7 @@ class EnumPlotType(Choice):
     Contourf = 'contourf'
     RMSE = 'rmse',
     Video = 'video'
+
+class EnumBinMethod(Choice):
+    Mean = 'mean'
+    Median = 'median'

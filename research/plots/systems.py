@@ -1,4 +1,4 @@
-from typing import Iterable, List, Tuple, Union
+from typing import Iterable, List, Tuple, Union, Dict
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -25,7 +25,7 @@ def _base_setup_plot(
     sharey: bool = True,
 ) -> Union[Tuple[Figure, Axes], Tuple[Figure, List[Axes]]]:
     fig, axs = plt.subplots(features, cols, sharey=sharey, figsize=figsize)
-    fig.tight_layout()
+    # fig.tight_layout()
     fig.subplots_adjust(top=0.9, bottom=0.08, hspace=0.3)
     fig.suptitle(title, fontsize=16)
     fig.supxlabel(xlabel)
@@ -88,6 +88,19 @@ def _base_scatter(
     ax.scatter(xvalues, val_target, label=label, s=size)
     if forecast is not None:
         ax.scatter(fxvalues, forecast, label=target_label, marker='x', s=size)
+    ax.legend()
+
+def _base_scatter_3D(
+    ax: Axes,
+    target: np.ndarray,
+    forecast: np.ndarray = None,
+    target_label : str = '',
+    forecast_label : str = '',
+    size : int = 1
+) -> None:
+    ax.scatter(target[:, 0], target[:, 1], target[:, 2], label=target_label, s=size)
+    if forecast is not None:
+        ax.scatter(forecast[:, 0], forecast[:, 1], forecast[:, 2], label=forecast_label, marker='x', s=size)
     ax.legend()
 
 def _base_plot_3D(
@@ -818,6 +831,111 @@ def min_return_map(
         
             
     
+    if filepath:
+        plt.savefig(filepath)
+        
+    if show:
+        plt.show()
+
+### preliminar methods ###
+
+def _entropic_feature_extract(
+    data: Dict[str, Dict[int, Dict[str, List[float]]]],
+    metrics: List[str]
+) -> np.ndarray:
+    # Number of columns (assuming all files have the same number)
+    num_columns = len(next(iter(data.values())))
+    
+    # Number of files
+    num_files = len(data)
+    
+    # Number of metrics
+    num_metrics = len(metrics)
+
+    # Initialize the ndarray
+    features = np.zeros((num_columns, num_files, num_metrics))
+
+    # Iterate through the data to fill the array
+    for file_idx, (_, columns) in enumerate(data.items()):
+        for column_idx, column_data in columns.items():
+            for metric_idx, metric in enumerate(metrics):
+                # Extract metric value
+                value = column_data.get(metric, [None])[0]
+                features[int(column_idx), file_idx, metric_idx] = value
+
+    return features
+    
+
+def complexity_map(
+    target: Dict[str, Dict[int, Dict[str, List[float]]]],
+    forecast: Dict[str, Dict[int, Dict[str, List[float]]]] = None,
+    title: str = '',
+    
+    target_labels: Union[str, Iterable[str]] = 'system',
+    forecast_labels: Union[str, Iterable[str]] = 'forecast',
+    
+    metrics: List[str] = ['LZ76 Entropy density', 'LZ76 Excess entropy shuffling'],
+    
+    filepath: str = None,
+    show: bool = False,
+) -> None:
+    
+    tot_metrics = len(metrics)
+    
+    if tot_metrics < 2:
+        raise ValueError('At least two metrics are required.')
+    elif tot_metrics >= 3:
+        raise ValueError('Only up to three metrics are allowed.')
+    
+    extracted_system = _entropic_feature_extract(target, metrics)
+    
+    plots_num = extracted_system.shape[0]
+    
+    if forecast is not None:
+        extracted_forecast = _entropic_feature_extract(forecast, metrics)
+                
+    if len(target_labels) == 1:
+        target_labels = [target_labels[0] + f"_{letter(i)}" for i in range(plots_num)]
+    if len(forecast_labels) == 1:
+        forecast_labels = [forecast_labels[0] + f"_{letter(i)}" for i in range(plots_num)]
+        
+    
+    # if 2 metrics make a 2D plot, if 3 metrics make a 3D plot
+    
+    if tot_metrics == 2:
+        # print("IM HERE")
+        # print(extracted_system)
+        # print(extracted_system.shape)
+        # exit()
+        fig, axs = _base_setup_plot(
+            features=1,
+            cols=plots_num,
+            title=title,
+            figsize=(18, 6),
+            sharey=False,
+            xlabel="Entropy density",
+        )
+        
+        for i in range(plots_num):
+            _base_scatter(
+                ax=axs[0][i],
+                xvalues=extracted_system[i, :, 0],
+                val_target=extracted_system[i, :, 1],
+                fxvalues=extracted_forecast[i, :, 0] if forecast is not None else None,
+                forecast=extracted_forecast[i, :, 1] if forecast is not None else None,
+                label=target_labels[i],
+                target_label=forecast_labels[i],
+                size=15
+            )
+        
+        fig.supylabel("Excess entropy")
+    
+    
+    else:
+        #TODO: Make 3d scatter possible
+        pass
+    
+
     if filepath:
         plt.savefig(filepath)
         

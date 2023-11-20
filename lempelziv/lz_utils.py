@@ -237,11 +237,13 @@ def binary_sequences_from_csv(filepath: str, method: str ='mean', save_path: str
     # Convert to binary sequences
     binary_sequences = _binary_sequences_from_df(binarized_df)
     
+    
+    
     if save_path is not None:
         # Save the binary sequences to files
-        for idx, sequence in enumerate(binary_sequences):
-            with open(os.path.join(save_path, f"{idx}.txt"), "w", encoding='utf-8') as file:
-                file.write(sequence)
+        with open(save_path, 'w', encoding='utf-8') as file:
+            for line in binary_sequences:
+                file.write(line + '\n')
     
     return binary_sequences
 
@@ -381,23 +383,23 @@ def distance_matrices_single_folder(folder_path: str, method='mean', save_path: 
 
     return distance_matrices_json
 
-def distance_matrices_between_folders(folder1_path: str, folder2_path: str, method='mean', save_path: str=None) -> str:
+def distance_matrices_between_folders(folder_path1: str, folder_path2: str, method='mean', save_path: str=None) -> str:
     """
     Calculate distance matrices per column between all CSV files in two folders.
 
     Args:
-        folder1_path (str): Path to the first folder containing CSV files.
-        folder2_path (str): Path to the second folder containing CSV files.
+        folder_path1 (str): Path to the first folder containing CSV files.
+        folder_path2 (str): Path to the second folder containing CSV files.
         method (str): Method for binarization ('mean' or 'median').
 
     Returns:
         str: JSON string representing the distance matrices.
     """
     # List all CSV files in both folders
-    csv_files_folder1 = [file for file in os.listdir(folder1_path) if file.endswith('.csv')]
-    csv_files_folder2 = [file for file in os.listdir(folder2_path) if file.endswith('.csv')]
-    csv_paths_folder1 = [os.path.join(folder1_path, file) for file in csv_files_folder1]
-    csv_paths_folder2 = [os.path.join(folder2_path, file) for file in csv_files_folder2]
+    csv_files_folder1 = [file for file in os.listdir(folder_path1) if file.endswith('.csv')]
+    csv_files_folder2 = [file for file in os.listdir(folder_path2) if file.endswith('.csv')]
+    csv_paths_folder1 = [os.path.join(folder_path1, file) for file in csv_files_folder1]
+    csv_paths_folder2 = [os.path.join(folder_path2, file) for file in csv_files_folder2]
 
     # Generate all pairs of files, one from each folder
     file_pairs = list(product(csv_paths_folder1, csv_paths_folder2))

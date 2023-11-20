@@ -852,6 +852,86 @@ def min_return(
         show=show,
     )
 
+@app.command(
+    name="complexity-map",
+    no_args_is_help=True,
+    help="",
+)
+def complexity(
+    data_json_file: str = Option(
+        ...,
+        "--data-file",
+        "-df",
+        help="Data to be plotted.",
+    ),
+    
+    forecast_json_file: str = Option(
+        None,
+        "--forecast-file",
+        "-ff",
+        help="Forecast of the data.",
+    ),
+    
+    title: str = Option(
+        "Entropic Measures Plot",
+        "--title",
+        "-t",
+        help="Title of the plot.",
+    ),
+    
+    target_label: List[str] = Option(
+        ["Original"],
+        "--target-label",
+        "-tl",
+        help="Label of the target data.",
+    ),
+    
+    forecast_label: List[str] = Option(
+        ["Forecast"],
+        "--forecast-label",
+        "-fl",
+        help="Label of the forecast data.",
+    ),
+    
+    filepath: str = Option(
+        None,
+        "--filepath",
+        "-fp",
+        help="Filepath of the plot.",
+    ),
+    
+    show: bool = Option(
+        False,
+        "--show/--no-show",
+        "-s",
+        help="Show the plot.",
+    ),
+):
+
+    from research.plots.systems import complexity_map
+    import json
+    
+    if forecast_json_file is not None:
+        with open(forecast_json_file, 'r', encoding='utf-8') as forecast_file:
+            forecast = json.load(forecast_file)
+    else:
+        forecast = None
+
+    with open(data_json_file, 'r', encoding='utf-8') as data_file:
+        data = json.load(data_file)
+
+        
+    complexity_map(
+        target=data,
+        forecast=forecast,
+        target_labels=target_label,
+        forecast_labels=forecast_label,
+        title=title,
+        filepath=filepath,
+        show=show,
+    )
+    
+
 
 if __name__ == "__main__":
     app()

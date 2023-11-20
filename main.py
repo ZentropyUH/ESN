@@ -6,6 +6,7 @@ from cli import app_forecast
 from cli import app_grid
 from cli import app_plot
 from cli import app_train
+from cli import app_lempelziv
 from cli import app_model
 
 
@@ -21,6 +22,7 @@ app.add_typer(app_grid, name="grid")
 app.add_typer(app_plot, name="plot")
 app.add_typer(app_train, name="train")
 app.add_typer(app_model, name="model")
+app.add_typer(app_lempelziv, name="lempelziv")
 
 
 if __name__ == "__main__":

@@ -4,3 +4,4 @@ from .grid import app as app_grid
 from .plot import app as app_plot
 from .train import app as app_train
 from .model import app as app_model
+from .lempelziv import app as app_lempelziv
