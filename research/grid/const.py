@@ -39,6 +39,7 @@ class CaseRun(BaseFolders):
     FORECAST_PLOTS = 'forecast_plots'
     TIME_FILE = 'time.json'
     PARAMS_FILE = join(TRAINED_MODEL, 'params.json')
+    EVALUATION_FILE = 'evaluation.json'
 
     RMSE = 'rmse'
     RMSE_MEAN = 'rmse_mean'
