@@ -1,9 +1,11 @@
 import os
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 import numpy as np
-from typing import Any, Tuple, Optional
 from time import time
 from rich.progress import track
+from typing import Any
+from typing import Tuple
+from typing import Optional
 
 import keras
 import tensorflow as tf
@@ -13,8 +15,9 @@ from sklearn.linear_model import Lasso
 from sklearn.linear_model import Ridge
 from sklearn.linear_model import ElasticNet
 
-# from src.utils import tf_ridge_regression
-from src.customs.custom_layers import simple_esn, parallel_esn
+from src.customs.custom_layers import simple_esn
+from src.customs.custom_layers import parallel_esn
+from src.utils import calculate_nrmse
 
 
 # TODO: Add log
@@ -120,6 +123,9 @@ class ESN:
 
         training_loss = np.mean((predictions - train_target[0]) ** 2)
         print(f"Training loss: {training_loss}\n")
+
+        nrmse = calculate_nrmse(target=train_target[0], prediction=predictions)
+        print(f"NRMSE: {nrmse}\n")
 
         self.readout.build(harvested_states[0].shape)
         self.readout.set_weights([readout.coef_.T, readout.intercept_])
@@ -260,10 +266,12 @@ class ESN:
         if feedback_metrics:
             try:
                 loss = np.mean((predictions[0] - _val_target[0]) ** 2)
+                nrmse = calculate_nrmse(target=_val_target[0], prediction=predictions[0])
             except ValueError:
                 print("Error calculating the loss.")
                 return np.inf
             print(f"Forecast loss: {loss}\n")
+            print(f"NRMSE: {nrmse}\n")
 
         return predictions, states_over_time
 

@@ -1,13 +1,9 @@
 """Define some general utility functions."""
-
-import json
-import re
-
 import numpy as np
 import pandas as pd
 
+from typing import List
 
-#### Parameters ####
 
 # given i it starts from letter x and goes cyclically, when x reached starts xx, xy, etc.
 letter = lambda n: 'x' * ((n + 23) // 26) + chr(ord('a') + (n + 23) % 26)
@@ -20,37 +16,6 @@ def lyap_ks(i, l):
     """
     # This approximation is taken from the above paper. Verify veracity.
     return 0.093 - 0.94 * (i - 0.39) / l
-
-
-def get_name_from_dict(dictionary):
-    """Output a string with each key concatenated with its value.
-
-    The elements are ordered lexicografically by the keys.
-
-    Args:
-        dictionary (dict): The dictionary to be converted to a string.
-    Returns:
-        str: The string with the concatenated keys and values.
-    """
-    concatenated_str = "-".join(
-        [f"{key}_'{dictionary[key]}'" for key in sorted(dictionary.keys())]
-    )
-    return concatenated_str
-
-
-def get_dict_from_name(name_str):
-    """Return a dictionary from a string with each key and value.
-
-    The elements are extracted using regular expressions.
-
-    Args:
-        name_str (str): The string to be converted to a dictionary.
-    Returns:
-        dict: The dictionary with the extracted keys and values.
-    """
-    regex = r"([a-zA-Z_]+)_\'([^\']+)\'"
-    matches = re.findall(regex, name_str)
-    return {key: value for key, value in matches}
 
 
 def load_data(
@@ -140,43 +105,6 @@ def load_data(
     )
 
 
-def load_model_and_params(model_path: str):
-    from keras.models import load_model
-    # Load the param json from the model location
-    with open(model_path + "/params.json", encoding="utf-8") as f:
-        params = json.load(f)
-
-    model = load_model(model_path, compile=False)
-
-    return model, params
-
-
-# Decorator for composing a function n times.
-def compose_n_times(n):
-    """Compose a function n times."""
-
-    def decorator(f):
-        def inner(x):
-            result = x
-            for i in range(n):
-                result = f(result)
-            return result
-
-        return inner
-
-    return decorator
-
-
-
-
-if __name__ == "__main__":
-
-    def f(x):
-        return x + 1
-
-    print(compose_n_times(10)(f)(0))
-
-
 # Get the state of the ESN function
 def get_esn_state(model):
     """Return the state of the ESN cell.
@@ -195,3 +123,70 @@ def get_esn_state(model):
     states = np.squeeze(state_h.numpy())
 
     return states
+
+
+def calculate_rmse(target: np.ndarray, prediction: np.ndarray) -> float:
+    """Calculate the RMSE between the target and the prediction.
+
+    Args:
+        target (np array): The target data.
+
+        prediction (np array): The prediction data.
+
+    Returns:
+        float: The RMSE between the target and the prediction.
+    """
+    return np.sqrt(np.mean(np.square(target - prediction)))
+
+
+def calculate_nrmse(target: np.ndarray, prediction: np.ndarray) -> float:
+    """Calculate the NRMSE between the target and the prediction.
+
+    Args:
+        target (np array): The target data.
+
+        prediction (np array): The prediction data.
+
+    Returns:
+        float: The NRMSE between the target and the prediction.
+    """
+    return np.sqrt(np.mean(np.square(target - prediction))) / np.std(target)
+
+
+def calculate_rmse_list(target: np.ndarray, prediction: np.ndarray):
+    """
+    Calculate the RMSE between the target and the prediction for a list of true and predicted values.
+    
+    Args:
+        target (np array): The target data.
+
+        prediction (np array): The prediction data.
+    
+    Returns:
+        list: A list of RMSE values.
+    """
+    rmse_values = []
+    for _target, _prediction in zip(target, prediction):
+        rmse = calculate_rmse(_target, _prediction)
+        rmse_values.append(rmse)
+    return rmse_values
+
+
+def calculate_nrmse_list(target: np.ndarray, prediction: np.ndarray):
+    """
+    Calculate the NRMSE between the target and the prediction for a list of true and predicted values.
+    
+    Args:
+        target (np array): The target data.
+
+        prediction (np array): The prediction data.
+    
+    Returns:
+        list: A list of NRMSE values.
+    """
+    std = np.std(target)
+    nrmse_values = []
+    for _target, _prediction in zip(target, prediction):
+        nrmse = np.sqrt(np.mean(np.square(_target - _prediction))) / std
+        nrmse_values.append(nrmse)
+    return nrmse_values
