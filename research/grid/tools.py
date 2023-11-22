@@ -248,9 +248,9 @@ def best_results(
     for folder in track(listdir(results_path), description='Searching best combinations'):
         folder = join(results_path, folder)
         eval_file = join(folder, CaseRun.EVALUATION_FILE.value)
-        eval = load_json(eval_file)
+        eval_json = load_json(eval_file)
         
-        nrmse = eval['nrmse']
+        nrmse = eval_json['nrmse']
         best.add(nrmse, folder, greater=False)
     
     for i, element in enumerate(best.queue):
@@ -470,9 +470,9 @@ def results_data(
         eval_file = join(folder, CaseRun.EVALUATION_FILE.value)
         params_path = join(folder, CaseRun.PARAMS_FILE.value)
 
-        eval = load_json(eval_file)
+        eval_json = load_json(eval_file)
         params = load_json(params_path)
-        index = eval['nrmse']
+        index = eval_json['nrmse']
         
         data.append({
             'index': index,
