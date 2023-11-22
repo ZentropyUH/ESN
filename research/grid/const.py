@@ -35,14 +35,21 @@ class InfoFiles(BaseFolders):
 # GRID FOLDERS
 class CaseRun(BaseFolders):
     FORECAST = 'forecast'
-    RMSE = 'rmse'
-    RMSE_MEAN = 'rmse_mean'
     TRAINED_MODEL = 'trained_model'
     FORECAST_PLOTS = 'forecast_plots'
     TIME_FILE = 'time.json'
+    PARAMS_FILE = join(TRAINED_MODEL, 'params.json')
+    EVALUATION_FILE = 'evaluation.json'
+
+    RMSE = 'rmse'
+    RMSE_MEAN = 'rmse_mean'
     RMSE_MEAN_FILE = join(RMSE_MEAN, 'rmse_mean.csv')
     RMSE_MEAN_PLOT_FILE = join(RMSE_MEAN, 'rmse_mean_plot.png')
-    PARAMS_FILE = join(TRAINED_MODEL, 'params.json')
+
+    NRMSE = 'nrmse'
+    NRMSE_MEAN = 'nrmse_mean'
+    NRMSE_MEAN_FILE = join(NRMSE_MEAN, 'nrmse_mean.csv')
+    NRMSE_MEAN_PLOT_FILE = join(NRMSE_MEAN, 'nrmse_mean_plot.png')
 
 
 SLURM_SCRIPT = '''#!/bin/bash

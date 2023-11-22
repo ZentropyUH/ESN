@@ -351,14 +351,12 @@ def best_results_command(
     results_path: str = Option(..., "--results-path", "-rp"),
     output: str = Option(..., "--output", "-o"),
     n_results: int = Option(..., "--n-results", "-nr"),
-    threshold: float = Option(..., "--threshold", "-t"),
 ):
     from research.grid.tools import best_results
     best_results(
         results_path=results_path,
         output=output,
         n_results=n_results,
-        threshold=threshold,
     )
 
 
@@ -370,13 +368,11 @@ def best_results_command(
 def results_data_command(
     results_path: str = Option(..., "--results-path", "-rp", help='Path of the results from grid search to be analized.'),
     filepath: str = Option(..., "--filepath", "-fp", help='File path for the output. Must be a .json file.'),
-    threshold: float = Option(..., "--threshold", "-t"),
 ):
     from research.grid.tools import results_data
     results_data(
         results_path=results_path,
         filepath=filepath,
-        threshold=threshold,
     )
     
 

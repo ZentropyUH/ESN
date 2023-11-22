@@ -14,6 +14,10 @@ from research.grid.tools import save_plot
 from research.grid.tools import load_json
 from research.plots import plot_forecast
 from research.grid.const import CaseRun
+from src.utils import calculate_rmse
+from src.utils import calculate_rmse_list
+from src.utils import calculate_nrmse
+from src.utils import calculate_nrmse_list
 
 
 def grid(
@@ -65,9 +69,16 @@ def grid(
     rmse_path = join(current_path, CaseRun.RMSE.value)
     makedirs(rmse_path, exist_ok=True)
 
+    nrmse_path = join(current_path, CaseRun.NRMSE.value)
+    makedirs(nrmse_path, exist_ok=True)
+
     # Create the folder mean
-    mean_path = join(current_path, CaseRun.RMSE_MEAN.value)
-    makedirs(mean_path, exist_ok=True)
+    rmse_mean_path = join(current_path, CaseRun.RMSE_MEAN.value)
+    makedirs(rmse_mean_path, exist_ok=True)
+
+    # Create the folder NRMSE
+    nrmse_mean_path = join(current_path, CaseRun.NRMSE_MEAN.value)
+    makedirs(nrmse_mean_path, exist_ok=True)
 
     # Create Trained model file
     trained_model_path = join(current_path, CaseRun.TRAINED_MODEL.value)
@@ -78,8 +89,11 @@ def grid(
 
     # Create files
     time_file = join(current_path, CaseRun.TIME_FILE.value)
+    evaluation_file = join(current_path, CaseRun.EVALUATION_FILE.value)
     rmse_mean_file = join(current_path, CaseRun.RMSE_MEAN_FILE.value)
     rmse_mean_plot_file = join(current_path, CaseRun.RMSE_MEAN_PLOT_FILE.value)
+    nrmse_mean_file = join(current_path, CaseRun.NRMSE_MEAN_FILE.value)
+    nrmse_mean_plot_file = join(current_path, CaseRun.NRMSE_MEAN_PLOT_FILE.value)
 
     # Train
     start_train_time = time.time()
@@ -145,31 +159,42 @@ def grid(
 
     forecast_time = (time.time() - start_forecast_time)/len(data)
     
-    # Calculate RMSE
-    rmse = [np.sqrt(np.mean((pred - true_pred) ** 2, axis=1)) for pred, true_pred in forecast_data]
+    # Calculate rmse and nrmse
+    rmse_list = [calculate_rmse_list(target=true_pred, prediction=pred) for pred, true_pred in forecast_data]
+    nrmse_list = [calculate_nrmse_list(target=true_pred, prediction=pred) for pred, true_pred in forecast_data]
+    rmse_list_mean = np.mean(rmse_list, axis=0)
+    nrmse_list_mean = np.mean(nrmse_list, axis=0)
 
-    # Sum all the rmse
-    mean = []
-    for i, current in enumerate(rmse):
-        # Save current rmse
-        save_csv(current, join(rmse_path, f'{i}.csv'))
-        
-        if len(mean) == 0:
-            mean = current
-        else:
-            mean = np.add(mean, current)
+    rmse = [calculate_rmse(target=true_pred, prediction=pred) for pred, true_pred in forecast_data]
+    nrmse = [calculate_nrmse(target=true_pred, prediction=pred) for pred, true_pred in forecast_data]
+    rmse_mean = np.mean(rmse, axis=0)
+    nrmse_mean = np.mean(nrmse, axis=0)
 
-    mean = [x / len(data) for x in mean]
+    save_csv(rmse_list_mean, rmse_mean_file)
+    save_csv(nrmse_list_mean, nrmse_mean_file)
 
-    # Save the csv
-    save_csv(mean, rmse_mean_file)
+    for i, current in enumerate(zip(rmse_list, nrmse_list)):
+        _rmse, _nrmse = current
+        save_csv(_rmse, join(rmse_path, f'{i}.csv'))
+        save_csv(_nrmse, join(nrmse_path, f'{i}.csv'))
+
     save_plot(
-        data=mean,
+        data=rmse_list_mean,
         filepath=rmse_mean_plot_file,
         xlabel="Time",
-        ylabel="Mean square error",
+        ylabel="Root Mean square error",
         title="Plot of root mean square error",
     )
+    save_plot(
+        data=nrmse_list_mean,
+        filepath=nrmse_mean_plot_file,
+        xlabel="Time",
+        ylabel="Normalized Root Mean square error",
+        title="Plot of normalized root mean square error",
+    )
+
+    with open(evaluation_file, 'w') as f:
+        json.dump({'rmse': rmse_mean, 'nrmse': nrmse_mean}, f)
     
     with open(time_file, 'w') as f:
         json.dump({'train': train_time, 'forecast': forecast_time}, f)

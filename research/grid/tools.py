@@ -30,7 +30,7 @@ class Queue:
         self.queue = []
         self.max_size = max_size
 
-    def add(self, val: int, data: Any):
+    def add(self, val: int, data: Any, greater: bool = True):
         '''
         Add a new element to the queue. If the queue is full, the element with the highest value will be removed.
 
@@ -46,9 +46,14 @@ class Queue:
             self.queue.append((val, data))
         else:
             for i, v in enumerate(self.queue):
-                if val >= v[0]:
-                    self.queue.insert(i, (val, data))
-                    break
+                if greater:
+                    if val >= v[0]:
+                        self.queue.insert(i, (val, data))
+                        break
+                else:
+                    if val <= v[0]:
+                        self.queue.insert(i, (val, data))
+                        break
 
         if len(self.queue) > self.max_size:
             self.queue.pop()
@@ -222,7 +227,6 @@ def best_results(
     results_path: str,
     output: str,
     n_results: int,
-    threshold: float
 ):
     '''
     Get the best results fron the giver path.(the number of results by `n_results`) from the given `path` and save them in the `output` path.\n
@@ -243,11 +247,11 @@ def best_results(
     best = Queue(n_results)
     for folder in track(listdir(results_path), description='Searching best combinations'):
         folder = join(results_path, folder)
-        rmse_mean_path = join(folder, CaseRun.RMSE_MEAN_FILE.value)
-        rmse_mean = read_csv(rmse_mean_path)
+        eval_file = join(folder, CaseRun.EVALUATION_FILE.value)
+        eval = load_json(eval_file)
         
-        index = find_index(rmse_mean, threshold)
-        best.add(index, folder)
+        nrmse = eval['nrmse']
+        best.add(nrmse, folder, greater=False)
     
     for i, element in enumerate(best.queue):
         folder = element[1]
@@ -446,7 +450,6 @@ def generate_unfinished_script(
 def results_data(
     results_path: str,
     filepath: str,
-    threshold: float
 ):
     '''
     Get a file with all the parameters from the data and the index where they exceed the threshold.
@@ -464,12 +467,12 @@ def results_data(
     data = []
     for folder in track(listdir(results_path), description='Searching best combinations'):
         folder = join(results_path, folder)
-        rmse_mean_path = join(folder, CaseRun.RMSE_MEAN_FILE.value)
+        eval_file = join(folder, CaseRun.EVALUATION_FILE.value)
         params_path = join(folder, CaseRun.PARAMS_FILE.value)
 
-        rmse_mean = read_csv(rmse_mean_path)
+        eval = load_json(eval_file)
         params = load_json(params_path)
-        index = find_index(rmse_mean, threshold)
+        index = eval['nrmse']
         
         data.append({
             'index': index,
