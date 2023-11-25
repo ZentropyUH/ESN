@@ -493,6 +493,7 @@ def sort_by_int(array: List):
 def search_unfinished_combinations(
     path: str,
     depth: int,
+    jobs_limit: int,
 ):
     '''
     Search for the combinations that have not been satisfactorily completed and create a script to execute them.\n
@@ -538,7 +539,8 @@ def search_unfinished_combinations(
         output_path=runs_path,
         data_path = params['data_path'],
         combinations_path = comb_path,
-        file_path = join(info_path, InfoFiles.SLURM_UNFINISHED_FILE.value)
+        file_path = join(info_path, InfoFiles.SLURM_UNFINISHED_FILE.value),
+        jobs_limit=jobs_limit
     )
 
 

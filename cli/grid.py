@@ -383,12 +383,14 @@ def results_data_command(
 )
 def search_unfinished_combinations_command(
     path:str =  Option(..., "--path", "-p", help='Specify the folder where the results of the combinations are stored'),
-    depth = Option(0, "--depth", "-d", help='Grid depth, to specify the depth of the grid seach.')
+    depth = Option(0, "--depth", "-d", help='Grid depth, to specify the depth of the grid seach.'),
+    jobs_limit = Option(50, "--jobs-limit", "-jl", help='Limit of jobs to be executed at the same time.'),
 ):
     from research.grid.tools import search_unfinished_combinations
     search_unfinished_combinations(
         path=path,
         depth=depth,
+        jobs_limit=jobs_limit
     )
 
 

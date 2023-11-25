@@ -10,6 +10,10 @@ from scipy.signal import find_peaks
 
 from src.utils import letter
 
+
+#TODO: steps for plots
+#TODO: make plot for 3d KS
+#TODO: make plot for MG with y = t-tau
 #TODO: Parameter control and assertions
 #TODO: Change _base_plot label and target_label to target_label and forecast_label, means refactoring
 #TODO: make possible to choose letter or number for the labels
