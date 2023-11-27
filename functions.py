@@ -16,10 +16,6 @@ from src.customs.custom_initializers import ErdosRenyi
 from src.customs.custom_initializers import InputMatrix
 from src.customs.custom_initializers import RegularNX
 from src.customs.custom_initializers import WattsStrogatzNX
-from src.plotters import plot_contourf_forecast
-from src.plotters import plot_linear_forecast
-from src.plotters import plot_rmse
-from src.plotters import render_video
 
 
 def train(
@@ -135,7 +131,7 @@ def train(
                 rewiring_p=rewiring,
                 sigma=reservoir_sigma,
             )
-    
+
     ############### CHOOSE THE MODEL ###############
 
     match model:
@@ -170,8 +166,8 @@ def train(
             )
 
         case "Reservoir":
-            raise Exception(f"{model} is yet to be implemented")
-    
+            raise NotImplementedError(f"{model} is yet to be implemented")
+
     _model.train(
         transient_data,
         train_data,
@@ -251,13 +247,13 @@ def forecast(
                 internal_states,
                 feedback_metrics
             )
-            
+
             predictions = predictions[0]
 
         case "section":
             raise NotImplementedError(f"{forecast_method} is yet to be implemented")
 
-    
+
     # Save forecasted data
     if output_dir:
         output_file = os.path.join(output_dir, os.path.basename(data_file)) if os.path.isdir(output_dir) else output_dir
@@ -285,7 +281,7 @@ def forecast_from_saved_model(
     feedback_metrics: bool = True,
     **kwargs,
 ):
-    with open(join(trained_model_path, 'params.json')) as f:
+    with open(join(trained_model_path, 'params.json'), encoding="utf-8") as f:
         params = json.load(f)
     model = ESN.load(trained_model_path)
 
@@ -315,20 +311,20 @@ def forecast_folder_from_saved_model(
 ):
     # get all files that end with .csv
     files = [_file for _file in os.listdir(data_folder) if _file.endswith('.csv')]
-    
+
     print(f"Found {len(files)} files in {data_folder}")
-    
+
     # forecast each file
     for i, _file in enumerate(files):
-        
+
         print(f"Forecasting {_file}")
         print(f"File number {i+1} of {len(files)}")
-        
+
         # check if file already exists and skip it if it does
         if os.path.isfile(os.path.join(output_dir, _file)):
             print(f"File {_file} already exists. Skipping...")
             continue
-        
+
         # get the full path of the file
         data_file = os.path.join(data_folder, _file)
 
