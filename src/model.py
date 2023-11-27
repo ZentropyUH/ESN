@@ -205,6 +205,14 @@ class ESN:
     
             # function code here
 
+    @tf.function
+    def forecast_step(self, model, current_input):
+        """
+        Forecast a single step using the model.
+        Wrapped with tf.function for performance optimization.
+        """
+        return model(current_input, training=False)
+
     def forecast(
             self,
             forecast_length: int,
@@ -245,20 +253,23 @@ class ESN:
         print("    Forecast transient data shape: ", forecast_transient_data.shape)
         self.predict(forecast_transient_data)
         
-        predictions = val_data[:, :1, :]
+        predictions = np.empty((val_data.shape[0], forecast_length + 1, val_data.shape[2]))
+        predictions[:, 0:1, :] = val_data[:, :1, :]
+        
         # Making the states an array of shape (0, units)
-        states_over_time = np.empty((0, self.model.get_layer("esn_rnn").cell.units)) if internal_states else None
+        states_over_time = np.empty((forecast_length, self.model.get_layer("esn_rnn").cell.units)) if internal_states else None
 
         print("\n    Predicting...\n")
-        for _ in track(range(forecast_length)):
-            pred = self.model(predictions[:, -1:, :])
-            predictions = np.hstack((predictions, pred))
+        for step in track(range(forecast_length)):
+            current_input = tf.convert_to_tensor(predictions[:, step:step + 1, :], dtype=tf.float32)
+            pred = self.forecast_step(self.model, current_input)
+            predictions[:, step + 1:step + 2, :] = pred
             
             if internal_states:
                 # Getting the states of the ESN, also reducing the dimensionality
                 #TODO: Make this generic to other type of reservoirs, not only simple_esn
-                current_states = self.model.get_layer("esn_rnn").states[0]
-                states_over_time = np.vstack((states_over_time, current_states))
+                current_states = self.model.get_layer("esn_rnn").states[0].numpy()
+                states_over_time[step, :] = current_states
         
         predictions = predictions[:, 1:, :]
         print("    Predictions shape: ", predictions.shape)
