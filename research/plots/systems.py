@@ -655,6 +655,8 @@ def plot3D(
     
     if forecast is not None:
         forecast = forecast[start:end]
+    else:
+        single_plot = True
     
     fig, axs = _base_setup_plot_3D(
         single_plot=single_plot,
