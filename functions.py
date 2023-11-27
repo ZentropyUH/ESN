@@ -255,34 +255,21 @@ def forecast(
             predictions = predictions[0]
 
         case "section":
-            raise Exception(f"{forecast_method} is yet to be implemented")
+            raise NotImplementedError(f"{forecast_method} is yet to be implemented")
 
-        
+    
+    # Save forecasted data
     if output_dir:
-        pd.DataFrame(predictions).to_csv(
-            output_dir,
-            index=False,
-            header=None,
-        )
+        output_file = os.path.join(output_dir, os.path.basename(data_file)) if os.path.isdir(output_dir) else output_dir
+        pd.DataFrame(predictions).to_csv(output_file, index=False, header=None)
 
-
+    # Handle internal states
     if internal_states:
-        # Extraer el nombre base del archivo sin extensión
-        file_name = os.path.splitext(os.path.basename(output_dir))[0]
-
-         # Crear un directorio para los estados internos si no existe
-        directory_path = os.path.dirname(output_dir)
-        internal_state_dir = os.path.join(directory_path, "internal_state")
+        file_name_without_extension = os.path.splitext(os.path.basename(data_file))[0]
+        internal_state_dir = os.path.join(os.path.dirname(output_dir), f"{file_name_without_extension}_internal_states")
         os.makedirs(internal_state_dir, exist_ok=True)
-        
-        # Convertir los estados a lo largo del tiempo en un DataFrame de pandas y guardarlo en CSV
-        states_over_time_df = pd.DataFrame(states_over_time)
-
-        # Construir el nombre completo del archivo CSV para los estados internos
-        internal_states_csv_path = os.path.join(internal_state_dir, f"{file_name}_states_over_time.csv")
-        
-        # Guardar los estados internos en la carpeta correspondiente
-        states_over_time_df.to_csv(internal_states_csv_path, index=False, header=None)
+        internal_states_file = os.path.join(internal_state_dir, f"{file_name_without_extension}_states.csv")
+        pd.DataFrame(states_over_time).to_csv(internal_states_file, index=False, header=None)
 
     return predictions, val_target[:, :forecast_length, :][0]
 
@@ -316,96 +303,43 @@ def forecast_from_saved_model(
     )
 
 
-def plot(
-    plot_type,
-    predictions,
-    data_file,
-    lyapunov_exponent,
-    delta_time,
-    title,
-    save_path,
-    show,
-    y_labels,
-    y_values,
-    x_label,
-    transient,
-    train_length,
+def forecast_folder_from_saved_model(
+    trained_model_path: str,
+    data_folder: str,
+    forecast_method: str = "classic",
+    forecast_length: int = 1000,
+    output_dir: str = None,
+    internal_states: bool = False,
+    feedback_metrics: bool = True,
+    **kwargs,
 ):
-    # Scale time to lyapunov time units
-    delta_time = delta_time * lyapunov_exponent
+    # get all files that end with .csv
+    files = [_file for _file in os.listdir(data_folder) if _file.endswith('.csv')]
+    
+    print(f"Found {len(files)} files in {data_folder}")
+    
+    # forecast each file
+    for i, _file in enumerate(files):
+        
+        print(f"Forecasting {_file}")
+        print(f"File number {i+1} of {len(files)}")
+        
+        # check if file already exists and skip it if it does
+        if os.path.isfile(os.path.join(output_dir, _file)):
+            print(f"File {_file} already exists. Skipping...")
+            continue
+        
+        # get the full path of the file
+        data_file = os.path.join(data_folder, _file)
 
-    # Load predictions
-    predictions = pd.read_csv(predictions).to_numpy()
-
-    features = predictions.shape[-1]
-
-    # Load the data
-    (
-        _,
-        _,
-        _,
-        _,
-        _,
-        val_target,
-    ) = load_data(
-        data_file,
-        transient=transient,
-        train_length=train_length,
-    )
-
-    # Convert y_labels to a list
-    if y_labels:
-        y_labels = y_labels.split(",")
-
-    # Convert y_values to a list
-    if y_values:
-        y_values = [float(i) for i in y_values.split(",")]
-        y_values = np.linspace(y_values[0], y_values[1], features)
-
-    # Plot the data
-    match plot_type:
-        case "linear":
-            plot_linear_forecast(
-                predictions=predictions,
-                val_target=val_target,
-                dt=delta_time,
-                title=title,
-                save_path=save_path,
-                show=show,
-                ylabels=y_labels,
-                xlabel=x_label,
-            )
-
-        case "contourf":
-            plot_contourf_forecast(
-                predictions=predictions,
-                val_target=val_target,
-                dt=delta_time,
-                title=title,
-                save_path=save_path,
-                show=show,
-                xlabel=x_label,
-                yvalues=y_values,
-            )
-
-        case "rmse":
-            plot_rmse(
-                predictions=predictions,
-                val_target=val_target,
-                dt=delta_time,
-                title=title,
-                save_path=save_path,
-                show=show,
-                ylabels=y_labels,
-                xlabel=x_label,
-            )
-
-        case "video":
-            render_video(
-                predictions=predictions,
-                val_target=val_target,
-                dt=delta_time,
-                title=title,
-                save_path=save_path,
-                xlabel=x_label,
-            )
+        # forecast the file
+        forecast_from_saved_model(
+            trained_model_path,
+            data_file,
+            forecast_method,
+            forecast_length,
+            output_dir,
+            internal_states,
+            feedback_metrics,
+            **kwargs,
+        )
