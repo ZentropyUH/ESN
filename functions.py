@@ -241,6 +241,7 @@ def forecast(
 
         forecast_method (str): The method to be used for forecasting. The default is ClassicForecast.
         forecast_length (int): The number of points to be forecasted. The default is 1000.
+
         section_initialization_length: int = 50,
         number_of_sections: int = 10,
 
@@ -306,7 +307,21 @@ def forecast_from_saved_model(
     internal_states: bool = False,
     feedback_metrics: bool = True,
     **kwargs,
-):
+) -> None:
+    '''
+    Load a model and forecast the data.
+    
+    Args:
+        trained_model_path (str): Path to the trained model
+        data_file (str): The data file to be used for training the model
+        output_dir (str): Path for save the forecasted data
+
+        forecast_method (str): The method to be used for forecasting. The default is ClassicForecast.
+        forecast_length (int): The number of points to be forecasted. The default is 1000.
+
+        section_initialization_length: int = 50,
+        number_of_sections: int = 10,
+    '''
     with open(join(trained_model_path, 'params.json'), encoding="utf-8") as f:
         params = json.load(f)
     model = ESN.load(trained_model_path)
@@ -328,17 +343,36 @@ def forecast_from_saved_model(
 def forecast_folder_from_saved_model(
     trained_model_path: str,
     data_folder: str,
+    output_dir: str = None,
+    
     forecast_method: str = "classic",
     forecast_length: int = 1000,
-    output_dir: str = None,
     internal_states: bool = False,
     feedback_metrics: bool = True,
     **kwargs,
 ):
+    '''
+    Forecast all files in a folder using a trained model.
+    
+    Args:
+        trained_model_path (str): Path to the trained model
+        data_folder (str): The folder containing the data files to be forecasted
+        output_dir (str): Path for save the forecasted data
+
+        forecast_method (str): The method to be used for forecasting. The default is ClassicForecast.
+        forecast_length (int): The number of points to be forecasted. The default is 1000.
+
+        section_initialization_length: int = 50,
+        number_of_sections: int = 10,
+    '''
     # get all files that end with .csv
     files = [_file for _file in os.listdir(data_folder) if _file.endswith('.csv')]
 
     print(f"Found {len(files)} files in {data_folder}")
+
+    # Verify that the output directory exists, if not create it
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
 
     # forecast each file
     for i, _file in enumerate(files):

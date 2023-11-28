@@ -31,11 +31,9 @@ class ESN:
     Groups a set of basic functionalities for an ESN.
 
     Args:
-        inputs (keras.layers.Layer): The input layer for the ESN model.
+        reservoir (Layer): The reservoir layer of the ESN.
 
-        outputs (keras.layers.Layer): The model output layer. Set the logic of the ESN, until this point the model is not trained.
-
-        readout (keras.layers.Layer): The layer that will be trained and will become the model output.
+        readout (Layer): The readout layer of the ESN.
     '''
     def __init__(
         self,
@@ -341,9 +339,31 @@ def generate_ESN(
         reservoir_kernel_init: str = "WattsStrogatzNX",
         exponent: int = 2,
         seed: int = None
-    ) -> ESN:
+) -> ESN:
     '''
     Assemble all the layers in ESN model.
+    
+    Args:
+        units (int): Number of units in the reservoir.
+        
+        leak_rate (float): Leak rate of the reservoir.
+        
+        features (int): Number of features of the input data.
+        
+        activation (str): Activation function of the reservoir.
+        
+        input_reservoir_init (str): Initialization method for the input matrix.
+        
+        input_bias_init (str): Initialization method for the input bias.
+        
+        reservoir_kernel_init (str): Initialization method for the reservoir matrix.
+        
+        exponent (int): Exponent of the input matrix.
+        
+        seed (int): Seed for the random number generator.
+        
+    Return:
+        model (ESN): Return the loaded instance of the ESN model.
     '''
     #TODO: see who handles the seed and how
     if seed is None:
@@ -379,11 +399,36 @@ def generate_Parallel_ESN(units: int,
                           reservoir_kernel_init: str = "WattsStrogatzNX",
                           exponent: int = 2,
                           seed: int = None
-                        ) -> ESN:
+) -> ESN:
     '''
     Assemble all the layers in a parallel ESN model.
-    '''
     
+    Args:
+        units (int): Number of units in the reservoir.
+        
+        partitions (int): Number of partitions of the reservoir.
+        
+        overlap (int): Number of overlapping units between partitions.
+        
+        leak_rate (float): Leak rate of the reservoir.
+        
+        features (int): Number of features of the input data.
+        
+        activation (str): Activation function of the reservoir.
+        
+        input_reservoir_init (str): Initialization method for the input matrix.
+        
+        input_bias_init (str): Initialization method for the input bias.
+        
+        reservoir_kernel_init (str): Initialization method for the reservoir matrix.
+        
+        exponent (int): Exponent of the input matrix.
+        
+        seed (int): Seed for the random number generator.
+        
+    Return:
+        model (ESN): Return the loaded instance of the ESN model.
+    '''
     if seed is None:
         seed = np.random.randint(0, 1000000)
     print(f'\nSeed: {seed}\n')
@@ -418,11 +463,34 @@ def generate_ECA_ESN(units: int,
                      input_bias_init: str = "random_uniform",
                      exponent: int = 2,
                      seed: int = None
-                    ) -> ESN:
+) -> ESN:
     '''
     Assemble all the layers in an ECA ESN model.
-    '''
     
+    Args:
+        units (int): Number of units in the reservoir.
+        
+        rule (Union[str, int, np.ndarray, list, tf.Tensor]): The rule to use for the ECA reservoir.
+        
+        steps (int): Number of steps to run the ECA reservoir.
+        
+        leak_rate (float): Leak rate of the reservoir.
+        
+        features (int): Number of features of the input data.
+        
+        activation (str): Activation function of the reservoir.
+        
+        input_reservoir_init (str): Initialization method for the input matrix.
+        
+        input_bias_init (str): Initialization method for the input bias.
+        
+        exponent (int): Exponent of the input matrix.
+        
+        seed (int): Seed for the random number generator.
+        
+    Return:
+        model (ESN): Return the loaded instance of the ESN model.
+    '''
     if seed is None:
         seed = np.random.randint(0, 1000000)
     print(f'\nSeed: {seed}\n')
