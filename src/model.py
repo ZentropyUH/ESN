@@ -6,6 +6,7 @@ from rich.progress import track
 from typing import Any
 from typing import Tuple
 from typing import Optional
+from typing import Union
 
 import keras
 import tensorflow as tf
@@ -17,6 +18,7 @@ from sklearn.linear_model import ElasticNet
 
 from src.customs.custom_layers import simple_esn
 from src.customs.custom_layers import parallel_esn
+from src.customs.custom_layers import eca_esn
 from src.utils import calculate_nrmse
 
 
@@ -398,6 +400,44 @@ def generate_Parallel_ESN(units: int,
                              input_bias_init=input_bias_init,
                              reservoir_kernel_init=reservoir_kernel_init,
                              exponent=exponent)
+    
+    readout_layer = Dense(
+        features, activation="linear", name="readout", trainable=False
+    )
+    
+    model = ESN(reservoir, readout_layer)
+    return model
+
+def generate_ECA_ESN(units: int,
+                     rule: Union[str, int, np.ndarray, list, tf.Tensor] = 110,
+                     steps: int = 1,
+                     leak_rate: float = 1.,
+                     features: int = 1,
+                     activation: str = 'tanh',
+                     input_reservoir_init: str = "InputMatrix",
+                     input_bias_init: str = "random_uniform",
+                     exponent: int = 2,
+                     seed: int = None
+                    ) -> ESN:
+    '''
+    Assemble all the layers in an ECA ESN model.
+    '''
+    
+    if seed is None:
+        seed = np.random.randint(0, 1000000)
+    print(f'\nSeed: {seed}\n')
+    np.random.seed(seed)
+    tf.random.set_seed(seed)
+    
+    reservoir = eca_esn(units=units,
+                        rule=rule,
+                        steps=steps,
+                        leak_rate=leak_rate,
+                        activation=activation,
+                        features=features,
+                        input_reservoir_init=input_reservoir_init,
+                        input_bias_init=input_bias_init,
+                        exponent=exponent)
     
     readout_layer = Dense(
         features, activation="linear", name="readout", trainable=False
