@@ -10,6 +10,7 @@ class Choice(str, Enum):
 class EnumModel(Choice):
     ESN = 'ESN'
     PESN = 'Parallel-ESN'
+    ECA = 'ECA'
 
 
 class EnumInputInitializer(Choice):

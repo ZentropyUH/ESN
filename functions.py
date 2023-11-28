@@ -11,6 +11,8 @@ from keras.initializers import RandomUniform
 from src.model import ESN
 from src.model import generate_ESN
 from src.model import generate_Parallel_ESN
+from src.model import generate_ECA_ESN
+
 from src.utils import load_data
 from src.customs.custom_initializers import ErdosRenyi
 from src.customs.custom_initializers import InputMatrix
@@ -30,13 +32,14 @@ def train(
     input_scaling: float,
     leak_rate: float,
     reservoir_activation: str,
-    reservoir_initializer: str,
-    reservoir_degree: int,
-    reservoir_sigma: float,
+    
+    # reservoir_initializer: str,
+    # reservoir_degree: int,
+    # reservoir_sigma: float,
+    # spectral_radius: float,
 
-    spectral_radius: float, #FIX ?
     regularization: float, #FIX
-    readout_layer: str = None, #FIX
+    # readout_layer: str = None, #FIX
 
     output_dir: str = None,
     seed: int | None = None,
@@ -94,7 +97,7 @@ def train(
                 maxval=input_scaling,
             )
 
-    ############### CHOOSE THE INPUT INITIALIZER ###############
+    ############### CHOOSE THE INPUT BIAS INITIALIZER ###############
 
     match input_bias_initializer:
         case "InputMatrix":
@@ -110,6 +113,13 @@ def train(
 
     ############### CHOOSE THE RESERVOIR INITIALIZER ###############
 
+    reservoir_initializer = kwargs.get("reservoir_initializer", "WattsStrogatzNX")
+    reservoir_degree = kwargs.get("reservoir_degree", 3)
+    spectral_radius = kwargs.get("spectral_radius", 0.9)
+    rewiring = kwargs.get("rewiring", 0.5)
+    reservoir_sigma = kwargs.get("reservoir_sigma", 0.5)
+
+
     match reservoir_initializer:
         case "RegularNX":
             reservoir_initializer = RegularNX(
@@ -124,7 +134,6 @@ def train(
                 sigma=reservoir_sigma,
             )
         case "WattsStrogatzNX":
-            rewiring = kwargs["rewiring"]
             reservoir_initializer = WattsStrogatzNX(
                 degree=reservoir_degree,
                 spectral_radius=spectral_radius,
@@ -136,6 +145,7 @@ def train(
 
     match model:
         case "ESN":
+            
             _model = generate_ESN(
                 units=units,
                 leak_rate=leak_rate,
@@ -149,8 +159,8 @@ def train(
             )
 
         case "Parallel-ESN":
-            overlap = kwargs["overlap"]
-            reservoir_amount = kwargs["reservoir_amount"]
+            overlap = kwargs.get("overlap", 0)
+            reservoir_amount = kwargs.get("reservoir_amount", 1)
             _model = generate_Parallel_ESN(
                 units=units,
                 partitions=reservoir_amount,
@@ -165,8 +175,24 @@ def train(
                 seed=seed,
             )
 
-        case "Reservoir":
-            raise NotImplementedError(f"{model} is yet to be implemented")
+        case "ECA":
+            
+            rule = kwargs.get("eca_rule", 110)
+            steps = kwargs.get("eca_steps", 1)
+            
+            _model = generate_ECA_ESN(
+                units=units,
+                rule=rule,
+                steps=steps,
+                leak_rate=leak_rate,
+                features=features,
+                activation=reservoir_activation,
+                input_reservoir_init=input_initializer,
+                input_bias_init=input_bias_initializer,
+                exponent=2,
+                seed=seed,
+            )
+
 
     _model.train(
         transient_data,
