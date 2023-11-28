@@ -6,6 +6,7 @@ from rich.progress import track
 from typing import Any
 from typing import Tuple
 from typing import Optional
+from typing import Union
 
 import keras
 import tensorflow as tf
@@ -17,6 +18,7 @@ from sklearn.linear_model import ElasticNet
 
 from src.customs.custom_layers import simple_esn
 from src.customs.custom_layers import parallel_esn
+from src.customs.custom_layers import eca_esn
 from src.utils import calculate_nrmse
 
 
@@ -205,6 +207,14 @@ class ESN:
     
             # function code here
 
+    @tf.function
+    def forecast_step(self, model, current_input):
+        """
+        Forecast a single step using the model.
+        Wrapped with tf.function for performance optimization.
+        """
+        return model(current_input, training=False)
+
     def forecast(
             self,
             forecast_length: int,
@@ -245,20 +255,23 @@ class ESN:
         print("    Forecast transient data shape: ", forecast_transient_data.shape)
         self.predict(forecast_transient_data)
         
-        predictions = val_data[:, :1, :]
+        predictions = np.empty((val_data.shape[0], forecast_length + 1, val_data.shape[2]))
+        predictions[:, 0:1, :] = val_data[:, :1, :]
+        
         # Making the states an array of shape (0, units)
-        states_over_time = np.empty((0, self.model.get_layer("esn_rnn").cell.units)) if internal_states else None
+        states_over_time = np.empty((forecast_length, self.model.get_layer("esn_rnn").cell.units)) if internal_states else None
 
         print("\n    Predicting...\n")
-        for _ in track(range(forecast_length)):
-            pred = self.model(predictions[:, -1:, :])
-            predictions = np.hstack((predictions, pred))
+        for step in track(range(forecast_length)):
+            current_input = tf.convert_to_tensor(predictions[:, step:step + 1, :], dtype=tf.float32)
+            pred = self.forecast_step(self.model, current_input)
+            predictions[:, step + 1:step + 2, :] = pred
             
             if internal_states:
                 # Getting the states of the ESN, also reducing the dimensionality
                 #TODO: Make this generic to other type of reservoirs, not only simple_esn
-                current_states = self.model.get_layer("esn_rnn").states[0]
-                states_over_time = np.vstack((states_over_time, current_states))
+                current_states = self.model.get_layer("esn_rnn").states[0].numpy()
+                states_over_time[step, :] = current_states
         
         predictions = predictions[:, 1:, :]
         print("    Predictions shape: ", predictions.shape)
@@ -387,6 +400,44 @@ def generate_Parallel_ESN(units: int,
                              input_bias_init=input_bias_init,
                              reservoir_kernel_init=reservoir_kernel_init,
                              exponent=exponent)
+    
+    readout_layer = Dense(
+        features, activation="linear", name="readout", trainable=False
+    )
+    
+    model = ESN(reservoir, readout_layer)
+    return model
+
+def generate_ECA_ESN(units: int,
+                     rule: Union[str, int, np.ndarray, list, tf.Tensor] = 110,
+                     steps: int = 1,
+                     leak_rate: float = 1.,
+                     features: int = 1,
+                     activation: str = 'tanh',
+                     input_reservoir_init: str = "InputMatrix",
+                     input_bias_init: str = "random_uniform",
+                     exponent: int = 2,
+                     seed: int = None
+                    ) -> ESN:
+    '''
+    Assemble all the layers in an ECA ESN model.
+    '''
+    
+    if seed is None:
+        seed = np.random.randint(0, 1000000)
+    print(f'\nSeed: {seed}\n')
+    np.random.seed(seed)
+    tf.random.set_seed(seed)
+    
+    reservoir = eca_esn(units=units,
+                        rule=rule,
+                        steps=steps,
+                        leak_rate=leak_rate,
+                        activation=activation,
+                        features=features,
+                        input_reservoir_init=input_reservoir_init,
+                        input_bias_init=input_bias_init,
+                        exponent=exponent)
     
     readout_layer = Dense(
         features, activation="linear", name="readout", trainable=False

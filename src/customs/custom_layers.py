@@ -1,5 +1,5 @@
 """Custom keras layers."""
-from typing import Dict, List, Tuple, Callable
+from typing import Dict, List, Tuple
 
 import tensorflow as tf
 import keras
@@ -10,6 +10,7 @@ import keras.activations
 
 
 from src.customs.custom_initializers import ErdosRenyi, InputMatrix
+from src.customs.custom_reservoirs import create_automaton_tf
 
 ###############################################
 ################## Layers #####################
@@ -352,6 +353,7 @@ class ReservoirCell(keras.layers.Layer):
     def __init__(
         self,
         reservoir_function,
+        units=100,
         input_initializer=InputMatrix(),
         input_bias_initializer=keras.initializers.get("random_uniform"),
         activation="tanh",
@@ -360,23 +362,24 @@ class ReservoirCell(keras.layers.Layer):
     ) -> None:
         """Initialize the layer."""
         # Initialize the Reservoir
-        self.reservoir_function = tf.function(
-            reservoir_function
-        )  # WARNING: This is experimental
-
         self.input_initializer = input_initializer
         self.input_bias_initializer = input_bias_initializer
+        
+        self.reservoir_function = reservoir_function
 
+        self.units = units
         self.activation = keras.activations.get(activation)
-
+        
         self.leak_rate = leak_rate
+        
+        self.state_size = self.units
+        self.input_dim = None
 
         # Initialize the weights
         self.w_input = None
         self.input_bias = None
-        self.input_dim = None
 
-        super().__init__(self, **kwargs)
+        super().__init__(**kwargs)
 
     def build(self, input_shape) -> None:
         """Build the reservoir.
@@ -465,35 +468,6 @@ class ReservoirCell(keras.layers.Layer):
         return cls(**config)
 
 
-@tf.keras.utils.register_keras_serializable(package="custom")
-class Reservoir(keras.layers.Layer):
-    def __init__(self,
-            func: Callable,
-            units: int,
-            **kwargs
-        ):
-        self.func = tf.function(func)
-        self.state_size = units
-        super().__init__(**kwargs)
-    
-    def call(self, inputs, states) -> tf.Tensor:
-        return self.func(inputs, states)
-
-    def get_config(self) -> Dict:
-        config = super().get_config()
-        config.update(
-            {
-                'func': self.func,
-            }
-        )
-        return config
-
-    @classmethod
-    def from_config(cls, config) -> 'Reservoir':
-        return cls(**config)
-
-
-
 def simple_esn(units: int, 
                leak_rate: float = 1, 
                features: int = 1,
@@ -501,7 +475,8 @@ def simple_esn(units: int,
                input_reservoir_init: str = "InputMatrix",
                input_bias_init: str = "random_uniform",
                reservoir_kernel_init: str = "WattsStrogatzNX",
-               exponent: int = 2):
+               exponent: int = 2
+):
     
     inputs = keras.Input(batch_shape=(1, None, features), name='Input')
     
@@ -547,7 +522,8 @@ def parallel_esn(units: int,
                  reservoir_kernel_init: str = "WattsStrogatzNX",
                  exponent: int = 2,
                  partitions: int = 1,
-                 overlap: int = 0):
+                 overlap: int = 0
+):
     
     # FIX
     assert features % partitions == 0, "Input length must be divisible by partitions"
@@ -598,13 +574,60 @@ def parallel_esn(units: int,
     
     return parallel_reservoir
 
+def eca_esn(units: int,
+            leak_rate: float = 1,
+            features: int = 1,
+            activation: str = 'tanh',
+            input_reservoir_init: str = "InputMatrix",
+            input_bias_init: str = "random_uniform",
+            rule: int = 110,
+            steps: int = 1,
+            exponent: int = 2,
+):
+    
+    eca_function = create_automaton_tf(rule, steps=steps)
+    
+    inputs = keras.Input(batch_shape=(1, None, features), name='Input')
+    
+    eca_cell = ReservoirCell(
+        units=units,
+        reservoir_function=eca_function,
+        input_initializer=input_reservoir_init,
+        input_bias_initializer=input_bias_init,
+        activation=activation,
+        leak_rate=leak_rate,
+        name="EcaCell",
+    )
+    
+    eca_rnn = keras.layers.RNN(
+        eca_cell,
+        trainable=False,
+        stateful=True,
+        return_sequences=True,
+        name="esn_rnn",
+    )(inputs)
+    
+    power_index = PowerIndex(exponent=exponent, index=2, name="pwr")(
+        eca_rnn
+    )
+    
+    output = keras.layers.Concatenate(name="Concat_ESN_input")(
+        [inputs, power_index]
+    )
+    
+    reservoir = keras.Model(
+        inputs=inputs,
+        outputs=output,
+    )
+    
+    return reservoir
+
 
 custom_layers = {
     "EsnCell": EsnCell,
     "PowerIndex": PowerIndex,
     "InputSplitter": InputSplitter,
     "ReservoirCell": ReservoirCell,
-    "Reservoir": Reservoir,
 }
 
 keras.utils.get_custom_objects().update(custom_layers)

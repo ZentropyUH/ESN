@@ -11,15 +11,13 @@ from keras.initializers import RandomUniform
 from src.model import ESN
 from src.model import generate_ESN
 from src.model import generate_Parallel_ESN
+from src.model import generate_ECA_ESN
+
 from src.utils import load_data
 from src.customs.custom_initializers import ErdosRenyi
 from src.customs.custom_initializers import InputMatrix
 from src.customs.custom_initializers import RegularNX
 from src.customs.custom_initializers import WattsStrogatzNX
-from src.plotters import plot_contourf_forecast
-from src.plotters import plot_linear_forecast
-from src.plotters import plot_rmse
-from src.plotters import render_video
 
 
 def train(
@@ -34,13 +32,14 @@ def train(
     input_scaling: float,
     leak_rate: float,
     reservoir_activation: str,
-    reservoir_initializer: str,
-    reservoir_degree: int,
-    reservoir_sigma: float,
+    
+    # reservoir_initializer: str,
+    # reservoir_degree: int,
+    # reservoir_sigma: float,
+    # spectral_radius: float,
 
-    spectral_radius: float, #FIX ?
     regularization: float, #FIX
-    readout_layer: str = None, #FIX
+    # readout_layer: str = None, #FIX
 
     output_dir: str = None,
     seed: int | None = None,
@@ -98,7 +97,7 @@ def train(
                 maxval=input_scaling,
             )
 
-    ############### CHOOSE THE INPUT INITIALIZER ###############
+    ############### CHOOSE THE INPUT BIAS INITIALIZER ###############
 
     match input_bias_initializer:
         case "InputMatrix":
@@ -114,6 +113,13 @@ def train(
 
     ############### CHOOSE THE RESERVOIR INITIALIZER ###############
 
+    reservoir_initializer = kwargs.get("reservoir_initializer", "WattsStrogatzNX")
+    reservoir_degree = kwargs.get("reservoir_degree", 3)
+    spectral_radius = kwargs.get("spectral_radius", 0.9)
+    rewiring = kwargs.get("rewiring", 0.5)
+    reservoir_sigma = kwargs.get("reservoir_sigma", 0.5)
+
+
     match reservoir_initializer:
         case "RegularNX":
             reservoir_initializer = RegularNX(
@@ -128,18 +134,18 @@ def train(
                 sigma=reservoir_sigma,
             )
         case "WattsStrogatzNX":
-            rewiring = kwargs["rewiring"]
             reservoir_initializer = WattsStrogatzNX(
                 degree=reservoir_degree,
                 spectral_radius=spectral_radius,
                 rewiring_p=rewiring,
                 sigma=reservoir_sigma,
             )
-    
+
     ############### CHOOSE THE MODEL ###############
 
     match model:
         case "ESN":
+            
             _model = generate_ESN(
                 units=units,
                 leak_rate=leak_rate,
@@ -153,8 +159,8 @@ def train(
             )
 
         case "Parallel-ESN":
-            overlap = kwargs["overlap"]
-            reservoir_amount = kwargs["reservoir_amount"]
+            overlap = kwargs.get("overlap", 0)
+            reservoir_amount = kwargs.get("reservoir_amount", 1)
             _model = generate_Parallel_ESN(
                 units=units,
                 partitions=reservoir_amount,
@@ -169,9 +175,25 @@ def train(
                 seed=seed,
             )
 
-        case "Reservoir":
-            raise Exception(f"{model} is yet to be implemented")
-    
+        case "ECA":
+            
+            rule = kwargs.get("eca_rule", 110)
+            steps = kwargs.get("eca_steps", 1)
+            
+            _model = generate_ECA_ESN(
+                units=units,
+                rule=rule,
+                steps=steps,
+                leak_rate=leak_rate,
+                features=features,
+                activation=reservoir_activation,
+                input_reservoir_init=input_initializer,
+                input_bias_init=input_bias_initializer,
+                exponent=2,
+                seed=seed,
+            )
+
+
     _model.train(
         transient_data,
         train_data,
@@ -251,38 +273,25 @@ def forecast(
                 internal_states,
                 feedback_metrics
             )
-            
+
             predictions = predictions[0]
 
         case "section":
-            raise Exception(f"{forecast_method} is yet to be implemented")
+            raise NotImplementedError(f"{forecast_method} is yet to be implemented")
 
-        
+
+    # Save forecasted data
     if output_dir:
-        pd.DataFrame(predictions).to_csv(
-            output_dir,
-            index=False,
-            header=None,
-        )
+        output_file = os.path.join(output_dir, os.path.basename(data_file)) if os.path.isdir(output_dir) else output_dir
+        pd.DataFrame(predictions).to_csv(output_file, index=False, header=None)
 
-
+    # Handle internal states
     if internal_states:
-        # Extraer el nombre base del archivo sin extensión
-        file_name = os.path.splitext(os.path.basename(output_dir))[0]
-
-         # Crear un directorio para los estados internos si no existe
-        directory_path = os.path.dirname(output_dir)
-        internal_state_dir = os.path.join(directory_path, "internal_state")
+        file_name_without_extension = os.path.splitext(os.path.basename(data_file))[0]
+        internal_state_dir = os.path.join(os.path.dirname(output_dir), f"{file_name_without_extension}_internal_states")
         os.makedirs(internal_state_dir, exist_ok=True)
-        
-        # Convertir los estados a lo largo del tiempo en un DataFrame de pandas y guardarlo en CSV
-        states_over_time_df = pd.DataFrame(states_over_time)
-
-        # Construir el nombre completo del archivo CSV para los estados internos
-        internal_states_csv_path = os.path.join(internal_state_dir, f"{file_name}_states_over_time.csv")
-        
-        # Guardar los estados internos en la carpeta correspondiente
-        states_over_time_df.to_csv(internal_states_csv_path, index=False, header=None)
+        internal_states_file = os.path.join(internal_state_dir, f"{file_name_without_extension}_states.csv")
+        pd.DataFrame(states_over_time).to_csv(internal_states_file, index=False, header=None)
 
     return predictions, val_target[:, :forecast_length, :][0]
 
@@ -298,7 +307,7 @@ def forecast_from_saved_model(
     feedback_metrics: bool = True,
     **kwargs,
 ):
-    with open(join(trained_model_path, 'params.json')) as f:
+    with open(join(trained_model_path, 'params.json'), encoding="utf-8") as f:
         params = json.load(f)
     model = ESN.load(trained_model_path)
 
@@ -316,96 +325,43 @@ def forecast_from_saved_model(
     )
 
 
-def plot(
-    plot_type,
-    predictions,
-    data_file,
-    lyapunov_exponent,
-    delta_time,
-    title,
-    save_path,
-    show,
-    y_labels,
-    y_values,
-    x_label,
-    transient,
-    train_length,
+def forecast_folder_from_saved_model(
+    trained_model_path: str,
+    data_folder: str,
+    forecast_method: str = "classic",
+    forecast_length: int = 1000,
+    output_dir: str = None,
+    internal_states: bool = False,
+    feedback_metrics: bool = True,
+    **kwargs,
 ):
-    # Scale time to lyapunov time units
-    delta_time = delta_time * lyapunov_exponent
+    # get all files that end with .csv
+    files = [_file for _file in os.listdir(data_folder) if _file.endswith('.csv')]
 
-    # Load predictions
-    predictions = pd.read_csv(predictions).to_numpy()
+    print(f"Found {len(files)} files in {data_folder}")
 
-    features = predictions.shape[-1]
+    # forecast each file
+    for i, _file in enumerate(files):
 
-    # Load the data
-    (
-        _,
-        _,
-        _,
-        _,
-        _,
-        val_target,
-    ) = load_data(
-        data_file,
-        transient=transient,
-        train_length=train_length,
-    )
+        print(f"Forecasting {_file}")
+        print(f"File number {i+1} of {len(files)}")
 
-    # Convert y_labels to a list
-    if y_labels:
-        y_labels = y_labels.split(",")
+        # check if file already exists and skip it if it does
+        if os.path.isfile(os.path.join(output_dir, _file)):
+            print(f"File {_file} already exists. Skipping...")
+            continue
 
-    # Convert y_values to a list
-    if y_values:
-        y_values = [float(i) for i in y_values.split(",")]
-        y_values = np.linspace(y_values[0], y_values[1], features)
+        # get the full path of the file
+        data_file = os.path.join(data_folder, _file)
 
-    # Plot the data
-    match plot_type:
-        case "linear":
-            plot_linear_forecast(
-                predictions=predictions,
-                val_target=val_target,
-                dt=delta_time,
-                title=title,
-                save_path=save_path,
-                show=show,
-                ylabels=y_labels,
-                xlabel=x_label,
-            )
-
-        case "contourf":
-            plot_contourf_forecast(
-                predictions=predictions,
-                val_target=val_target,
-                dt=delta_time,
-                title=title,
-                save_path=save_path,
-                show=show,
-                xlabel=x_label,
-                yvalues=y_values,
-            )
-
-        case "rmse":
-            plot_rmse(
-                predictions=predictions,
-                val_target=val_target,
-                dt=delta_time,
-                title=title,
-                save_path=save_path,
-                show=show,
-                ylabels=y_labels,
-                xlabel=x_label,
-            )
-
-        case "video":
-            render_video(
-                predictions=predictions,
-                val_target=val_target,
-                dt=delta_time,
-                title=title,
-                save_path=save_path,
-                xlabel=x_label,
-            )
+        # forecast the file
+        forecast_from_saved_model(
+            trained_model_path,
+            data_file,
+            forecast_method,
+            forecast_length,
+            output_dir,
+            internal_states,
+            feedback_metrics,
+            **kwargs,
+        )
