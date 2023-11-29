@@ -113,7 +113,7 @@ def train(
 
     ############### CHOOSE THE RESERVOIR INITIALIZER ###############
 
-    reservoir_initializer = kwargs.get("reservoir_initializer", "WattsStrogatzNX")
+    reservoir_initializer = kwargs.get("reservoir_initializer", None)
     reservoir_degree = kwargs.get("reservoir_degree", 3)
     spectral_radius = kwargs.get("spectral_radius", 0.9)
     rewiring = kwargs.get("rewiring", 0.5)
@@ -140,6 +140,8 @@ def train(
                 rewiring_p=rewiring,
                 sigma=reservoir_sigma,
             )
+        case "None":
+            pass
 
     ############### CHOOSE THE MODEL ###############
 
@@ -306,6 +308,9 @@ def forecast_from_saved_model(
 
     internal_states: bool = False,
     feedback_metrics: bool = True,
+    
+    steps: int = 1,
+    
     **kwargs,
 ) -> None:
     '''
@@ -334,7 +339,7 @@ def forecast_from_saved_model(
         output_dir=output_dir,
         forecast_method=forecast_method,
         forecast_length=forecast_length,
-        steps=params['steps'],
+        steps=steps,
         internal_states=internal_states,
         feedback_metrics=feedback_metrics
     )
@@ -349,6 +354,9 @@ def forecast_folder_from_saved_model(
     forecast_length: int = 1000,
     internal_states: bool = False,
     feedback_metrics: bool = True,
+    
+    steps: int = 1,
+    
     **kwargs,
 ):
     '''
@@ -390,12 +398,13 @@ def forecast_folder_from_saved_model(
 
         # forecast the file
         forecast_from_saved_model(
-            trained_model_path,
-            data_file,
-            forecast_method,
-            forecast_length,
-            output_dir,
-            internal_states,
-            feedback_metrics,
+            trained_model_path=trained_model_path,
+            data_file=data_file,
+            forecast_method=forecast_method,
+            forecast_length=forecast_length,
+            output_dir=output_dir,
+            internal_states=internal_states,
+            feedback_metrics=feedback_metrics,
+            steps=steps,
             **kwargs,
         )
