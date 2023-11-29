@@ -1,8 +1,6 @@
-from typer import Typer
-from typer import Option
-from typing import List
-from cli.enums import *
-from lempelziv.lz_utils import *
+from typer import Option, Typer
+
+from cli.enums import EnumBinMethod
 
 app = Typer(
     help="",
@@ -245,6 +243,43 @@ def process_two_folders(
     distance_matrices_between_folders(
         folder_path1=folder_path1,
         folder_path2=folder_path2,
+        method=method,
+        save_path=save_path,
+        )
+    
+@app.command(
+    name="distance-columns-single-csv",
+    help="Compute the Lempel-Ziv complexity of a folder with txt files and save the results to a folder.",
+    no_args_is_help=True,
+)
+def distance_single_csv(
+    csv_file: str = Option(
+        ...,
+        "--csv-file",
+        "-c",
+        help="Path to the csv file."
+        ),
+    
+    method: EnumBinMethod = Option(
+        "mean",
+        "--method",
+        "-m",
+        help="Method to binarize the csv file.",
+        show_default=True,
+        case_sensitive=False,
+        ),
+    
+    save_path: str = Option(
+        ...,
+        "--save-path",
+        "-s",
+        help="Path to save the results.",
+        ),
+    ):
+    from lempelziv.lz_utils import distance_columns_single_csv
+    
+    distance_columns_single_csv(
+        csv_file=csv_file,
         method=method,
         save_path=save_path,
         )

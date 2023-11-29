@@ -432,3 +432,42 @@ def distance_matrices_between_folders(folder_path1: str, folder_path2: str, meth
             json.dump(distance_matrices_json, file)
 
     return distance_matrices_json
+
+def distance_columns_single_csv(csv_file: str, method='mean', save_path: str=None) -> str:
+    """
+    Calculate distance matrices per column between all pairs of columns in a CSV file. Distance is not conmutative.
+
+    Args:
+        csv_file (str): Path to the CSV file.
+        method (str): Method for binarization ('mean' or 'median').
+        save_path (str, optional): Path to the json file to save the results.
+
+    Returns:
+        np.array: Distance matrix between all pairs of columns. Element (i,j) is the distance between columns i and j.
+    """
+    
+    # Binarize the CSV file
+    print(f"Binarizing CSV file: {csv_file}\n")
+    binarized_df = _binarize_csv(csv_file, method)
+
+    # Convert to binary sequences
+    print(f"Converting to List of string binary sequences.\n")
+    binary_sequences = _binary_sequences_from_df(binarized_df)
+
+    # Initialize an pd.Dataframe to hold the distance matrices
+    n = len(binary_sequences)
+    distance_matrix = pd.DataFrame(index=range(n), columns=range(n))
+
+    for idx1 in range(n):
+        for idx2 in range(n):
+            print(f"Distances between columns {idx1} and {idx2}.")
+            distance_matrix.loc[idx1, idx2] = _lz_distance(binary_sequences[idx1], binary_sequences[idx2])
+
+    distance_matrix_json = distance_matrix.to_json()
+
+    if save_path is not None:
+        # Save the results to a json file
+        with open(save_path, 'w', encoding='utf-8') as file:
+            json.dump(distance_matrix_json, file)
+
+    return distance_matrix_json
