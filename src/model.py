@@ -7,6 +7,7 @@ from typing import Any
 from typing import Tuple
 from typing import Optional
 from typing import Union
+from contextlib import contextmanager
 
 import keras
 import tensorflow as tf
@@ -70,54 +71,57 @@ class ESN:
             raise Exception('Model must be trained to predict')
         return self.model.predict(inputs)
     
+    @contextmanager
+    def timer(self, task_name):
+        start = time()
+        yield
+        end = time()
+        print(f"{task_name} took: {round(end - start, 2)} seconds.")
+    
     def train(
         self,
         transient_data: np.ndarray,
         train_data: np.ndarray,
         train_target: np.ndarray,
         regularization: float,
+        method='ridge',
+        solver='svd'
     ) -> None:
         '''
-        Training proccess of the model.
+        Training process of the model.
 
         Args:
             transient_data (np.ndarray): Transient data.
-
             train_data (np.ndarray): Data to train the model.
-
             train_target (np.ndarray): Target data for the training.
-
             regularization (float): Regularization value for linear readout.
+            method (str): Solver method ['ridge' | 'lasso' | 'elastic'].
+            solver (str): Solver for Ridge regression.
         
         Return:
             None
         '''
-        
+
+        method_map = {
+            'ridge': Ridge(alpha=regularization, tol=0, solver=solver),
+            'lasso': Lasso(alpha=regularization, tol=0),
+            'elastic': ElasticNet(alpha=regularization, tol=1e-4, selection="random")
+        }
+
+        if method not in method_map:
+            raise ValueError("The method must be ['ridge' | 'lasso' | 'elastic'].")
+
         print("\nEnsuring ESP...\n")
         if not self.reservoir.built:
             self.reservoir.build(input_shape=transient_data.shape)
         self.reservoir.predict(transient_data)
 
         print("\nHarvesting...\n")
-        start = time()
-        harvested_states = self.reservoir.predict(train_data)
-        end = time()
-        print(f"Harvesting took: {round(end - start, 2)} seconds.")
-        
-        print("Calculating the readout matrix...\n")
-        method = 'ridge'
-        solver = 'svd'
-        if method == "ridge":
-            readout = Ridge(alpha=regularization, tol=0, solver=solver)
-        elif method == "lasso":
-            readout = Lasso(alpha=regularization, tol=0)
-        elif method == "elastic":
-            readout = ElasticNet(
-                alpha=regularization, tol=1e-4, selection="random"
-            )
-        else:
-            raise ValueError("The method must be ['ridge' | 'lasso' | 'elastic'].")
+        with self.timer("Harvesting"):
+            harvested_states = self.reservoir.predict(train_data)
 
+        print("Calculating the readout matrix...\n")
+        readout = method_map[method]
         readout.fit(harvested_states[0], train_target[0])
         predictions = readout.predict(harvested_states[0])
 
@@ -129,17 +133,15 @@ class ESN:
 
         self.readout.build(harvested_states[0].shape)
         self.readout.set_weights([readout.coef_.T, readout.intercept_])
-        # self.model(transient_data[:, :1, :])
 
         self.model = keras.Model(
             inputs=self.reservoir.inputs,
-            # CHECK
             outputs=self.readout(self.reservoir.output),
             name="ESN",
         )
         
 
-    # def train_test(
+   #  def train_test(
     #     self,
     #     transient_data: np.ndarray,
     #     train_data: np.ndarray,
