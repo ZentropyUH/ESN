@@ -45,16 +45,12 @@ class ESN:
 
         self.readout: Layer = readout
         self.reservoir: keras.layers.Layer = reservoir
-        self.model: keras.Model = keras.Model(
-            inputs=self.reservoir.inputs,
-            outputs=self.readout(self.reservoir.output),
-            name="ESN",
-        )
+        self.model: keras.Model = None
 
         self.built = False
 
     def __call__(self, *args: Any, **kwds: Any) -> Any:
-        if not self.built:
+        if self.model is None:
             raise RuntimeError('Model must be trained to predict')
         return self.model(*args, **kwds)
 
@@ -71,7 +67,7 @@ class ESN:
         Raises:
             Exception: If the model has not been trained yet.
         '''
-        if not self.built:
+        if self.model is None:
             raise RuntimeError('Model must be trained to predict')
         return self.model.predict(inputs)
 
