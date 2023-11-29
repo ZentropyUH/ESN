@@ -1,8 +1,6 @@
-from typer import Typer
-from typer import Option
-from typing import List
-from cli.enums import *
-from lempelziv.lz_utils import *
+from typer import Option, Typer
+
+from cli.enums import EnumBinMethod
 
 app = Typer(
     help="",
