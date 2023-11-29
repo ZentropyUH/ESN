@@ -120,12 +120,18 @@ def distance_csv(
         ),
     ):
     from lempelziv.lz_utils import lz_distance_csv
+    import json
     
-    print(lz_distance_csv(
-        csv_file1=csv1,
-        csv_file2=csv2,
-        method=method,
-        ))
+    with open(save_path, "w", encoding='utf-8') as f:
+        json.dump(
+            lz_distance_csv(
+                csv_file1=csv1,
+                csv_file2=csv2,
+                method=method,
+                ),
+            f,
+            indent=4,
+            )
     
     
 @app.command(
