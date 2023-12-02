@@ -545,6 +545,7 @@ def search_unfinished_combinations(
 
 
 def compress_numbers(numbers):
+    numbers = sorted([int(n) for n in numbers])
     if not numbers:
         return ""
 
