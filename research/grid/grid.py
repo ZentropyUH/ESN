@@ -194,10 +194,10 @@ def grid(
     )
 
     with open(evaluation_file, 'w') as f:
-        json.dump({'rmse': rmse_mean, 'nrmse': nrmse_mean}, f)
+        json.dump({'rmse': rmse_mean, 'nrmse': nrmse_mean}, f, indent=4)
     
     with open(time_file, 'w') as f:
-        json.dump({'train': train_time, 'forecast': forecast_time}, f)
+        json.dump({'train': train_time, 'forecast': forecast_time}, f, indent=4)
 
 
 def slurm_grid(

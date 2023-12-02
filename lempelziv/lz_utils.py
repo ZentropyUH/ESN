@@ -5,6 +5,24 @@ import os
 import tempfile
 from itertools import product
 import json
+import random
+import string
+
+def _generate_random_filename(directory, suffix='', length=10):
+    """
+    Generate a random filename in the specified directory.
+
+    Args:
+        directory (str): The directory to create the file in.
+        suffix (str, optional): Suffix for the filename.
+        length (int, optional): Length of the random part of the filename.
+
+    Returns:
+        str: The generated random filename.
+    """
+    random_part = ''.join(random.choices(string.ascii_lowercase + string.digits, k=length))
+    filename = os.path.join(directory, f"{random_part}{suffix}")
+    return filename
 
 def _convert_to_numeric(value):
     """
@@ -74,89 +92,61 @@ def _binary_sequences_from_df(df: pd.DataFrame) -> List[str]:
 
 # This does the LZ processing for a single binary sequence
 def _process_single_binary_sequence_lz(binary_string, flags=None):
-    """
-    Process a binary string using lempelziv with optional flags,
-    using a randomly generated temporary filename.
+    # Generate a random input filename in the current directory
+    input_filename = _generate_random_filename('.', '.txt')
 
-    Args:
-        binary_string (str): The binary string to process.
-        flags (list, optional): List of flags to pass to the binary program.
-
-    Returns:
-        str: The content of the generated file.
-    """
-    # Create a temporary file
-    with tempfile.NamedTemporaryFile(delete=False, mode='w', suffix='') as temp_file:
-        input_filename = temp_file.name
-        temp_file.write(binary_string)
+    # Write the binary string to the file
+    with open(input_filename, 'w', encoding='utf-8') as file:
+        file.write(binary_string)
 
     output_filename = input_filename + '.lz76'
 
-    # Prepare the command for subprocess
+    # Prepare and run the command
     command = ['lempelziv']
     if flags:
         command.extend(flags)
     command.append(input_filename)
-
-    # Call the external binary program
     subprocess.run(command, check=True)
 
-    # Read the output from the generated file
+    # Read and delete the output file
     output_content = ''
     if os.path.exists(output_filename):
         with open(output_filename, 'r', encoding='utf-8') as file:
             output_content = file.read()
-
-        # Clean up the output file
         os.remove(output_filename)
-    
     else:
         raise FileNotFoundError(f"Output file {output_filename} not found")
 
-    # Clean up the input temporary file
+    # Delete the input file
     os.remove(input_filename)
 
     return output_content
 
 # This does the LZ processing for two binary sequences compared
 def _process_dual_binary_sequence_lz(string1, string2):
-    """
-    Process two binary strings using lempelziv with specific flags,
-    using a randomly generated temporary filename. The strings are
-    written as consecutive lines in the file.
+    # Generate a random input filename in the current directory
+    input_filename = _generate_random_filename('.', '.txt')
 
-    Args:
-        string1 (str): The first binary string to process.
-        string2 (str): The second binary string to process.
-
-    Returns:
-        str: The content of the generated file.
-    """
-    # Create a temporary file
-    with tempfile.NamedTemporaryFile(delete=False, mode='w', suffix='') as temp_file:
-        input_filename = temp_file.name
-        temp_file.write(string1 + '\n' + string2)
+    # Write the binary strings to the file
+    with open(input_filename, 'w', encoding='utf-8') as file:
+        file.write(string1 + '\n' + string2)
 
     output_filename = input_filename + '.lz76'
 
-    # Prepare the command for subprocess
+    # Prepare and run the command
     command = ['lempelziv', '-d', '-u', input_filename]
-
-    # Call the external binary program
     subprocess.run(command, check=True)
 
-    # Read the output from the generated file
+    # Read and delete the output file
     output_content = ''
     if os.path.exists(output_filename):
         with open(output_filename, 'r', encoding='utf-8') as file:
             output_content = file.read()
-
-        # Clean up the output file
         os.remove(output_filename)
     else:
         raise FileNotFoundError(f"Output file {output_filename} not found")
 
-    # Clean up the input temporary file
+    # Delete the input file
     os.remove(input_filename)
 
     return output_content
@@ -272,7 +262,7 @@ def lz_csv(file_path, method='mean', flags=None, save_path: str = None) -> dict:
     if save_path is not None:
         # Save the results to a json file
         with open(save_path, 'w', encoding='utf-8') as file:
-            json.dump(results, file)
+            json.dump(results, file, indent=4)
     
     return results
 
@@ -336,7 +326,7 @@ def lz_folder(folder_path: str, method='mean', flags=None, save_path: str = None
     if save_path is not None:
         # Save the results to a json file
         with open(save_path, 'w', encoding='utf-8') as file:
-            json.dump(results, file)
+            json.dump(results, file, indent=4)
 
     return results
 
@@ -379,7 +369,7 @@ def distance_matrices_single_folder(folder_path: str, method='mean', save_path: 
     if save_path is not None:
         # Save the results to a json file
         with open(save_path, 'w', encoding='utf-8') as file:
-            json.dump(distance_matrices_json, file)
+            json.dump(distance_matrices_json, file, indent=4)
 
     return distance_matrices_json
 
@@ -429,6 +419,45 @@ def distance_matrices_between_folders(folder_path1: str, folder_path2: str, meth
     if save_path is not None:
         # Save the results to a json file
         with open(save_path, 'w', encoding='utf-8') as file:
-            json.dump(distance_matrices_json, file)
+            json.dump(distance_matrices_json, file, indent=4)
 
     return distance_matrices_json
+
+def distance_columns_single_csv(csv_file: str, method='mean', save_path: str=None) -> str:
+    """
+    Calculate distance matrices per column between all pairs of columns in a CSV file. Distance is not conmutative.
+
+    Args:
+        csv_file (str): Path to the CSV file.
+        method (str): Method for binarization ('mean' or 'median').
+        save_path (str, optional): Path to the json file to save the results.
+
+    Returns:
+        np.array: Distance matrix between all pairs of columns. Element (i,j) is the distance between columns i and j.
+    """
+    
+    # Binarize the CSV file
+    print(f"Binarizing CSV file: {csv_file}\n")
+    binarized_df = _binarize_csv(csv_file, method)
+
+    # Convert to binary sequences
+    print(f"Converting to List of string binary sequences.\n")
+    binary_sequences = _binary_sequences_from_df(binarized_df)
+
+    # Initialize an pd.Dataframe to hold the distance matrices
+    n = len(binary_sequences)
+    distance_matrix = pd.DataFrame(index=range(n), columns=range(n))
+
+    for idx1 in range(n):
+        for idx2 in range(n):
+            print(f"Distances between columns {idx1} and {idx2}.")
+            distance_matrix.loc[idx1, idx2] = _lz_distance(binary_sequences[idx1], binary_sequences[idx2])
+
+    distance_matrix_json = distance_matrix.to_json()
+
+    if save_path is not None:
+        # Save the results to a json file
+        with open(save_path, 'w', encoding='utf-8') as file:
+            json.dump(distance_matrix_json, file, indent=4)
+
+    return distance_matrix_json
