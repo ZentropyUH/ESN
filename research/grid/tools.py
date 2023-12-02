@@ -535,13 +535,33 @@ def search_unfinished_combinations(
 
     generate_unfinished_script(
         job_name = "unfinished",
-        array = ",".join([str(i) for i in unfinished]) ,
+        array = compress_numbers(unfinished) ,
         output_path=runs_path,
         data_path = params['data_path'],
         combinations_path = comb_path,
         file_path = join(info_path, InfoFiles.SLURM_UNFINISHED_FILE.value),
         jobs_limit=jobs_limit
     )
+
+
+def compress_numbers(numbers):
+    if not numbers:
+        return ""
+
+    result = ""
+    start = end = numbers[0]
+
+    for num in numbers[1:]:
+        if num == end + 1:
+            end = num
+        else:
+            result += str(start) if start == end else f"{start}-{end}"
+            result += ","
+            start = end = num
+
+    result += str(start) if start == end else f"{start}-{end}"
+
+    return result
 
 
 def init_slurm_grid(
