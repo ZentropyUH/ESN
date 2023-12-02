@@ -60,12 +60,11 @@ SLURM_SCRIPT = '''#!/bin/bash
 
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
-#SBATCH --mem-per-cpu=4000M
-#SBATCH --gres=gpu:1
+#SBATCH --mem-per-cpu=4G
 
 
-#SBATCH --time=4-00:00:00
-#SBATCH --partition=graphic
+#SBATCH --time=2-00:00:00
+#SBATCH --partition=medium
 
 #SBATCH --array={array}%{jobs_limit}
 
