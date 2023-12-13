@@ -7,13 +7,6 @@ app = Typer(
     no_args_is_help=True,
 )
 
-# binary_sequences_from_csv
-# lz_csv
-# lz_distance_csv
-# lz_folder
-# distance_matrices_single_folder
-# distance_matrices_between_folders
-
 
 @app.command(
     name="binary-csv",
@@ -41,6 +34,12 @@ def binarize_csv(
         "-s",
         help="Path to save the binary sequences.",
         ),
+    parallel_tasks: int = Option(
+        16,
+        "--parallel-tasks",
+        '-pt',
+        help="Number of tasks to calculate simultaneously. Default is 16"
+        )
     ):
     from lempelziv.lz_utils import binary_sequences_from_csv
     
@@ -48,6 +47,7 @@ def binarize_csv(
         filepath=filepath,
         method=method,
         save_path=save_path,
+        max_parallel_tasks=parallel_tasks
         )
 
 @app.command(
@@ -76,6 +76,12 @@ def process_csv(
         "-s",
         help="Path to save the binary sequences.",
         ),
+    parallel_tasks: int = Option(
+        16,
+        "--parallel-tasks",
+        '-pt',
+        help="Number of tasks to calculate simultaneously. Default is 16"
+        )
     ):
 
     from lempelziv.lz_utils import lz_csv
@@ -84,10 +90,11 @@ def process_csv(
         file_path=filepath,
         method=method,
         save_path=save_path,
+        max_parallel_tasks=parallel_tasks
         )
     
 @app.command(
-    name="lz-distance-csv",
+    name="distance-2-csv",
     help="Compute the Lempel-Ziv complexity of a csv file by column and save the results to a folder.",
     no_args_is_help=True,
 )
@@ -95,13 +102,13 @@ def distance_csv(
     csv1: str = Option(
         ...,
         "--csv1",
-        "-c1",
+        "-f1",
         help="Path to the first csv file."
         ),
     csv2: str = Option(
         ...,
         "--csv2",
-        "-c2",
+        "-f2",
         help="Path to the second csv file."
         ),
     method: EnumBinMethod = Option(
@@ -118,6 +125,12 @@ def distance_csv(
         "-s",
         help="Path to save the binary sequences.",
         ),
+    parallel_tasks: int = Option(
+        16,
+        "--parallel-tasks",
+        '-pt',
+        help="Number of tasks to calculate simultaneously. Default is 16"
+        )
     ):
     from lempelziv.lz_utils import lz_distance_csv
     import json
@@ -128,6 +141,7 @@ def distance_csv(
                 csv_file1=csv1,
                 csv_file2=csv2,
                 method=method,
+                max_parallel_tasks=parallel_tasks
                 ),
             f,
             indent=4,
@@ -162,6 +176,12 @@ def process_folder(
         "-s",
         help="Path to save the results.",
         ),
+    parallel_tasks: int = Option(
+        16,
+        "--parallel-tasks",
+        '-pt',
+        help="Number of tasks to calculate simultaneously. Default is 16"
+        )
     ):
     from lempelziv.lz_utils import lz_folder
     
@@ -169,51 +189,16 @@ def process_folder(
         folder_path=folder_path,
         method=method,
         save_path=save_path,
+        max_parallel_tasks=parallel_tasks
         )
     
-@app.command(
-    name="distance-matrices-single-folder",
-    help="Compute the Lempel-Ziv complexity of a folder with txt files and save the results to a folder.",
-    no_args_is_help=True,
-)
-def process_single_folder(
-    folder_path: str = Option(
-        ...,
-        "--folder-path",
-        "-f",
-        help="Path to the folder with txt files."
-        ),
-    
-    method: EnumBinMethod = Option(
-        "mean",
-        "--method",
-        "-m",
-        help="Method to binarize the csv file.",
-        show_default=True,
-        case_sensitive=False,
-        ),
-    
-    save_path: str = Option(
-        ...,
-        "--save-path",
-        "-s",
-        help="Path to save the results.",
-        ),
-    ):
-    from lempelziv.lz_utils import distance_matrices_single_folder
-    
-    distance_matrices_single_folder(
-        folder_path=folder_path,
-        method=method,
-        save_path=save_path,
-        )
 
 @app.command(
     name="distance-folders",
-    help="Compute the Lempel-Ziv complexity of a folder with txt files and save the results to a folder.",
+    help="Compute the Lempel-Ziv distance of the csv contained in two folders and save results to a json. If no second folder is provided the distances will be between all files of the single folder.",
     no_args_is_help=True,
 )
-def process_two_folders(
+def distance_between_folders(
     folder_path1: str = Option(
         ...,
         "--folder-path1",
@@ -222,7 +207,7 @@ def process_two_folders(
         ),
     
     folder_path2: str = Option(
-        ...,
+        None,
         "--folder-path2",
         "-f2",
         help="Path to the second folder with txt files."
@@ -243,6 +228,12 @@ def process_two_folders(
         "-s",
         help="Path to save the results.",
         ),
+    parallel_tasks: int = Option(
+        16,
+        "--parallel-tasks",
+        '-pt',
+        help="Number of tasks to calculate simultaneously. Default is 16"
+        )
     ):
     from lempelziv.lz_utils import distance_matrices_between_folders
     
@@ -251,10 +242,11 @@ def process_two_folders(
         folder_path2=folder_path2,
         method=method,
         save_path=save_path,
+        max_parallel_tasks=parallel_tasks
         )
     
 @app.command(
-    name="distance-columns-single-csv",
+    name="distance-single-csv",
     help="Compute the Lempel-Ziv complexity of a folder with txt files and save the results to a folder.",
     no_args_is_help=True,
 )
@@ -262,7 +254,7 @@ def distance_single_csv(
     csv_file: str = Option(
         ...,
         "--csv-file",
-        "-c",
+        "-f",
         help="Path to the csv file."
         ),
     
@@ -281,6 +273,12 @@ def distance_single_csv(
         "-s",
         help="Path to save the results.",
         ),
+    parallel_tasks: int = Option(
+        16,
+        "--parallel-tasks",
+        '-pt',
+        help="Number of tasks to calculate simultaneously. Default is 16"
+        )
     ):
     from lempelziv.lz_utils import distance_columns_single_csv
     
@@ -288,5 +286,6 @@ def distance_single_csv(
         csv_file=csv_file,
         method=method,
         save_path=save_path,
+        max_parallel_tasks=parallel_tasks
         )
     
