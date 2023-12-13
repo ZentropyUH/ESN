@@ -33,7 +33,7 @@ def _base_setup_plot(
     fig.subplots_adjust(top=0.9, bottom=0.08, hspace=0.3)
     fig.suptitle(title, fontsize=16)
     fig.supxlabel(xlabel)
-    if features == 1:
+    if features == 1 and cols == 1:
         axs = [axs]
     return fig, axs
 
@@ -87,7 +87,7 @@ def _base_scatter(
     forecast: np.ndarray = None,
     label: str ="target",
     target_label: str = '',
-    size : int = 1
+    size : int = 10
 ) -> None:
     ax.scatter(xvalues, val_target, label=label, s=size)
     if forecast is not None:
@@ -763,7 +763,7 @@ def max_return_map(
         
                 
         _base_scatter(
-            ax=axs[0][i],
+            ax=axs[i],
             xvalues=maxima[:-1],
             val_target=maxima[1:],
             fxvalues=fmaxima[:-1] if forecast is not None else None,
@@ -825,7 +825,7 @@ def min_return_map(
         
                 
         _base_scatter(
-            ax=axs[0][i],
+            ax=axs[i],
             xvalues=maxima[:-1],
             val_target=maxima[1:],
             fxvalues=fmaxima[:-1] if forecast is not None else None,
@@ -922,17 +922,30 @@ def complexity_map(
             xlabel="Entropy density",
         )
         
-        for i in range(plots_num):
+        if plots_num == 1:
             _base_scatter(
-                ax=axs[0][i],
-                xvalues=extracted_system[i, :, 0],
-                val_target=extracted_system[i, :, 1],
-                fxvalues=extracted_forecast[i, :, 0] if forecast is not None else None,
-                forecast=extracted_forecast[i, :, 1] if forecast is not None else None,
-                label=target_labels[i],
-                target_label=forecast_labels[i],
+                ax=axs[0],
+                xvalues=extracted_system[:, :, 0],
+                val_target=extracted_system[:, :, 1],
+                fxvalues=extracted_forecast[:, :, 0] if forecast is not None else None,
+                forecast=extracted_forecast[:, :, 1] if forecast is not None else None,
+                label=target_labels[0],
+                target_label=forecast_labels[0],
                 size=15
             )
+        
+        else:    
+            for i in range(plots_num):
+                _base_scatter(
+                    ax=axs[i],
+                    xvalues=extracted_system[i, :, 0],
+                    val_target=extracted_system[i, :, 1],
+                    fxvalues=extracted_forecast[i, :, 0] if forecast is not None else None,
+                    forecast=extracted_forecast[i, :, 1] if forecast is not None else None,
+                    label=target_labels[i],
+                    target_label=forecast_labels[i],
+                    size=15
+                )
         
         fig.supylabel("Excess entropy")
     
@@ -947,3 +960,69 @@ def complexity_map(
         
     if show:
         plt.show()
+
+###################### NEW ONES ######################
+
+def plot_heatmap(filepath: str, title: str = '', cmap: str = 'viridis', show: bool = False) -> None:
+    # Load data from JSON file
+    df = pd.read_json(filepath)
+    
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(df, cmap=cmap)
+    plt.title(title)
+    plt.show() if show else None
+
+def plot_mds(filepath: str, title: str = '', n_components: int = 2, show: bool = False) -> None:
+    df = pd.read_json(filepath)
+    embedding = MDS(n_components=n_components, dissimilarity='precomputed').fit_transform(df)
+    
+    plt.figure(figsize=(8, 6))
+    plt.scatter(embedding[:, 0], embedding[:, 1])
+    plt.title(title)
+    plt.show() if show else None
+    
+def plot_dendrogram(filepath: str, title: str = '', method: str = 'ward', show: bool = False) -> None:
+    df = pd.read_json(filepath)
+    Z = linkage(df, method=method)
+    
+    plt.figure(figsize=(10, 8))
+    dendrogram(Z, labels=df.columns)
+    plt.title(title)
+    plt.show() if show else None
+
+def plot_tsne_umap(filepath: str, method: str = 'tsne', title: str = '', show: bool = False) -> None:
+    df = pd.read_json(filepath)
+    if method == 'tsne':
+        embedding = TSNE(n_components=2).fit_transform(df)
+    elif method == 'umap':
+        embedding = umap.UMAP().fit_transform(df)
+
+    plt.figure(figsize=(8, 6))
+    plt.scatter(embedding[:, 0], embedding[:, 1])
+    plt.title(title)
+    plt.show() if show else None
+
+def main():
+    
+    # Create a random json file with a dataframe of 1000 rows and 1000 columns with random values
+    # df = pd.DataFrame(np.random.rand(1000, 1000))
+    # df.to_json('test.json')
+    
+    # Plot heatmap
+    plot_heatmap('modified_states_distances.json', title='Heatmap', show=True)
+    
+    # Plot MDS
+    # plot_mds('modified_states_distances.json', title='MDS', show=True)
+    
+    # Plot dendrogram
+    plot_dendrogram('modified_states_distances.json', title='Dendrogram', show=True)
+    
+    # Plot TSNE
+    plot_tsne_umap('modified_states_distances.json', method='tsne', title='TSNE', show=True)
+    
+    # Plot UMAP
+    plot_tsne_umap('modified_states_distances.json', method='umap', title='UMAP', show=True)
+    
+    
+if __name__ == '__main__':
+    main()
