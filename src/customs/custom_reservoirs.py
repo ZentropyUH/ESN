@@ -1,6 +1,11 @@
+import os
+# To eliminate tensorflow logs
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
 import numpy as np
 from typing import Callable, List, Tuple, Union, Optional, Dict, Any
+
+from time import time
 
 # from src.customs.custom_initializers import *
 
@@ -38,7 +43,7 @@ def create_automaton_tf(rule: Union[int, str, np.ndarray, tf.Tensor], steps: int
         """Apply the rule based on the current state."""
                 
         decimal_triad = tf.tensordot(triad, powers, axes=1)
-        int_triad = tf.cast(decimal_triad, tf.int32)        
+        int_triad = tf.cast(decimal_triad, tf.int32)
         
         if decimal_triad == tf.cast(int_triad, tf.float32):
             return tf.gather(rule, int_triad)
@@ -57,47 +62,47 @@ def create_automaton_tf(rule: Union[int, str, np.ndarray, tf.Tensor], steps: int
         state_vector = tf.convert_to_tensor(state_vector, dtype=tf.float32)
 
         state_vector = tf.reshape(state_vector, [-1])
-            
+        
         n = tf.size(state_vector)
+
+        
+        new_state_vector = tf.TensorArray(dtype=state_vector.dtype, size=n)
+        for i in range(n):
+            if state_vector[i] < 0:
+                # print("Value less than 0: ", state_vector[i])
+                new_state_vector = new_state_vector.write(i, 0)
+            elif state_vector[i] > 1:
+                # print("Value greater than 1: ", state_vector[i])
+                new_state_vector = new_state_vector.write(i, 1)
+            else:
+                new_state_vector = new_state_vector.write(i, state_vector[i])
+        state_vector = new_state_vector.stack()
+
+        
         state_vector = tf.identity(state_vector)  # Ensure TensorFlow manages the state_vector tensor
         for _ in tf.range(steps):
             new_state = tf.TensorArray(dtype=state_vector.dtype, size=n)
             for i in tf.range(n):
                 triad = tf.stack([state_vector[(i + j - num_neighbors) % n] for j in range(2 * num_neighbors + 1)])
+                # init_time = time()
                 new_state = new_state.write(i, apply_rule(triad))
+                # print("rule: ", time()-init_time)
             state_vector = new_state.stack()
+        # print("ECA: ", time()-init_time)
         return tf.reshape(state_vector, [1, -1])
 
     return automaton
 
 
 def main():
-    # automaton = eca_generator("{0:08b}".format(8))
-
     rule = np.array([i for i in "{0:08b}".format(110)], dtype=float)
-    # print("rule: ", rule)
 
-    # rule = np.random.choice((0, 1), 8)
+    automaton = create_automaton_tf(rule, steps=1)
 
-    # rule[0] = 0.3
+    initial_state = np.random.rand(1, 1000).astype(np.float32)
 
-    rule[1] = 0.5
-
-    # rule = "01101110"
-
-    automaton = create_automaton_tf(rule)
-    
-    initial_state = [0, 0, 0, 0, 0, 1, 0, 0, 0, 0]
-    
-    print("initial: ", initial_state)
-    
-    print("second: ", automaton(initial_state))
-    
-    print("third: ", automaton(automaton(initial_state)))
-    
-    print("fourth: ", automaton(automaton(automaton(initial_state))))
-    
-    print("tst: ", automaton([0,0,1]) )
+    # initial_state[0, 100] = 2
+    a = automaton(initial_state)
 
 
 if __name__ == "__main__":
