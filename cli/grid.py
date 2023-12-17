@@ -394,5 +394,19 @@ def search_unfinished_combinations_command(
     )
 
 
+@app.command(
+    name="metrics",
+    no_args_is_help=True,
+    help='Generate all the metrics from the results of the grid search.',
+)
+def metrics_command(
+    results_path: str = Option(..., "--results-path", "-rp", help='Path of the results from grid search to be analized.'),
+):
+    from research.grid.tools import calculate_metrics
+    calculate_metrics(
+        results_path=results_path,
+    )
+
+
 if __name__ == "__main__":
     app()
