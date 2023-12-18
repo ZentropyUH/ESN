@@ -16,7 +16,7 @@ from src.customs.custom_layers import (
 ###############################################
 
 
-@tf.keras.utils.register_keras_serializable(package="custom")
+@keras.saving.register_keras_serializable(package="MyModels", name="ESN")
 class ESN(keras.Model):
     """
     A simple ESN model.
@@ -309,7 +309,7 @@ class ESN(keras.Model):
         return cls(**config)
 
 
-@tf.keras.utils.register_keras_serializable(package="custom")
+@keras.saving.register_keras_serializable(package="MyModels", name="ParallelESN")
 class ParallelESN(keras.Model):
     """Parallel version of the ESN.
 
@@ -607,7 +607,7 @@ class ParallelESN(keras.Model):
 
 
 # Generic model with readout layer
-@tf.keras.utils.register_keras_serializable(package="custom")
+@keras.saving.register_keras_serializable(package="MyModels", name="ModelWithReadout")
 class ModelWithReadout(keras.Model):
     """Create a model with a readout layer.
 
