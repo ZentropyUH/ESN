@@ -399,7 +399,7 @@ def init_slurm_grid_eca(
     ),
 ):
     from research.grid.tools import init_slurm_grid
-    eca_rules = [rule.split(",") for rule in eca_rules]
+    eca_rules = [list(map(float, rule.split(","))) for rule in eca_rules]
     init_slurm_grid(
         path=path,
         job_name=job_name,
