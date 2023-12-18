@@ -26,6 +26,7 @@ from src.utils import calculate_rmse
 from src.utils import calculate_rmse_list
 from src.utils import calculate_nrmse
 from src.utils import calculate_nrmse_list
+from research.plots.systems import plot_forecast
 
 
 class Queue:
@@ -658,7 +659,8 @@ def init_slurm_grid(
 def calculate_metrics(
         results_path: str,
         data_path: str,
-        forecast_length: int = 1000
+        forecast_length: int = None,
+        depth: int = 0,
     ):
     '''
     Calculate all the metrics from the results and generate the plots.\n
@@ -668,73 +670,108 @@ def calculate_metrics(
         None
     '''
     # load model info
-    info_path = join(results_path, "0", CaseRun.PARAMS_FILE.value)
-    info = load_json(info_path)
+    info_folder = join(results_path, GridFolders.INFO.value.format(depth=depth))
+    info_file = join(info_folder, InfoFiles.INFO_FILE.value)
+    info_file = load_json(info_file)
+    dt = info_file['dt']
+    if forecast_length is None:
+        forecast_length = info_file['forecast_length']-1
 
-    # load data
-    data = []
-    for file in listdir(data_path):
-        file = join(data_path, file)
-        (_, _, _, _, _, val_target) = load_data(
-            name=file,
-            transient=info['transient'],
-            train_length=info['train_length'],
-            step=info['steps'],
+    results_path = join(results_path, GridFolders.RUN.value.format(depth=depth), RunFolders.RUN_DATA.value)
+    folders = sorted(listdir(results_path), key=lambda s: int(s.split('.')[0]))
+    for i in folders:
+        current_path = join(results_path, i)
+        forecast_path = join(current_path, CaseRun.FORECAST.value)
+        info_path = join(current_path, CaseRun.PARAMS_FILE.value)
+        info = load_json(info_path)
+
+        # load data
+        validations = []
+        for file in listdir(data_path):
+            file = join(data_path, file)
+            (_, _, _, _, _, val_target) = load_data(
+                name=file,
+                transient=info['transient'],
+                train_length=info['train_length'],
+                step=info['steps'],
+            )
+            val_target = np.reshape(val_target[:, :forecast_length, :], (forecast_length, -1))
+            validations.append(val_target)
+        
+        # load results
+        forecasts = []
+        # results_path = join(results_path, CaseRun.FORECAST.value)
+        forecast_files = sorted(listdir(forecast_path), key=lambda s: int(s.split('.')[0]))
+        for file in forecast_files:
+            file = join(forecast_path, file)
+            pred = np.reshape(read_csv(file)[:forecast_length, :], (forecast_length, -1))
+            forecasts.append(pred)
+
+        data = []
+        fn = -1
+        for true_data, pred_data in zip(validations, forecasts):
+            fn += 1
+            data.append((pred_data, true_data))
+            plot_forecast(
+                val_target=true_data,
+                forecast=pred_data,
+                filepath=join(current_path, CaseRun.FORECAST_PLOTS.value, f'{fn}.png'),
+                dt=dt,
+                cmap="jet",
+            )
+        
+        rmse_mean_folder = join(current_path, CaseRun.RMSE_MEAN.value)
+        nrmse_mean_folder = join(current_path, CaseRun.NRMSE_MEAN.value)
+        rmse_mean_file = join(current_path, CaseRun.RMSE_MEAN_FILE.value)
+        nrmse_mean_file = join(current_path, CaseRun.NRMSE_MEAN_FILE.value)
+        rmse_path = join(current_path, CaseRun.RMSE.value)
+        nrmse_path = join(current_path, CaseRun.NRMSE.value)
+        rmse_mean_plot_file = join(current_path, CaseRun.RMSE_MEAN_PLOT_FILE.value)
+        nrmse_mean_plot_file = join(current_path, CaseRun.NRMSE_MEAN_PLOT_FILE.value)
+        evaluation_file = join(current_path, CaseRun.EVALUATION_FILE.value)
+
+        makedirs(rmse_path, exist_ok=True)
+        makedirs(nrmse_path, exist_ok=True)
+        makedirs(rmse_mean_folder, exist_ok=True)
+        makedirs(nrmse_mean_folder, exist_ok=True)
+
+
+        # Calculate rmse and nrmse
+        rmse_list = [calculate_rmse_list(target=true_pred, prediction=pred) for pred, true_pred in data]
+        nrmse_list = [calculate_nrmse_list(target=true_pred, prediction=pred) for pred, true_pred in data]
+        rmse_list_mean = np.mean(rmse_list, axis=0)
+        nrmse_list_mean = np.mean(nrmse_list, axis=0)
+
+        rmse = [calculate_rmse(target=true_pred, prediction=pred) for pred, true_pred in data]
+        nrmse = [calculate_nrmse(target=true_pred, prediction=pred) for pred, true_pred in data]
+        rmse_mean = np.mean(rmse, axis=0)
+        nrmse_mean = np.mean(nrmse, axis=0)
+
+        save_csv(rmse_list_mean, rmse_mean_file)
+        save_csv(nrmse_list_mean, nrmse_mean_file)
+
+        for i, current in enumerate(zip(rmse_list, nrmse_list)):
+            _rmse, _nrmse = current
+            save_csv(_rmse, join(rmse_path, f'{i}.csv'))
+            save_csv(_nrmse, join(nrmse_path, f'{i}.csv'))
+
+        save_plot(
+            data=rmse_list_mean,
+            filepath=rmse_mean_plot_file,
+            xlabel="Time",
+            ylabel="Root Mean square error",
+            title="Plot of root mean square error",
         )
-        data.append(val_target[:, :forecast_length, :][0])
-    
-    # load results
-    results = []
-    # results_path = join(results_path, CaseRun.FORECAST.value)
-    results_files = sorted(sort_by_int(listdir(results_path)), key=lambda s: int(s.split('.')[0]))
-    for file in results_files:
-        file = join(results_path, file, CaseRun.FORECAST.value)
-        results.append(read_csv(file))
-    a = 1
-    # calculate metrics
-    # for true_data, pred_data in zip(data, results):
-    #     rmse = calculate_rmse(true_data, pred_data)
-    #     nrmse = calculate_nrmse(true_data, pred_data)
-    #     rmse_mean = calculate_rmse_list(true_data, pred_data)
-    #     nrmse_mean = calculate_nrmse_list(true_data, pred_data)
+        save_plot(
+            data=nrmse_list_mean,
+            filepath=nrmse_mean_plot_file,
+            xlabel="Time",
+            ylabel="Normalized Root Mean square error",
+            title="Plot of normalized root mean square error",
+        )
 
-    #     # save metrics
-    #     rmse_path = join(results_path, CaseRun.RMSE.value)
-    #     nrmse_path = join(results_path, CaseRun.NRMSE.value)
-    #     rmse_mean_path = join(results_path, CaseRun.RMSE_MEAN.value)
-    #     nrmse_mean_path = join(results_path, CaseRun.NRMSE_MEAN.value)
-    #     makedirs(rmse_path, exist_ok=True)
-    #     makedirs(nrmse_path, exist_ok=True)
-    #     makedirs(rmse_mean_path, exist_ok=True)
-    #     makedirs(nrmse_mean_path, exist_ok=True)
-
-    #     save_csv(rmse, join(rmse_path, CaseRun.RMSE_FILE.value))
-    #     save_csv(nrmse, join(nrmse_path, CaseRun.NRMSE_FILE.value))
-    #     save_csv(rmse_mean, join(rmse_mean_path, CaseRun.RMSE_MEAN_FILE.value))
-    #     save_csv(nrmse_mean, join(nrmse_mean_path, CaseRun.NRMSE_MEAN_FILE.value))
-
-    #     # save plots
-    #     save_plot(
-    #         rmse_mean,
-    #         join(rmse_mean_path, CaseRun.RMSE_MEAN_PLOT_FILE.value),
-    #         xlabel='Time',
-    #         ylabel='RMSE',
-    #         title='RMSE Mean',
-    #     )
-    #     save_plot(
-    #         nrmse_mean,
-    #         join(nrmse_mean_path, CaseRun.NRMSE_MEAN_PLOT_FILE.value),
-    #         xlabel='Time',
-    #         ylabel='NRMSE',
-    #         title='NRMSE Mean',
-    #     )
-    #     plot_forecast(
-    #         true_data,
-    #         pred_data,
-    #         join(results_path, CaseRun.FORECAST_PLOTS.value),
-    #     )
-    
-    
+        with open(evaluation_file, 'w') as f:
+            json.dump({'rmse': rmse_mean, 'nrmse': nrmse_mean}, f, indent=4)
 
 
 def grid_aux(

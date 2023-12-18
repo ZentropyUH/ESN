@@ -401,10 +401,16 @@ def search_unfinished_combinations_command(
 )
 def metrics_command(
     results_path: str = Option(..., "--results-path", "-rp", help='Path of the results from grid search to be analized.'),
+    data_path: str = Option(..., '--data-path', '-dp', help='Path of the System data.'),
+    forecast_length: int = Option(None, "--forecast-length", "-fl", help="The number of points to be forecasted. The default is 1000."),
+    depth = Option(0, "--depth", "-d", help='Grid depth, to specify the depth of the grid seach.'),
 ):
     from research.grid.tools import calculate_metrics
     calculate_metrics(
         results_path=results_path,
+        data_path=data_path,
+        forecast_length=forecast_length,
+        depth=depth,
     )
 
 
