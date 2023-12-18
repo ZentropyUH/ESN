@@ -675,9 +675,9 @@ def calculate_metrics(
     info_file = join(info_folder, InfoFiles.INFO_FILE.value)
     info_file = load_json(info_file)
     if dt is None:
-        dt = info_file['dt']
+        dt = info_file['dt'][0]
     if forecast_length is None:
-        forecast_length = info_file['forecast_length']-1
+        forecast_length = info_file['forecast_length'][0]-1
 
     results_path = join(results_path, GridFolders.RUN.value.format(depth=depth), RunFolders.RUN_DATA.value)
     folders = sorted(listdir(results_path), key=lambda s: int(s.split('.')[0]))
