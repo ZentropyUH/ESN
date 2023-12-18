@@ -574,7 +574,6 @@ def init_slurm_grid(
     input_initializer: str,
     input_bias_initializer: str,
     reservoir_activation: str,
-    reservoir_initializer: str,
 
     units: List[int],
     train_length: List[int],
@@ -585,12 +584,8 @@ def init_slurm_grid(
     lyapunov_exponent: List[float],
     input_scaling: List[float],
     leak_rate: List[float],
-    reservoir_degree: List[int],
-    reservoir_sigma: List[float],
 
-    spectral_radius: List[float],
     regularization: List[float],
-    rewiring: List[float],
     **kwargs,
 ):
     '''
@@ -623,16 +618,11 @@ def init_slurm_grid(
                 'lyapunov_exponent': lyapunov_exponent,
                 'input_scaling': input_scaling,
                 'leak_rate': leak_rate,
-                'spectral_radius': spectral_radius,
-                'rewiring': rewiring,
-                'reservoir_degree': reservoir_degree,
-                'reservoir_sigma': reservoir_sigma,
                 'regularization': regularization,
                 'model': [model],
                 'input_initializer': [input_initializer],
                 'input_bias_initializer': [input_bias_initializer],
                 'reservoir_activation': [reservoir_activation],
-                'reservoir_initializer': [reservoir_initializer],
             },
             **kwargs,
         }

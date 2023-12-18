@@ -36,14 +36,9 @@ def grid(
     input_initializer: str,
     input_bias_initializer: str,
     reservoir_activation: str,
-    reservoir_initializer: str,
 
     input_scaling: float,
     leak_rate: float,
-    spectral_radius: float,
-    rewiring: float,
-    reservoir_degree: int,
-    reservoir_sigma: float,
     regularization: float,
     **kwargs,
 ):
@@ -108,7 +103,6 @@ def grid(
         input_initializer=input_initializer,
         input_bias_initializer=input_bias_initializer,
         reservoir_activation=reservoir_activation,
-        reservoir_initializer=reservoir_initializer,
 
         # seed=42,
         units=units,
@@ -118,10 +112,6 @@ def grid(
 
         input_scaling=input_scaling,
         leak_rate=leak_rate,
-        spectral_radius=spectral_radius,
-        rewiring=rewiring,
-        reservoir_degree=reservoir_degree,
-        reservoir_sigma=reservoir_sigma,
         regularization=regularization,
         **kwargs,
     )
