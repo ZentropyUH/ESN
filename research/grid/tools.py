@@ -713,7 +713,7 @@ def calculate_metrics(
 
     
     folders = sorted(listdir(results_path), key=lambda s: int(s.split('.')[0]))
-    for i in folders:
+    for i in track(folders, description='Calculating metrics'):
         current_path = join(results_path, i)
         forecast_path = join(current_path, CaseRun.FORECAST.value)
         info_path = join(current_path, CaseRun.PARAMS_FILE.value)
