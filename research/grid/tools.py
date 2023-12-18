@@ -659,8 +659,9 @@ def init_slurm_grid(
 def calculate_metrics(
         results_path: str,
         data_path: str,
-        forecast_length: int = None,
         depth: int = 0,
+        forecast_length: int = None,
+        dt: float = None,
     ):
     '''
     Calculate all the metrics from the results and generate the plots.\n
@@ -673,7 +674,8 @@ def calculate_metrics(
     info_folder = join(results_path, GridFolders.INFO.value.format(depth=depth))
     info_file = join(info_folder, InfoFiles.INFO_FILE.value)
     info_file = load_json(info_file)
-    dt = info_file['dt']
+    if dt is None:
+        dt = info_file['dt']
     if forecast_length is None:
         forecast_length = info_file['forecast_length']-1
 
