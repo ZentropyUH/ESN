@@ -311,6 +311,119 @@ def init_slurm_grid_parallel_esn(
     )
 
 
+@app.command(
+    name="init-grid-eca",
+    no_args_is_help=True,
+    help='Initialize all files and folders for grid search.'
+)
+def init_slurm_grid_eca(
+    path: str = Option(
+        ...,
+        '--path', '-p',
+        help='Base path to save grid search folders and files.'
+    ),
+    job_name: str = Option(
+        'job',
+        '--job-name', '-j',
+        help='Slurm job name.'
+    ),
+    job_limit: int = Option(
+        50,
+        '--job-limit', '-jl',
+        help='Slurm jobs limit.'
+    ),
+    data_path: str = Option(
+        ...,
+        '--data-path', '-dp',
+        help='Path of the System data.'
+    ),
+    input_initializer: EnumInputInitializer = Option(
+        'InputMatrix',
+        '-ii', '--input-initializer'
+    ),
+    input_bias_initializer: EnumInputBiasInitializer= Option(
+        'RandomUniform',
+        '-ib', '--input-bias'
+    ),
+    reservoir_activation: EnumReservoirActivation = Option(
+        'tanh', '-ra',
+        '--reservoir-activation'
+    ),
+    units: List[int] = Option(
+        [5000],
+        '--units', '-u'
+    ),
+    train_length: List[int] = Option(
+        [20000],
+        '--train-length', '-tl'
+    ),
+    forecast_length: List[int] = Option(
+        [1000],
+        '--forecast-length', '-fl'
+    ),
+    transient: List[int] = Option(
+        [1000],
+        '--transient', '-t'
+    ),
+    steps: List[int] = Option(
+        [1],
+        '--steps', '-s'
+    ),
+    delta_time: List[float] = Option(
+        [1],
+        '--delta-time', '-dt'
+    ),
+    lyapunov_exponent: List[float] = Option(
+        [1],
+        '--lyapunov-exponent', '-ly'
+    ),
+    input_scaling: List[float] = Option(
+        ...,
+        '--input-scaling', '-is'
+    ),
+    leak_rate: List[float] = Option(
+        ...,
+        '--leak-rate', '-lr'
+    ),
+    eca_rules: List[str] = Option(
+        ...,
+        '--eca-rules', '-er'
+    ),
+    eca_steps: List[int] = Option(
+        ...,
+        '--eca-steps', '-es'
+    ),
+    regularization: List[float] = Option(
+        ...,
+        '--regularization', '-rg'
+    ),
+):
+    from research.grid.tools import init_slurm_grid
+    eca_rules = [rule.split(",") for rule in eca_rules]
+    init_slurm_grid(
+        path=path,
+        job_name=job_name,
+        jobs_limit=job_limit,
+        data_path=data_path,
+        model=EnumModel.ECA.value,
+        input_initializer=input_initializer,
+        input_bias_initializer=input_bias_initializer,
+        reservoir_activation=reservoir_activation,
+        units=units,
+        train_length=train_length,
+        forecast_length=forecast_length,
+        transient=transient,
+        steps=steps,
+        dt=delta_time,
+        lyapunov_exponent=lyapunov_exponent,
+        input_scaling=input_scaling,
+        leak_rate=leak_rate,
+        regularization=regularization,
+        eca_rules=eca_rules,
+        eca_steps=eca_steps,
+    )
+
+
 # FIX
 @app.command(
     name="grid-aux",

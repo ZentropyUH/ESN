@@ -32,11 +32,6 @@ def train(
     input_scaling: float,
     leak_rate: float,
     reservoir_activation: str,
-    
-    # reservoir_initializer: str,
-    # reservoir_degree: int,
-    # reservoir_sigma: float,
-    # spectral_radius: float,
 
     regularization: float, #FIX
     # readout_layer: str = None, #FIX
