@@ -188,6 +188,14 @@ class ESN:
 
         self.set_states(new_random_states)
     
+    def reset_states(self):
+        """Reset internal states of the RNNs of the model."""
+        
+        for layer in self.model.layers:
+            if hasattr(layer, 'name') and 'esn_rnn' in layer.name and isinstance(layer, keras.layers.RNN):
+                layer.reset_states()
+    
+    
    #  def train_test(
     #     self,
     #     transient_data: np.ndarray,
@@ -291,7 +299,7 @@ class ESN:
         Returns:
             Tuple[np.ndarray, Optional[np.ndarray]]: A tuple containing the forecasted data and the states of the ESN (if internal_states is True).
         '''
-        self.model.reset_states()
+        self.reset_states()
 
         forecast_length = min(forecast_length, val_data.shape[1]) if feedback_metrics else forecast_length
 
@@ -342,7 +350,7 @@ class ESN:
         Args:
             path (str): The destination folder to save all the files of the model.
         '''
-        self.model.save(path, include_optimizer=False)
+        self.model.save(os.path.join(path,"model.keras"), include_optimizer=False)
 
     # BUG: Some trained models cant be loaded. E.g. with bias InputMatrix works ok.
     @staticmethod
@@ -356,7 +364,10 @@ class ESN:
         Return:
             model (ESN): Return the loaded instance of the ESN model.
         '''
-        model: keras.Model = keras.models.load_model(path, compile=False)
+        model_path = os.path.join(path,"model.keras")
+        
+        model: keras.Model = keras.models.load_model(model_path, compile=False)
+        
         inputs = model.get_layer("Input").output
         outputs = model.get_layer("Concat_ESN_input").output
         readout = model.get_layer("readout")

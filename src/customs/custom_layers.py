@@ -19,7 +19,7 @@ from src.customs.custom_reservoirs import create_automaton_tf
 # TODO: Add the input to the ESN cell remember what you call now input is feedback from the outputs
 
 
-@tf.keras.utils.register_keras_serializable(package="custom")
+@keras.saving.register_keras_serializable(package="MyLayers", name="EsnCell")
 class EsnCell(keras.layers.Layer):
     """Generates an ESN cell with the given parameters.
 
@@ -144,10 +144,10 @@ class EsnCell(keras.layers.Layer):
         prev_output = states[0]
 
         # The input term.
-        input_part = keras.backend.dot(inputs, self.w_input) + self.input_bias
+        input_part = keras.ops.dot(inputs, self.w_input) + self.input_bias
 
         # The recurrent term.
-        state_part = keras.backend.dot(prev_output, self.w_recurrent)
+        state_part = keras.ops.dot(prev_output, self.w_recurrent)
 
         # Producing the new state
         new_state = self.activation(input_part + state_part)
@@ -164,21 +164,22 @@ class EsnCell(keras.layers.Layer):
         config.update(
             {
                 "units": self.units,
-                "activation": self.activation,
+                "activation": self.activation.__name__,
                 "leak_rate": self.leak_rate,
                 "input_initializer": self.input_initializer,
                 "input_bias_initializer": self.input_bias_initializer,
                 "reservoir_initializer": self.reservoir_initializer,
             }
         )
+        print(config)
         return config
 
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
+    # @classmethod
+    # def from_config(cls, config):
+    #     return cls(**config)
 
 
-@tf.keras.utils.register_keras_serializable(package="custom")
+@keras.saving.register_keras_serializable(package="MyLayers", name="PowerIndex")
 class PowerIndex(keras.layers.Layer):
     """Applies a power function to the input even/odd indexed elements.
 
@@ -247,11 +248,12 @@ class PowerIndex(keras.layers.Layer):
         """Get the config dictionary of the layer for serialization."""
         config = super().get_config()
         config.update({"index": self.index, "exponent": self.exponent})
+        print(config)
         return config
 
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
+    # @classmethod
+    # def from_config(cls, config):
+    #     return cls(**config)
 
     def get_weights(self) -> List:
         """Return the weights of the layer."""
@@ -259,7 +261,7 @@ class PowerIndex(keras.layers.Layer):
 
 
 # For the ParallelReservoir model
-@tf.keras.utils.register_keras_serializable(package="custom")
+@keras.saving.register_keras_serializable(package="MyLayers", name="InputSplitter")
 class InputSplitter(keras.layers.Layer):
     def __init__(self, partitions, overlap, **kwargs):
         super(InputSplitter, self).__init__(**kwargs)
@@ -304,14 +306,15 @@ class InputSplitter(keras.layers.Layer):
             'partitions': self.partitions,
             'overlap': self.overlap
         })
+        print(config)
         return config
 
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
+    # @classmethod
+    # def from_config(cls, config):
+    #     return cls(**config)
 
 
-@tf.keras.utils.register_keras_serializable(package="custom")
+@keras.saving.register_keras_serializable(package="MyLayers", name="PseudoInverseRegression")
 class PseudoInverseRegression(keras.layers.Layer):
     def __init__(self, output_dim, **kwargs):
         self.output_dim = output_dim
@@ -332,7 +335,7 @@ class PseudoInverseRegression(keras.layers.Layer):
         return input_shape[0], self.output_dim
 
 
-@tf.keras.utils.register_keras_serializable(package="custom")
+@keras.saving.register_keras_serializable(package="MyLayers", name="ReservoirCell")
 class ReservoirCell(keras.layers.Layer):
     """Calculates the next internal states attending to reservoir_function.
 
@@ -427,7 +430,7 @@ class ReservoirCell(keras.layers.Layer):
         prev_state = states[0]
 
         # The input term.
-        input_part = keras.backend.dot(inputs, self.w_input) + self.input_bias
+        input_part = keras.ops.dot(inputs, self.w_input) + self.input_bias
 
         # The reservoir term.
         state_part = self.reservoir_function(prev_state)
@@ -457,15 +460,16 @@ class ReservoirCell(keras.layers.Layer):
                 "reservoir_function": self.reservoir_function,
                 "input_initializer": self.input_initializer,
                 "input_bias_initializer": self.input_bias_initializer,
-                "activation": self.activation,
+                "activation": self.activation.__name__,
                 "leak_rate": self.leak_rate,
             }
         )
+        print(config)
         return config
 
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
+    # @classmethod
+    # def from_config(cls, config):
+    #     return cls(**config)
 
 
 def simple_esn(units: int, 
@@ -623,11 +627,11 @@ def eca_esn(units: int,
     return reservoir
 
 
-custom_layers = {
-    "EsnCell": EsnCell,
-    "PowerIndex": PowerIndex,
-    "InputSplitter": InputSplitter,
-    "ReservoirCell": ReservoirCell,
-}
+# custom_layers = {
+#     "EsnCell": EsnCell,
+#     "PowerIndex": PowerIndex,
+#     "InputSplitter": InputSplitter,
+#     "ReservoirCell": ReservoirCell,
+# }
 
-keras.utils.get_custom_objects().update(custom_layers)
+# keras.utils.get_custom_objects().update(custom_layers)
