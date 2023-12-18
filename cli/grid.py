@@ -404,7 +404,7 @@ def metrics_command(
     data_path: str = Option(..., '--data-path', '-dp', help='Path of the System data.'),
     forecast_length: int = Option(None, "--forecast-length", "-fl", help="The number of points to be forecasted. The default is 1000."),
     depth = Option(0, "--depth", "-d", help='Grid depth, to specify the depth of the grid seach.'),
-    delta_time: List[float] = Option(None, '--delta-time', '-dt', help='Delta time of the system.'),
+    delta_time: float = Option(None, '--delta-time', '-dt', help='Delta time of the system.'),
 ):
     from research.grid.tools import calculate_metrics
     calculate_metrics(
