@@ -675,11 +675,43 @@ def calculate_metrics(
     info_file = join(info_folder, InfoFiles.INFO_FILE.value)
     info_file = load_json(info_file)
     if dt is None:
-        dt = info_file['dt'][0]
+        try:
+            dt = info_file['dt'][0]
+        except:
+            dt = info_file['dt']
     if forecast_length is None:
-        forecast_length = info_file['forecast_length'][0]-1
-
+        try:
+            forecast_length = info_file['forecast_length'][0]-1
+        except:
+            forecast_length = info_file['forecast_length']-1
+    try:
+        transient = info_file['transient'][0]
+    except:
+        transient = info_file['transient']
+    try:
+        train_length = info_file['train_length'][0]
+    except:
+        train_length = info_file['train_length']
+    try:
+        steps = info_file['steps'][0]
+    except:
+        steps = info_file['steps']
+    
     results_path = join(results_path, GridFolders.RUN.value.format(depth=depth), RunFolders.RUN_DATA.value)
+    
+    validations = []
+    for file in listdir(data_path):
+        file = join(data_path, file)
+        (_, _, _, _, _, val_target) = load_data(
+            name=file,
+            transient=transient,
+            train_length=train_length,
+            step=steps,
+        )
+        val_target = np.reshape(val_target[:, :forecast_length, :], (forecast_length, -1))
+        validations.append(val_target)
+
+    
     folders = sorted(listdir(results_path), key=lambda s: int(s.split('.')[0]))
     for i in folders:
         current_path = join(results_path, i)
@@ -688,17 +720,7 @@ def calculate_metrics(
         info = load_json(info_path)
 
         # load data
-        validations = []
-        for file in listdir(data_path):
-            file = join(data_path, file)
-            (_, _, _, _, _, val_target) = load_data(
-                name=file,
-                transient=info['transient'],
-                train_length=info['train_length'],
-                step=info['steps'],
-            )
-            val_target = np.reshape(val_target[:, :forecast_length, :], (forecast_length, -1))
-            validations.append(val_target)
+        
         
         # load results
         forecasts = []
