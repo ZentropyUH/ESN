@@ -64,20 +64,6 @@ def create_automaton_tf(rule: Union[int, str, np.ndarray, tf.Tensor], steps: int
         state_vector = tf.reshape(state_vector, [-1])
         
         n = tf.size(state_vector)
-
-        
-        new_state_vector = tf.TensorArray(dtype=state_vector.dtype, size=n)
-        for i in range(n):
-            if state_vector[i] < 0:
-                # print("Value less than 0: ", state_vector[i])
-                new_state_vector = new_state_vector.write(i, 0)
-            elif state_vector[i] > 1:
-                # print("Value greater than 1: ", state_vector[i])
-                new_state_vector = new_state_vector.write(i, 1)
-            else:
-                new_state_vector = new_state_vector.write(i, state_vector[i])
-        state_vector = new_state_vector.stack()
-
         
         state_vector = tf.identity(state_vector)  # Ensure TensorFlow manages the state_vector tensor
         for _ in tf.range(steps):
