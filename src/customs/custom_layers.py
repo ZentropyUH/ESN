@@ -171,7 +171,6 @@ class EsnCell(keras.layers.Layer):
                 "reservoir_initializer": self.reservoir_initializer,
             }
         )
-        print(config)
         return config
 
     # @classmethod
@@ -248,7 +247,6 @@ class PowerIndex(keras.layers.Layer):
         """Get the config dictionary of the layer for serialization."""
         config = super().get_config()
         config.update({"index": self.index, "exponent": self.exponent})
-        print(config)
         return config
 
     # @classmethod
@@ -306,7 +304,6 @@ class InputSplitter(keras.layers.Layer):
             'partitions': self.partitions,
             'overlap': self.overlap
         })
-        print(config)
         return config
 
     # @classmethod
@@ -464,7 +461,6 @@ class ReservoirCell(keras.layers.Layer):
                 "leak_rate": self.leak_rate,
             }
         )
-        print(config)
         return config
 
     # @classmethod
