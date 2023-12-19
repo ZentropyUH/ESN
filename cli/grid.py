@@ -311,6 +311,119 @@ def init_slurm_grid_parallel_esn(
     )
 
 
+@app.command(
+    name="init-grid-eca",
+    no_args_is_help=True,
+    help='Initialize all files and folders for grid search.'
+)
+def init_slurm_grid_eca(
+    path: str = Option(
+        ...,
+        '--path', '-p',
+        help='Base path to save grid search folders and files.'
+    ),
+    job_name: str = Option(
+        'job',
+        '--job-name', '-j',
+        help='Slurm job name.'
+    ),
+    job_limit: int = Option(
+        50,
+        '--job-limit', '-jl',
+        help='Slurm jobs limit.'
+    ),
+    data_path: str = Option(
+        ...,
+        '--data-path', '-dp',
+        help='Path of the System data.'
+    ),
+    input_initializer: EnumInputInitializer = Option(
+        'InputMatrix',
+        '-ii', '--input-initializer'
+    ),
+    input_bias_initializer: EnumInputBiasInitializer= Option(
+        'RandomUniform',
+        '-ib', '--input-bias'
+    ),
+    reservoir_activation: EnumReservoirActivation = Option(
+        'tanh', '-ra',
+        '--reservoir-activation'
+    ),
+    units: List[int] = Option(
+        [5000],
+        '--units', '-u'
+    ),
+    train_length: List[int] = Option(
+        [20000],
+        '--train-length', '-tl'
+    ),
+    forecast_length: List[int] = Option(
+        [1000],
+        '--forecast-length', '-fl'
+    ),
+    transient: List[int] = Option(
+        [1000],
+        '--transient', '-t'
+    ),
+    steps: List[int] = Option(
+        [1],
+        '--steps', '-s'
+    ),
+    delta_time: List[float] = Option(
+        [1],
+        '--delta-time', '-dt'
+    ),
+    lyapunov_exponent: List[float] = Option(
+        [1],
+        '--lyapunov-exponent', '-ly'
+    ),
+    input_scaling: List[float] = Option(
+        ...,
+        '--input-scaling', '-is'
+    ),
+    leak_rate: List[float] = Option(
+        ...,
+        '--leak-rate', '-lr'
+    ),
+    eca_rules: List[str] = Option(
+        ...,
+        '--eca-rules', '-er'
+    ),
+    eca_steps: List[int] = Option(
+        ...,
+        '--eca-steps', '-es'
+    ),
+    regularization: List[float] = Option(
+        ...,
+        '--regularization', '-rg'
+    ),
+):
+    from research.grid.tools import init_slurm_grid
+    eca_rules = [list(map(float, rule.split(","))) for rule in eca_rules]
+    init_slurm_grid(
+        path=path,
+        job_name=job_name,
+        jobs_limit=job_limit,
+        data_path=data_path,
+        model=EnumModel.ECA.value,
+        input_initializer=input_initializer,
+        input_bias_initializer=input_bias_initializer,
+        reservoir_activation=reservoir_activation,
+        units=units,
+        train_length=train_length,
+        forecast_length=forecast_length,
+        transient=transient,
+        steps=steps,
+        dt=delta_time,
+        lyapunov_exponent=lyapunov_exponent,
+        input_scaling=input_scaling,
+        leak_rate=leak_rate,
+        regularization=regularization,
+        eca_rules=eca_rules,
+        eca_steps=eca_steps,
+    )
+
+
 # FIX
 @app.command(
     name="grid-aux",
@@ -391,6 +504,70 @@ def search_unfinished_combinations_command(
         path=path,
         depth=depth,
         jobs_limit=jobs_limit
+    )
+
+
+@app.command(
+    name="metrics",
+    no_args_is_help=True,
+    help='Generate all the metrics from the results of the grid search.',
+)
+def metrics_command(
+    results_path: str = Option(..., "--results-path", "-rp", help='Path of the results from grid search to be analized.'),
+    data_path: str = Option(..., '--data-path', '-dp', help='Path of the System data.'),
+    forecast_length: int = Option(None, "--forecast-length", "-fl", help="The number of points to be forecasted. The default is 1000."),
+    depth = Option(0, "--depth", "-d", help='Grid depth, to specify the depth of the grid seach.'),
+    delta_time: float = Option(None, '--delta-time', '-dt', help='Delta time of the system.'),
+):
+    from research.grid.tools import calculate_metrics
+    calculate_metrics(
+        results_path=results_path,
+        data_path=data_path,
+        forecast_length=forecast_length,
+        depth=depth,
+        dt=delta_time,
+    )
+
+
+@app.command(
+    name="init-metrics",
+    no_args_is_help=True,
+    help='Generate all the metrics from the results of the grid search.',
+)
+def init_metrics_command(
+    job_name: str = Option("metric", "--job-name", "-j", help='Slurm job name.'),
+    job_limit: int = Option(50, "--job-limit", "-jl", help='Limit of jobs to be executed at the same time.'),
+    results_path: str = Option(..., "--results-path", "-rp", help='Path of the results from grid search to be analized.'),
+    data_path: str = Option(..., '--data-path', '-dp', help='Path of the System data.'),
+    forecast_length: int = Option(None, "--forecast-length", "-fl", help="The number of points to be forecasted. The default is 1000."),
+    depth = Option(0, "--depth", "-d", help='Grid depth, to specify the depth of the grid seach.'),
+    delta_time: float = Option(None, '--delta-time', '-dt', help='Delta time of the system.'),
+):
+    from research.grid.tools import slurm_init_metrics
+    slurm_init_metrics(
+        job_name=job_name,
+        jobs_limit=job_limit,
+        results_path=results_path,
+        data_path=data_path,
+        forecast_length=forecast_length,
+        depth=depth,
+        dt=delta_time,
+    )
+
+
+@app.command(
+    name="slurm-metrics",
+    no_args_is_help=True,
+    help='Generate all the metrics from the results of the grid search.',
+)
+def init_metrics_command(
+    results_path: str = Option(..., "--results-path", "-rp", help='Path of the results from grid search to be analized.'),
+    data_path: str = Option(..., '--data-path', '-dp', help='Path of the System data.'),
+):
+    from research.grid.tools import calculate_slurm_metrics
+    calculate_slurm_metrics(
+        results_path=results_path,
+        data_path=data_path,
     )
 
 

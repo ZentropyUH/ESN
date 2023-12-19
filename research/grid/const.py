@@ -30,6 +30,8 @@ class InfoFiles(BaseFolders):
     COMBINATIONS_FILE = 'combinations.json'
     SLURM_FILE = 'script.sh'
     SLURM_UNFINISHED_FILE = 'script_unfinished.sh'
+    SLURM_METRICS_FILE = 'script_metrics.sh'
+    METRICS_INFO = 'metrics_info.json'
 
 
 # GRID FOLDERS
@@ -134,6 +136,87 @@ cp -r $output/* $save
 echo "end of save"
 
 
+
+########## CLEANUP & EXIT ##########
+
+# Clean up all the shit
+rm -rf $scratch
+
+# Exit gracefully
+'''
+
+
+METRICS_SCRIPT = '''#!/bin/bash
+
+########## RESOURCES TO USE ##########
+
+#SBATCH --job-name="{job_name}"
+
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=4
+#SBATCH --mem-per-cpu=4G
+
+#SBATCH --time=2-00:00:00
+#SBATCH --partition=medium
+
+#SBATCH --array={array}%{jobs_limit}
+
+########## MODULES ##########
+
+module purge
+module load python/3.10.5
+
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+
+########## PATHS ##########
+
+# Create your scratch space
+scratch="/scratch/$USER/$SLURM_JOB_ID"
+mkdir -p $scratch
+cd $scratch
+
+# project path
+ESN=./ESN
+mkdir -p $ESN
+
+# data path
+data="./data"
+mkdir -p $data
+
+# results path
+current_results="{results_path}/{run}/data/{id}"
+
+# new results path
+new_results="{id}"
+mkdir -p $new_results
+
+########## COPY ##########
+
+# Copy project files to scratch
+echo "copying project............"
+cp -r {repo}/* $ESN
+
+echo "copying project............"
+cp -r "{info_file}" $scratch
+
+echo "copy results............"
+cp -r $current_results/* $new_results
+
+echo "copying data............"
+cp -r {data_path}/* $data
+echo "end of copy"
+
+########## RUN ##########
+
+echo "runing............"
+srun python3 ESN/main.py grid slurm-metrics --results-path $new_results --data-path $data
+echo "end of run"
+
+########## SAVE ##########
+
+echo "saving............"
+cp -r $new_results/* $current_results
+echo "end of current_results"
 
 ########## CLEANUP & EXIT ##########
 
