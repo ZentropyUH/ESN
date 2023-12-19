@@ -529,5 +529,47 @@ def metrics_command(
     )
 
 
+@app.command(
+    name="init-metrics",
+    no_args_is_help=True,
+    help='Generate all the metrics from the results of the grid search.',
+)
+def init_metrics_command(
+    job_name: str = Option("metric", "--job-name", "-j", help='Slurm job name.'),
+    job_limit: int = Option(50, "--job-limit", "-jl", help='Limit of jobs to be executed at the same time.'),
+    results_path: str = Option(..., "--results-path", "-rp", help='Path of the results from grid search to be analized.'),
+    data_path: str = Option(..., '--data-path', '-dp', help='Path of the System data.'),
+    forecast_length: int = Option(None, "--forecast-length", "-fl", help="The number of points to be forecasted. The default is 1000."),
+    depth = Option(0, "--depth", "-d", help='Grid depth, to specify the depth of the grid seach.'),
+    delta_time: float = Option(None, '--delta-time', '-dt', help='Delta time of the system.'),
+):
+    from research.grid.tools import slurm_init_metrics
+    slurm_init_metrics(
+        job_name=job_name,
+        jobs_limit=job_limit,
+        results_path=results_path,
+        data_path=data_path,
+        forecast_length=forecast_length,
+        depth=depth,
+        dt=delta_time,
+    )
+
+
+@app.command(
+    name="slurm-metrics",
+    no_args_is_help=True,
+    help='Generate all the metrics from the results of the grid search.',
+)
+def init_metrics_command(
+    results_path: str = Option(..., "--results-path", "-rp", help='Path of the results from grid search to be analized.'),
+    data_path: str = Option(..., '--data-path', '-dp', help='Path of the System data.'),
+):
+    from research.grid.tools import calculate_slurm_metrics
+    calculate_slurm_metrics(
+        results_path=results_path,
+        data_path=data_path,
+    )
+
+
 if __name__ == "__main__":
     app()
