@@ -26,23 +26,24 @@ def create_automaton_tf(rule: Union[int, str, np.ndarray, tf.Tensor], steps: int
     if isinstance(rule, str):
         rule = np.array([i for i in rule], dtype=float)
     
-    rule = ops.convert_to_tensor(rule, dtype=tf.float32)
     rule = np.flip(rule, axis=[0])
     
-    num_neighbors = int((ops.log(ops.cast(ops.size(rule), dtype="float32")) / ops.log(2.0) - 1) / 2)
-    assert num_neighbors == ((ops.log(ops.cast(ops.size(rule), dtype="float32")) / ops.log(2.0) - 1) / 2), "Rule length must be 2^n"
+    num_neighbors = int((np.log2(len(rule)) - 1) / 2)
+    
+    assert num_neighbors == ((np.log2(len(rule)) - 1) / 2), "Rule length must be 2^n"
 
-    powers = ops.power(2, ops.arange(0, 2 * num_neighbors + 1, dtype="float32"))
-    powers = ops.flip(powers, axis=0)
 
-    @tf.function
+    powers = 2 ** np.arange(0, 2 * num_neighbors + 1, dtype="float32")
+    powers = np.flip(powers)
+
+    # @tf.function
     def apply_rule(triad: tf.Tensor) -> tf.Tensor:
         """Apply the rule based on the current state."""
 
         decimal_triad = ops.tensordot(triad, powers, axes=1)
         int_triad = ops.cast(decimal_triad, dtype="int32")
         
-        if decimal_triad == ops.cast(int_triad, dtype="float32"):
+        if ops.equal(decimal_triad, ops.cast(int_triad, dtype="float32")):
             return ops.get_item(rule, int_triad)
         
         elif decimal_triad < ops.cast(int_triad, dtype="float32") + 0.5:
@@ -51,12 +52,12 @@ def create_automaton_tf(rule: Union[int, str, np.ndarray, tf.Tensor], steps: int
         else:
             return 2 * (ops.get_item(rule, int_triad) - ops.get_item(rule, int_triad + 1)) * ops.power((decimal_triad - ops.cast(int_triad, dtype="float32") - 1), 2) + ops.get_item(rule, int_triad + 1)
 
-    @tf.function
+    # @tf.function
     def automaton(state_vector: tf.Tensor) -> tf.Tensor:
         """Run the automaton for the given number of steps."""
         assert steps > 0, "Number of steps must be positive"
     
-        state_vector = ops.convert_to_tensor(state_vector, dtype=tf.float32)
+        state_vector = ops.convert_to_tensor(state_vector, dtype="float32")
         state_vector = ops.reshape(state_vector, [-1])
         n = ops.size(state_vector)
         
@@ -73,10 +74,16 @@ def create_automaton_tf(rule: Union[int, str, np.ndarray, tf.Tensor], steps: int
 
 def main():
     rule = np.array([i for i in "{0:08b}".format(110)], dtype=float)
-    initial_state = np.random.rand(1, 1000).astype(np.float32)
+    
+    print("rule: ", rule)
+    
+    initial_state = np.random.randint(0, 2, (1,10)).astype(np.float32)
+    
+    print("initial state: ", initial_state)
 
     automaton = create_automaton_tf(rule, steps=1)
-    automaton(initial_state)
+    
+    print("final state: ", automaton(initial_state))
 
 
 if __name__ == "__main__":

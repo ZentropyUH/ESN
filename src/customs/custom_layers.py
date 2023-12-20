@@ -467,6 +467,36 @@ class ReservoirCell(keras.layers.Layer):
     # def from_config(cls, config):
     #     return cls(**config)
 
+@keras.saving.register_keras_serializable(package="MyLayers", name="ECACell")
+class AutomatonCell(tf.keras.layers.Layer):
+    def __init__(self, rule: Union[int, str, np.ndarray, tf.Tensor], **kwargs):
+        super(AutomatonCell, self).__init__(**kwargs)
+        self.rule = self._process_rule(rule)
+
+    def _process_rule(self, rule):
+        if isinstance(rule, int):
+            rule = np.array([i for i in "{0:08b}".format(rule)], dtype=float)
+        elif isinstance(rule, str):
+            rule = np.array([i for i in rule], dtype=float)
+
+        rule = np.flip(rule, axis=[0])
+        num_neighbors = int((np.log2(len(rule)) - 1) / 2)
+        assert num_neighbors == ((np.log2(len(rule)) - 1) / 2), "Rule length must be 2^n"
+        return tf.convert_to_tensor(rule, dtype=tf.float32)
+
+    def call(self, inputs, states):
+        state_vector = states[0]
+        new_state = self.automaton(state_vector)
+        return new_state, [new_state]
+
+    def automaton(self, state_vector):
+        # Implement the automaton logic here, similar to your provided automaton function
+        # ...
+
+        # Returning the updated state_vector as an example
+        return state_vector
+    
+    
 
 def simple_esn(units: int, 
                leak_rate: float = 1, 
