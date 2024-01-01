@@ -128,12 +128,6 @@ def train_ESN(
         "-tl",
         help="The number of points to be used for training. The default is 10000.",
     ),
-    steps: int = Option(
-        1,
-        "--steps",
-        "-s",
-        help="Number of steps among data point to ignore. Used to variate the data dt.",
-    ),
 ):
     """Train a specific model on a given data file."""
     from functions import train
@@ -157,7 +151,6 @@ def train_ESN(
         regularization=regularization,
         transient=transient,
         train_length=train_length,
-        steps=steps,
     )
 
 

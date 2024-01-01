@@ -24,7 +24,6 @@ def train(
     data_file: str,
     model: str,
     units: int,
-    steps: int,
     transient: int,
     train_length: int,
     input_initializer: str,
@@ -77,7 +76,6 @@ def train(
         data_file,
         transient,
         train_length,
-        steps
     )
     features = train_data.shape[-1]
 
@@ -222,7 +220,6 @@ def forecast(
     output_dir: str = None,
     forecast_method: str = "classic",
     forecast_length: int = 1000,
-    steps: int = 1,
     internal_states: bool = False,
     feedback_metrics: bool = True,
     **kwargs,
@@ -257,7 +254,6 @@ def forecast(
         data_file,
         transient=transient,
         train_length=train_length,
-        step=steps,
     )
 
     ############### CHOOSE THE FORECAST METHOD AND FORECAST ###############
@@ -303,9 +299,7 @@ def forecast_from_saved_model(
 
     internal_states: bool = False,
     feedback_metrics: bool = True,
-    
-    steps: int = 1,
-    
+        
     **kwargs,
 ) -> None:
     '''
@@ -334,7 +328,6 @@ def forecast_from_saved_model(
         output_dir=output_dir,
         forecast_method=forecast_method,
         forecast_length=forecast_length,
-        steps=steps,
         internal_states=internal_states,
         feedback_metrics=feedback_metrics
     )
@@ -349,9 +342,7 @@ def forecast_folder_from_saved_model(
     forecast_length: int = 1000,
     internal_states: bool = False,
     feedback_metrics: bool = True,
-    
-    steps: int = 1,
-    
+        
     **kwargs,
 ):
     '''
@@ -400,6 +391,5 @@ def forecast_folder_from_saved_model(
             output_dir=output_dir,
             internal_states=internal_states,
             feedback_metrics=feedback_metrics,
-            steps=steps,
             **kwargs,
         )

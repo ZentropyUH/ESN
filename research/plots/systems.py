@@ -121,11 +121,11 @@ def _base_plot_3D(
     
     # Handling different types of labels
     if isinstance(xlabels, str):
-        xlabels = [''.join([xlabels, f'_{i}']) for i in range(2)]
+        xlabels = [''.join([xlabels]) for i in range(2)]
     if isinstance(ylabels, str):
-        ylabels = [''.join([ylabels, f'_{i}']) for i in range(2)]
+        ylabels = [''.join([ylabels]) for i in range(2)]
     if isinstance(zlabels, str):
-        zlabels = [''.join([zlabels, f'_{i}']) for i in range(2)]
+        zlabels = [''.join([zlabels]) for i in range(2)]
     
     ax.plot(target[:, 0], target[:, 1], target[:, 2], label=target_label, lw=1.5, color=color)
     
@@ -459,7 +459,7 @@ def linear_multiplot(
     title: str = '',
     dt: float = 1,
     lyapunov_exponent: float = 1,
-    xlabel: str = r'$\Lambda t$',
+    xlabel: str = r'$\Lambda$ t',
     filepath: str = None,
     show: bool = False,
     animate: bool = False,
@@ -474,9 +474,9 @@ def linear_multiplot(
     
     # Handling different types of labels
     if isinstance(target_labels, str):
-        target_labels = [''.join([target_labels, f'_{i}']) for i in range(features)]
+        target_labels = [''.join([target_labels, f'_{letter(i)}']) for i in range(features)]
     if isinstance(forecast_labels, str) and forecast is not None:
-        forecast_labels = [''.join([forecast_labels, f'_{i}']) for i in range(features)]
+        forecast_labels = [''.join([forecast_labels, f'_{letter(i)}']) for i in range(features)]
         
     
     if end is None:
@@ -646,11 +646,11 @@ def plot3D(
     
     # Handling different types of labels
     if isinstance(xlabels, str):
-        xlabels = [''.join([xlabels, f'_{i}']) for i in range(2)]
+        xlabels = [''.join([xlabels]) for i in range(2)]
     if isinstance(ylabels, str):
-        ylabels = [''.join([ylabels, f'_{i}']) for i in range(2)]
+        ylabels = [''.join([ylabels]) for i in range(2)]
     if isinstance(zlabels, str):
-        zlabels = [''.join([zlabels, f'_{i}']) for i in range(2)]
+        zlabels = [''.join([zlabels]) for i in range(2)]
         
     if end is None:
         end = target.shape[0]
@@ -734,11 +734,16 @@ def max_return_map(
     features = target.shape[-1]
     
     
-    
-    if isinstance(target_labels, str):
-        target_labels = [''.join([target_labels, f'_{letter(i)}']) for i in range(features)]
-    if isinstance(forecast_labels, str) and forecast is not None:
-        forecast_labels = [''.join([forecast_labels, f'_{letter(i)}']) for i in range(features)]
+    if features > 1:
+        if isinstance(target_labels, str):
+            target_labels = [''.join([target_labels, f'_{letter(i)}']) for i in range(features)]
+        if isinstance(forecast_labels, str) and forecast is not None:
+            forecast_labels = [''.join([forecast_labels, f'_{letter(i)}']) for i in range(features)]
+    else :
+        if isinstance(target_labels, str):
+            target_labels = [target_labels]
+        if isinstance(forecast_labels, str) and forecast is not None:
+            forecast_labels = [forecast_labels]
     
     fig, axs = _base_setup_plot(
         features=1,
@@ -899,12 +904,17 @@ def complexity_map(
     
     if forecast is not None:
         extracted_forecast = _entropic_feature_extract(forecast, metrics)
-                
-    if len(target_labels) == 1:
-        target_labels = [target_labels[0] + f"_{letter(i)}" for i in range(plots_num)]
-    if len(forecast_labels) == 1:
-        forecast_labels = [forecast_labels[0] + f"_{letter(i)}" for i in range(plots_num)]
-        
+    
+    if plots_num > 1:
+        if len(target_labels) == 1:
+            target_labels = [target_labels[0] + f"_{letter(i)}" for i in range(plots_num)]
+        if len(forecast_labels) == 1:
+            forecast_labels = [forecast_labels[0] + f"_{letter(i)}" for i in range(plots_num)]
+    else:
+        if isinstance(target_labels, str):
+            target_labels = [target_labels]
+        if isinstance(forecast_labels, str) and forecast is not None:
+            forecast_labels = [forecast_labels]
     
     # if 2 metrics make a 2D plot, if 3 metrics make a 3D plot
     
@@ -919,8 +929,11 @@ def complexity_map(
             title=title,
             figsize=(18, 6),
             sharey=False,
-            xlabel="Entropy density",
+            xlabel=r"$h_{\mu}$",
         )
+        
+        # Fig adjust for the titles to show properly positioned. Hardwired
+        fig.subplots_adjust(left=0.06, bottom=0.12)
         
         if plots_num == 1:
             _base_scatter(
@@ -946,8 +959,8 @@ def complexity_map(
                     target_label=forecast_labels[i],
                     size=15
                 )
-        
-        fig.supylabel("Excess entropy")
+        # TODO: poner esto como parametro en la cli
+        fig.supylabel("E")
     
     
     else:

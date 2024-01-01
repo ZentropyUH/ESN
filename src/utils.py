@@ -22,7 +22,6 @@ def load_data(
     name: str,
     transient: int = 1000,
     train_length: int = 5000,
-    step: int = 1,
 ):
     """Load the data from the given path. Returns a dataset for training a NN.
 
@@ -56,22 +55,14 @@ def load_data(
                 validation_target: The validation target. This is for forecasting, so target data is
                     the validation data taken shifted 1 index to the right plus one value.
     """
-    data = pd.read_csv(name).to_numpy()
+    data = pd.read_csv(name, header=None).to_numpy()    
 
     features = data.shape[-1]
-
-    data = data[::step]
 
     data = data.reshape(1, -1, features)
 
     # Take the elements of the data skipping every step elements.
 
-    if step > 1:
-        print(
-            "Used data shape: ",
-            data.shape,
-            f"Picking values every {step} steps.",
-        )
 
     # Index up to the training end.
     train_index = transient + train_length
