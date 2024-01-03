@@ -1,5 +1,5 @@
 """Custom keras layers."""
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 
 import tensorflow as tf
 import keras
@@ -7,6 +7,8 @@ import keras.utils
 import keras.layers
 import keras.initializers
 import keras.activations
+
+import numpy as np
 
 
 from src.customs.custom_initializers import ErdosRenyi, InputMatrix
