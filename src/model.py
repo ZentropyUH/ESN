@@ -288,8 +288,8 @@ class ESN:
         '''
         self.model.save(os.path.join(path,"model.keras"), include_optimizer=False)
 
-    def plot_model(self, path, **kwargs):
-        keras.utils.plot_model(self.modelm, **kwargs)
+    def plot_model(self, **kwargs):
+        keras.utils.plot_model(self.model, **kwargs)
 
     @staticmethod
     def load(path: str) -> "ESN":

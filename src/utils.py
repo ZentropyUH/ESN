@@ -35,8 +35,6 @@ def load_data(
 
         train_length (int, optional): The length of the training data. Defaults to 5000.
 
-        step: Sets the number of steps between data sampling. i. e. takes values every 'step' steps
-
     Returns:
         tuple: A tuple with:
 
@@ -69,8 +67,8 @@ def load_data(
 
     if train_index > data.shape[1]:
         raise ValueError(
-            f"The train size is out of range. Data size is: "
-            f"{data.shape[0]} and train size + transient is: {train_index}"
+            f"The train size is out of range. Data shape is: "
+            f"{data.shape} and train size + transient is: {train_index}"
         )
 
     # Transient data (For ESP purposes)
