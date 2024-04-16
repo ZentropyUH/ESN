@@ -59,9 +59,6 @@ def load_data(
 
     data = data.reshape(1, -1, features)
 
-    # Take the elements of the data skipping every step elements.
-
-
     # Index up to the training end.
     train_index = transient + train_length
 
