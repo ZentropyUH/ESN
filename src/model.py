@@ -148,6 +148,8 @@ class ESN:
             outputs=self.readout(self.reservoir.output),
             name="ESN",
         )
+        
+        return training_loss
 
     def get_states(self) -> list:
         """Retrieve the current states of all RNN layers in the model.
