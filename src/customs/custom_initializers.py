@@ -61,11 +61,7 @@ class InputMatrix(Initializer):
         """
         if isinstance(shape, int):
             rows, cols = (shape, shape)
-        elif (
-            isinstance(shape, (list, tuple))
-            and len(shape) == 2
-            and all(isinstance(d, int) for d in shape)
-        ):
+        elif isinstance(shape, (list, tuple)) and len(shape) == 2:
             rows, cols = tuple(shape)
         else:
             raise ValueError(
@@ -170,46 +166,39 @@ class RegularNX(Initializer):
             tf.Tensor: The matrix.
         """
         if isinstance(shape, int):
-            rows, _cols = (shape, shape)
-        elif (
-            isinstance(shape, (list, tuple))
-            and len(shape) == 2
-            and all(isinstance(d, int) for d in shape)
-        ):
-            rows, _cols = tuple(shape)
+            nodes = (shape, shape)
+        elif isinstance(shape, (list, tuple)) and len(shape) == 2 and shape[0] == shape[1]:
+            nodes = tuple(shape)
         else:
             raise ValueError(
-                "Shape must be an integer or a tuple/list of 2 integers"
+                "Shape must be an integer or a tuple/list of 2 equal integers"
             )
-
-        assert rows == _cols, "Must be a square matrix."
 
         # Make the amount of nodes at least the same size as the degree
-        if rows < self.degree:
+        if nodes < self.degree:
             print(
-                f"The number of nodes {rows} is less than the degree {self.degree}, making the number of nodes equal to the degree."
+                f"The number of nodes {nodes} is less than the degree {self.degree}, making the number of nodes equal to the degree."
             )
-            rows = self.degree
-            _cols = self.degree
+            nodes = self.degree
 
         # Check if n*d is even, else add 1 to n
-        if rows * self.degree % 2 != 0:
+        if nodes * self.degree % 2 != 0:
             print("nodes*degree is not even, adding 1 to nodes")
-            rows += 1
-            _cols += 1
+            nodes += 1
 
         degree = max(1, self.degree)
-        graph = nx.random_regular_graph(degree, rows)
-
-        # Converting to numpy array to be able to change the values
-        graph_matrix = nx.to_numpy_array(graph).astype(np.float32)
+        graph = nx.random_regular_graph(degree, nodes)
 
         # Making non zero elements random uniform between -sigma and sigma
         if not self.ones:  # Make this more efficient
-            graph_matrix[graph_matrix != 0] = np.random.uniform(
-                -self.sigma, self.sigma, graph_matrix[graph_matrix != 0].shape
-            )
+            for u,v in graph.edges():
+                # weight = np.random.uniform(-self.sigma, self.sigma)
+                weight = np.random.choice([-1, 1])
+                graph[u][v]["weight"] = weight
 
+        # Convert to dense matrix to later on transform it to sparse matrix
+        graph_matrix = nx.to_numpy_array(graph).astype(np.float32)
+        
         # Go to sparse matrix to calculate the spectral radius efficiently
         graph_matrix = sparse.coo_matrix(graph_matrix)
 
@@ -281,56 +270,49 @@ class ErdosRenyi(Initializer):
         """Generate the matrix.
 
         Args:
-            shape (tuple|int): Shape of the matrix.
+            shape (int|tuple|list): Shape of the matrix.
 
         Returns:
             tf.Tensor: The matrix.
 
         """
         if isinstance(shape, int):
-            rows, cols = (shape, shape)
-        elif (
-            isinstance(shape, (list, tuple))
-            and len(shape) == 2
-            and all(isinstance(d, int) for d in shape)
-        ):
-            rows, cols = tuple(shape)
+            nodes = (shape, shape)
+        elif isinstance(shape, (list, tuple)) and len(shape) == 2 and shape[0] == shape[1]:
+            nodes = shape[0]
         else:
             raise ValueError(
-                "Shape must be an integer or a tuple/list of 2 integers"
+                "Shape must be an integer or a tuple/list of 2 equal integers"
             )
-
-        assert rows == cols, "Matrix must be square"
 
         # Make the amount of nodes at least the degree
-        if rows < self.degree:
+        if nodes < self.degree:
             print(
-                f"The number of nodes {rows} is less than the degree {self.degree}, making the number of nodes equal to the degree."
+                f"The number of nodes {nodes} is less than the degree {self.degree}, making the number of nodes equal to the degree."
             )
-            rows = self.degree
-            cols = self.degree
+            nodes = self.degree
+            
+        # The probability to make an Erdos-Renyi with degree d is p = d/(n-1)
+        probab = self.degree / (nodes - 1)
 
-        # The average degree in this model is n * p, where p is the probability of connection
-        # and n is the number of nodes.
-        probab = self.degree / rows
-
-        if probab < np.log(rows) / rows:
+        if probab < np.log(nodes) / nodes:
             print(
-                "The probability of connection is too low, "
-                "it is probable the graph is disconnected. Increase the degree."
+                f"The probability of connection is too low, {probab}, should be greater than {np.log(nodes) / nodes}"
+                f"it is probable the graph is disconnected. Increase the degree."
             )
             print(
                 "You ponder over life and the universe, and then continue..."
             )
 
-        graph = nx.erdos_renyi_graph(rows, probab, directed=True)
+        graph = nx.erdos_renyi_graph(nodes, probab, directed=True)
 
         if not self.ones:
             for u, v in graph.edges():
                 weight = np.random.uniform(-self.sigma, self.sigma)
+                # weight = np.random.choice([-1, 1])
                 graph[u][v]["weight"] = weight
 
-        # Convert to dense matrix to make non zero values random uniform
+        # Convert to dense matrix to later on transform it to sparse matrix
         graph_matrix = nx.to_numpy_array(graph).astype(np.float32)
 
         # Convert to sparse matrix to calculate the spectral radius efficiently
@@ -411,43 +393,38 @@ class WattsStrogatzNX(Initializer):
             (np.array): The adjacency matrix.
         """
         if isinstance(shape, int):
-            rows, cols = (shape, shape)
-        elif (
-            isinstance(shape, (list, tuple))
-            and len(shape) == 2
-            and all(isinstance(d, int) for d in shape)
-        ):
-            rows, cols = tuple(shape)
+            nodes = shape
+        elif isinstance(shape, (list, tuple)) and len(shape) == 2 and shape[0] == shape[1]:
+            nodes = shape[0]
         else:
             raise ValueError(
-                "Shape must be an integer or a tuple/list of 2 integers"
+                "Shape must be an integer or a tuple/list of 2 equal integers"
             )
-
-        assert rows == cols, "Matrix must be square"
 
         # Make the nodes at least the degree
-        if rows < self.degree:
+        if nodes < self.degree:
             print(
-                f"Number of nodes {rows} is less than the degree {self.degree},"
+                f"Number of nodes {nodes} is less than the degree {self.degree},"
                 " making the number of nodes equal to the degree"
             )
-            rows = self.degree
-            cols = self.degree
+            nodes = self.degree
 
         graph = nx.connected_watts_strogatz_graph(
-            rows, self.degree, self.rewiring_p
+            nodes, self.degree, self.rewiring_p
         )
 
         # Change the non zero values to random uniform in [-sigma, sigma]
         if not self.ones:
-            # Convert to numpy array and change non zero values
-            graph_matrix = nx.to_numpy_array(graph)
-            # make non zero values randomly uniform in [-sigma, sigma]
-            graph_matrix[graph_matrix != 0] = np.random.uniform(
-                -self.sigma, self.sigma, graph_matrix[graph_matrix != 0].shape
-            )
-            # Going back to a sparse matrix to calculate the spectral radius efficiently
-            graph_matrix = sparse.csr_matrix(graph_matrix)
+            for u,v in graph.edges():
+                # weight = np.random.uniform(-self.sigma, self.sigma)
+                weight = np.random.choice([-1, 1])
+                graph[u][v]["weight"] = weight
+            
+        # Convert to dense matrix to later on transform it to sparse matrix
+        graph_matrix = nx.to_numpy_array(graph).astype(np.float32)
+        
+        # Going back to a sparse matrix to calculate the spectral radius efficiently
+        graph_matrix = sparse.coo_matrix(graph_matrix)
 
         print(f"Correcting spectral radius to {self.spectral_radius}")
 
