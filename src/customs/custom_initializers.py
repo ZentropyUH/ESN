@@ -297,7 +297,7 @@ class ErdosRenyi(Initializer):
 
         if probab < np.log(nodes) / nodes:
             print(
-                f"The probability of connection is too low, {probab}, should be greater than {np.log(nodes) / nodes}"
+                f"The probability of connection is too low, p={probab}, should be greater than log(n)/n={np.log(nodes) / nodes}"
                 f"it is probable the graph is disconnected. Increase the degree."
             )
             print(
