@@ -136,7 +136,7 @@ def calculate_nrmse(target: np.ndarray, prediction: np.ndarray) -> float:
     Returns:
         float: The NRMSE between the target and the prediction.
     """
-    return np.sqrt(np.mean(np.square(target - prediction))) / np.std(target)
+    return calculate_rmse(target, prediction) / np.std(target)
 
 
 def calculate_rmse_list(target: np.ndarray, prediction: np.ndarray):
