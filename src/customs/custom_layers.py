@@ -81,7 +81,6 @@ class EsnCell(keras.layers.Layer):
 
         # This property is required by keras. Keras will manage the states automatically.
         self.state_size = self.units
-        self.input_dim = None
 
         # Initialize the weights
         self.w_input = None
@@ -99,12 +98,12 @@ class EsnCell(keras.layers.Layer):
         Args:
             input_shape: Shape of the input tensor.
         """
-        self.input_dim = input_shape[-1]
+        features = input_shape[-1]
 
         # Input to reservoir matrix
         self.w_input = self.add_weight(
             name="input_to_Reservoir",
-            shape=(self.input_dim, self.units),
+            shape=(features, self.units),
             initializer=self.input_initializer,
             trainable=False,
             dtype=self.dtype,
