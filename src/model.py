@@ -7,10 +7,12 @@ from typing import Any
 from typing import Tuple
 from typing import Optional
 from typing import Union
+from typeguard import typechecked
 from contextlib import contextmanager
 
 import keras
 import tensorflow as tf
+from keras import Model
 from keras.layers import Layer
 from keras.layers import Dense
 from sklearn.linear_model import Lasso
@@ -21,6 +23,7 @@ from src.customs.custom_layers import simple_esn
 from src.customs.custom_layers import parallel_esn
 from src.customs.custom_layers import eca_esn
 from src.utils import calculate_nrmse
+from src.utils import calculate_rmse
 
 
 # TODO: Add log
@@ -36,19 +39,44 @@ class ESN:
 
         readout (Layer): The readout layer of the ESN.
     '''
+    @typechecked
     def __init__(
         self,
         reservoir: Layer,
         readout: Layer,
     ) -> None:
 
-
         self.readout: Layer = readout
-        self.reservoir: keras.layers.Layer = reservoir
-        self.model: keras.Model = None
+        self.reservoir: Layer = reservoir
 
-        self.built = False
+        # This is a flag to check if the reservoir and readout are built (loading a previously trained model)
+        self._built = self.readout.built and self.reservoir.built
+        
+        if self._built:
+            self.model = keras.Model(
+                inputs=self.reservoir.inputs,
+                outputs=self.readout(self.reservoir.output),
+                name="ESN",
+            )
+        else:
+            self.model: Model = None
 
+    @classmethod
+    def from_model(cls, model: Model) -> None:
+        
+        resrvoir_inputs = model.get_layer("Input").output
+        reservoir_outputs = model.get_layer("Concat_ESN_input").output
+        readout = model.get_layer("readout")
+        reservoir = keras.Model(
+            inputs=resrvoir_inputs,
+            outputs=reservoir_outputs,
+        )
+        
+        return cls(
+            reservoir,
+            readout
+        )
+    
     def __call__(self, *args: Any, **kwds: Any) -> Any:
         if self.model is None:
             raise RuntimeError('Model must be trained to predict')
@@ -129,9 +157,11 @@ class ESN:
         with self.timer("Harvesting"):
             harvested_states = self.reservoir.predict(train_data)
 
-        print("Calculating the readout matrix...\n")
-        readout = method_map[method]
-        readout.fit(harvested_states[0], train_target[0])
+        print("\nTraining...\n")
+        with self.timer("Calculating Readout"):
+            readout = method_map[method]
+            readout.fit(harvested_states[0], train_target[0])
+
         predictions = readout.predict(harvested_states[0])
 
         training_loss = np.mean((predictions - train_target[0]) ** 2)
@@ -139,8 +169,10 @@ class ESN:
 
         nrmse = calculate_nrmse(target=train_target[0], prediction=predictions)
         print(f"NRMSE: {nrmse}\n")
-
-        self.readout.build(harvested_states[0].shape)
+        
+        if not self.readout.built:
+            self.readout.build(harvested_states[0].shape)
+            
         self.readout.set_weights([readout.coef_.T, readout.intercept_])
 
         self.model = keras.Model(
@@ -201,12 +233,12 @@ class ESN:
             # function code here
 
     @tf.function
-    def forecast_step(self, model, current_input):
+    def forecast_step(self, current_input):
         """
         Forecast a single step using the model.
         Wrapped with tf.function for performance optimization.
         """
-        return model(current_input, training=False)
+        return self.model(current_input)
 
     def forecast(
             self,
@@ -239,7 +271,12 @@ class ESN:
         '''
         self.reset_states()
 
-        forecast_length = min(forecast_length, val_data.shape[1]) if feedback_metrics else forecast_length
+        if feedback_metrics and forecast_length > val_data.shape[1]:
+            print("Truncating the forecast length to match the data.")
+            forecast_length = min(forecast_length, val_data.shape[1])
+            print(f"New forecast length of: {forecast_length}\n")
+            
+            
 
         _val_target = val_target[:, :forecast_length, :]
 
@@ -255,9 +292,9 @@ class ESN:
         states_over_time = np.empty((forecast_length, self.model.get_layer("esn_rnn").cell.units)) if internal_states else None
 
         print("\n    Predicting...\n")
-        for step in track(range(forecast_length)):
+        for step in track(range(forecast_length), description="Predicting..."):
             current_input = tf.convert_to_tensor(predictions[:, step:step + 1, :], dtype=tf.float32)
-            pred = self.forecast_step(self.model, current_input)
+            pred = self.forecast_step(current_input)
             predictions[:, step + 1:step + 2, :] = pred
 
             if internal_states:
@@ -273,13 +310,20 @@ class ESN:
             try:
                 loss = np.mean((predictions[0] - _val_target[0]) ** 2)
                 nrmse = calculate_nrmse(target=_val_target[0], prediction=predictions[0])
+                # If nrmse or loss is nan, set them to np.inf
+                if np.isnan(nrmse):
+                    nrmse = np.inf
+                if np.isnan(loss):
+                    loss = np.inf
             except ValueError:
                 print("Error calculating the loss.")
                 return np.inf
             print(f"Forecast loss: {loss}\n")
             print(f"NRMSE: {nrmse}\n")
+            
+            return predictions, states_over_time, nrmse
 
-        return predictions, states_over_time
+        return predictions, states_over_time, None
 
     def save(self, path: str) -> None:
         '''
@@ -288,6 +332,9 @@ class ESN:
         Args:
             path (str): The destination folder to save all the files of the model.
         '''
+        # Create the dir if it does not exist
+        if not os.path.exists(path):
+            os.makedirs(path)
         self.model.save(os.path.join(path,"model.keras"), include_optimizer=False)
 
     def plot_model(self, **kwargs):
@@ -308,27 +355,8 @@ class ESN:
 
         model: keras.Model = keras.models.load_model(model_path, compile=False)
 
-        inputs = model.get_layer("Input").output
-        outputs = model.get_layer("Concat_ESN_input").output
-        readout = model.get_layer("readout")
-        reservoir = keras.Model(
-            inputs=inputs,
-            outputs=outputs,
-        )
+        esn = ESN.from_model(model=model)
         
-        # NOTE: I think this is unnecessary, not sure though.
-        
-        # model = keras.Model(
-        #     inputs=reservoir.inputs,
-        #     outputs=readout(reservoir.output),
-        #     name="ESN",
-        # )
-        esn = ESN(
-            reservoir,
-            readout
-        )
-        esn.reservoir = reservoir
-        esn.model = model
         return esn
 
 
@@ -355,11 +383,11 @@ def generate_ESN(
 
         activation (str): Activation function of the reservoir.
 
-        input_reservoir_init (str): Initialization method for the input matrix.
+        input_reservoir_init (str|keras Initializer): Initializer for the input matrix.
 
-        input_bias_init (str): Initialization method for the input bias.
+        input_bias_init (str|keras Initializer): Initializer for the input bias.
 
-        reservoir_kernel_init (str): Initialization method for the reservoir matrix.
+        reservoir_kernel_init (str|keras Initializer): Initializer for the reservoir matrix.
 
         exponent (int): Exponent of the input matrix.
 
@@ -453,7 +481,7 @@ def generate_Parallel_ESN(units: int,
         features, activation="linear", name="readout", trainable=False
     )
 
-    model = ESN(reservoir, readout_layer)
+    model = ESN(reservoir=reservoir, readout=readout_layer, seed=seed)
     return model
 
 def generate_ECA_ESN(units: int,
