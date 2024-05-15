@@ -308,8 +308,8 @@ class ErdosRenyi(Initializer):
 
         if not self.ones:
             for u, v in graph.edges():
-                weight = np.random.uniform(-self.sigma, self.sigma)
-                # weight = np.random.choice([-1, 1])
+                # weight = np.random.uniform(-self.sigma, self.sigma)
+                weight = np.random.choice([-1, 1])
                 graph[u][v]["weight"] = weight
 
         # Convert to dense matrix to later on transform it to sparse matrix
