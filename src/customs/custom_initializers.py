@@ -428,7 +428,7 @@ class WattsStrogatzNX(Initializer):
 
         print(f"Correcting spectral radius to {self.spectral_radius}")
 
-        rho = abs(linalg.eigs(graph_matrix, k=1, which="LM")[0])[0]
+        rho = abs(linalg.eigs(graph_matrix, k=1, which="LM", return_eigenvectors=False)[0])
 
         if rho == 0:
             print("The matrix is singular, re-initializing")
