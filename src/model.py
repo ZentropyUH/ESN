@@ -24,6 +24,7 @@ from src.customs.custom_layers import parallel_esn
 from src.customs.custom_layers import eca_esn
 from src.utils import calculate_nrmse
 from src.utils import calculate_rmse
+from src.utils import TF_RidgeRegression
 
 
 # TODO: Add log
@@ -44,10 +45,12 @@ class ESN:
         self,
         reservoir: Layer,
         readout: Layer,
+        seed: int
     ) -> None:
 
         self.readout: Layer = readout
         self.reservoir: Layer = reservoir
+        self.seed = seed
 
         # This is a flag to check if the reservoir and readout are built (loading a previously trained model)
         self._built = self.readout.built and self.reservoir.built
@@ -160,6 +163,7 @@ class ESN:
         print("\nTraining...\n")
         with self.timer("Calculating Readout"):
             readout = method_map[method]
+            # readout = TF_RidgeRegression(alpha=regularization)
             readout.fit(harvested_states[0], train_target[0])
 
         predictions = readout.predict(harvested_states[0])
@@ -232,7 +236,7 @@ class ESN:
 
             # function code here
 
-    @tf.function
+    @tf.function(reduce_retracing=True)
     def forecast_step(self, current_input):
         """
         Forecast a single step using the model.
@@ -247,8 +251,9 @@ class ESN:
             val_data: np.ndarray,
             val_target: np.ndarray,
             internal_states: bool = False,
-            feedback_metrics: bool = True
-        ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+            feedback_metrics: bool = True,
+            error_threshold: Optional[float] = None  # New parameter
+        ) -> Tuple[np.ndarray, Optional[np.ndarray], Optional[np.ndarray], Optional[int]]:
         '''
         Forecast the model for a given number of steps.
 
@@ -265,9 +270,10 @@ class ESN:
 
             feedback_metrics: (bool): Whether to include comparison metrics with the original data.
 
+            error_threshold (Optional[float]): Threshold for cumulative NRMSE to determine forecast steps. Default is None.
 
         Returns:
-            Tuple[np.ndarray, Optional[np.ndarray]]: A tuple containing the forecasted data and the states of the ESN (if internal_states is True).
+            Tuple[np.ndarray, Optional[np.ndarray], Optional[np.ndarray], Optional[int]]: A tuple containing the forecasted data, the states of the ESN (if internal_states is True), the cumulative error, and the number of steps to exceed the error threshold (if specified).
         '''
         self.reset_states()
 
@@ -292,6 +298,9 @@ class ESN:
         states_over_time = np.empty((forecast_length, self.model.get_layer("esn_rnn").cell.units)) if internal_states else None
 
         print("\n    Predicting...\n")
+        cumulative_error = np.empty(forecast_length)
+        steps_to_exceed_threshold = None  # Variable to track the number of steps to exceed the error threshold
+
         for step in track(range(forecast_length), description="Predicting..."):
             current_input = tf.convert_to_tensor(predictions[:, step:step + 1, :], dtype=tf.float32)
             pred = self.forecast_step(current_input)
@@ -303,27 +312,23 @@ class ESN:
                 current_states = self.model.get_layer("esn_rnn").states[0].numpy()
                 states_over_time[step, :] = current_states
 
+            # Calculate the NRMSE at the current step
+            cumulative_error[step] = calculate_nrmse(target=_val_target[0, :step + 1], prediction=predictions[0, 1:step + 2])
+
+            # Check if cumulative error exceeds the threshold
+            if error_threshold is not None and cumulative_error[step] > error_threshold and steps_to_exceed_threshold is None:
+                steps_to_exceed_threshold = step + 1  # +1 to account for zero-indexing
+
         predictions = predictions[:, 1:, :]
         print("    Predictions shape: ", predictions.shape)
 
         if feedback_metrics:
-            try:
-                loss = np.mean((predictions[0] - _val_target[0]) ** 2)
-                nrmse = calculate_nrmse(target=_val_target[0], prediction=predictions[0])
-                # If nrmse or loss is nan, set them to np.inf
-                if np.isnan(nrmse):
-                    nrmse = np.inf
-                if np.isnan(loss):
-                    loss = np.inf
-            except ValueError:
-                print("Error calculating the loss.")
-                return np.inf
-            print(f"Forecast loss: {loss}\n")
-            print(f"NRMSE: {nrmse}\n")
-            
-            return predictions, states_over_time, nrmse
+            print(f"Steps to exceed threshold: {steps_to_exceed_threshold}")
+            if steps_to_exceed_threshold is None:
+                steps_to_exceed_threshold = forecast_length
+            return predictions, states_over_time, cumulative_error, steps_to_exceed_threshold
 
-        return predictions, states_over_time, None
+        return predictions, states_over_time, cumulative_error, None
 
     def save(self, path: str) -> None:
         '''
@@ -416,7 +421,7 @@ def generate_ESN(
         features, activation="linear", name="readout", trainable=False
     )
 
-    model = ESN(reservoir, readout_layer)
+    model = ESN(reservoir, readout_layer, seed=seed)
     return model
 
 def generate_Parallel_ESN(units: int,
