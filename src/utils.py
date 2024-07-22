@@ -1,6 +1,7 @@
 """Define some general utility functions."""
 import numpy as np
 import pandas as pd
+import tensorflow as tf
 
 from typing import List
 
@@ -54,6 +55,8 @@ def load_data(
                     the validation data taken shifted 1 index to the right plus one value.
     """
     data = pd.read_csv(name, header=None).to_numpy()    
+
+    data = data.astype(np.float32)
 
     features = data.shape[-1]
 
@@ -176,3 +179,113 @@ def calculate_nrmse_list(target: np.ndarray, prediction: np.ndarray):
         nrmse = np.sqrt(np.mean(np.square(_target - _prediction))) / std
         nrmse_values.append(nrmse)
     return nrmse_values
+
+#TF implementation of Ridge using svd. TODO: see if it works as well as sklearn
+class TF_RidgeRegression:
+    def __init__(self, alpha: float) -> None:
+        self._alpha = alpha
+        self._coef = None
+        self._intercept = None
+        self.W_ = None
+
+    def fit(self, X: tf.Tensor, y: tf.Tensor) -> 'TF_RidgeRegression':
+        """
+        Fit Ridge regression model using SVD, handling multi-dimensional y.
+
+        Args:
+            X (tf.Tensor): Input data of shape (n_samples, n_features).
+            y (tf.Tensor): Target data of shape (n_samples, n_targets).
+
+        Returns:
+            self: Fitted model.
+        """
+        
+        print("WHAT THE FUCK: ", X.dtype)
+        print("WHAT THE FUCKING FUCK: ", y.dtype)
+        
+        assert X.ndim == 2, "X must be a 2D tensor."
+        assert y.ndim == 2, "y must be a 2D tensor."
+        
+        n_samples, n_features = X.shape
+        
+        # Compute mean and standard deviation of X and y
+        self._X_mean = tf.reduce_mean(X, axis=0)
+        self._X_std = tf.math.reduce_std(X, axis=0)
+        self._y_mean = tf.reduce_mean(y)
+
+        # Center and scale X
+        X_centered = (X - self._X_mean) / self._X_std
+        y_centered = y - self._y_mean
+
+        # Add a column of ones to the centered data to include the intercept term
+        ones = tf.ones((n_samples, 1), dtype=tf.float32)
+        X_centered_bias = tf.concat([X_centered, ones], axis=1)
+
+        # Perform SVD on the centered data
+        S, U, Vt = tf.linalg.svd(X_centered_bias, full_matrices=False)
+
+        # Diagonal matrix of singular values with regularization
+        D_inv = tf.linalg.diag(1 / (S**2 + self._alpha))
+
+        # Calculate the coefficients using the SVD components
+        Ut_y = tf.matmul(tf.transpose(U), y_centered)
+        V_D_inv = tf.matmul(Vt, D_inv)
+        self.W_ = tf.matmul(V_D_inv, tf.matmul(tf.linalg.diag(S), Ut_y))
+        
+        # Extract coefficients
+        self._coef = self.W_[:-1]  # Coefficients (excluding bias term)
+
+        # Adjust intercept to incorporate the mean values for each target
+        self._coef = self._coef * self._X_std
+        self._intercept = self._y_mean - tf.tensordot(self._X_mean, self.W_[:-1], axes=1) + self.W_[-1]
+        
+        # store the intercept in the last row of W_
+        self.W_ = tf.concat([self.W_[:-1], tf.reshape(self._intercept, (1, -1))], axis=0)
+
+        return self
+
+    def predict(self, X: tf.Tensor) -> tf.Tensor:
+        """
+        Predict using the Ridge regression model, using adjusted intercepts for each target.
+
+        Args:
+            X (tf.Tensor): Input data of shape (n_samples, n_features).
+
+        Returns:
+            tf.Tensor: Predicted values of shape (n_samples, n_targets).
+        """
+        if self.W_ is None:
+            raise ValueError("Model has not been fitted yet.")
+
+        # Add a column of ones to include the intercept term
+        ones = tf.ones((tf.shape(X)[0], 1), dtype=tf.float32)
+        X_bias = tf.concat([X, ones], axis=1)
+
+        return tf.matmul(X_bias, self.W_)
+
+    @property
+    def alpha(self):
+        return self._alpha
+    
+    @alpha.setter
+    def alpha(self, value):
+        if value < 0:
+            raise ValueError("Regularization strength must be non-negative.")        
+        self._alpha = value
+    
+    @property
+    def coef_(self):
+        return self._coef
+        
+    @property
+    def intercept_(self):
+        return self._intercept
+    
+    def get_params(self):
+        """
+        Get the parameters of the Ridge regression model.
+
+        Returns:
+            dict: Dictionary containing 'coef_' and 'intercept_'.
+        """
+        return {'alpha': self._alpha, 'coef_': self.coef_, 'intercept_': self.intercept_}
