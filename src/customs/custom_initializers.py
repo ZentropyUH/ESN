@@ -1,4 +1,5 @@
 """Custom Initializers."""
+
 from typing import Dict, Union, List, Tuple
 
 import networkx as nx
@@ -40,12 +41,11 @@ class InputMatrix(Initializer):
     >>> w is a 5x10 matrix with values in [-1, 1]
     """
 
-    def __init__(self, sigma: float = 0.5, **kwargs) -> None:
+    def __init__(self, sigma: float = 0.5) -> None:
         """Initialize the initializer."""
         assert sigma > 0, "sigma must be positive"
 
         self.sigma = sigma
-        super().__init__(**kwargs)
 
     def __call__(
         self,
@@ -64,9 +64,7 @@ class InputMatrix(Initializer):
         elif isinstance(shape, (list, tuple)) and len(shape) == 2:
             rows, cols = tuple(shape)
         else:
-            raise ValueError(
-                "Shape must be an integer or a tuple/list of 2 integers"
-            )
+            raise ValueError("Shape must be an integer or a tuple/list of 2 integers")
 
         dense_shape = (rows, cols)
 
@@ -83,9 +81,7 @@ class InputMatrix(Initializer):
         # Correction to ensure at leat one connection per node
         q_flag = int(inputs_per_node < cols / rows)
 
-        indexes_nonzero = tf.zeros(
-            (rows * inputs_per_node + q_flag, 2), dtype=tf.int64
-        )
+        indexes_nonzero = tf.zeros((rows * inputs_per_node + q_flag, 2), dtype=tf.int64)
         indexes_nonzero = tf.Variable(indexes_nonzero, dtype=tf.int64)
 
         for i in range(0, rows):
@@ -117,6 +113,7 @@ class InputMatrix(Initializer):
         config = {"sigma": self.sigma}
         return dict(list(base_config.items()) + list(config.items()))
 
+
 @keras.saving.register_keras_serializable(package="MyInitializers", name="RegularNX")
 class RegularNX(Initializer):
     """Regular graph adjacency matrix initializer.
@@ -146,15 +143,12 @@ class RegularNX(Initializer):
     >>> layer = keras.layers.Dense(10, kernel_initializer=w_init)
     """
 
-    def __init__(
-        self, degree=3, spectral_radius=0.99, sigma=0.5, ones=False, **kwargs
-    ) -> None:
+    def __init__(self, degree=3, spectral_radius=0.99, sigma=0.5, ones=False) -> None:
         """Initialize the initializer."""
         self.degree = degree
         self.spectral_radius = spectral_radius
         self.sigma = sigma
         self.ones = ones
-        super().__init__(**kwargs)
 
     def __call__(self, shape, dtype=tf.float32) -> tf.Tensor:
         """Generate the matrix.
@@ -167,7 +161,11 @@ class RegularNX(Initializer):
         """
         if isinstance(shape, int):
             nodes = (shape, shape)
-        elif isinstance(shape, (list, tuple)) and len(shape) == 2 and shape[0] == shape[1]:
+        elif (
+            isinstance(shape, (list, tuple))
+            and len(shape) == 2
+            and shape[0] == shape[1]
+        ):
             nodes = tuple(shape)
         else:
             raise ValueError(
@@ -191,14 +189,14 @@ class RegularNX(Initializer):
 
         # Making non zero elements random uniform between -sigma and sigma
         if not self.ones:  # Make this more efficient
-            for u,v in graph.edges():
+            for u, v in graph.edges():
                 # weight = np.random.uniform(-self.sigma, self.sigma)
                 weight = np.random.choice([-1, 1])
                 graph[u][v]["weight"] = weight
 
         # Convert to dense matrix to later on transform it to sparse matrix
         graph_matrix = nx.to_numpy_array(graph).astype(np.float32)
-        
+
         # Go to sparse matrix to calculate the spectral radius efficiently
         graph_matrix = sparse.coo_matrix(graph_matrix)
 
@@ -236,6 +234,7 @@ class RegularNX(Initializer):
         }
         return dict(list(base_config.items()) + list(config.items()))
 
+
 @keras.saving.register_keras_serializable(package="MyInitializers", name="ErdosRenyi")
 class ErdosRenyi(Initializer):
     """Erdos Renyi adjacency matrix initializer.
@@ -256,15 +255,12 @@ class ErdosRenyi(Initializer):
         keras.initializers.Initializer: The initializer.
     """
 
-    def __init__(
-        self, degree=3, spectral_radius=0.99, sigma=0.5, ones=False, **kwargs
-    ) -> None:
+    def __init__(self, degree=3, spectral_radius=0.99, sigma=0.5, ones=False) -> None:
         """Initialize the initializer."""
         self.degree = degree
         self.spectral_radius = spectral_radius
         self.sigma = sigma
         self.ones = ones
-        super().__init__(**kwargs)
 
     def __call__(self, shape, dtype=tf.float32) -> tf.Tensor:
         """Generate the matrix.
@@ -278,7 +274,11 @@ class ErdosRenyi(Initializer):
         """
         if isinstance(shape, int):
             nodes = (shape, shape)
-        elif isinstance(shape, (list, tuple)) and len(shape) == 2 and shape[0] == shape[1]:
+        elif (
+            isinstance(shape, (list, tuple))
+            and len(shape) == 2
+            and shape[0] == shape[1]
+        ):
             nodes = shape[0]
         else:
             raise ValueError(
@@ -291,7 +291,7 @@ class ErdosRenyi(Initializer):
                 f"The number of nodes {nodes} is less than the degree {self.degree}, making the number of nodes equal to the degree."
             )
             nodes = self.degree
-            
+
         # The probability to make an Erdos-Renyi with degree d is p = d/(n-1)
         probab = self.degree / (nodes - 1)
 
@@ -300,9 +300,7 @@ class ErdosRenyi(Initializer):
                 f"The probability of connection is too low, p={probab}, should be greater than log(n)/n={np.log(nodes) / nodes}"
                 f"it is probable the graph is disconnected. Increase the degree."
             )
-            print(
-                "You ponder over life and the universe, and then continue..."
-            )
+            print("You ponder over life and the universe, and then continue...")
 
         graph = nx.erdos_renyi_graph(nodes, probab, directed=True)
 
@@ -346,7 +344,9 @@ class ErdosRenyi(Initializer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-@keras.saving.register_keras_serializable(package="MyInitializers", name="WattsStrogatzNX")
+@keras.saving.register_keras_serializable(
+    package="MyInitializers", name="WattsStrogatzNX"
+)
 class WattsStrogatzNX(Initializer):
     """Watts Strogatz graph initializer.
 
@@ -371,7 +371,6 @@ class WattsStrogatzNX(Initializer):
         rewiring_p=0.5,
         sigma=0.5,
         ones=False,
-        **kwargs,
     ) -> None:
         """Initialize the initializer."""
         self.degree = degree
@@ -379,7 +378,6 @@ class WattsStrogatzNX(Initializer):
         self.rewiring_p = rewiring_p
         self.sigma = sigma
         self.ones = ones
-        super().__init__(**kwargs)
 
     def __call__(self, shape, dtype=tf.float32) -> tf.Tensor:
         """Generate a Watts Strogatz graph adjacency matrix.
@@ -394,7 +392,11 @@ class WattsStrogatzNX(Initializer):
         """
         if isinstance(shape, int):
             nodes = shape
-        elif isinstance(shape, (list, tuple)) and len(shape) == 2 and shape[0] == shape[1]:
+        elif (
+            isinstance(shape, (list, tuple))
+            and len(shape) == 2
+            and shape[0] == shape[1]
+        ):
             nodes = shape[0]
         else:
             raise ValueError(
@@ -409,26 +411,26 @@ class WattsStrogatzNX(Initializer):
             )
             nodes = self.degree
 
-        graph = nx.connected_watts_strogatz_graph(
-            nodes, self.degree, self.rewiring_p
-        )
+        graph = nx.connected_watts_strogatz_graph(nodes, self.degree, self.rewiring_p)
 
         # Change the non zero values to random uniform in [-sigma, sigma]
         if not self.ones:
-            for u,v in graph.edges():
+            for u, v in graph.edges():
                 # weight = np.random.uniform(-self.sigma, self.sigma)
                 weight = np.random.choice([-1, 1])
                 graph[u][v]["weight"] = weight
-            
+
         # Convert to dense matrix to later on transform it to sparse matrix
         graph_matrix = nx.to_numpy_array(graph).astype(np.float32)
-        
+
         # Going back to a sparse matrix to calculate the spectral radius efficiently
         graph_matrix = sparse.coo_matrix(graph_matrix)
 
         print(f"Correcting spectral radius to {self.spectral_radius}")
 
-        rho = abs(linalg.eigs(graph_matrix, k=1, which="LM", return_eigenvectors=False)[0])
+        rho = abs(
+            linalg.eigs(graph_matrix, k=1, which="LM", return_eigenvectors=False)[0]
+        )
 
         if rho == 0:
             print("The matrix is singular, re-initializing")
@@ -460,7 +462,7 @@ custom_initializers = {
     "ErdosRenyi": ErdosRenyi,
     "WattsStrogatzNX": WattsStrogatzNX,
     "Zeros": keras.initializers.Zeros,
-    "RandomUniform": keras.initializers.RandomUniform
+    "RandomUniform": keras.initializers.RandomUniform,
 }
 
 keras.utils.get_custom_objects().update(custom_initializers)
