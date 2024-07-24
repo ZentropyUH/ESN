@@ -51,6 +51,7 @@ class InputMatrix(Initializer):
         self,
         shape: Union[int, Tuple[int, int], List[int]],
         dtype=tf.float32,
+        seed: int = None,
     ) -> tf.Tensor:
         """
         Generate the matrix.
@@ -98,6 +99,7 @@ class InputMatrix(Initializer):
             minval=-self.sigma,
             maxval=self.sigma,
             dtype=dtype,
+            seed=seed,
         )
 
         w_in = tf.SparseTensor(
@@ -143,14 +145,25 @@ class RegularNX(Initializer):
     >>> layer = keras.layers.Dense(10, kernel_initializer=w_init)
     """
 
-    def __init__(self, degree=3, spectral_radius=0.99, sigma=0.5, ones=False) -> None:
+    def __init__(
+        self,
+        degree: int = 3,
+        spectral_radius: float = 0.99,
+        sigma: float = 0.5,
+        ones: bool = False,
+    ) -> None:
         """Initialize the initializer."""
         self.degree = degree
         self.spectral_radius = spectral_radius
         self.sigma = sigma
         self.ones = ones
 
-    def __call__(self, shape, dtype=tf.float32) -> tf.Tensor:
+    def __call__(
+        self,
+        shape: Union[int, Tuple[int, int]],
+        dtype: tf.dtypes.DType = tf.float32,
+        seed: None = None,
+    ) -> tf.Tensor:
         """Generate the matrix.
 
         Args:
@@ -185,7 +198,7 @@ class RegularNX(Initializer):
             nodes += 1
 
         degree = max(1, self.degree)
-        graph = nx.random_regular_graph(degree, nodes)
+        graph = nx.random_regular_graph(degree, nodes, seed=seed)
 
         # Making non zero elements random uniform between -sigma and sigma
         if not self.ones:  # Make this more efficient
@@ -255,14 +268,25 @@ class ErdosRenyi(Initializer):
         keras.initializers.Initializer: The initializer.
     """
 
-    def __init__(self, degree=3, spectral_radius=0.99, sigma=0.5, ones=False) -> None:
+    def __init__(
+        self,
+        degree: int = 3,
+        spectral_radius: float = 0.99,
+        sigma: float = 0.5,
+        ones: bool = False,
+    ) -> None:
         """Initialize the initializer."""
         self.degree = degree
         self.spectral_radius = spectral_radius
         self.sigma = sigma
         self.ones = ones
 
-    def __call__(self, shape, dtype=tf.float32) -> tf.Tensor:
+    def __call__(
+        self,
+        shape: Union[int, Tuple[int, int]],
+        dtype: tf.dtypes.DType = tf.float32,
+        seed: int = None,
+    ) -> tf.Tensor:
         """Generate the matrix.
 
         Args:
@@ -302,7 +326,7 @@ class ErdosRenyi(Initializer):
             )
             print("You ponder over life and the universe, and then continue...")
 
-        graph = nx.erdos_renyi_graph(nodes, probab, directed=True)
+        graph = nx.erdos_renyi_graph(nodes, probab, directed=True, seed=seed)
 
         if not self.ones:
             for u, v in graph.edges():
@@ -366,11 +390,11 @@ class WattsStrogatzNX(Initializer):
 
     def __init__(
         self,
-        degree=4,
-        spectral_radius=0.99,
-        rewiring_p=0.5,
-        sigma=0.5,
-        ones=False,
+        degree: int = 4,
+        spectral_radius: float = 0.99,
+        rewiring_p: float = 0.5,
+        sigma: float = 0.5,
+        ones: bool = False,
     ) -> None:
         """Initialize the initializer."""
         self.degree = degree
@@ -379,7 +403,12 @@ class WattsStrogatzNX(Initializer):
         self.sigma = sigma
         self.ones = ones
 
-    def __call__(self, shape, dtype=tf.float32) -> tf.Tensor:
+    def __call__(
+        self,
+        shape: Union[int, Tuple[int, int]],
+        dtype: tf.dtypes.DType = tf.float32,
+        seed: int = None,
+    ) -> tf.Tensor:
         """Generate a Watts Strogatz graph adjacency matrix.
 
         Uses networkx to generate the graph and extract the adjacency matrix.
@@ -411,7 +440,9 @@ class WattsStrogatzNX(Initializer):
             )
             nodes = self.degree
 
-        graph = nx.connected_watts_strogatz_graph(nodes, self.degree, self.rewiring_p)
+        graph = nx.connected_watts_strogatz_graph(
+            nodes, self.degree, self.rewiring_p, seed=seed
+        )
 
         # Change the non zero values to random uniform in [-sigma, sigma]
         if not self.ones:
