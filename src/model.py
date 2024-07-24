@@ -1,4 +1,5 @@
 import os
+
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 import numpy as np
 from time import time
@@ -7,21 +8,21 @@ from typing import Any
 from typing import Tuple
 from typing import Optional
 from typing import Union
+from typing import Callable
 from typeguard import typechecked
 from contextlib import contextmanager
 
 import keras
 import tensorflow as tf
 from keras import Model
-from keras.layers import Layer
-from keras.layers import Dense
 from sklearn.linear_model import Lasso
 from sklearn.linear_model import Ridge
 from sklearn.linear_model import ElasticNet
 
-from src.customs.custom_layers import simple_esn
-from src.customs.custom_layers import parallel_esn
-from src.customs.custom_layers import eca_esn
+from keras import Initializer
+from keras import Layer
+
+from src.customs.custom_layers import EsnCell, PowerIndex
 from src.utils import calculate_nrmse
 from src.utils import calculate_rmse
 from src.utils import TF_RidgeRegression
@@ -30,23 +31,19 @@ from src.utils import TF_RidgeRegression
 # TODO: Add log
 # TODO: separate prediction and evaluation
 class ESN:
-    '''
+    """
     Base ESN model.\n
     Works as an assembly class for the layers that are passed to it as input.
     Groups a set of basic functionalities for an ESN.
 
     Args:
-        reservoir (Layer): The reservoir layer of the ESN.
+        reservoir (keras.Layer): The reservoir layer of the ESN.
 
-        readout (Layer): The readout layer of the ESN.
-    '''
+        readout (keras.Layer): The readout layer of the ESN.
+    """
+
     @typechecked
-    def __init__(
-        self,
-        reservoir: Layer,
-        readout: Layer,
-        seed: int
-    ) -> None:
+    def __init__(self, reservoir: Layer, readout: Layer, seed: int) -> None:
 
         self.readout: Layer = readout
         self.reservoir: Layer = reservoir
@@ -54,7 +51,7 @@ class ESN:
 
         # This is a flag to check if the reservoir and readout are built (loading a previously trained model)
         self._built = self.readout.built and self.reservoir.built
-        
+
         if self._built:
             self.model = keras.Model(
                 inputs=self.reservoir.inputs,
@@ -65,8 +62,8 @@ class ESN:
             self.model: Model = None
 
     @classmethod
-    def from_model(cls, model: Model) -> None:
-        
+    def from_model(cls, model: Model, seed: int) -> None:
+
         resrvoir_inputs = model.get_layer("Input").output
         reservoir_outputs = model.get_layer("Concat_ESN_input").output
         readout = model.get_layer("readout")
@@ -74,19 +71,16 @@ class ESN:
             inputs=resrvoir_inputs,
             outputs=reservoir_outputs,
         )
-        
-        return cls(
-            reservoir,
-            readout
-        )
-    
+
+        return cls(reservoir=reservoir, readout=readout, seed=seed)
+
     def __call__(self, *args: Any, **kwds: Any) -> Any:
         if self.model is None:
-            raise RuntimeError('Model must be trained to predict')
+            raise RuntimeError("Model must be trained to predict")
         return self.model(*args, **kwds)
 
     def predict(self, inputs: np.ndarray) -> np.ndarray:
-        '''
+        """
         Predicts the output of the model for the given inputs.
 
         Args:
@@ -97,14 +91,14 @@ class ESN:
 
         Raises:
             Exception: If the model has not been trained yet.
-        '''
+        """
         if self.model is None:
-            raise RuntimeError('Model must be trained to predict')
+            raise RuntimeError("Model must be trained to predict")
         return self.model.predict(inputs)
 
     @contextmanager
     def timer(self, task_name):
-        '''
+        """
         Context manager to measure the time of a task.
 
         Args:
@@ -112,7 +106,7 @@ class ESN:
 
         Returns:
             None
-        '''
+        """
         start = time()
         yield
         end = time()
@@ -124,10 +118,10 @@ class ESN:
         train_data: np.ndarray,
         train_target: np.ndarray,
         regularization: float,
-        method='ridge',
-        solver='svd'
+        method="ridge",
+        solver="svd",
     ) -> None:
-        '''
+        """
         Training process of the model.
 
         Args:
@@ -140,12 +134,12 @@ class ESN:
 
         Return:
             None
-        '''
+        """
 
         method_map = {
-            'ridge': Ridge(alpha=regularization, tol=0, solver=solver),
-            'lasso': Lasso(alpha=regularization, tol=0),
-            'elastic': ElasticNet(alpha=regularization, tol=1e-4, selection="random")
+            "ridge": Ridge(alpha=regularization, tol=0, solver=solver),
+            "lasso": Lasso(alpha=regularization, tol=0),
+            "elastic": ElasticNet(alpha=regularization, tol=1e-4, selection="random"),
         }
 
         if method not in method_map:
@@ -173,10 +167,10 @@ class ESN:
 
         nrmse = calculate_nrmse(target=train_target[0], prediction=predictions)
         print(f"NRMSE: {nrmse}\n")
-        
+
         if not self.readout.built:
             self.readout.build(harvested_states[0].shape)
-            
+
         self.readout.set_weights([readout.coef_.T, readout.intercept_])
 
         self.model = keras.Model(
@@ -184,7 +178,7 @@ class ESN:
             outputs=self.readout(self.reservoir.output),
             name="ESN",
         )
-        
+
         return training_loss
 
     def get_states(self) -> list:
@@ -195,8 +189,14 @@ class ESN:
         """
         rnn_states = []
         for layer in self.model.layers:
-            if hasattr(layer, 'name') and 'esn_rnn' in layer.name and isinstance(layer, keras.layers.RNN):
-                rnn_states.append(layer.states[0])  # For simple RNN, there's only one state tensor
+            if (
+                hasattr(layer, "name")
+                and "esn_rnn" in layer.name
+                and isinstance(layer, keras.layers.RNN)
+            ):
+                rnn_states.append(
+                    layer.states[0]
+                )  # For simple RNN, there's only one state tensor
         return rnn_states
 
     def set_states(self, states: list) -> None:
@@ -210,8 +210,14 @@ class ESN:
         """
         state_index = 0
         for layer in self.model.layers:
-            if hasattr(layer, 'name') and 'esn_rnn' in layer.name and isinstance(layer, keras.layers.RNN):
-                layer.states[0] = states[state_index]  # For simple RNN, there's only one state tensor
+            if (
+                hasattr(layer, "name")
+                and "esn_rnn" in layer.name
+                and isinstance(layer, keras.layers.RNN)
+            ):
+                layer.states[0] = states[
+                    state_index
+                ]  # For simple RNN, there's only one state tensor
                 state_index += 1
 
     def set_random_states(self, threshold: float = 1) -> None:
@@ -221,7 +227,9 @@ class ESN:
 
         for state in current_states:
             # Generate a random state with the same shape as the current state, with values in [-a, a]
-            random_state = tf.random.uniform(state.shape, minval=-threshold, maxval=threshold)
+            random_state = tf.random.uniform(
+                state.shape, minval=-threshold, maxval=threshold
+            )
             new_random_states.append(random_state)
 
         self.set_states(new_random_states)
@@ -230,9 +238,12 @@ class ESN:
         """Reset internal states of the RNNs of the model."""
 
         for layer in self.model.layers:
-            if hasattr(layer, 'name') and 'esn_rnn' in layer.name and isinstance(layer, keras.layers.RNN):
+            if (
+                hasattr(layer, "name")
+                and "esn_rnn" in layer.name
+                and isinstance(layer, keras.layers.RNN)
+            ):
                 layer.reset_states()
-
 
             # function code here
 
@@ -245,16 +256,16 @@ class ESN:
         return self.model(current_input)
 
     def forecast(
-            self,
-            forecast_length: int,
-            forecast_transient_data: np.ndarray,
-            val_data: np.ndarray,
-            val_target: np.ndarray,
-            internal_states: bool = False,
-            feedback_metrics: bool = True,
-            error_threshold: Optional[float] = None  # New parameter
-        ) -> Tuple[np.ndarray, Optional[np.ndarray], Optional[np.ndarray], Optional[int]]:
-        '''
+        self,
+        forecast_length: int,
+        forecast_transient_data: np.ndarray,
+        val_data: np.ndarray,
+        val_target: np.ndarray,
+        internal_states: bool = False,
+        feedback_metrics: bool = True,
+        error_threshold: Optional[float] = None,  # New parameter
+    ) -> Tuple[np.ndarray, Optional[np.ndarray], Optional[np.ndarray], Optional[int]]:
+        """
         Forecast the model for a given number of steps.
 
         Args:
@@ -274,15 +285,13 @@ class ESN:
 
         Returns:
             Tuple[np.ndarray, Optional[np.ndarray], Optional[np.ndarray], Optional[int]]: A tuple containing the forecasted data, the states of the ESN (if internal_states is True), the cumulative error, and the number of steps to exceed the error threshold (if specified).
-        '''
+        """
         self.reset_states()
 
         if feedback_metrics and forecast_length > val_data.shape[1]:
             print("Truncating the forecast length to match the data.")
             forecast_length = min(forecast_length, val_data.shape[1])
             print(f"New forecast length of: {forecast_length}\n")
-            
-            
 
         _val_target = val_target[:, :forecast_length, :]
 
@@ -291,32 +300,49 @@ class ESN:
         print("    Forecast transient data shape: ", forecast_transient_data.shape)
         self.predict(forecast_transient_data)
 
-        predictions = np.empty((val_data.shape[0], forecast_length + 1, val_data.shape[2]))
+        predictions = np.empty(
+            (val_data.shape[0], forecast_length + 1, val_data.shape[2])
+        )
         predictions[:, 0:1, :] = val_data[:, :1, :]
 
         # Making the states an array of shape (0, units)
-        states_over_time = np.empty((forecast_length, self.model.get_layer("esn_rnn").cell.units)) if internal_states else None
+        states_over_time = (
+            np.empty((forecast_length, self.model.get_layer("esn_rnn").cell.units))
+            if internal_states
+            else None
+        )
 
         print("\n    Predicting...\n")
         cumulative_error = np.empty(forecast_length)
-        steps_to_exceed_threshold = None  # Variable to track the number of steps to exceed the error threshold
+        steps_to_exceed_threshold = (
+            None  # Variable to track the number of steps to exceed the error threshold
+        )
 
         for step in track(range(forecast_length), description="Predicting..."):
-            current_input = tf.convert_to_tensor(predictions[:, step:step + 1, :], dtype=tf.float32)
+            current_input = tf.convert_to_tensor(
+                predictions[:, step : step + 1, :], dtype=tf.float32
+            )
             pred = self.forecast_step(current_input)
-            predictions[:, step + 1:step + 2, :] = pred
+            predictions[:, step + 1 : step + 2, :] = pred
 
             if internal_states:
                 # Getting the states of the ESN, also reducing the dimensionality
-                #TODO: Make this generic to other type of reservoirs, not only simple_esn
+                # TODO: Make this generic to other type of reservoirs, not only simple_esn
                 current_states = self.model.get_layer("esn_rnn").states[0].numpy()
                 states_over_time[step, :] = current_states
 
             # Calculate the NRMSE at the current step
-            cumulative_error[step] = calculate_nrmse(target=_val_target[0, :step + 1], prediction=predictions[0, 1:step + 2])
+            cumulative_error[step] = calculate_nrmse(
+                target=_val_target[0, : step + 1],
+                prediction=predictions[0, 1 : step + 2],
+            )
 
             # Check if cumulative error exceeds the threshold
-            if error_threshold is not None and cumulative_error[step] > error_threshold and steps_to_exceed_threshold is None:
+            if (
+                error_threshold is not None
+                and cumulative_error[step] > error_threshold
+                and steps_to_exceed_threshold is None
+            ):
                 steps_to_exceed_threshold = step + 1  # +1 to account for zero-indexing
 
         predictions = predictions[:, 1:, :]
@@ -326,28 +352,36 @@ class ESN:
             print(f"Steps to exceed threshold: {steps_to_exceed_threshold}")
             if steps_to_exceed_threshold is None:
                 steps_to_exceed_threshold = forecast_length
-            return predictions, states_over_time, cumulative_error, steps_to_exceed_threshold
+            return (
+                predictions,
+                states_over_time,
+                cumulative_error,
+                steps_to_exceed_threshold,
+            )
 
         return predictions, states_over_time, cumulative_error, None
 
     def save(self, path: str) -> None:
-        '''
+        """
         Save the model in a folder.
 
         Args:
             path (str): The destination folder to save all the files of the model.
-        '''
+        """
         # Create the dir if it does not exist
         if not os.path.exists(path):
             os.makedirs(path)
-        self.model.save(os.path.join(path,"model.keras"), include_optimizer=False)
+        self.model.save(os.path.join(path, "model.keras"), include_optimizer=False)
+
+        with open(os.path.join(path, "seed.txt"), "w") as f:
+            f.write(str(self.seed))
 
     def plot_model(self, **kwargs):
         keras.utils.plot_model(self.model, **kwargs)
 
     @staticmethod
     def load(path: str) -> "ESN":
-        '''
+        """
         Load the model from folder format.
 
         Args:
@@ -355,28 +389,81 @@ class ESN:
 
         Return:
             model (ESN): Return the loaded instance of the ESN model.
-        '''
-        model_path = os.path.join(path,"model.keras")
+        """
+        model_path = os.path.join(path, "model.keras")
 
         model: keras.Model = keras.models.load_model(model_path, compile=False)
 
-        esn = ESN.from_model(model=model)
-        
+        seed_path = os.path.join(path, "seed.txt")
+        with open(seed_path, "r") as f:
+            seed = int(f.read())
+
+        esn = ESN.from_model(model=model, seed=seed)
+
         return esn
 
 
+# region Reservoirs
+
+
+def simple_reservoir(
+    units: int,
+    leak_rate: float = 1,
+    features: int = 1,
+    activation: Union[str, Callable] = "tanh",
+    input_reservoir_init: Union[str, Initializer] = "InputMatrix",
+    input_bias_init: Union[str, Initializer] = "random_uniform",
+    reservoir_kernel_init: Union[str, Initializer] = "WattsStrogatzNX",
+    exponent: int = 2,
+):
+
+    inputs = keras.Input(batch_shape=(1, None, features), name="Input")
+
+    esn_cell = EsnCell(
+        units=units,
+        name="EsnCell",
+        activation=activation,
+        leak_rate=leak_rate,
+        input_initializer=input_reservoir_init,
+        input_bias_initializer=input_bias_init,
+        reservoir_initializer=reservoir_kernel_init,
+    )
+
+    esn_rnn = keras.layers.RNN(
+        esn_cell,
+        trainable=False,
+        stateful=True,
+        return_sequences=True,
+        name="esn_rnn",
+    )(inputs)
+
+    power_index = PowerIndex(exponent=exponent, index=2, name="pwr")(esn_rnn)
+
+    output = keras.layers.Concatenate(name="Concat_ESN_input")([inputs, power_index])
+
+    reservoir = keras.Model(
+        inputs=inputs,
+        outputs=output,
+    )
+
+    return reservoir
+
+
+# endregion
+
+
 def generate_ESN(
-        units: int,
-        leak_rate: float = 1.,
-        features: int = 1,
-        activation: str = 'tanh',
-        input_reservoir_init: str = "InputMatrix",
-        input_bias_init: str = "random_uniform",
-        reservoir_kernel_init: str = "WattsStrogatzNX",
-        exponent: int = 2,
-        seed: int = None
+    units: int,
+    leak_rate: float = 1.0,
+    features: int = 1,
+    activation: Union[str, Callable] = "tanh",
+    input_reservoir_init: Union[str, Initializer] = "InputMatrix",
+    input_bias_init: Union[str, Initializer] = "random_uniform",
+    reservoir_kernel_init: Union[str, Initializer] = "WattsStrogatzNX",
+    exponent: int = 2,
+    seed: int | None = None,
 ) -> ESN:
-    '''
+    """
     Assemble all the layers in ESN model.
 
     Args:
@@ -400,43 +487,48 @@ def generate_ESN(
 
     Return:
         model (ESN): Return the loaded instance of the ESN model.
-    '''
-    #TODO: see who handles the seed and how
+    """
+    # TODO: see who handles the seed and how
     if seed is None:
         seed = np.random.randint(0, 1000000)
-    print(f'\nSeed: {seed}\n')
+
+    print(f"\nSeed: {seed}\n")
     np.random.seed(seed)
     tf.random.set_seed(seed)
 
-    reservoir = simple_esn(units=units,
-                           leak_rate=leak_rate,
-                           activation=activation,
-                           features=features,
-                           input_reservoir_init=input_reservoir_init,
-                           input_bias_init=input_bias_init,
-                           reservoir_kernel_init=reservoir_kernel_init,
-                           exponent=exponent)
+    reservoir = simple_reservoir(
+        units=units,
+        leak_rate=leak_rate,
+        activation=activation,
+        features=features,
+        input_reservoir_init=input_reservoir_init,
+        input_bias_init=input_bias_init,
+        reservoir_kernel_init=reservoir_kernel_init,
+        exponent=exponent,
+    )
 
-    readout_layer = Dense(
+    readout_layer = keras.layers.Dense(
         features, activation="linear", name="readout", trainable=False
     )
 
     model = ESN(reservoir, readout_layer, seed=seed)
     return model
 
-def generate_Parallel_ESN(units: int,
-                          partitions: int = 1,
-                          overlap: int = 0,
-                          leak_rate: float = 1.,
-                          features: int = 1,
-                          activation: str = 'tanh',
-                          input_reservoir_init: str = "InputMatrix",
-                          input_bias_init: str = "random_uniform",
-                          reservoir_kernel_init: str = "WattsStrogatzNX",
-                          exponent: int = 2,
-                          seed: int = None
+
+def generate_Parallel_ESN(
+    units: int,
+    partitions: int = 1,
+    overlap: int = 0,
+    leak_rate: float = 1.0,
+    features: int = 1,
+    activation: str = "tanh",
+    input_reservoir_init: str = "InputMatrix",
+    input_bias_init: str = "random_uniform",
+    reservoir_kernel_init: str = "WattsStrogatzNX",
+    exponent: int = 2,
+    seed: int = None,
 ) -> ESN:
-    '''
+    """
     Assemble all the layers in a parallel ESN model.
 
     Args:
@@ -464,43 +556,47 @@ def generate_Parallel_ESN(units: int,
 
     Return:
         model (ESN): Return the loaded instance of the ESN model.
-    '''
+    """
     if seed is None:
         seed = np.random.randint(0, 1000000)
-    print(f'\nSeed: {seed}\n')
+    print(f"\nSeed: {seed}\n")
     np.random.seed(seed)
     tf.random.set_seed(seed)
 
-    reservoir = parallel_esn(units=units,
-                             partitions=partitions,
-                             overlap=overlap,
-                             leak_rate=leak_rate,
-                             activation=activation,
-                             features=features,
-                             input_reservoir_init=input_reservoir_init,
-                             input_bias_init=input_bias_init,
-                             reservoir_kernel_init=reservoir_kernel_init,
-                             exponent=exponent)
+    reservoir = parallel_esn(
+        units=units,
+        partitions=partitions,
+        overlap=overlap,
+        leak_rate=leak_rate,
+        activation=activation,
+        features=features,
+        input_reservoir_init=input_reservoir_init,
+        input_bias_init=input_bias_init,
+        reservoir_kernel_init=reservoir_kernel_init,
+        exponent=exponent,
+    )
 
-    readout_layer = Dense(
+    readout_layer = keras.layers.Dense(
         features, activation="linear", name="readout", trainable=False
     )
 
     model = ESN(reservoir=reservoir, readout=readout_layer, seed=seed)
     return model
 
-def generate_ECA_ESN(units: int,
-                     rule: Union[str, int, np.ndarray, list, tf.Tensor] = 110,
-                     steps: int = 1,
-                     leak_rate: float = 1.,
-                     features: int = 1,
-                     activation: str = 'tanh',
-                     input_reservoir_init: str = "InputMatrix",
-                     input_bias_init: str = "random_uniform",
-                     exponent: int = 2,
-                     seed: int = None
+
+def generate_ECA_ESN(
+    units: int,
+    rule: Union[str, int, np.ndarray, list, tf.Tensor] = 110,
+    steps: int = 1,
+    leak_rate: float = 1.0,
+    features: int = 1,
+    activation: str = "tanh",
+    input_reservoir_init: str = "InputMatrix",
+    input_bias_init: str = "random_uniform",
+    exponent: int = 2,
+    seed: int = None,
 ) -> ESN:
-    '''
+    """
     Assemble all the layers in an ECA ESN model.
 
     Args:
@@ -526,26 +622,145 @@ def generate_ECA_ESN(units: int,
 
     Return:
         model (ESN): Return the loaded instance of the ESN model.
-    '''
+    """
     if seed is None:
         seed = np.random.randint(0, 1000000)
-    print(f'\nSeed: {seed}\n')
+    print(f"\nSeed: {seed}\n")
     np.random.seed(seed)
     tf.random.set_seed(seed)
 
-    reservoir = eca_esn(units=units,
-                        rule=rule,
-                        steps=steps,
-                        leak_rate=leak_rate,
-                        activation=activation,
-                        features=features,
-                        input_reservoir_init=input_reservoir_init,
-                        input_bias_init=input_bias_init,
-                        exponent=exponent)
+    reservoir = eca_esn(
+        units=units,
+        rule=rule,
+        steps=steps,
+        leak_rate=leak_rate,
+        activation=activation,
+        features=features,
+        input_reservoir_init=input_reservoir_init,
+        input_bias_init=input_bias_init,
+        exponent=exponent,
+    )
 
-    readout_layer = Dense(
+    readout_layer = keras.layers.Dense(
         features, activation="linear", name="readout", trainable=False
     )
 
     model = ESN(reservoir, readout_layer)
     return model
+
+
+# region Reimplement above
+
+
+# def parallel_esn(
+#     units: int,
+#     leak_rate: float = 1,
+#     features: int = 1,
+#     activation: str = "tanh",
+#     input_reservoir_init: str = "InputMatrix",
+#     input_bias_init: str = "random_uniform",
+#     reservoir_kernel_init: str = "WattsStrogatzNX",
+#     exponent: int = 2,
+#     partitions: int = 1,
+#     overlap: int = 0,
+# ):
+
+#     # FIX
+#     assert features % partitions == 0, "Input length must be divisible by partitions"
+
+#     assert (
+#         features // partitions > overlap
+#     ), "Overlap must be smaller than the length of the partitions"
+
+#     inputs = keras.Input(batch_shape=(1, None, features), name="Input")
+
+#     inputs_splitted = InputSplitter(
+#         partitions=partitions, overlap=overlap, name="splitter"
+#     )(inputs)
+
+#     # Create the reservoirs
+#     reservoir_outputs = []
+#     for i in range(partitions):
+
+#         esn_cell = EsnCell(
+#             units=units,
+#             name="EsnCell",
+#             activation=activation,
+#             leak_rate=leak_rate,
+#             input_initializer=input_reservoir_init,
+#             input_bias_initializer=input_bias_init,
+#             reservoir_initializer=reservoir_kernel_init,
+#         )
+
+#         reservoir = keras.layers.RNN(
+#             esn_cell,
+#             trainable=False,
+#             stateful=True,
+#             return_sequences=True,
+#             name=f"esn_rnn_{i}",
+#         )
+
+#         reservoir_output = reservoir(inputs_splitted[i])
+#         reservoir_output = PowerIndex(exponent=exponent, index=i, name=f"pwr_{i}")(
+#             reservoir_output
+#         )
+#         reservoir_outputs.append(reservoir_output)
+
+#     # Concatenate the power indices
+#     output = keras.layers.Concatenate(name="esn_rnn")(reservoir_outputs)
+
+#     output = keras.layers.Concatenate(name="Concat_ESN_input")([inputs, output])
+
+#     parallel_reservoir = keras.Model(
+#         inputs=inputs,
+#         outputs=output,
+#     )
+
+#     return parallel_reservoir
+
+
+# def eca_esn(
+#     units: int,
+#     leak_rate: float = 1,
+#     features: int = 1,
+#     activation: str = "tanh",
+#     input_reservoir_init: str = "InputMatrix",
+#     input_bias_init: str = "random_uniform",
+#     rule: int = 110,
+#     steps: int = 1,
+#     exponent: int = 2,
+# ):
+
+#     eca_function = create_automaton_tf(rule, steps=steps)
+
+#     inputs = keras.Input(batch_shape=(1, None, features), name="Input")
+
+#     eca_cell = ReservoirCell(
+#         units=units,
+#         reservoir_function=eca_function,
+#         input_initializer=input_reservoir_init,
+#         input_bias_initializer=input_bias_init,
+#         activation=activation,
+#         leak_rate=leak_rate,
+#         name="EcaCell",
+#     )
+
+#     eca_rnn = keras.layers.RNN(
+#         eca_cell,
+#         trainable=False,
+#         stateful=True,
+#         return_sequences=True,
+#         name="esn_rnn",
+#     )(inputs)
+
+#     power_index = PowerIndex(exponent=exponent, index=2, name="pwr")(eca_rnn)
+
+#     output = keras.layers.Concatenate(name="Concat_ESN_input")([inputs, power_index])
+
+#     reservoir = keras.Model(
+#         inputs=inputs,
+#         outputs=output,
+#     )
+
+#     return reservoir
+# endregion
