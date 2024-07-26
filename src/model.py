@@ -43,10 +43,13 @@ class ESN:
     """
 
     @typechecked
-    def __init__(self, reservoir: Layer, readout: Layer, seed: int) -> None:
+    def __init__(self, reservoir: Layer, readout: Layer, seed: int | None) -> None:
 
         self.readout: Layer = readout
         self.reservoir: Layer = reservoir
+        # Raise a warning if the seed is None
+        if seed is None:
+            print("Seed is None. Reproducibility is not guaranteed.")
         self.seed = seed
 
         # This is a flag to check if the reservoir and readout are built (loading a previously trained model)
@@ -488,14 +491,6 @@ def generate_ESN(
     Return:
         model (ESN): Return the loaded instance of the ESN model.
     """
-    # TODO: see who handles the seed and how
-    if seed is None:
-        seed = np.random.randint(0, 1000000)
-
-    print(f"\nSeed: {seed}\n")
-    np.random.seed(seed)
-    tf.random.set_seed(seed)
-
     reservoir = simple_reservoir(
         units=units,
         leak_rate=leak_rate,

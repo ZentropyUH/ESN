@@ -9,9 +9,7 @@ from scipy import sparse
 from scipy.sparse import linalg
 
 import keras
-import keras.utils
-import keras.initializers
-from keras.initializers import Initializer
+from keras import Initializer
 
 ###############################################
 ################## Initializers ###############
@@ -47,6 +45,11 @@ class InputMatrix(Initializer):
 
         self.sigma = sigma
         self.seed = seed
+
+        if seed is not None:
+            self.tf_rng = tf.random.Generator.from_seed(seed)
+        else:
+            self.tf_rng = tf.random.Generator.from_non_deterministic_state()
 
     def __call__(
         self,
@@ -94,12 +97,11 @@ class InputMatrix(Initializer):
                     ]
                 )
 
-        values = tf.random.uniform(
+        values = self.tf_rng.uniform(
             (rows * inputs_per_node + q_flag,),
             minval=-self.sigma,
             maxval=self.sigma,
             dtype=dtype,
-            seed=self.seed,
         )
 
         w_in = tf.SparseTensor(
@@ -284,6 +286,8 @@ class ErdosRenyi(Initializer):
         self.ones = ones
         self.seed = seed
 
+        self.rng = np.random.default_rng(self.seed)
+
     def __call__(
         self,
         shape: Union[int, Tuple[int, int]],
@@ -299,7 +303,7 @@ class ErdosRenyi(Initializer):
 
         """
         if isinstance(shape, int):
-            nodes = (shape, shape)
+            nodes = shape
         elif (
             isinstance(shape, (list, tuple))
             and len(shape) == 2
@@ -332,8 +336,8 @@ class ErdosRenyi(Initializer):
 
         if not self.ones:
             for u, v in graph.edges():
-                # weight = np.random.uniform(-self.sigma, self.sigma)
-                weight = np.random.choice([-1, 1])
+                # weight = rng.uniform(-self.sigma, self.sigma)
+                weight = self.rng.choice([-1, 1])
                 graph[u][v]["weight"] = weight
 
         # Convert to dense matrix to later on transform it to sparse matrix
@@ -407,6 +411,8 @@ class WattsStrogatzNX(Initializer):
         self.ones = ones
         self.seed = seed
 
+        self.rng = np.random.default_rng(self.seed)
+
     def __call__(
         self,
         shape: Union[int, Tuple[int, int]],
@@ -450,8 +456,8 @@ class WattsStrogatzNX(Initializer):
         # Change the non zero values to random uniform in [-sigma, sigma]
         if not self.ones:
             for u, v in graph.edges():
-                # weight = np.random.uniform(-self.sigma, self.sigma)
-                weight = np.random.choice([-1, 1])
+                # weight = self.rng.random.uniform(-self.sigma, self.sigma)
+                weight = self.rng.choice([-1, 1])
                 graph[u][v]["weight"] = weight
 
         # Convert to dense matrix to later on transform it to sparse matrix
@@ -463,7 +469,7 @@ class WattsStrogatzNX(Initializer):
         print(f"Correcting spectral radius to {self.spectral_radius}")
 
         rho = abs(
-            linalg.eigs(graph_matrix, k=1, which="LM", return_eigenvectors=False)[0]
+            linalg.eigs(graph_matrix, k=1, which="LM", return_eigenvectors=False, v0=np.ones(graph_matrix.shape[0]))[0]
         )
 
         if rho == 0:
