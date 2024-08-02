@@ -114,7 +114,8 @@ class InputMatrix(Initializer):
     def get_config(self) -> Dict:
         """Get the config dictionary of the initializer for serialization."""
         base_config = super().get_config()
-        config = {"sigma": self.sigma}
+        config = {"sigma": self.sigma,
+                  "seed": self.seed}
         return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -247,6 +248,7 @@ class RegularNX(Initializer):
             "spectral_radius": self.spectral_radius,
             "sigma": self.sigma,
             "ones": self.ones,
+            "seed": self.seed,
         }
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -370,6 +372,8 @@ class ErdosRenyi(Initializer):
             "degree": self.degree,
             "spectral_radius": self.spectral_radius,
             "sigma": self.sigma,
+            "ones": self.ones,
+            "seed": self.seed,
         }
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -491,7 +495,10 @@ class WattsStrogatzNX(Initializer):
         config = {
             "degree": self.degree,
             "spectral_radius": self.spectral_radius,
+            "rewiring_p": self.rewiring_p,
             "sigma": self.sigma,
+            "ones": self.ones,
+            "seed": self.seed,
         }
         return dict(list(base_config.items()) + list(config.items()))
 
