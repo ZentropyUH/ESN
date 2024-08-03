@@ -39,11 +39,14 @@ class InputMatrix(Initializer):
     >>> w is a 5x10 matrix with values in [-1, 1]
     """
 
-    def __init__(self, sigma: float = 0.5, seed: Union[int, None] = None) -> None:
+    def __init__(
+        self, sigma: float = 0.5, ones: bool = False, seed: Union[int, None] = None
+    ) -> None:
         """Initialize the initializer."""
         assert sigma > 0, "sigma must be positive"
 
         self.sigma = sigma
+        self.ones = ones
         self.seed = seed
 
         if seed is not None:
@@ -97,12 +100,17 @@ class InputMatrix(Initializer):
                     ]
                 )
 
-        values = self.tf_rng.uniform(
-            (rows * inputs_per_node + q_flag,),
-            minval=-self.sigma,
-            maxval=self.sigma,
-            dtype=dtype,
-        )
+        if self.ones:
+            values = self.sigma * tf.ones(
+                (rows * inputs_per_node + q_flag,), dtype=dtype
+            )
+        else:
+            values = self.tf_rng.uniform(
+                (rows * inputs_per_node + q_flag,),
+                minval=-self.sigma,
+                maxval=self.sigma,
+                dtype=dtype,
+            )
 
         w_in = tf.SparseTensor(
             indices=indexes_nonzero, values=values, dense_shape=dense_shape
@@ -114,8 +122,7 @@ class InputMatrix(Initializer):
     def get_config(self) -> Dict:
         """Get the config dictionary of the initializer for serialization."""
         base_config = super().get_config()
-        config = {"sigma": self.sigma,
-                  "seed": self.seed}
+        config = {"sigma": self.sigma, "ones": self.ones, "seed": self.seed}
         return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -162,7 +169,7 @@ class RegularNX(Initializer):
         self.sigma = sigma
         self.ones = ones
         self.seed = seed
-        
+
         if seed is not None:
             self.rng = np.random.default_rng(seed)
         else:
@@ -479,7 +486,13 @@ class WattsStrogatzNX(Initializer):
         print(f"Correcting spectral radius to {self.spectral_radius}")
 
         rho = abs(
-            linalg.eigs(graph_matrix, k=1, which="LM", return_eigenvectors=False, v0=np.ones(graph_matrix.shape[0]))[0]
+            linalg.eigs(
+                graph_matrix,
+                k=1,
+                which="LM",
+                return_eigenvectors=False,
+                v0=np.ones(graph_matrix.shape[0]),
+            )[0]
         )
 
         if rho == 0:
