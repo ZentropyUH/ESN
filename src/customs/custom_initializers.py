@@ -162,6 +162,11 @@ class RegularNX(Initializer):
         self.sigma = sigma
         self.ones = ones
         self.seed = seed
+        
+        if seed is not None:
+            self.rng = np.random.default_rng(seed)
+        else:
+            self.rng = np.random.default_rng()
 
     def __call__(
         self,
@@ -202,14 +207,15 @@ class RegularNX(Initializer):
             nodes += 1
 
         degree = max(1, self.degree)
-        graph = nx.random_regular_graph(degree, nodes, seed=self.seed)
+        graph = nx.random_regular_graph(degree, nodes, seed=self.rng)
 
         # Making non zero elements random uniform between -sigma and sigma
-        if not self.ones:  # Make this more efficient
-            for u, v in graph.edges():
-                # weight = np.random.uniform(-self.sigma, self.sigma)
-                weight = np.random.choice([-1, 1])
-                graph[u][v]["weight"] = weight
+        for u, v in graph.edges():
+            if not self.ones:  # Make this more efficient
+                weight = np.random.uniform(-self.sigma, self.sigma)
+            else:
+                weight = self.rng.choice([-1, 1])
+            graph[u][v]["weight"] = weight
 
         # Convert to dense matrix to later on transform it to sparse matrix
         graph_matrix = nx.to_numpy_array(graph).astype(np.float32)
