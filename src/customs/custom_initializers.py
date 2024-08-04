@@ -86,27 +86,51 @@ class InputMatrix(Initializer):
         # not connected to the input
 
         # Correction to ensure at leat one connection per node
-        q_flag = int(inputs_per_node < cols / rows)
+        # q_flag = int(inputs_per_node < cols / rows)
 
-        indexes_nonzero = tf.zeros((rows * inputs_per_node + q_flag, 2), dtype=tf.int64)
-        indexes_nonzero = tf.Variable(indexes_nonzero, dtype=tf.int64)
+        # indexes_nonzero = tf.zeros((rows * inputs_per_node + q_flag, 2), dtype=tf.int64)
+        # indexes_nonzero = tf.Variable(indexes_nonzero, dtype=tf.int64)
 
-        for i in range(0, rows):
-            for j in range(0, inputs_per_node + q_flag):
-                indexes_nonzero[i * inputs_per_node + j, :].assign(
-                    [
-                        i,
-                        i * inputs_per_node + j,
-                    ]
-                )
+        # for i in range(0, rows):
+        #     for j in range(0, inputs_per_node + q_flag):
+        #         indexes_nonzero[i * inputs_per_node + j, :].assign(
+        #             [
+        #                 i,
+        #                 i * inputs_per_node + j,
+        #             ]
+        #         )
+        
+        indexes_list = []
+        counter = 0
+
+        # Assign base connections
+        for i in range(rows):
+            for j in range(inputs_per_node):
+                index = counter % cols
+                indexes_list.append([i, index])
+                counter += 1
+
+        # Distribute remainder
+        remainder = cols % rows
+        for i in range(remainder):
+            index = counter % cols
+            indexes_list.append([i, index])
+            counter += 1
+
+        # Convert the list to a TensorFlow Variable
+        indexes_nonzero = tf.Variable(indexes_list, dtype=tf.int64)
+
+        num_values = len(indexes_list)  #This will dynamically match the length of indexes_list
 
         if self.ones:
-            values = self.sigma * tf.ones(
-                (rows * inputs_per_node + q_flag,), dtype=dtype
-            )
+
+            random_bools = tf.random.uniform(shape=(num_values,), minval=0, maxval=2, dtype=tf.int32)
+            values = tf.where(random_bools == 1, 1.0, -1.0) * self.sigma
+
+            
         else:
             values = self.tf_rng.uniform(
-                (rows * inputs_per_node + q_flag,),
+                (num_values,),
                 minval=-self.sigma,
                 maxval=self.sigma,
                 dtype=dtype,
@@ -232,16 +256,13 @@ class RegularNX(Initializer):
 
         # Correcting the spectral radius
         print(f"Correcting spectral radius to {self.spectral_radius}")
-        if self.ones:
-            # If matrix is binary the spectral radius is the degree of the graph.
-            rho = degree
-            kernel = graph_matrix * self.spectral_radius / rho
-        else:
-            rho = abs(linalg.eigs(graph_matrix, k=1, which="LM")[0])[0]
-            if rho == 0:
-                print("The matrix is singular, re-initializing")
-                return self(shape, dtype)
-            kernel = graph_matrix * self.spectral_radius / rho
+        rho = abs(linalg.eigs(graph_matrix, k=1, which="LM")[0])[0]
+        
+        if rho == 0:
+            print("The matrix is singular, re-initializing")
+            return self(shape, dtype)
+        
+        kernel = graph_matrix * self.spectral_radius / rho
 
         print(f"Spectral radius was previously {rho}")
 
@@ -337,7 +358,7 @@ class ErdosRenyi(Initializer):
             )
             nodes = self.degree
 
-        # The probability to make an Erdos-Renyi with degree d is p = d/(n-1)
+        # The probability of an Erdos-Renyi edge with degree <d> is p = d/(n-1)
         probab = self.degree / (nodes - 1)
 
         if probab < np.log(nodes) / nodes:
@@ -349,11 +370,12 @@ class ErdosRenyi(Initializer):
 
         graph = nx.erdos_renyi_graph(nodes, probab, directed=True, seed=self.seed)
 
-        if not self.ones:
-            for u, v in graph.edges():
-                # weight = rng.uniform(-self.sigma, self.sigma)
+        for u, v in graph.edges():
+            if not self.ones:
+                weight = self.rng.uniform(-self.sigma, self.sigma)
+            else:
                 weight = self.rng.choice([-1, 1])
-                graph[u][v]["weight"] = weight
+            graph[u][v]["weight"] = weight
 
         # Convert to dense matrix to later on transform it to sparse matrix
         graph_matrix = nx.to_numpy_array(graph).astype(np.float32)
@@ -471,11 +493,12 @@ class WattsStrogatzNX(Initializer):
         )
 
         # Change the non zero values to random uniform in [-sigma, sigma]
-        if not self.ones:
-            for u, v in graph.edges():
-                # weight = self.rng.random.uniform(-self.sigma, self.sigma)
+        for u, v in graph.edges():
+            if not self.ones:
+                weight = self.rng.uniform(-self.sigma, self.sigma)
+            else:
                 weight = self.rng.choice([-1, 1])
-                graph[u][v]["weight"] = weight
+            graph[u][v]["weight"] = weight
 
         # Convert to dense matrix to later on transform it to sparse matrix
         graph_matrix = nx.to_numpy_array(graph).astype(np.float32)
