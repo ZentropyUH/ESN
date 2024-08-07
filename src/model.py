@@ -265,104 +265,144 @@ class ESN:
         val_data: np.ndarray,
         val_target: np.ndarray,
         internal_states: bool = False,
-        feedback_metrics: bool = True,
-        error_threshold: Optional[float] = None,  # New parameter
+        error_threshold: Optional[float] = None,
     ) -> Tuple[np.ndarray, Optional[np.ndarray], Optional[np.ndarray], Optional[int]]:
-        """
-        Forecast the model for a given number of steps.
+        """Forecast the model for a given number of steps. It also calculates the cumulative error if the error threshold is specified. If internal_states is True, it will store the internal states of the ESN over time. The method returns the predictions, the states over time, the cumulative RMSE, and the number of steps to exceed the error threshold.
 
         Args:
-            forecast_length (int): Number of steps to forecast.
-
-            forecast_transient_data (np.ndarray): Transient data of the val_data. The model is fitted with this data.
-
-            val_data (np.ndarray): True data of the prediction. The forecast starts receiving its first value as input for the prediction.
-
-            val_target (np.ndarray): Target data of the prediction. Used to calculate the loss function.
-
-            internal_states (bool): Whether to return the states of the ESN.
-
-            feedback_metrics: (bool): Whether to include comparison metrics with the original data.
-
-            error_threshold (Optional[float]): Threshold for cumulative NRMSE to determine forecast steps. Default is None.
+            forecast_length (int): The number of steps to forecast.
+            forecast_transient_data (np.ndarray): The transient data to ensure ESP.
+            val_data (np.ndarray): The validation data to forecast.
+            val_target (np.ndarray): The
+            internal_states (bool, optional): Whether to store the internal states of the ESN over time. Defaults to False.
+            error_threshold (Optional[float], optional): The threshold for the cumulative RMSE to record the number of steps to exceed it. Defaults to None.
 
         Returns:
-            Tuple[np.ndarray, Optional[np.ndarray], Optional[np.ndarray], Optional[int]]: A tuple containing the forecasted data, the states of the ESN (if internal_states is True), the cumulative error, and the number of steps to exceed the error threshold (if specified).
+            Tuple[np.ndarray, Optional[np.ndarray], Optional[np.ndarray], Optional[int]]: A tuple containing the predictions array, the states over time array, the cumulative error array, and the number of steps to exceed the error threshold.
         """
         self.reset_states()
 
-        if feedback_metrics and forecast_length > val_data.shape[1]:
+        print("transient shape: ", forecast_transient_data.shape)
+        
+        print(val_data.shape)
+        
+        print(val_target.shape)
+        
+        if forecast_length > val_data.shape[1]:
             print("Truncating the forecast length to match the data.")
-            forecast_length = min(forecast_length, val_data.shape[1])
-            print(f"New forecast length of: {forecast_length}\n")
+        forecast_length = min(forecast_length, val_data.shape[1])
 
-        _val_target = val_target[:, :forecast_length, :]
-
-        print(f"Forecasting free running sequence {forecast_length} steps ahead.\n")
-        print("    Ensuring ESP...\n")
-        print("    Forecast transient data shape: ", forecast_transient_data.shape)
-        self.predict(forecast_transient_data)
-
-        predictions = np.empty(
-            (val_data.shape[0], forecast_length + 1, val_data.shape[2])
+        predictions, states_over_time = self._initialize_forecast_structures(
+            val_data, forecast_length, internal_states
         )
-        predictions[:, 0:1, :] = val_data[:, :1, :]
 
-        # Making the states an array of shape (0, units)
+        cumulative_error, steps_to_exceed_threshold, states_over_time = (
+            self._perform_forecasting(
+                predictions,
+                forecast_transient_data,
+                val_target,
+                error_threshold,
+                states_over_time,
+            )
+        )
+
+        predictions = predictions[:, 1:, :]
+
+        return (
+            predictions,
+            states_over_time,
+            cumulative_error,
+            steps_to_exceed_threshold,
+        )
+
+    def _initialize_forecast_structures(
+        self, val_data: np.ndarray, forecast_length: int, internal_states: bool
+    ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+        """This method initializes the structures to store the predictions and the internal states of the ESN over time. It also initializes the first prediction with the first data point of the validation data.
+
+        Args:
+            val_data (np.ndarray): The validation data to forecast.
+            forecast_length (int): The number of steps to forecast.
+            internal_states (bool): Whether to store the internal states of the ESN over time.
+
+        Returns:
+            Tuple[np.ndarray, Optional[np.ndarray]]: A tuple containing the predictions array and the states over time array. The predictions array has shape (1, forecast_length + 1, val_data.shape[2]). The states over time array has shape (forecast_length, self.model.get_layer("esn_rnn").cell.units) if internal_states is True, otherwise it is None.
+        """
+        predictions = tf.Variable(
+            tf.zeros((1, forecast_length + 1, val_data.shape[2])), dtype=tf.float32
+        )
+        predictions[:, :1, :].assign(
+            tf.convert_to_tensor(val_data[:, :1, :], dtype=tf.float32)
+        )  # Initialize the first prediction with the first data point
+
         states_over_time = (
-            np.empty((forecast_length, self.model.get_layer("esn_rnn").cell.units))
+            tf.TensorArray(tf.float32, size=forecast_length, dynamic_size=True)
             if internal_states
             else None
         )
 
-        print("\n    Predicting...\n")
-        cumulative_error = np.empty(forecast_length)
-        steps_to_exceed_threshold = (
-            None  # Variable to track the number of steps to exceed the error threshold
-        )
+        return predictions, states_over_time
 
-        for step in track(range(forecast_length), description="Predicting..."):
-            current_input = tf.convert_to_tensor(
-                predictions[:, step : step + 1, :], dtype=tf.float32
-            )
-            pred = self.forecast_step(current_input)
-            predictions[:, step + 1 : step + 2, :] = pred
+    # @tf.function(reduce_retracing=True)
+    def _perform_forecasting(
+        self,
+        predictions: np.ndarray,
+        forecast_transient_data: np.ndarray,
+        val_target: np.ndarray,
+        error_threshold: Optional[float],
+        states_over_time: Optional[np.ndarray] = None,
+    ):
+        """Perform the forecasting process for the model. This method does the forecasting and calculates the cumulative error if the error threshold is specified. If states_over_time is not None, it will store the internal states of the ESN over time.
 
-            if internal_states:
-                # Getting the states of the ESN, also reducing the dimensionality
-                # TODO: Make this generic to other type of reservoirs, not only simple_esn
-                current_states = self.model.get_layer("esn_rnn").states[0].numpy()
-                states_over_time[step, :] = current_states
+        Args:
+            predictions (np.ndarray): The predictions array to store the forecasted data. The first element of the array must be the first data point of the validation data. Its shape will be (1, forecast_length + 1, n_features).
+            forecast_transient_data (np.ndarray): This is the transient data to ensure ESP. It is used to make the internal states of the ESN converge to the true states of the data.
+            val_target (np.ndarray): The target data of the validation data. It is used to calculate the cumulative error.
+            error_threshold (Optional[float]): The threshold for the cumulative RMSE to stop the forecasting process.
+            states_over_time (Optional[np.ndarray], optional): The array to store the internal states of the ESN over time. Defaults to None.
 
-            # Calculate the NRMSE at the current step
-            cumulative_error[step] = calculate_nrmse(
-                target=_val_target[0, : step + 1],
-                prediction=predictions[0, 1 : step + 2],
-            )
+        Returns:
+            Tuple[np.ndarray, Optional[int], Optional[np.ndarray]]: A tuple containing the cumulative error, the number of steps to exceed the error threshold, and the states over time array.
+        """
+        # self.predict(forecast_transient_data)  # Ensure ESP by predicting transient data
+        self.predict(tf.ensure_shape(forecast_transient_data, (1, None, 3)))
 
-            # Check if cumulative error exceeds the threshold
-            if (
-                error_threshold is not None
-                and cumulative_error[step] > error_threshold
-                and steps_to_exceed_threshold is None
-            ):
-                steps_to_exceed_threshold = step + 1  # +1 to account for zero-indexing
+        squared_errors_sum = tf.Variable(0.0, dtype=tf.float32)
 
-        predictions = predictions[:, 1:, :]
-        print("    Predictions shape: ", predictions.shape)
+        cumulative_error = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
 
-        if feedback_metrics:
-            print(f"Steps to exceed threshold: {steps_to_exceed_threshold}")
-            if steps_to_exceed_threshold is None:
-                steps_to_exceed_threshold = forecast_length
-            return (
-                predictions,
-                states_over_time,
-                cumulative_error,
-                steps_to_exceed_threshold,
-            )
+        steps_to_exceed_threshold = 0 if error_threshold is not None else None
 
-        return predictions, states_over_time, cumulative_error, None
+        for step in track(
+            tf.range(predictions.shape[1] - 1), description="Forecasting..."
+        ):
+
+            current_input = predictions[:, step : step + 1, :]
+            new_prediction = self.forecast_step(current_input)
+            predictions[:, step + 1 : step + 2, :].assign(new_prediction)
+
+            if states_over_time is not None:
+                state = self.model.get_layer("esn_rnn").states[0]
+                states_over_time = states_over_time.write(step, state)
+
+            if error_threshold is not None:  # Calculate the RMSE at the current step
+
+                # Update squared errors sum
+                current_squared_errors = tf.reduce_sum(
+                    tf.square(val_target[:, step, :] - predictions[:, step + 1, :])
+                )
+                squared_errors_sum.assign_add(current_squared_errors)
+
+                # Calculate cumulative RMSE from the start to the current step
+                current_rmse = tf.sqrt(
+                    squared_errors_sum / tf.cast(step + 1, tf.float32)
+                )
+                cumulative_error = cumulative_error.write(step, current_rmse)
+
+                if current_rmse > error_threshold and steps_to_exceed_threshold == 0:
+                    steps_to_exceed_threshold = step + 1
+
+        return cumulative_error, steps_to_exceed_threshold, states_over_time
 
     def save(self, path: str) -> None:
         """
