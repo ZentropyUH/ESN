@@ -111,6 +111,9 @@ class ESN:
             raise RuntimeError("Model must be trained to predict")
         return self.model(*args, **kwds)
 
+    def get_weights(self):
+        return self.model.get_weights()
+
     def predict(self, inputs: np.ndarray) -> np.ndarray:
         """
         Predicts the output of the model for the given inputs.
