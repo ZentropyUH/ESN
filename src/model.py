@@ -42,6 +42,35 @@ class ESN:
         readout (keras.Layer): The readout layer of the ESN.
     """
 
+    def __eq__(self, other):
+        if not isinstance(other, ESN) or self.model is None or other.model is None:
+            return False
+        if self is other:
+            return True  # Fast path for comparison with itself
+        return all(
+            np.array_equal(w1, w2)
+            for w1, w2 in zip(self.model.get_weights(), other.model.get_weights())
+        )
+
+    def __hash__(self):
+        """
+        Generate a hash based on the weights of the internal Keras model.
+
+        This method flattens and converts all weights to a bytes object,
+        which is then used to compute a hash.
+
+        Returns:
+            int: The hash value of the model's weights.
+        """
+        if not hasattr(self, "_hash") or self._hash is None:
+            if self.model is not None:
+                # Compute hash only once after training
+                weight_bytes = b"".join(w.tobytes() for w in self.model.get_weights())
+                self._hash = hash(weight_bytes)
+            else:
+                self._hash = hash(("ESN", None))
+        return self._hash
+
     @typechecked
     def __init__(self, reservoir: Layer, readout: Layer, seed: int | None) -> None:
 
@@ -182,6 +211,8 @@ class ESN:
             name="ESN",
         )
 
+        self._built = True
+
         return training_loss
 
     def get_states(self) -> list:
@@ -192,11 +223,7 @@ class ESN:
         """
         rnn_states = []
         for layer in self.model.layers:
-            if (
-                hasattr(layer, "name")
-                and "esn_rnn" in layer.name
-                and isinstance(layer, keras.layers.RNN)
-            ):
+            if isinstance(layer, keras.layers.RNN):
                 rnn_states.append(
                     layer.states[0]
                 )  # For simple RNN, there's only one state tensor
@@ -213,24 +240,29 @@ class ESN:
         """
         state_index = 0
         for layer in self.model.layers:
-            if (
-                hasattr(layer, "name")
-                and "esn_rnn" in layer.name
-                and isinstance(layer, keras.layers.RNN)
-            ):
-                layer.states[0] = states[
-                    state_index
-                ]  # For simple RNN, there's only one state tensor
-                state_index += 1
+            if isinstance(layer, keras.layers.RNN):
+                if layer.states[0].shape == states[state_index].shape:
+                    layer.states[0] = states[
+                        state_index
+                    ]  # For simple RNN, there's only one state tensor
+                    state_index += 1
+                else:
+                    raise ValueError(
+                        "The shape of the state tensor does not match the shape of the layer's state tensor.")
 
-    def set_random_states(self, threshold: float = 1) -> None:
+    def set_random_states(self, threshold: float = 1, seed: Optional[int] = None) -> None:
         """Set random states for all RNN layers in the model with values sampled uniformly from [-a, a]."""
         current_states = self.get_states()
         new_random_states = []
+        
+        if seed is not None:
+            tf_rng = tf.random.Generator.from_seed(seed)
+        else:
+            tf_rng = tf.random.Generator.from_non_deterministic_state()
 
         for state in current_states:
             # Generate a random state with the same shape as the current state, with values in [-a, a]
-            random_state = tf.random.uniform(
+            random_state = tf_rng.uniform(
                 state.shape, minval=-threshold, maxval=threshold
             )
             new_random_states.append(random_state)
@@ -239,24 +271,11 @@ class ESN:
 
     def reset_states(self):
         """Reset internal states of the RNNs of the model."""
-
         for layer in self.model.layers:
-            if (
-                hasattr(layer, "name")
-                and "esn_rnn" in layer.name
-                and isinstance(layer, keras.layers.RNN)
-            ):
+            if isinstance(layer, keras.layers.RNN):
                 layer.reset_states()
 
             # function code here
-
-    @tf.function(reduce_retracing=True)
-    def forecast_step(self, current_input):
-        """
-        Forecast a single step using the model.
-        Wrapped with tf.function for performance optimization.
-        """
-        return self.model(current_input)
 
     def forecast(
         self,
@@ -282,12 +301,6 @@ class ESN:
         """
         self.reset_states()
 
-        print("transient shape: ", forecast_transient_data.shape)
-        
-        print(val_data.shape)
-        
-        print(val_target.shape)
-        
         if forecast_length > val_data.shape[1]:
             print("Truncating the forecast length to match the data.")
         forecast_length = min(forecast_length, val_data.shape[1])
@@ -374,7 +387,7 @@ class ESN:
         steps_to_exceed_threshold = 0 if error_threshold is not None else None
 
         for step in track(
-            tf.range(predictions.shape[1] - 1), description="Forecasting..."
+            range(predictions.shape[1] - 1), description="Forecasting..."
         ):
 
             current_input = predictions[:, step : step + 1, :]
@@ -403,6 +416,14 @@ class ESN:
                     steps_to_exceed_threshold = step + 1
 
         return cumulative_error, steps_to_exceed_threshold, states_over_time
+
+    @tf.function(reduce_retracing=True)
+    def forecast_step(self, current_input):
+        """
+        Forecast a single step using the model.
+        Wrapped with tf.function for performance optimization.
+        """
+        return self.model(current_input)
 
     def save(self, path: str) -> None:
         """
