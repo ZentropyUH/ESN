@@ -80,25 +80,6 @@ class InputMatrix(Initializer):
         ), "Reservoir nodes must be greater than or equal to number of features of the input."
 
         inputs_per_node = int(cols / rows)
-
-        # There's a tweak for when cols/rows is not an integer,
-        # hence it leaves the last column empty and that node is
-        # not connected to the input
-
-        # Correction to ensure at leat one connection per node
-        # q_flag = int(inputs_per_node < cols / rows)
-
-        # indexes_nonzero = tf.zeros((rows * inputs_per_node + q_flag, 2), dtype=tf.int64)
-        # indexes_nonzero = tf.Variable(indexes_nonzero, dtype=tf.int64)
-
-        # for i in range(0, rows):
-        #     for j in range(0, inputs_per_node + q_flag):
-        #         indexes_nonzero[i * inputs_per_node + j, :].assign(
-        #             [
-        #                 i,
-        #                 i * inputs_per_node + j,
-        #             ]
-        #         )
         
         indexes_list = []
         counter = 0
@@ -124,7 +105,7 @@ class InputMatrix(Initializer):
 
         if self.ones:
 
-            random_bools = tf.random.uniform(shape=(num_values,), minval=0, maxval=2, dtype=tf.int32)
+            random_bools = self.tf_rng.uniform(shape=(num_values,), minval=0, maxval=2, dtype=tf.int32)
             values = tf.where(random_bools == 1, 1.0, -1.0) * self.sigma
 
             
@@ -147,7 +128,9 @@ class InputMatrix(Initializer):
         """Get the config dictionary of the initializer for serialization."""
         base_config = super().get_config()
         config = {"sigma": self.sigma, "ones": self.ones, "seed": self.seed}
-        return dict(list(base_config.items()) + list(config.items()))
+        
+        config.update(base_config)
+        return config
 
 
 @keras.saving.register_keras_serializable(package="MyInitializers", name="RegularNX")
@@ -243,7 +226,7 @@ class RegularNX(Initializer):
         # Making non zero elements random uniform between -sigma and sigma
         for u, v in graph.edges():
             if not self.ones:  # Make this more efficient
-                weight = np.random.uniform(-self.sigma, self.sigma)
+                weight = self.rng.uniform(-self.sigma, self.sigma)
             else:
                 weight = self.rng.choice([-1, 1])
             graph[u][v]["weight"] = weight
@@ -284,7 +267,9 @@ class RegularNX(Initializer):
             "ones": self.ones,
             "seed": self.seed,
         }
-        return dict(list(base_config.items()) + list(config.items()))
+        
+        config.update(base_config)
+        return config
 
 
 @keras.saving.register_keras_serializable(package="MyInitializers", name="ErdosRenyi")
@@ -368,7 +353,7 @@ class ErdosRenyi(Initializer):
             )
             print("You ponder over life and the universe, and then continue...")
 
-        graph = nx.erdos_renyi_graph(nodes, probab, directed=True, seed=self.seed)
+        graph = nx.erdos_renyi_graph(nodes, probab, directed=True, seed=self.rng)
 
         for u, v in graph.edges():
             if not self.ones:
@@ -410,7 +395,9 @@ class ErdosRenyi(Initializer):
             "ones": self.ones,
             "seed": self.seed,
         }
-        return dict(list(base_config.items()) + list(config.items()))
+        
+        config.update(base_config)
+        return config
 
 
 @keras.saving.register_keras_serializable(
@@ -489,7 +476,7 @@ class WattsStrogatzNX(Initializer):
             nodes = self.degree
 
         graph = nx.connected_watts_strogatz_graph(
-            nodes, self.degree, self.rewiring_p, seed=self.seed
+            nodes, self.degree, self.rewiring_p, seed=self.rng
         )
 
         # Change the non zero values to random uniform in [-sigma, sigma]
@@ -542,7 +529,9 @@ class WattsStrogatzNX(Initializer):
             "ones": self.ones,
             "seed": self.seed,
         }
-        return dict(list(base_config.items()) + list(config.items()))
+        
+        config.update(base_config)
+        return config
 
 
 custom_initializers = {
