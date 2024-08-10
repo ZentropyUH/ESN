@@ -153,8 +153,6 @@ class ESN:
         train_data: np.ndarray,
         train_target: np.ndarray,
         regularization: float,
-        method="ridge",
-        solver="svd",
     ) -> None:
         """
         Training process of the model.
@@ -170,16 +168,6 @@ class ESN:
         Return:
             None
         """
-
-        method_map = {
-            "ridge": Ridge(alpha=regularization, tol=0, solver=solver),
-            "lasso": Lasso(alpha=regularization, tol=0),
-            "elastic": ElasticNet(alpha=regularization, tol=1e-4, selection="random"),
-        }
-
-        if method not in method_map:
-            raise ValueError("The method must be ['ridge' | 'lasso' | 'elastic'].")
-
         print("\nEnsuring ESP...\n")
         if not self.reservoir.built:
             self.reservoir.build(input_shape=transient_data.shape)
@@ -191,13 +179,17 @@ class ESN:
 
         print("\nTraining...\n")
         with self.timer("Calculating Readout"):
-            readout = method_map[method]
-            # readout = TF_RidgeRegression(alpha=regularization)
+            readout = Ridge(alpha=regularization, tol=0, solver="svd")
             readout.fit(harvested_states[0], train_target[0])
 
         predictions = readout.predict(harvested_states[0])
 
+        # this is with numpy
         training_loss = np.mean((predictions - train_target[0]) ** 2)
+        
+        # this is with tensorflow
+        training_loss = tf.reduce_mean((predictions - train_target[0]) ** 2)
+        
         print(f"Training loss: {training_loss}\n")
 
         nrmse = calculate_nrmse(target=train_target[0], prediction=predictions)
