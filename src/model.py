@@ -114,7 +114,7 @@ class ESN:
     def get_weights(self):
         return self.model.get_weights()
 
-    def predict(self, inputs: np.ndarray) -> np.ndarray:
+    def predict(self, inputs: np.ndarray, **kwargs: Any) -> np.ndarray:
         """
         Predicts the output of the model for the given inputs.
 
@@ -129,7 +129,7 @@ class ESN:
         """
         if self.model is None:
             raise RuntimeError("Model must be trained to predict")
-        return self.model.predict(inputs)
+        return self.model.predict(inputs, **kwargs)
 
     @contextmanager
     def timer(self, task_name):
@@ -141,12 +141,79 @@ class ESN:
 
         Returns:
             None
+            
+        Example:
+            >>> with self.timer("Task"):
+            >>>     # Code to measure
+            Will print the time taken to execute the code block.
         """
+        print(f"\n{task_name}...")
         start = time()
         yield
         end = time()
-        print(f"{task_name} took: {round(end - start, 2)} seconds.")
+        print(f"{task_name} took: {round(end - start, 2)} seconds.\n")
 
+    def _harvest(self, transient_data: np.ndarray, train_data: np.ndarray) -> np.ndarray:
+        """
+        This method ensures ESP by predicting the transient data and then harvests the reservoir states. It returns the harvested reservoir states.
+
+        Args:
+            transient (np.ndarray): Transient data to ensure ESP.
+            
+            data (np.ndarray): Data to harvest the reservoir states.
+            
+        Returns:
+            np.ndarray: The harvested reservoir states.
+        """
+        if not self.reservoir.built:
+            self.reservoir.build(input_shape=transient_data.shape)
+        
+        # print("\nEnsuring ESP...\n")
+        with self.timer("Ensuring ESP"):
+            self.reservoir.predict(transient_data)
+        
+        with self.timer("Harvesting"):
+            harvested_states = self.reservoir.predict(train_data)
+
+        return harvested_states
+        
+    def _calculate_readout(
+        self,  harvested_states: np.ndarray, train_target: np.ndarray, regularization: float = 0
+    ) -> float:
+        """
+        Calculate the readout of the model. This method uses Ridge regression to calculate the readout and set the weights of the readout layer. Will return the training loss of the model (RMSE).
+        
+        Args:
+            harvested_states (np.ndarray): The harvested reservoir states.
+            
+            train_target (np.ndarray): The target data for the training.
+            
+            regularization (float): Regularization value for linear readout.
+            
+        Returns:
+            float: The training loss of the model.
+        """
+        with self.timer("Calculating readout"):
+            readout = Ridge(alpha=regularization, tol=0, solver="svd")
+            readout.fit(harvested_states[0], train_target[0])
+        
+        predictions = readout.predict(harvested_states[0])
+        
+        training_loss = np.mean((predictions - train_target[0]) ** 2)
+        
+        print(f"Training loss: {training_loss}\n")
+
+        # this is temporary
+        nrmse = calculate_nrmse(target=train_target[0], prediction=predictions)
+        print(f"NRMSE: {nrmse}\n")        
+        
+        if not self.readout.built:
+            self.readout.build(harvested_states[0].shape)
+        
+        self.readout.set_weights([readout.coef_.T, readout.intercept_])
+        
+        return training_loss    
+        
     def train(
         self,
         transient_data: np.ndarray,
@@ -168,37 +235,11 @@ class ESN:
         Return:
             None
         """
-        print("\nEnsuring ESP...\n")
-        if not self.reservoir.built:
-            self.reservoir.build(input_shape=transient_data.shape)
-        self.reservoir.predict(transient_data)
+        harvested_states = self._harvest(transient_data, train_data)
 
-        print("\nHarvesting...\n")
-        with self.timer("Harvesting"):
-            harvested_states = self.reservoir.predict(train_data)
-
-        print("\nTraining...\n")
-        with self.timer("Calculating Readout"):
-            readout = Ridge(alpha=regularization, tol=0, solver="svd")
-            readout.fit(harvested_states[0], train_target[0])
-
-        predictions = readout.predict(harvested_states[0])
-
-        # this is with numpy
-        training_loss = np.mean((predictions - train_target[0]) ** 2)
-        
-        # this is with tensorflow
-        training_loss = tf.reduce_mean((predictions - train_target[0]) ** 2)
-        
-        print(f"Training loss: {training_loss}\n")
-
-        nrmse = calculate_nrmse(target=train_target[0], prediction=predictions)
-        print(f"NRMSE: {nrmse}\n")
-
-        if not self.readout.built:
-            self.readout.build(harvested_states[0].shape)
-
-        self.readout.set_weights([readout.coef_.T, readout.intercept_])
+        training_loss = self._calculate_readout(
+            harvested_states, train_target, regularization
+        )
 
         self.model = keras.Model(
             inputs=self.reservoir.inputs,
@@ -373,7 +414,7 @@ class ESN:
             Tuple[np.ndarray, Optional[int], Optional[np.ndarray]]: A tuple containing the cumulative error, the number of steps to exceed the error threshold, and the states over time array.
         """
         # self.predict(forecast_transient_data)  # Ensure ESP by predicting transient data
-        self.predict(tf.ensure_shape(forecast_transient_data, (1, None, 3)))
+        self.predict(forecast_transient_data, verbose=0)
 
         squared_errors_sum = tf.Variable(0.0, dtype=tf.float32)
 
