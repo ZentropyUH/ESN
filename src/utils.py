@@ -1,13 +1,16 @@
 """Define some general utility functions."""
+
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 
 from typing import List
+from contextlib import contextmanager
 
 
 # given i it starts from letter x and goes cyclically, when x reached starts xx, xy, etc.
-letter = lambda n: 'x' * ((n + 23) // 26) + chr(ord('a') + (n + 23) % 26)
+letter = lambda n: "x" * ((n + 23) // 26) + chr(ord("a") + (n + 23) % 26)
+
 
 def lyap_ks(i, l):
     """Estimation of the i-th largest Lyapunov Time of the KS model.
@@ -54,7 +57,7 @@ def load_data(
                 validation_target: The validation target. This is for forecasting, so target data is
                     the validation data taken shifted 1 index to the right plus one value.
     """
-    data = pd.read_csv(name, header=None).to_numpy()    
+    data = pd.read_csv(name, header=None).to_numpy()
 
     data = data.astype(np.float32)
 
@@ -92,6 +95,29 @@ def load_data(
         val_data,
         val_target,
     )
+
+
+@contextmanager
+def timer(self, task_name):
+    """
+    Context manager to measure the time of a task.
+
+    Args:
+        task_name (str): Name of the task to measure.
+
+    Returns:
+        None
+
+    Example:
+        >>> with self.timer("Task"):
+        >>>     # Code to measure
+        Will print the time taken to execute the code block.
+    """
+    print(f"\n{task_name}...")
+    start = time()
+    yield
+    end = time()
+    print(f"{task_name} took: {round(end - start, 2)} seconds.\n")
 
 
 # Get the state of the ESN function
@@ -145,12 +171,12 @@ def calculate_nrmse(target: np.ndarray, prediction: np.ndarray) -> float:
 def calculate_rmse_list(target: np.ndarray, prediction: np.ndarray):
     """
     Calculate the RMSE between the target and the prediction for a list of true and predicted values.
-    
+
     Args:
         target (np array): The target data.
 
         prediction (np array): The prediction data.
-    
+
     Returns:
         list: A list of RMSE values.
     """
@@ -164,12 +190,12 @@ def calculate_rmse_list(target: np.ndarray, prediction: np.ndarray):
 def calculate_nrmse_list(target: np.ndarray, prediction: np.ndarray):
     """
     Calculate the NRMSE between the target and the prediction for a list of true and predicted values.
-    
+
     Args:
         target (np array): The target data.
 
         prediction (np array): The prediction data.
-    
+
     Returns:
         list: A list of NRMSE values.
     """
@@ -180,7 +206,8 @@ def calculate_nrmse_list(target: np.ndarray, prediction: np.ndarray):
         nrmse_values.append(nrmse)
     return nrmse_values
 
-#TF implementation of Ridge using svd. TODO: see if it works as well as sklearn
+
+# TF implementation of Ridge using svd. TODO: see if it works as well as sklearn
 class TF_RidgeRegression:
     def __init__(self, alpha: float) -> None:
         self._alpha = alpha
@@ -188,7 +215,7 @@ class TF_RidgeRegression:
         self._intercept = None
         self.W_ = None
 
-    def fit(self, X: tf.Tensor, y: tf.Tensor) -> 'TF_RidgeRegression':
+    def fit(self, X: tf.Tensor, y: tf.Tensor) -> "TF_RidgeRegression":
         """
         Fit Ridge regression model using SVD, handling multi-dimensional y.
 
@@ -199,15 +226,15 @@ class TF_RidgeRegression:
         Returns:
             self: Fitted model.
         """
-        
+
         print("WHAT THE FUCK: ", X.dtype)
         print("WHAT THE FUCKING FUCK: ", y.dtype)
-        
+
         assert X.ndim == 2, "X must be a 2D tensor."
         assert y.ndim == 2, "y must be a 2D tensor."
-        
+
         n_samples, n_features = X.shape
-        
+
         # Compute mean and standard deviation of X and y
         self._X_mean = tf.reduce_mean(X, axis=0)
         self._X_std = tf.math.reduce_std(X, axis=0)
@@ -231,16 +258,22 @@ class TF_RidgeRegression:
         Ut_y = tf.matmul(tf.transpose(U), y_centered)
         V_D_inv = tf.matmul(Vt, D_inv)
         self.W_ = tf.matmul(V_D_inv, tf.matmul(tf.linalg.diag(S), Ut_y))
-        
+
         # Extract coefficients
         self._coef = self.W_[:-1]  # Coefficients (excluding bias term)
 
         # Adjust intercept to incorporate the mean values for each target
         self._coef = self._coef * self._X_std
-        self._intercept = self._y_mean - tf.tensordot(self._X_mean, self.W_[:-1], axes=1) + self.W_[-1]
-        
+        self._intercept = (
+            self._y_mean
+            - tf.tensordot(self._X_mean, self.W_[:-1], axes=1)
+            + self.W_[-1]
+        )
+
         # store the intercept in the last row of W_
-        self.W_ = tf.concat([self.W_[:-1], tf.reshape(self._intercept, (1, -1))], axis=0)
+        self.W_ = tf.concat(
+            [self.W_[:-1], tf.reshape(self._intercept, (1, -1))], axis=0
+        )
 
         return self
 
@@ -266,21 +299,21 @@ class TF_RidgeRegression:
     @property
     def alpha(self):
         return self._alpha
-    
+
     @alpha.setter
     def alpha(self, value):
         if value < 0:
-            raise ValueError("Regularization strength must be non-negative.")        
+            raise ValueError("Regularization strength must be non-negative.")
         self._alpha = value
-    
+
     @property
     def coef_(self):
         return self._coef
-        
+
     @property
     def intercept_(self):
         return self._intercept
-    
+
     def get_params(self):
         """
         Get the parameters of the Ridge regression model.
@@ -288,4 +321,8 @@ class TF_RidgeRegression:
         Returns:
             dict: Dictionary containing 'coef_' and 'intercept_'.
         """
-        return {'alpha': self._alpha, 'coef_': self.coef_, 'intercept_': self.intercept_}
+        return {
+            "alpha": self._alpha,
+            "coef_": self.coef_,
+            "intercept_": self.intercept_,
+        }

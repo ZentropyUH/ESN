@@ -10,7 +10,6 @@ from typing import Optional
 from typing import Union
 from typing import Callable
 from typeguard import typechecked
-from contextlib import contextmanager
 
 import keras
 import tensorflow as tf
@@ -26,6 +25,7 @@ from src.customs.custom_layers import EsnCell, PowerIndex
 from src.utils import calculate_nrmse
 from src.utils import calculate_rmse
 from src.utils import TF_RidgeRegression
+from src.utils import timer
 
 
 # TODO: Add log
@@ -130,28 +130,6 @@ class ESN:
         if self.model is None:
             raise RuntimeError("Model must be trained to predict")
         return self.model.predict(inputs, **kwargs)
-
-    @contextmanager
-    def timer(self, task_name):
-        """
-        Context manager to measure the time of a task.
-
-        Args:
-            task_name (str): Name of the task to measure.
-
-        Returns:
-            None
-
-        Example:
-            >>> with self.timer("Task"):
-            >>>     # Code to measure
-            Will print the time taken to execute the code block.
-        """
-        print(f"\n{task_name}...")
-        start = time()
-        yield
-        end = time()
-        print(f"{task_name} took: {round(end - start, 2)} seconds.\n")
 
     def _harvest(
         self, transient_data: np.ndarray, train_data: np.ndarray
@@ -263,13 +241,13 @@ class ESN:
     ) -> None:
         """
         Training process of the model.
-        
+
         Args:
             transient_data_array (np.ndarray): Transient data.
             train_data_array (np.ndarray): Data to train the model.
             train_target_array (np.ndarray): Target data for the training.
             regularization (float): Regularization value for linear readout.
-            
+
         Return:
             None
         """
@@ -277,25 +255,25 @@ class ESN:
         for transient_data, train_data in zip(transient_data_array, train_data_array):
             _harvested_states = self._harvest(transient_data, train_data)
             harvested_states.append(_harvested_states)
-        
+
         harvested_states = tf.concat(harvested_states, axis=1)
-        
+
         train_target = tf.concat(train_target_array, axis=1)
-        
+
         training_loss = self._calculate_readout(
             harvested_states, train_target, regularization
         )
-        
+
         self.model = keras.Model(
             inputs=self.reservoir.inputs,
             outputs=self.readout(self.reservoir.output),
             name="ESN",
         )
-        
+
         self._built = True
-        
+
         return training_loss
-        
+
     def get_states(self) -> list:
         """Retrieve the current states of all RNN layers in the model.
 
