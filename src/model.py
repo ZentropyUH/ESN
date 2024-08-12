@@ -141,7 +141,7 @@ class ESN:
 
         Returns:
             None
-            
+
         Example:
             >>> with self.timer("Task"):
             >>>     # Code to measure
@@ -153,67 +153,72 @@ class ESN:
         end = time()
         print(f"{task_name} took: {round(end - start, 2)} seconds.\n")
 
-    def _harvest(self, transient_data: np.ndarray, train_data: np.ndarray) -> np.ndarray:
+    def _harvest(
+        self, transient_data: np.ndarray, train_data: np.ndarray
+    ) -> np.ndarray:
         """
         This method ensures ESP by predicting the transient data and then harvests the reservoir states. It returns the harvested reservoir states.
 
         Args:
             transient (np.ndarray): Transient data to ensure ESP.
-            
+
             data (np.ndarray): Data to harvest the reservoir states.
-            
+
         Returns:
             np.ndarray: The harvested reservoir states.
         """
         if not self.reservoir.built:
             self.reservoir.build(input_shape=transient_data.shape)
-        
+
         # print("\nEnsuring ESP...\n")
         with self.timer("Ensuring ESP"):
             self.reservoir.predict(transient_data)
-        
+
         with self.timer("Harvesting"):
             harvested_states = self.reservoir.predict(train_data)
 
         return harvested_states
-        
+
     def _calculate_readout(
-        self,  harvested_states: np.ndarray, train_target: np.ndarray, regularization: float = 0
+        self,
+        harvested_states: np.ndarray,
+        train_target: np.ndarray,
+        regularization: float = 0,
     ) -> float:
         """
         Calculate the readout of the model. This method uses Ridge regression to calculate the readout and set the weights of the readout layer. Will return the training loss of the model (RMSE).
-        
+
         Args:
             harvested_states (np.ndarray): The harvested reservoir states.
-            
+
             train_target (np.ndarray): The target data for the training.
-            
+
             regularization (float): Regularization value for linear readout.
-            
+
         Returns:
             float: The training loss of the model.
         """
         with self.timer("Calculating readout"):
             readout = Ridge(alpha=regularization, tol=0, solver="svd")
             readout.fit(harvested_states[0], train_target[0])
-        
+
         predictions = readout.predict(harvested_states[0])
-        
+
         training_loss = np.mean((predictions - train_target[0]) ** 2)
-        
+
         print(f"Training loss: {training_loss}\n")
 
         # this is temporary
         nrmse = calculate_nrmse(target=train_target[0], prediction=predictions)
-        print(f"NRMSE: {nrmse}\n")        
-        
+        print(f"NRMSE: {nrmse}\n")
+
         if not self.readout.built:
             self.readout.build(harvested_states[0].shape)
-        
+
         self.readout.set_weights([readout.coef_.T, readout.intercept_])
-        
-        return training_loss    
-        
+
+        return training_loss
+
     def train(
         self,
         transient_data: np.ndarray,
@@ -229,8 +234,6 @@ class ESN:
             train_data (np.ndarray): Data to train the model.
             train_target (np.ndarray): Target data for the training.
             regularization (float): Regularization value for linear readout.
-            method (str): Solver method ['ridge' | 'lasso' | 'elastic'].
-            solver (str): Solver for Ridge regression.
 
         Return:
             None
@@ -251,6 +254,48 @@ class ESN:
 
         return training_loss
 
+    def train_several(
+        self,
+        transient_data_array: np.ndarray,
+        train_data_array: np.ndarray,
+        train_target_array: np.ndarray,
+        regularization: float,
+    ) -> None:
+        """
+        Training process of the model.
+        
+        Args:
+            transient_data_array (np.ndarray): Transient data.
+            train_data_array (np.ndarray): Data to train the model.
+            train_target_array (np.ndarray): Target data for the training.
+            regularization (float): Regularization value for linear readout.
+            
+        Return:
+            None
+        """
+        harvested_states = []
+        for transient_data, train_data in zip(transient_data_array, train_data_array):
+            _harvested_states = self._harvest(transient_data, train_data)
+            harvested_states.append(_harvested_states)
+        
+        harvested_states = tf.concat(harvested_states, axis=1)
+        
+        train_target = tf.concat(train_target_array, axis=1)
+        
+        training_loss = self._calculate_readout(
+            harvested_states, train_target, regularization
+        )
+        
+        self.model = keras.Model(
+            inputs=self.reservoir.inputs,
+            outputs=self.readout(self.reservoir.output),
+            name="ESN",
+        )
+        
+        self._built = True
+        
+        return training_loss
+        
     def get_states(self) -> list:
         """Retrieve the current states of all RNN layers in the model.
 
@@ -284,13 +329,16 @@ class ESN:
                     state_index += 1
                 else:
                     raise ValueError(
-                        "The shape of the state tensor does not match the shape of the layer's state tensor.")
+                        "The shape of the state tensor does not match the shape of the layer's state tensor."
+                    )
 
-    def set_random_states(self, threshold: float = 1, seed: Optional[int] = None) -> None:
+    def set_random_states(
+        self, threshold: float = 1, seed: Optional[int] = None
+    ) -> None:
         """Set random states for all RNN layers in the model with values sampled uniformly from [-a, a]."""
         current_states = self.get_states()
         new_random_states = []
-        
+
         if seed is not None:
             tf_rng = tf.random.Generator.from_seed(seed)
         else:
