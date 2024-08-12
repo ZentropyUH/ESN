@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
+from time import time
 from typing import List
 from contextlib import contextmanager
 
@@ -98,7 +99,7 @@ def load_data(
 
 
 @contextmanager
-def timer(self, task_name):
+def timer(task_name):
     """
     Context manager to measure the time of a task.
 

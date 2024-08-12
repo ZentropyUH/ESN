@@ -149,10 +149,10 @@ class ESN:
             self.reservoir.build(input_shape=transient_data.shape)
 
         # print("\nEnsuring ESP...\n")
-        with self.timer("Ensuring ESP"):
+        with timer("Ensuring ESP"):
             self.reservoir.predict(transient_data)
 
-        with self.timer("Harvesting"):
+        with timer("Harvesting"):
             harvested_states = self.reservoir.predict(train_data)
 
         return harvested_states
@@ -176,7 +176,7 @@ class ESN:
         Returns:
             float: The training loss of the model.
         """
-        with self.timer("Calculating readout"):
+        with timer("Calculating readout"):
             readout = Ridge(alpha=regularization, tol=0, solver="svd")
             readout.fit(harvested_states[0], train_target[0])
 
