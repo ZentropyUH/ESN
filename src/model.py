@@ -243,9 +243,9 @@ class ESN:
         Training process of the model.
 
         Args:
-            transient_data_array (np.ndarray): Transient data.
-            train_data_array (np.ndarray): Data to train the model.
-            train_target_array (np.ndarray): Target data for the training.
+            transient_data_array (np.ndarray): Transient data. The shape is [datasets, 1, timesteps, features]
+            train_data_array (np.ndarray): Data to train the model. The shape is [datasets, 1, timesteps, features]
+            train_target_array (np.ndarray): Target data for the training. The shape is [datasets, 1, timesteps, features]
             regularization (float): Regularization value for linear readout.
 
         Return:
@@ -475,7 +475,7 @@ class ESN:
                 cumulative_error = cumulative_error.write(step, current_rmse)
 
                 if current_rmse > error_threshold and steps_to_exceed_threshold == 0:
-                    steps_to_exceed_threshold = step + 1
+                    steps_to_exceed_threshold = step - 1
 
         return cumulative_error, steps_to_exceed_threshold, states_over_time
 
