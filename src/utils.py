@@ -58,18 +58,16 @@ def load_data(
                 validation_target: The validation target. This is for forecasting, so target data is
                     the validation data taken shifted 1 index to the right plus one value.
     """
-    data = pd.read_csv(name, header=None).to_numpy()
+    data = pd.read_csv(name, header=None).to_numpy().astype(np.float32)
 
-    data = data.astype(np.float32)
+    T, D = data.shape
+    data = data.reshape(1, T, D)
 
-    features = data.shape[-1]
-
-    data = data.reshape(1, -1, features)
 
     # Index up to the training end.
     train_index = transient + train_length
 
-    if train_index > data.shape[1]:
+    if train_index > T:
         raise ValueError(
             f"The train size is out of range. Data shape is: "
             f"{data.shape} and train size + transient is: {train_index}"
