@@ -2,7 +2,6 @@ import os
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 import numpy as np
-from time import time
 from rich.progress import track
 from typing import Any
 from typing import Tuple
@@ -14,17 +13,13 @@ from typeguard import typechecked
 import keras
 import tensorflow as tf
 from keras import Model
-from sklearn.linear_model import Lasso
 from sklearn.linear_model import Ridge
-from sklearn.linear_model import ElasticNet
 
 from keras import Initializer
 from keras import Layer
 
 from src.customs.custom_layers import EsnCell, PowerIndex
 from src.utils import calculate_nrmse
-from src.utils import calculate_rmse
-from src.utils import TF_RidgeRegression
 from src.utils import timer
 
 
@@ -574,6 +569,10 @@ def simple_reservoir(
 
     return reservoir
 
+# Now a parallel reservoir, used for data that have several features(i,e, several time series), then we can split the input data into partitions and feed each partition to a separate reservoir. The output of each reservoir is concatenated and fed to the readout layer. Each reservoir has an overlap with the other 2 neighboring reservoirs
+
+def parallel_reservoir(
+    
 
 # endregion
 
