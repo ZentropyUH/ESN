@@ -86,6 +86,14 @@ def load_data(
     val_data = data[:, train_index:-1, :]
     val_target = data[:, train_index + 1 :, :]
 
+    # Convert everything to tf.Tensor
+    transient_data = tf.convert_to_tensor(transient_data)
+    train_data = tf.convert_to_tensor(train_data)
+    train_target = tf.convert_to_tensor(train_target)
+    forecast_transient_data = tf.convert_to_tensor(forecast_transient_data)
+    val_data = tf.convert_to_tensor(val_data)
+    val_target = tf.convert_to_tensor(val_target)
+
     return (
         transient_data,
         train_data,
@@ -112,7 +120,7 @@ def timer(task_name):
         >>>     # Code to measure
         Will print the time taken to execute the code block.
     """
-    print(f"\n{task_name}...")
+    print(f"\n{task_name}...\n")
     start = time()
     yield
     end = time()
