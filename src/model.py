@@ -8,7 +8,6 @@ from typing import Tuple
 from typing import Optional
 from typing import Union
 from typing import Callable
-from typeguard import typechecked
 
 import keras
 import tensorflow as tf
@@ -17,8 +16,10 @@ from sklearn.linear_model import Ridge
 
 from keras import Initializer
 from keras import Layer
+from keras.initializers import RandomUniform
 
 from src.customs.custom_layers import EsnCell, PowerIndex
+from src.customs.custom_initializers import InputMatrix, WattsStrogatzNX
 from src.utils import calculate_nrmse
 from src.utils import timer
 
@@ -66,7 +67,6 @@ class ESN:
                 self._hash = hash(("ESN", None))
         return self._hash
 
-    @typechecked
     def __init__(self, reservoir: Layer, readout: Layer, seed: int | None) -> None:
 
         self.readout: Layer = readout
@@ -126,6 +126,7 @@ class ESN:
             raise RuntimeError("Model must be trained to predict")
         return self.model.predict(inputs, **kwargs)
 
+    # @tf.function
     def _harvest(
         self, transient_data: np.ndarray, train_data: np.ndarray
     ) -> np.ndarray:
@@ -143,15 +144,82 @@ class ESN:
         if not self.reservoir.built:
             self.reservoir.build(input_shape=transient_data.shape)
 
-        # print("\nEnsuring ESP...\n")
-        with timer("Ensuring ESP"):
-            self.reservoir.predict(transient_data)
+        # Combine transient and train data
+        combined_data = tf.concat([transient_data, train_data], axis=1)
 
-        with timer("Harvesting"):
-            harvested_states = self.reservoir.predict(train_data)
+        with timer("Harvesting states with combined data"):
+            harvested_states = self.reservoir.predict(combined_data, verbose=0)
+
+        # Extract the states corresponding to the training data (Discard the transient data predictions)
+        harvested_states = harvested_states[:, transient_data.shape[1]:, :]
 
         return harvested_states
+    
+        # if not self.reservoir.built:
+        #     self.reservoir.build(input_shape=transient_data.shape)
 
+        # # print("\nEnsuring ESP...\n")
+        # with timer("Ensuring ESP"):
+        #     self.reservoir.predict(transient_data)
+
+        # with timer("Harvesting"):
+        #     harvested_states = self.reservoir.predict(train_data)
+
+        # print("transient_data shape: ", transient_data.shape)
+        # print("train_data shape: ", train_data.shape)
+        # print("harvested_states shape: ", harvested_states.shape)
+        
+        # return harvested_states
+
+    # TODO: Check if safe to delete
+    # def _calculate_readout(
+    #     self,
+    #     harvested_states: np.ndarray,
+    #     train_target: np.ndarray,
+    #     regularization: float = 0,
+    # ) -> float:
+    #     """
+    #     Calculate the readout of the model. This method uses Ridge regression to calculate the readout and set the weights of the readout layer. Will return the training loss of the model (RMSE).
+
+    #     Args:
+    #         harvested_states (np.ndarray): The harvested reservoir states.
+
+    #         train_target (np.ndarray): The target data for the training.
+
+    #         regularization (float): Regularization value for linear readout.
+
+    #     Returns:
+    #         float: The training loss of the model.
+    #     """
+        
+    #     X = tf.reshape(harvested_states, (-1, harvested_states.shape[-1]))
+    #     y = tf.reshape(train_target, (-1, train_target.shape[-1]))
+                    
+            
+    #     with timer("Calculating readout"):
+    #         readout = Ridge(alpha=regularization, tol=0, solver="svd")
+    #         readout.fit(X, y)
+
+    #     predictions = readout.predict(X)
+
+    #     training_loss = np.mean((predictions - y) ** 2)
+
+    #     print(f"Training loss: {training_loss}\n")
+
+    #     # this is temporary
+    #     nrmse = calculate_nrmse(target=y, prediction=predictions)
+    #     print(f"NRMSE: {nrmse}\n")
+
+    #     if not self.readout.built:
+    #         self.readout.build(X.shape)
+
+    #     self.readout.set_weights([readout.coef_.T, readout.intercept_])
+
+    #     return training_loss
+
+
+    # TODO: Modularize and organize better (float64 is necessary to achieve )
+    # TODO: Check data types importance if converted back to float32
     def _calculate_readout(
         self,
         harvested_states: np.ndarray,
@@ -159,38 +227,82 @@ class ESN:
         regularization: float = 0,
     ) -> float:
         """
-        Calculate the readout of the model. This method uses Ridge regression to calculate the readout and set the weights of the readout layer. Will return the training loss of the model (RMSE).
-
-        Args:
-            harvested_states (np.ndarray): The harvested reservoir states.
-
-            train_target (np.ndarray): The target data for the training.
-
-            regularization (float): Regularization value for linear readout.
-
-        Returns:
-            float: The training loss of the model.
+        Calculate the readout of the model using Ridge regression with SVD solver.
         """
-        with timer("Calculating readout"):
-            readout = Ridge(alpha=regularization, tol=0, solver="svd")
-            readout.fit(harvested_states[0], train_target[0])
+        
+        def center_data(X, y):
+            X_mean = tf.reduce_mean(X, axis=0, keepdims=True)
+            y_mean = tf.reduce_mean(y, axis=0, keepdims=True)
+            X_centered = X - X_mean
+            y_centered = y - y_mean
+            return X_centered, y_centered, X_mean, y_mean
 
-        predictions = readout.predict(harvested_states[0])
+        def compute_svd(X):
+            s, U, Vt = tf.linalg.svd(X, full_matrices=False)
+            return s, U, Vt
 
-        training_loss = np.mean((predictions - train_target[0]) ** 2)
+        def compute_ridge_coefficients(U, s, Vt, y_centered, alpha):
+            s = tf.cast(s, dtype=tf.float64)
+            y_centered = tf.cast(y_centered, dtype=tf.float64)
 
+            # Avoid division by zero for small singular values
+            tol = tf.keras.backend.epsilon()
+            s_inv = s / (s**2 + alpha + tol)
+
+            # Compute U^T y_centered
+            UTy = tf.matmul(U, y_centered, transpose_a=True)
+
+            # Compute coefficients
+            coef = tf.matmul(Vt, s_inv[:, tf.newaxis] * UTy)
+            return coef
+
+        def compute_intercept(X_mean, y_mean, coef):
+            intercept = y_mean - tf.matmul(X_mean, coef)
+            return intercept
+
+        
+        # Flatten the time dimension        
+        X = tf.reshape(harvested_states, (-1, harvested_states.shape[-1]))
+        y = tf.reshape(train_target, (-1, train_target.shape[-1]))
+        
+        X = tf.cast(X, dtype=tf.float64)
+        y = tf.cast(y, dtype=tf.float64)
+
+        # Center the data
+        X_centered, y_centered, X_mean, y_mean = center_data(X, y)
+
+        # Compute SVD of X_centered
+        s, U, Vt = compute_svd(X_centered)
+
+        # Compute Ridge coefficients
+        alpha = regularization
+        coef = compute_ridge_coefficients(U, s, Vt, y_centered, alpha)
+
+        # Compute the intercept
+        intercept = compute_intercept(X_mean, y_mean, coef)
+
+        # Convert coefficients to numpy arrays
+        coef = coef.numpy()
+        intercept = intercept.numpy().flatten()
+
+        # Set weights of the readout layer
+        if not self.readout.built:
+            self.readout.build(harvested_states.shape)
+        self.readout.set_weights([coef, intercept])
+
+        # Compute predictions for training data
+        predictions = np.dot(X, coef) + intercept
+
+        # Compute training loss
+        training_loss = np.mean((predictions - y) ** 2)
         print(f"Training loss: {training_loss}\n")
 
-        # this is temporary
-        nrmse = calculate_nrmse(target=train_target[0], prediction=predictions)
+        # Compute NRMSE
+        nrmse = calculate_nrmse(target=y, prediction=predictions)
         print(f"NRMSE: {nrmse}\n")
 
-        if not self.readout.built:
-            self.readout.build(harvested_states[0].shape)
-
-        self.readout.set_weights([readout.coef_.T, readout.intercept_])
-
         return training_loss
+
 
     def train(
         self,
@@ -569,10 +681,6 @@ def simple_reservoir(
 
     return reservoir
 
-# Now a parallel reservoir, used for data that have several features(i,e, several time series), then we can split the input data into partitions and feed each partition to a separate reservoir. The output of each reservoir is concatenated and fed to the readout layer. Each reservoir has an overlap with the other 2 neighboring reservoirs
-
-def parallel_reservoir(
-    
 
 # endregion
 
@@ -613,6 +721,16 @@ def generate_ESN(
     Return:
         model (ESN): Return the loaded instance of the ESN model.
     """
+    
+    # Create initializers with seeds
+    if isinstance(input_reservoir_init, str) and input_reservoir_init == "InputMatrix":
+        input_reservoir_init = InputMatrix(seed=seed)
+    if isinstance(reservoir_kernel_init, str) and reservoir_kernel_init == "WattsStrogatzNX":
+        reservoir_kernel_init = WattsStrogatzNX(seed=seed if seed is not None else None)
+    if isinstance(input_bias_init, str) and input_bias_init == "random_uniform":
+        input_bias_init = RandomUniform(minval=-0.5, maxval=0.5, seed=seed if seed is not None else None)
+
+    
     reservoir = simple_reservoir(
         units=units,
         leak_rate=leak_rate,
@@ -632,138 +750,138 @@ def generate_ESN(
     return model
 
 
-def generate_Parallel_ESN(
-    units: int,
-    partitions: int = 1,
-    overlap: int = 0,
-    leak_rate: float = 1.0,
-    features: int = 1,
-    activation: str = "tanh",
-    input_reservoir_init: str = "InputMatrix",
-    input_bias_init: str = "random_uniform",
-    reservoir_kernel_init: str = "WattsStrogatzNX",
-    exponent: int = 2,
-    seed: int = None,
-) -> ESN:
-    """
-    Assemble all the layers in a parallel ESN model.
+# def generate_Parallel_ESN(
+#     units: int,
+#     partitions: int = 1,
+#     overlap: int = 0,
+#     leak_rate: float = 1.0,
+#     features: int = 1,
+#     activation: str = "tanh",
+#     input_reservoir_init: str = "InputMatrix",
+#     input_bias_init: str = "random_uniform",
+#     reservoir_kernel_init: str = "WattsStrogatzNX",
+#     exponent: int = 2,
+#     seed: int = None,
+# ) -> ESN:
+#     """
+#     Assemble all the layers in a parallel ESN model.
 
-    Args:
-        units (int): Number of units in the reservoir.
+#     Args:
+#         units (int): Number of units in the reservoir.
 
-        partitions (int): Number of partitions of the reservoir.
+#         partitions (int): Number of partitions of the reservoir.
 
-        overlap (int): Number of overlapping units between partitions.
+#         overlap (int): Number of overlapping units between partitions.
 
-        leak_rate (float): Leak rate of the reservoir.
+#         leak_rate (float): Leak rate of the reservoir.
 
-        features (int): Number of features of the input data.
+#         features (int): Number of features of the input data.
 
-        activation (str): Activation function of the reservoir.
+#         activation (str): Activation function of the reservoir.
 
-        input_reservoir_init (str): Initialization method for the input matrix.
+#         input_reservoir_init (str): Initialization method for the input matrix.
 
-        input_bias_init (str): Initialization method for the input bias.
+#         input_bias_init (str): Initialization method for the input bias.
 
-        reservoir_kernel_init (str): Initialization method for the reservoir matrix.
+#         reservoir_kernel_init (str): Initialization method for the reservoir matrix.
 
-        exponent (int): Exponent of the input matrix.
+#         exponent (int): Exponent of the input matrix.
 
-        seed (int): Seed for the random number generator.
+#         seed (int): Seed for the random number generator.
 
-    Return:
-        model (ESN): Return the loaded instance of the ESN model.
-    """
-    if seed is None:
-        seed = np.random.randint(0, 1000000)
-    print(f"\nSeed: {seed}\n")
-    np.random.seed(seed)
-    tf.random.set_seed(seed)
+#     Return:
+#         model (ESN): Return the loaded instance of the ESN model.
+#     """
+#     if seed is None:
+#         seed = np.random.randint(0, 1000000)
+#     print(f"\nSeed: {seed}\n")
+#     np.random.seed(seed)
+#     tf.random.set_seed(seed)
 
-    reservoir = parallel_esn(
-        units=units,
-        partitions=partitions,
-        overlap=overlap,
-        leak_rate=leak_rate,
-        activation=activation,
-        features=features,
-        input_reservoir_init=input_reservoir_init,
-        input_bias_init=input_bias_init,
-        reservoir_kernel_init=reservoir_kernel_init,
-        exponent=exponent,
-    )
+#     reservoir = parallel_esn(
+#         units=units,
+#         partitions=partitions,
+#         overlap=overlap,
+#         leak_rate=leak_rate,
+#         activation=activation,
+#         features=features,
+#         input_reservoir_init=input_reservoir_init,
+#         input_bias_init=input_bias_init,
+#         reservoir_kernel_init=reservoir_kernel_init,
+#         exponent=exponent,
+#     )
 
-    readout_layer = keras.layers.Dense(
-        features, activation="linear", name="readout", trainable=False
-    )
+#     readout_layer = keras.layers.Dense(
+#         features, activation="linear", name="readout", trainable=False
+#     )
 
-    model = ESN(reservoir=reservoir, readout=readout_layer, seed=seed)
-    return model
+#     model = ESN(reservoir=reservoir, readout=readout_layer, seed=seed)
+#     return model
 
 
-def generate_ECA_ESN(
-    units: int,
-    rule: Union[str, int, np.ndarray, list, tf.Tensor] = 110,
-    steps: int = 1,
-    leak_rate: float = 1.0,
-    features: int = 1,
-    activation: str = "tanh",
-    input_reservoir_init: str = "InputMatrix",
-    input_bias_init: str = "random_uniform",
-    exponent: int = 2,
-    seed: int = None,
-) -> ESN:
-    """
-    Assemble all the layers in an ECA ESN model.
+# def generate_ECA_ESN(
+#     units: int,
+#     rule: Union[str, int, np.ndarray, list, tf.Tensor] = 110,
+#     steps: int = 1,
+#     leak_rate: float = 1.0,
+#     features: int = 1,
+#     activation: str = "tanh",
+#     input_reservoir_init: str = "InputMatrix",
+#     input_bias_init: str = "random_uniform",
+#     exponent: int = 2,
+#     seed: int = None,
+# ) -> ESN:
+#     """
+#     Assemble all the layers in an ECA ESN model.
 
-    Args:
-        units (int): Number of units in the reservoir.
+#     Args:
+#         units (int): Number of units in the reservoir.
 
-        rule (Union[str, int, np.ndarray, list, tf.Tensor]): The rule to use for the ECA reservoir.
+#         rule (Union[str, int, np.ndarray, list, tf.Tensor]): The rule to use for the ECA reservoir.
 
-        steps (int): Number of steps to run the ECA reservoir.
+#         steps (int): Number of steps to run the ECA reservoir.
 
-        leak_rate (float): Leak rate of the reservoir.
+#         leak_rate (float): Leak rate of the reservoir.
 
-        features (int): Number of features of the input data.
+#         features (int): Number of features of the input data.
 
-        activation (str): Activation function of the reservoir.
+#         activation (str): Activation function of the reservoir.
 
-        input_reservoir_init (str): Initialization method for the input matrix.
+#         input_reservoir_init (str): Initialization method for the input matrix.
 
-        input_bias_init (str): Initialization method for the input bias.
+#         input_bias_init (str): Initialization method for the input bias.
 
-        exponent (int): Exponent of the input matrix.
+#         exponent (int): Exponent of the input matrix.
 
-        seed (int): Seed for the random number generator.
+#         seed (int): Seed for the random number generator.
 
-    Return:
-        model (ESN): Return the loaded instance of the ESN model.
-    """
-    if seed is None:
-        seed = np.random.randint(0, 1000000)
-    print(f"\nSeed: {seed}\n")
-    np.random.seed(seed)
-    tf.random.set_seed(seed)
+#     Return:
+#         model (ESN): Return the loaded instance of the ESN model.
+#     """
+#     if seed is None:
+#         seed = np.random.randint(0, 1000000)
+#     print(f"\nSeed: {seed}\n")
+#     np.random.seed(seed)
+#     tf.random.set_seed(seed)
 
-    reservoir = eca_esn(
-        units=units,
-        rule=rule,
-        steps=steps,
-        leak_rate=leak_rate,
-        activation=activation,
-        features=features,
-        input_reservoir_init=input_reservoir_init,
-        input_bias_init=input_bias_init,
-        exponent=exponent,
-    )
+#     reservoir = eca_esn(
+#         units=units,
+#         rule=rule,
+#         steps=steps,
+#         leak_rate=leak_rate,
+#         activation=activation,
+#         features=features,
+#         input_reservoir_init=input_reservoir_init,
+#         input_bias_init=input_bias_init,
+#         exponent=exponent,
+#     )
 
-    readout_layer = keras.layers.Dense(
-        features, activation="linear", name="readout", trainable=False
-    )
+#     readout_layer = keras.layers.Dense(
+#         features, activation="linear", name="readout", trainable=False
+#     )
 
-    model = ESN(reservoir, readout_layer)
-    return model
+#     model = ESN(reservoir, readout_layer)
+#     return model
 
 
 # region Reimplement above
