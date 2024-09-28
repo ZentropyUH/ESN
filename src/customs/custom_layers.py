@@ -12,7 +12,6 @@ import numpy as np
 
 
 from src.customs.custom_initializers import ErdosRenyi, InputMatrix
-from src.customs.custom_reservoirs import create_automaton_tf
 
 ###############################################
 ################## Layers #####################
