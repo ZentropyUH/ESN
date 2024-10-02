@@ -5,22 +5,38 @@ import pandas as pd
 import tensorflow as tf
 
 from time import time
-from typing import List
 from contextlib import contextmanager
 
 
 # given i it starts from letter x and goes cyclically, when x reached starts xx, xy, etc.
-letter = lambda n: "x" * ((n + 23) // 26) + chr(ord("a") + (n + 23) % 26)
+def letter(n: int) -> str:
+    """Return the letter corresponding to the given number.
+
+    Args:
+        n (int): The number to convert to a letter. Starting from letter x, it goes cyclically adding a letter x to the left.
+
+    Returns:
+        str: The letter corresponding to the given number. Before 26, would be equivalent to chr(n + 97 + 23).
+    """
+    return "x" * ((n + 23) // 26) + chr(ord("a") + (n + 23) % 26)
 
 
-def lyap_ks(i, l):
+def lyap_ks(i_th, L_period):
     """Estimation of the i-th largest Lyapunov Time of the KS model.
+
+    Args:
+        i_th (int): The i-th largest Lyapunov Time.
+
+        L_period (int): The period of the system.
+
+    Returns:
+        float: The estimated i-th largest Lyapunov Time.
 
     Taken from the paper:
         "Lyapunov Exponents of the Kuramoto-Sivashinsky PDE. arxiv:1902.09651v1"
     """
     # This approximation is taken from the above paper. Verify veracity.
-    return 0.093 - 0.94 * (i - 0.39) / l
+    return 0.093 - 0.94 * (i_th - 0.39) / L_period
 
 
 def load_data(
@@ -215,93 +231,124 @@ def calculate_nrmse_list(target: np.ndarray, prediction: np.ndarray):
 
 
 # TF implementation of Ridge using svd. TODO: see if it works as well as sklearn
-class TF_RidgeRegression:
+class TF_Ridge:
+    """
+    Robust tensorflow ridge regression model using SVD solver.
+
+    Args:
+        alpha (float): Regularization strength.
+    """
     def __init__(self, alpha: float) -> None:
+        if alpha < 0:
+            raise ValueError("Regularization strength must be non-negative.")
+        if not isinstance(alpha, (int, float)):
+            raise TypeError("alpha must be an integer or float.")
         self._alpha = alpha
+        self._built = False
         self._coef = None
         self._intercept = None
-        self.W_ = None
+        self._W = None
 
-    def fit(self, X: tf.Tensor, y: tf.Tensor) -> "TF_RidgeRegression":
+    def fit(self, X, y):
         """
-        Fit Ridge regression model using SVD, handling multi-dimensional y.
+        Fit the Ridge regression model using SVD. It uses the formula:
+
+        W = (X^T X + alpha I)^-1 X^T y
+
+        Which, when using SVD, translates computationally to:
+
+        W = V S^-1 U^T y
+
+        Where:
+        - V is the matrix of right singular vectors of X
+        - S is the diagonal matrix of singular values of X
+        - S^-1 = 1/(S + alpha) is the diagonal matrix of the inverse of the singular values of X
+        - U is the matrix of left singular vectors of X
+        - y is the target data
+
 
         Args:
-            X (tf.Tensor): Input data of shape (n_samples, n_features).
-            y (tf.Tensor): Target data of shape (n_samples, n_targets).
+            X (tf.Tensor): The input data.
+
+            y (tf.Tensor): The target data.
 
         Returns:
-            self: Fitted model.
+            Ridge: The fitted Ridge regression model.
         """
+        if not isinstance(X, tf.Tensor):
+            raise TypeError("X must be a TensorFlow tensor.")
+        if not isinstance(y, tf.Tensor):
+            raise TypeError("y must be a TensorFlow tensor.")
 
-        print("WHAT THE FUCK: ", X.dtype)
-        print("WHAT THE FUCKING FUCK: ", y.dtype)
+        X = tf.reshape(X, (-1, X.shape[-1]))
+        y = tf.reshape(y, (-1, y.shape[-1]))
 
-        assert X.ndim == 2, "X must be a 2D tensor."
-        assert y.ndim == 2, "y must be a 2D tensor."
+        X = tf.cast(X, dtype=tf.float64)
+        y = tf.cast(y, dtype=tf.float64)
 
-        n_samples, n_features = X.shape
+        # Center the data
+        X_mean = tf.reduce_mean(X, axis=0, keepdims=True)
+        y_mean = tf.reduce_mean(y, axis=0, keepdims=True)
+        X_centered = X - X_mean
+        y_centered = y - y_mean
 
-        # Compute mean and standard deviation of X and y
-        self._X_mean = tf.reduce_mean(X, axis=0)
-        self._X_std = tf.math.reduce_std(X, axis=0)
-        self._y_mean = tf.reduce_mean(y)
+        # Compute SVD of X_centered
+        s, U, Vt = tf.linalg.svd(X_centered, full_matrices=False)
 
-        # Center and scale X
-        X_centered = (X - self._X_mean) / self._X_std
-        y_centered = y - self._y_mean
+        # Avoid division by zero for small singular values.
+        tol = tf.keras.backend.epsilon()
 
-        # Add a column of ones to the centered data to include the intercept term
-        ones = tf.ones((n_samples, 1), dtype=tf.float32)
-        X_centered_bias = tf.concat([X_centered, ones], axis=1)
+        # Normalize with the maximum singular value,
+        # that is the one with most information
+        threshold = tol * tf.reduce_max(s)
+        s_inv = tf.where(s > threshold, 1 / (s + self._alpha), 0)
 
-        # Perform SVD on the centered data
-        S, U, Vt = tf.linalg.svd(X_centered_bias, full_matrices=False)
+        # Compute U^T y_centered
+        UTy = tf.matmul(U, y_centered, transpose_a=True)
 
-        # Diagonal matrix of singular values with regularization
-        D_inv = tf.linalg.diag(1 / (S**2 + self._alpha))
+        # Expand s_inv to a matrix
+        s_inv = s_inv[:, tf.newaxis]
 
-        # Calculate the coefficients using the SVD components
-        Ut_y = tf.matmul(tf.transpose(U), y_centered)
-        V_D_inv = tf.matmul(Vt, D_inv)
-        self.W_ = tf.matmul(V_D_inv, tf.matmul(tf.linalg.diag(S), Ut_y))
+        # Compute coefficients
+        coef = tf.matmul(Vt, s_inv * UTy)
 
-        # Extract coefficients
-        self._coef = self.W_[:-1]  # Coefficients (excluding bias term)
+        # Compute the intercept
+        intercept = y_mean - tf.matmul(X_mean, coef)
 
-        # Adjust intercept to incorporate the mean values for each target
-        self._coef = self._coef * self._X_std
-        self._intercept = (
-            self._y_mean
-            - tf.tensordot(self._X_mean, self.W_[:-1], axes=1)
-            + self.W_[-1]
-        )
-
-        # store the intercept in the last row of W_
-        self.W_ = tf.concat(
-            [self.W_[:-1], tf.reshape(self._intercept, (1, -1))], axis=0
-        )
+        self._coef = coef
+        self._intercept = tf.squeeze(intercept) # Remove the extra dimension of size 1
+        self._built = True
+        self._n_features_in = X.shape[-1]
+        self._W = tf.concat([coef, intercept], axis=0)
 
         return self
 
-    def predict(self, X: tf.Tensor) -> tf.Tensor:
+    def predict(self, X):
         """
-        Predict using the Ridge regression model, using adjusted intercepts for each target.
+        Predict using the Ridge regression model.
 
         Args:
-            X (tf.Tensor): Input data of shape (n_samples, n_features).
+            X (tf.Tensor): The input data.
 
         Returns:
-            tf.Tensor: Predicted values of shape (n_samples, n_targets).
+            tf.Tensor: The predicted values.
         """
-        if self.W_ is None:
-            raise ValueError("Model has not been fitted yet.")
+        if not self._built:
+            raise ValueError("Model must be fitted before making predictions.")
+        if not isinstance(X, tf.Tensor):
+            raise TypeError("X must be a TensorFlow tensor.")
 
-        # Add a column of ones to include the intercept term
-        ones = tf.ones((tf.shape(X)[0], 1), dtype=tf.float32)
-        X_bias = tf.concat([X, ones], axis=1)
+        X = tf.reshape(X, (-1, X.shape[-1]))
+        X = tf.cast(X, dtype=tf.float64)
 
-        return tf.matmul(X_bias, self.W_)
+        # Add a column of ones to X for the intercept
+        X = tf.concat([X, tf.ones((X.shape[0], 1), dtype=tf.float64)], axis=1)
+
+        # Compute predictions
+        predictions = tf.matmul(X, self._W)
+
+        return predictions
+
 
     @property
     def alpha(self):
@@ -311,7 +358,18 @@ class TF_RidgeRegression:
     def alpha(self, value):
         if value < 0:
             raise ValueError("Regularization strength must be non-negative.")
+        if not isinstance(value, (int, float)):
+            raise TypeError("alpha must be an integer or float.")
         self._alpha = value
+        self._built = False
+        self._coef = None
+        self._intercept = None
+        self._n_features_in = None
+        self._W = None
+
+    @property
+    def built(self):
+        return self._built
 
     @property
     def coef_(self):
@@ -320,6 +378,14 @@ class TF_RidgeRegression:
     @property
     def intercept_(self):
         return self._intercept
+
+    @property
+    def n_features_in(self):
+        return self._n_features_in
+
+    @property
+    def W(self):
+        return self._W
 
     def get_params(self):
         """

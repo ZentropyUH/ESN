@@ -275,8 +275,8 @@ class InputSplitter(keras.layers.Layer):
         batch_size, sequence_length, features = inputs.shape
         assert features % self.partitions == 0, "Feature dimension must be divisible by partitions"
         assert features // self.partitions + 1 > self.overlap, "Overlap must be smaller than the length of the partitions."
-        
-        
+
+
 
         # Calculating the width of each partition including overlap
         partition_width = features // self.partitions + 2 * self.overlap
@@ -364,14 +364,14 @@ class ReservoirCell(keras.layers.Layer):
         # Initialize the Reservoir
         self.input_initializer = input_initializer
         self.input_bias_initializer = input_bias_initializer
-        
+
         self.reservoir_function = reservoir_function
 
         self.units = units
         self.activation = keras.activations.get(activation)
-        
+
         self.leak_rate = leak_rate
-        
+
         self.state_size = self.units
         self.input_dim = None
 
@@ -495,8 +495,8 @@ class AutomatonCell(tf.keras.layers.Layer):
 
         # Returning the updated state_vector as an example
         return state_vector
-    
- 
+
+
 # custom_layers = {
 #     "EsnCell": EsnCell,
 #     "PowerIndex": PowerIndex,

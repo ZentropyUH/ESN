@@ -12,7 +12,7 @@ from typing import Callable
 import keras
 import tensorflow as tf
 from keras import Model
-from sklearn.linear_model import Ridge
+
 
 from keras import Initializer
 from keras import Layer
@@ -20,8 +20,8 @@ from keras.initializers import RandomUniform
 
 from src.customs.custom_layers import EsnCell, PowerIndex
 from src.customs.custom_initializers import InputMatrix, WattsStrogatzNX
-from src.utils import calculate_nrmse
 from src.utils import timer
+from src.utils import TF_Ridge
 
 
 # TODO: Add log
@@ -37,36 +37,6 @@ class ESN:
 
         readout (keras.Layer): The readout layer of the ESN.
     """
-
-    def __eq__(self, other):
-        if not isinstance(other, ESN) or self.model is None or other.model is None:
-            return False
-        if self is other:
-            return True  # Fast path for comparison with itself
-        return all(
-            np.array_equal(w1, w2)
-            for w1, w2 in zip(self.model.get_weights(), other.model.get_weights())
-        )
-
-    def __hash__(self):
-        """
-        Generate a hash based on the weights of the internal Keras model.
-
-        This method flattens and converts all weights to a bytes object,
-        which is then used to compute a hash.
-
-        Returns:
-            int: The hash value of the model's weights.
-        """
-        if not hasattr(self, "_hash") or self._hash is None:
-            if self.model is not None:
-                # Compute hash only once after training
-                weight_bytes = b"".join(w.tobytes() for w in self.model.get_weights())
-                self._hash = hash(weight_bytes)
-            else:
-                self._hash = hash(("ESN", None))
-        return self._hash
-
     def __init__(self, reservoir: Layer, readout: Layer, seed: int | None) -> None:
 
         self.readout: Layer = readout
@@ -126,20 +96,19 @@ class ESN:
             raise RuntimeError("Model must be trained to predict")
         return self.model.predict(inputs, **kwargs)
 
-    # @tf.function
     def _harvest(
-        self, transient_data: np.ndarray, train_data: np.ndarray
-    ) -> np.ndarray:
+        self, transient_data: tf.Tensor, train_data: tf.Tensor
+    ) -> tf.Tensor:
         """
         This method ensures ESP by predicting the transient data and then harvests the reservoir states. It returns the harvested reservoir states.
 
         Args:
-            transient (np.ndarray): Transient data to ensure ESP.
+            transient (tf.Tensor): Transient data to ensure ESP.
 
-            data (np.ndarray): Data to harvest the reservoir states.
+            data (tf.Tensor): Data to harvest the reservoir states.
 
         Returns:
-            np.ndarray: The harvested reservoir states.
+            tf.Tensor: The harvested reservoir states.
         """
         if not self.reservoir.built:
             self.reservoir.build(input_shape=transient_data.shape)
@@ -154,155 +123,51 @@ class ESN:
         harvested_states = harvested_states[:, transient_data.shape[1]:, :]
 
         return harvested_states
-    
-        # if not self.reservoir.built:
-        #     self.reservoir.build(input_shape=transient_data.shape)
 
-        # # print("\nEnsuring ESP...\n")
-        # with timer("Ensuring ESP"):
-        #     self.reservoir.predict(transient_data)
-
-        # with timer("Harvesting"):
-        #     harvested_states = self.reservoir.predict(train_data)
-
-        # print("transient_data shape: ", transient_data.shape)
-        # print("train_data shape: ", train_data.shape)
-        # print("harvested_states shape: ", harvested_states.shape)
-        
-        # return harvested_states
-
-    # TODO: Check if safe to delete
-    # def _calculate_readout(
-    #     self,
-    #     harvested_states: np.ndarray,
-    #     train_target: np.ndarray,
-    #     regularization: float = 0,
-    # ) -> float:
-    #     """
-    #     Calculate the readout of the model. This method uses Ridge regression to calculate the readout and set the weights of the readout layer. Will return the training loss of the model (RMSE).
-
-    #     Args:
-    #         harvested_states (np.ndarray): The harvested reservoir states.
-
-    #         train_target (np.ndarray): The target data for the training.
-
-    #         regularization (float): Regularization value for linear readout.
-
-    #     Returns:
-    #         float: The training loss of the model.
-    #     """
-        
-    #     X = tf.reshape(harvested_states, (-1, harvested_states.shape[-1]))
-    #     y = tf.reshape(train_target, (-1, train_target.shape[-1]))
-                    
-            
-    #     with timer("Calculating readout"):
-    #         readout = Ridge(alpha=regularization, tol=0, solver="svd")
-    #         readout.fit(X, y)
-
-    #     predictions = readout.predict(X)
-
-    #     training_loss = np.mean((predictions - y) ** 2)
-
-    #     print(f"Training loss: {training_loss}\n")
-
-    #     # this is temporary
-    #     nrmse = calculate_nrmse(target=y, prediction=predictions)
-    #     print(f"NRMSE: {nrmse}\n")
-
-    #     if not self.readout.built:
-    #         self.readout.build(X.shape)
-
-    #     self.readout.set_weights([readout.coef_.T, readout.intercept_])
-
-    #     return training_loss
-
-
-    # TODO: Modularize and organize better (float64 is necessary to achieve )
-    # TODO: Check data types importance if converted back to float32
     def _calculate_readout(
         self,
-        harvested_states: np.ndarray,
-        train_target: np.ndarray,
+        harvested_states: tf.Tensor,
+        train_target: tf.Tensor,
         regularization: float = 0,
     ) -> float:
         """
         Calculate the readout of the model using Ridge regression with SVD solver.
+
+        Args:
+            harvested_states (tf.Tensor): The harvested reservoir states.
+
+            train_target (tf.Tensor): The target data for the training.
+
+            regularization (float): Regularization value for linear readout.
+
+        Returns:
+            float: The training loss of the model.
         """
-        
-        def center_data(X, y):
-            X_mean = tf.reduce_mean(X, axis=0, keepdims=True)
-            y_mean = tf.reduce_mean(y, axis=0, keepdims=True)
-            X_centered = X - X_mean
-            y_centered = y - y_mean
-            return X_centered, y_centered, X_mean, y_mean
 
-        def compute_svd(X):
-            s, U, Vt = tf.linalg.svd(X, full_matrices=False)
-            return s, U, Vt
+        print("Harvested states shape: ", harvested_states.shape)
+        print("Train target shape: ", train_target.shape)
 
-        def compute_ridge_coefficients(U, s, Vt, y_centered, alpha):
-            s = tf.cast(s, dtype=tf.float64)
-            y_centered = tf.cast(y_centered, dtype=tf.float64)
+        harvested_states = tf.cast(harvested_states, dtype=tf.float64)
+        train_target = tf.cast(train_target, dtype=tf.float64)
 
-            # Avoid division by zero for small singular values
-            tol = tf.keras.backend.epsilon()
-            s_inv = s / (s**2 + alpha + tol)
+        regressor = TF_Ridge(alpha=regularization)
 
-            # Compute U^T y_centered
-            UTy = tf.matmul(U, y_centered, transpose_a=True)
+        with timer("Fitting the regressor"):
+            regressor.fit(harvested_states, train_target)
 
-            # Compute coefficients
-            coef = tf.matmul(Vt, s_inv[:, tf.newaxis] * UTy)
-            return coef
-
-        def compute_intercept(X_mean, y_mean, coef):
-            intercept = y_mean - tf.matmul(X_mean, coef)
-            return intercept
-
-        
-        # Flatten the time dimension        
-        X = tf.reshape(harvested_states, (-1, harvested_states.shape[-1]))
-        y = tf.reshape(train_target, (-1, train_target.shape[-1]))
-        
-        X = tf.cast(X, dtype=tf.float64)
-        y = tf.cast(y, dtype=tf.float64)
-
-        # Center the data
-        X_centered, y_centered, X_mean, y_mean = center_data(X, y)
-
-        # Compute SVD of X_centered
-        s, U, Vt = compute_svd(X_centered)
-
-        # Compute Ridge coefficients
-        alpha = regularization
-        coef = compute_ridge_coefficients(U, s, Vt, y_centered, alpha)
-
-        # Compute the intercept
-        intercept = compute_intercept(X_mean, y_mean, coef)
-
-        # Convert coefficients to numpy arrays
-        coef = coef.numpy()
-        intercept = intercept.numpy().flatten()
+        coef = regressor._coef
+        intercept = regressor._intercept
 
         # Set weights of the readout layer
         if not self.readout.built:
             self.readout.build(harvested_states.shape)
         self.readout.set_weights([coef, intercept])
 
-        # Compute predictions for training data
-        predictions = np.dot(X, coef) + intercept
-
-        # Compute training loss
-        training_loss = np.mean((predictions - y) ** 2)
-        print(f"Training loss: {training_loss}\n")
-
-        # Compute NRMSE
-        nrmse = calculate_nrmse(target=y, prediction=predictions)
-        print(f"NRMSE: {nrmse}\n")
+        # Calculate training loss
+        predictions = regressor.predict(harvested_states)
+        training_loss = tf.reduce_mean(tf.square(predictions - train_target))
 
         return training_loss
-
 
     def train(
         self,
@@ -315,9 +180,9 @@ class ESN:
         Training process of the model.
 
         Args:
-            transient_data (np.ndarray): Transient data.
-            train_data (np.ndarray): Data to train the model.
-            train_target (np.ndarray): Target data for the training.
+            transient_data (tf.Tensor): Transient data.
+            train_data (tf.Tensor): Data to train the model.
+            train_target (tf.Tensor): Target data for the training.
             regularization (float): Regularization value for linear readout.
 
         Return:
@@ -341,18 +206,18 @@ class ESN:
 
     def train_several(
         self,
-        transient_data_array: np.ndarray,
-        train_data_array: np.ndarray,
-        train_target_array: np.ndarray,
+        transient_data_array: tf.Tensor,
+        train_data_array: tf.Tensor,
+        train_target_array: tf.Tensor,
         regularization: float,
     ) -> None:
         """
         Training process of the model.
 
         Args:
-            transient_data_array (np.ndarray): Transient data. The shape is [datasets, 1, timesteps, features]
-            train_data_array (np.ndarray): Data to train the model. The shape is [datasets, 1, timesteps, features]
-            train_target_array (np.ndarray): Target data for the training. The shape is [datasets, 1, timesteps, features]
+            transient_data_array (tf.Tensor): Transient data. The shape is [datasets, 1, timesteps, features]
+            train_data_array (tf.Tensor): Data to train the model. The shape is [datasets, 1, timesteps, features]
+            train_target_array (tf.Tensor): Target data for the training. The shape is [datasets, 1, timesteps, features]
             regularization (float): Regularization value for linear readout.
 
         Return:
@@ -721,7 +586,7 @@ def generate_ESN(
     Return:
         model (ESN): Return the loaded instance of the ESN model.
     """
-    
+
     # Create initializers with seeds
     if isinstance(input_reservoir_init, str) and input_reservoir_init == "InputMatrix":
         input_reservoir_init = InputMatrix(seed=seed)
@@ -730,7 +595,7 @@ def generate_ESN(
     if isinstance(input_bias_init, str) and input_bias_init == "random_uniform":
         input_bias_init = RandomUniform(minval=-0.5, maxval=0.5, seed=seed if seed is not None else None)
 
-    
+
     reservoir = simple_reservoir(
         units=units,
         leak_rate=leak_rate,
