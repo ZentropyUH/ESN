@@ -43,6 +43,7 @@ def load_data(
     name: str,
     transient: int = 1000,
     train_length: int = 5000,
+    normalize: bool = False,
 ):
     """Load the data from the given path. Returns a dataset for training a NN.
 
@@ -102,13 +103,23 @@ def load_data(
     val_data = data[:, train_index:-1, :]
     val_target = data[:, train_index + 1 :, :]
 
-    # Convert everything to tf.Tensor
-    transient_data = tf.convert_to_tensor(transient_data)
-    train_data = tf.convert_to_tensor(train_data)
-    train_target = tf.convert_to_tensor(train_target)
-    forecast_transient_data = tf.convert_to_tensor(forecast_transient_data)
-    val_data = tf.convert_to_tensor(val_data)
-    val_target = tf.convert_to_tensor(val_target)
+    if normalize:
+
+        # Get the mean and std of the training data, over the time axis, independent for each batch (i.e. each element over the first axis)
+        mean = np.mean(train_data, axis=1, keepdims=True)
+        std = np.std(train_data, axis=1, keepdims=True)
+
+        # Normalize the training data
+        train_data = (train_data - mean) / std
+        train_target = (train_target - mean) / std
+
+        # Normalize the validation data
+        val_data = (val_data - mean) / std
+        val_target = (val_target - mean) / std
+
+        # Normalize the transient data
+        transient_data = (transient_data - mean) / std
+        forecast_transient_data = (forecast_transient_data - mean) / std
 
     return (
         transient_data,
@@ -316,7 +327,7 @@ class TF_Ridge:
         intercept = y_mean - tf.matmul(X_mean, coef)
 
         self._coef = coef
-        self._intercept = tf.squeeze(intercept) # Remove the extra dimension of size 1
+        self._intercept = tf.reshape(intercept, [-1]) # Remove the extra dimension of size 1
         self._built = True
         self._n_features_in = X.shape[-1]
         self._W = tf.concat([coef, intercept], axis=0)
