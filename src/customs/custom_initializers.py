@@ -80,7 +80,7 @@ class InputMatrix(Initializer):
         ), "Reservoir nodes must be greater than or equal to number of features of the input."
 
         inputs_per_node = int(cols / rows)
-        
+
         indexes_list = []
         counter = 0
 
@@ -104,11 +104,16 @@ class InputMatrix(Initializer):
         num_values = len(indexes_list)  #This will dynamically match the length of indexes_list
 
         if self.ones:
+            # Step 1: Generate uniform random values between -1 and 1
+            random_values = self.tf_rng.uniform(shape=(num_values,), minval=-1, maxval=1)
 
-            random_bools = self.tf_rng.uniform(shape=(num_values,), minval=0, maxval=2, dtype=tf.int32)
-            values = tf.where(random_bools == 1, 1.0, -1.0) * self.sigma
+            # Step 2: Apply sign function to convert values to either -1.0 or 1.0
+            signed_values = tf.sign(random_values)
 
-            
+            # Step 3: Scale the signed values by sigma
+            values = signed_values * self.sigma
+
+
         else:
             values = self.tf_rng.uniform(
                 (num_values,),
@@ -128,7 +133,7 @@ class InputMatrix(Initializer):
         """Get the config dictionary of the initializer for serialization."""
         base_config = super().get_config()
         config = {"sigma": self.sigma, "ones": self.ones, "seed": self.seed}
-        
+
         config.update(base_config)
         return config
 
@@ -240,11 +245,11 @@ class RegularNX(Initializer):
         # Correcting the spectral radius
         print(f"Correcting spectral radius to {self.spectral_radius}")
         rho = abs(linalg.eigs(graph_matrix, k=1, which="LM")[0])[0]
-        
+
         if rho == 0:
             print("The matrix is singular, re-initializing")
             return self(shape, dtype)
-        
+
         kernel = graph_matrix * self.spectral_radius / rho
 
         print(f"Spectral radius was previously {rho}")
@@ -267,7 +272,7 @@ class RegularNX(Initializer):
             "ones": self.ones,
             "seed": self.seed,
         }
-        
+
         config.update(base_config)
         return config
 
@@ -395,7 +400,7 @@ class ErdosRenyi(Initializer):
             "ones": self.ones,
             "seed": self.seed,
         }
-        
+
         config.update(base_config)
         return config
 
@@ -529,7 +534,7 @@ class WattsStrogatzNX(Initializer):
             "ones": self.ones,
             "seed": self.seed,
         }
-        
+
         config.update(base_config)
         return config
 
