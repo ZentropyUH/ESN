@@ -20,164 +20,6 @@ from src.customs.custom_initializers import ErdosRenyi, InputMatrix
 # TODO: Add the input to the ESN cell remember what you call now input is feedback from the outputs
 
 
-@keras.saving.register_keras_serializable(package="MyLayers", name="EsnCell")
-class EsnCell(keras.layers.Layer):
-    """Generates an ESN cell with the given parameters.
-
-    To be used as the cell of a keras RNN.
-
-    Args:
-        units: Number of neurons in the reservoir. Default: 100.
-
-        activation: Activation function to use. Can be a string or a function.
-
-        leak_rate: A scalar between 0 and 1. Leak rate of the reservoir.
-
-        input_initializer: Initializer for the input matrix.
-            By default an InputMatrix.
-
-        input_bias_initializer: Initializer for the input bias.
-            By default a random uniform initializer.
-
-        reservoir_initializer: Initializer for the reservoir matrix.
-            By default an ErdosRenyi.
-
-    Return:
-        keras.layers.Layer:  A keras layer that can be used as a cell of a keras RNN.
-
-    #### Example usage:
-    >>> EsnCell = EsnCell(units=100,
-                    activation='tanh',
-                    leak_rate=1, input_initializer=input_initializer,
-                    reservoir_initializer=reservoir_initializer,
-                    input_bias_initializer=bias_initializer)
-    >>> ESN = keras.layers.RNN(EsnCell, return_sequences=True)
-    >>> output = ESN(input)
-    >>> RNN_layer = keras.layers.RNN(EsnCell, return_sequences=True)
-    """
-
-    def __init__(
-        self,
-        units=100,
-        activation="tanh",
-        leak_rate=1,
-        input_initializer=InputMatrix(),
-        input_bias_initializer=keras.initializers.get("random_uniform"),
-        reservoir_initializer=ErdosRenyi(),
-        **kwargs,
-    ) -> None:
-        """Initialize the ESN cell."""
-        self.input_initializer = input_initializer
-        self.input_bias_initializer = input_bias_initializer
-
-        self.reservoir_initializer = reservoir_initializer
-
-        self.units = units
-        self.activation = keras.activations.get(activation)
-
-        # leak_rate integration. If leak_rate = 1, no leak_rate integration
-        self.leak_rate = leak_rate
-
-        # This property is required by keras. Keras will manage the states automatically.
-        self.state_size = self.units
-
-        # Initialize the weights
-        self.w_input = None
-        self.input_bias = None
-
-        self.w_recurrent = None
-        # self.reservoir_bias = None
-
-        super().__init__(**kwargs)
-
-    def build(self, input_shape) -> None:
-        """
-        Build the ESN cell.
-
-        Args:
-            input_shape: Shape of the input tensor.
-        """
-        features = input_shape[-1]
-
-        # Input to reservoir matrix
-        self.w_input = self.add_weight(
-            name="input_to_Reservoir",
-            shape=(features, self.units),
-            initializer=self.input_initializer,
-            trainable=False,
-            dtype=self.dtype,
-        )
-
-        # Input bias
-        self.input_bias = self.add_weight(
-            name="input_bias",
-            shape=(1, self.units),
-            initializer=self.input_bias_initializer,
-            trainable=False,
-            dtype=self.dtype,
-        )
-
-        # Recurrent Matrix
-        self.w_recurrent = self.add_weight(
-            name="reservoir_kernel",
-            shape=(self.units, self.units),
-            initializer=self.reservoir_initializer,
-            trainable=False,
-            dtype=self.dtype,
-        )
-
-        super().build(input_shape)
-
-    def call(self, inputs, states) -> Tuple[tf.Tensor, List[tf.Tensor]]:
-        """
-        Combine the input and the states into a single output.
-
-        Args:
-            inputs (tf.Tensor): The input to the cell.
-
-            states ([tf.Tensor]): The hidden state to the cell.
-        Returns:
-            output (tf.Tensor): The output of the cell.
-
-            new_states ([tf.Tensor]): The new hidden state of the cell.
-        """
-        prev_output = states[0]
-
-        # The input term.
-        input_part = keras.ops.dot(inputs, self.w_input) + self.input_bias
-
-        # The recurrent term.
-        state_part = keras.ops.dot(prev_output, self.w_recurrent)
-
-        # Producing the new state
-        new_state = self.activation(input_part + state_part)
-
-        # leak_rate integration
-        output = (
-            prev_output * (1 - self.leak_rate) + new_state * self.leak_rate        )
-
-        return output, [output]
-
-    def get_config(self) -> Dict:
-        """Get the config dictionary of the layer for serialization."""
-        config = super().get_config()
-        config.update(
-            {
-                "units": self.units,
-                "activation": self.activation.__name__,
-                "leak_rate": self.leak_rate,
-                "input_initializer": self.input_initializer,
-                "input_bias_initializer": self.input_bias_initializer,
-                "reservoir_initializer": self.reservoir_initializer,
-            }
-        )
-        return config
-
-    # @classmethod
-    # def from_config(cls, config):
-    #     return cls(**config)
-
-
 @keras.saving.register_keras_serializable(package="MyLayers", name="PowerIndex")
 class PowerIndex(keras.layers.Layer):
     """Applies a power function to the input even/odd indexed elements.
@@ -203,9 +45,9 @@ class PowerIndex(keras.layers.Layer):
 
     def __init__(self, index, exponent, **kwargs) -> None:
         """Initialize the layer."""
+        super().__init__(**kwargs)
         self.index = (index) % 2
         self.exponent = exponent
-        super().__init__(**kwargs)
 
     def call(self, inputs) -> tf.Tensor:
         """Compute the output tensor.
@@ -249,10 +91,6 @@ class PowerIndex(keras.layers.Layer):
         config.update({"index": self.index, "exponent": self.exponent})
         return config
 
-    # @classmethod
-    # def from_config(cls, config):
-    #     return cls(**config)
-
     def get_weights(self) -> List:
         """Return the weights of the layer."""
         return []
@@ -262,7 +100,7 @@ class PowerIndex(keras.layers.Layer):
 @keras.saving.register_keras_serializable(package="MyLayers", name="InputSplitter")
 class InputSplitter(keras.layers.Layer):
     def __init__(self, partitions, overlap, **kwargs):
-        super(InputSplitter, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.partitions = partitions
         self.overlap = overlap
 
