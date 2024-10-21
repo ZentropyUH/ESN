@@ -174,7 +174,7 @@ class ESNCell(BaseReservoirCell):
 
         # Add noise to the reservoir state only during training
         if training:
-            output = output + self.noise_level * keras.backend.random_normal(keras.backend.shape(output))
+            output = output + self.noise_level * keras.random.normal(keras.backend.shape(output))
 
         # Leaky integration
         new_state = prev_state * (1 - self.leak_rate) + output * self.leak_rate

@@ -11,10 +11,6 @@ from scipy.sparse import linalg
 import keras
 from keras import Initializer
 
-###############################################
-################## Initializers ###############
-###############################################
-
 
 @keras.saving.register_keras_serializable(package="MyInitializers", name="InputMatrix")
 class InputMatrix(Initializer):
@@ -405,9 +401,7 @@ class ErdosRenyi(Initializer):
         return config
 
 
-@keras.saving.register_keras_serializable(
-    package="MyInitializers", name="WattsStrogatzNX"
-)
+@keras.saving.register_keras_serializable(package="MyInitializers", name="WattsStrogatzNX")
 class WattsStrogatzNX(Initializer):
     """Watts Strogatz graph initializer.
 
@@ -538,14 +532,3 @@ class WattsStrogatzNX(Initializer):
         config.update(base_config)
         return config
 
-
-custom_initializers = {
-    "InputMatrix": InputMatrix,
-    "RegularNX": RegularNX,
-    "ErdosRenyi": ErdosRenyi,
-    "WattsStrogatzNX": WattsStrogatzNX,
-    "Zeros": keras.initializers.Zeros,
-    "RandomUniform": keras.initializers.RandomUniform,
-}
-
-keras.utils.get_custom_objects().update(custom_initializers)
