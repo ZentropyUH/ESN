@@ -89,6 +89,10 @@ class BaseReservoir(keras.Model, ABC):
     def reset_states(self):
         self.rnn_layer.reset_states()
 
+    @abstractmethod
+    def compute_output_shape(self, input_shape):
+        pass
+
     def get_config(self):
         config = super().get_config()
         config.update({
@@ -233,6 +237,9 @@ class EchoStateNetwork(BaseReservoir):
                     })
 
         return config
+
+    def compute_output_shape(self, input_shape):
+        return input_shape[:-1] + (input_shape[-1] + self.reservoir_cell.units,)
 
 # Finally put here the Dynamical systems reservoir.
 
