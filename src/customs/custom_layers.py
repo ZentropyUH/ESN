@@ -85,6 +85,69 @@ class PowerIndex(keras.layers.Layer):
         return []
 
 
+@keras.saving.register_keras_serializable(package="MyLayers", name="RemoveOutliersAndMean")
+class RemoveOutliersAndMean(keras.layers.Layer):
+    """Removes the outliers from the input tensor and computes the mean of the remaining elements. We use the default threshold of 3.0 for both methods, based on Chebyshev's inequality, which states that at least 88.9% of the data lies within 3 standard deviations of the mean. So, roughly 11.1% of the data can be considered as outliers in worst case scenario.
+
+    Args:
+        method (str): The method to remove the outliers. Can be 'z_score' or 'iqr'. Default is 'z_score'.
+
+        threshold (float): The threshold to remove the outliers. Default is 3.0.
+
+    Returns:
+        keras.layers.Layer: A keras layer that removes the outliers from the input tensor and computes the mean of the remaining elements.
+    """
+    def __init__(self, method='z_score', threshold=3.0, **kwargs):
+        super().__init__(**kwargs)
+        self.method = method
+        self.threshold = threshold
+
+    def call(self, inputs):
+        """Receives a 2D tensor and removes the outliers over the first dimension using the method provided and computes the mean of the remaining elements.
+
+        Args:
+            inputs (tf.Tensor): Input tensor. Of shape (samples, features).
+
+        Returns:
+            tf.Tensor: Mean of the remaining elements after removing the outliers. Of shape (1, features).
+        """
+        if self.method == 'z_score':
+            mean = keras.ops.mean(inputs, axis=0, keepdims=True)
+            std = keras.ops.std(inputs, axis=0, keepdims=True)
+            z_scores = keras.ops.abs((inputs - mean) / std)
+            mask = z_scores < self.threshold
+        elif self.method == 'iqr':
+            q25, q75 = keras.ops.quantile(inputs, 0.25), keras.ops.quantile(inputs, 0.75)
+            iqr = q75 - q25
+            lower = q25 - self.threshold * iqr
+            upper = q75 + self.threshold * iqr
+            mask = keras.ops.logical_and(inputs > lower, inputs < upper)
+
+        inputs = keras.ops.multiply(inputs, mask)
+        mean = keras.ops.mean(inputs, axis=0, keepdims=True)
+
+        return mean
+
+    def compute_output_shape(self, input_shape) -> tf.TensorShape:
+        """Compute the output shape.
+
+        Args:
+            input_shape (tf.TensorShape): Input shape.
+
+        Returns:
+            tf.TensorShape: Output shape same as input shape.
+        """
+        return tf.TensorShape(input_shape)
+
+    def get_config(self):
+        config = super(RemoveOutliersAndMean, self).get_config()
+        config.update({
+            'method': self.method,
+            'threshold': self.threshold
+        })
+        return config
+
+
 # For the ParallelReservoir model
 @keras.saving.register_keras_serializable(package="MyLayers", name="InputSplitter")
 class InputSplitter(keras.layers.Layer):
