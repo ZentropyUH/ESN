@@ -3,9 +3,12 @@
 from contextlib import contextmanager
 from time import time
 
+import matplotlib.animation as animation
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+from mpl_toolkits.mplot3d import Axes3D
 
 
 # given i it starts from letter x and goes cyclically, when x reached starts xx, xy, etc.
@@ -19,7 +22,6 @@ def letter(n: int) -> str:
         str: The letter corresponding to the given number. Before 26, would be equivalent to chr(n + 97 + 23).
     """
     return "x" * ((n + 23) // 26) + chr(ord("a") + (n + 23) % 26)
-
 
 def lyap_ks(i_th, L_period):
     """Estimation of the i-th largest Lyapunov Time of the KS model.
@@ -37,7 +39,6 @@ def lyap_ks(i_th, L_period):
     """
     # This approximation is taken from the above paper. Verify veracity.
     return 0.093 - 0.94 * (i_th - 0.39) / L_period
-
 
 def load_data(
     name: str,
@@ -130,7 +131,6 @@ def load_data(
         val_target,
     )
 
-
 @contextmanager
 def timer(task_name, log=True):
     """
@@ -155,93 +155,108 @@ def timer(task_name, log=True):
     if log:
         print(f"{task_name} took: {round(end - start, 2)} seconds.\n")
 
-
-# Get the state of the ESN function
-def get_esn_state(model):
-    """Return the state of the ESN cell.
+def animate_trail(
+    x, 
+    y, 
+    z=None, 
+    trail_length=50, 
+    xlabel=None, 
+    ylabel=None, 
+    zlabel=None, 
+    title=None,
+    show=True, 
+    save_path=None, 
+    interval=15 
+    ):
+    """
+    Animate a point moving along the coordinates in x, y, and optionally z, leaving a trailing line.
 
     Args:
-        model (Model): The Keras model containing the ESN RNN layer.
-
-    Returns:
-        np array
+        x (array-like): X-coordinates of the points.
+        y (array-like): Y-coordinates of the points.
+        z (array-like, optional): Z-coordinates of the points for 3D animation.
+        trail_length (int): Number of points to keep in the trail.
+        xlabel (str): Label for the x-axis.
+        ylabel (str): Label for the y-axis.
+        zlabel (str): Label for the z-axis (3D only).
+        title (str): Title of the plot.
+        show (bool): Whether to display the animation.
+        save_path (str): Path to save the animation file, if specified.
+        interval (int): Time in milliseconds between frames.
     """
-    # Access the ESN RNN layer by name and retrieve its last state
-    esn_rnn_layer = model.get_layer("esn_rnn")
-    state_h = esn_rnn_layer.states[0]
+    # Set up the figure and axis, 3D if z is provided
+    fig = plt.figure()
+    if z is not None:
+        ax = fig.add_subplot(111, projection='3d')
+        ax.set_xlim(min(x) - 1, max(x) + 1)
+        ax.set_ylim(min(y) - 1, max(y) + 1)
+        ax.set_zlim(min(z) - 1, max(z) + 1)
+    else:
+        ax = fig.add_subplot(111)
+        ax.set_xlim(min(x) - 1, max(x) + 1)
+        ax.set_ylim(min(y) - 1, max(y) + 1)
+    
+    # Set axis labels and title if provided
+    if xlabel:
+        ax.set_xlabel(xlabel)
+    if ylabel:
+        ax.set_ylabel(ylabel)
+    if title:
+        ax.set_title(title)
+    if z is not None and zlabel:
+        ax.set_zlabel(zlabel)
 
-    # Convert the tensor to a NumPy array
-    states = np.squeeze(state_h.numpy())
+    # Initialize the point and trail line
+    if z is not None:
+        point, = ax.plot([], [], [], 'bo', markersize=8)  # 3D point
+        trail_line, = ax.plot([], [], [], 'r-', alpha=0.7, linewidth=2)  # 3D trail
+    else:
+        point, = ax.plot([], [], 'bo', markersize=8)  # 2D point
+        trail_line, = ax.plot([], [], 'r-', alpha=0.7, linewidth=2)  # 2D trail
 
-    return states
+    def init():
+        """Initialize the animation with empty point and trail."""
+        point.set_data([], [])
+        trail_line.set_data([], [])
+        if z is not None:
+            point.set_3d_properties([])
+            trail_line.set_3d_properties([])
+        return point, trail_line
 
+    def update(frame):
+        """Update the point and trail for each frame."""
+        # Update the main point position
+        if z is not None:
+            point.set_data([x[frame]], [y[frame]])
+            point.set_3d_properties([z[frame]])
+        else:
+            point.set_data([x[frame]], [y[frame]])
 
-def calculate_rmse(target: np.ndarray, prediction: np.ndarray) -> float:
-    """Calculate the RMSE between the target and the prediction.
+        # Calculate the start of the trail
+        start = max(0, frame - trail_length)
 
-    Args:
-        target (np array): The target data.
+        # Update trail coordinates
+        if z is not None:
+            trail_line.set_data(x[start:frame+1], y[start:frame+1])
+            trail_line.set_3d_properties(z[start:frame+1])
+        else:
+            trail_line.set_data(x[start:frame+1], y[start:frame+1])
 
-        prediction (np array): The prediction data.
+        return point, trail_line
 
-    Returns:
-        float: The RMSE between the target and the prediction.
-    """
-    return np.sqrt(np.mean(np.square(target - prediction)))
+    # Create the animation
+    ani = animation.FuncAnimation(
+        fig, update, frames=len(x), init_func=init, blit=True, interval=interval, repeat=False
+    )
 
+    # Display the animation
+    if show:
+        plt.show()
 
-def calculate_nrmse(target: np.ndarray, prediction: np.ndarray) -> float:
-    """Calculate the NRMSE between the target and the prediction.
-
-    Args:
-        target (np array): The target data.
-
-        prediction (np array): The prediction data.
-
-    Returns:
-        float: The NRMSE between the target and the prediction.
-    """
-    return calculate_rmse(target, prediction) / np.std(target)
-
-
-def calculate_rmse_list(target: np.ndarray, prediction: np.ndarray):
-    """
-    Calculate the RMSE between the target and the prediction for a list of true and predicted values.
-
-    Args:
-        target (np array): The target data.
-
-        prediction (np array): The prediction data.
-
-    Returns:
-        list: A list of RMSE values.
-    """
-    rmse_values = []
-    for _target, _prediction in zip(target, prediction):
-        rmse = calculate_rmse(_target, _prediction)
-        rmse_values.append(rmse)
-    return rmse_values
-
-
-def calculate_nrmse_list(target: np.ndarray, prediction: np.ndarray):
-    """
-    Calculate the NRMSE between the target and the prediction for a list of true and predicted values.
-
-    Args:
-        target (np array): The target data.
-
-        prediction (np array): The prediction data.
-
-    Returns:
-        list: A list of NRMSE values.
-    """
-    std = np.std(target)
-    nrmse_values = []
-    for _target, _prediction in zip(target, prediction):
-        nrmse = np.sqrt(np.mean(np.square(_target - _prediction))) / std
-        nrmse_values.append(nrmse)
-    return nrmse_values
-
+    # Save the animation
+    if save_path is not None:
+        # Calculate fps based on interval
+        ani.save(save_path, writer='ffmpeg', fps=int(1000 / interval))
 
 # TF implementation of Ridge using svd. TODO: see if it works as well as sklearn
 class TF_Ridge:
@@ -260,7 +275,6 @@ class TF_Ridge:
         self._built = False
         self._coef = None
         self._intercept = None
-        self._W = None
 
     def fit(self, X, y):
         """
@@ -332,7 +346,6 @@ class TF_Ridge:
         self._intercept = tf.reshape(intercept, [-1]) # Remove the extra dimension of size 1
         self._built = True
         self._n_features_in = X.shape[-1]
-        self._W = tf.concat([coef, intercept], axis=0)
 
         return self
 
@@ -378,7 +391,6 @@ class TF_Ridge:
         self._coef = None
         self._intercept = None
         self._n_features_in = None
-        self._W = None
 
     @property
     def built(self):
@@ -395,10 +407,6 @@ class TF_Ridge:
     @property
     def n_features_in(self):
         return self._n_features_in
-
-    @property
-    def W(self):
-        return self._W
 
     def get_params(self):
         """
