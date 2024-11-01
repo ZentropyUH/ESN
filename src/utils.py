@@ -1,11 +1,11 @@
 """Define some general utility functions."""
 
+from contextlib import contextmanager
+from time import time
+
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-
-from time import time
-from contextlib import contextmanager
 
 
 # given i it starts from letter x and goes cyclically, when x reached starts xx, xy, etc.
@@ -132,7 +132,7 @@ def load_data(
 
 
 @contextmanager
-def timer(task_name):
+def timer(task_name, log=True):
     """
     Context manager to measure the time of a task.
 
@@ -147,11 +147,13 @@ def timer(task_name):
         >>>     # Code to measure
         Will print the time taken to execute the code block.
     """
-    print(f"\n{task_name}...\n")
+    if log:
+        print(f"\n{task_name}...\n")
     start = time()
     yield
     end = time()
-    print(f"{task_name} took: {round(end - start, 2)} seconds.\n")
+    if log:
+        print(f"{task_name} took: {round(end - start, 2)} seconds.\n")
 
 
 # Get the state of the ESN function
