@@ -275,6 +275,7 @@ class TF_Ridge:
         self._built = False
         self._coef = None
         self._intercept = None
+        self._W = None
 
     def fit(self, X, y):
         """
@@ -346,6 +347,7 @@ class TF_Ridge:
         self._intercept = tf.reshape(intercept, [-1]) # Remove the extra dimension of size 1
         self._built = True
         self._n_features_in = X.shape[-1]
+        self._W = tf.concat([coef, intercept], axis=0)
 
         return self
 
@@ -391,6 +393,7 @@ class TF_Ridge:
         self._coef = None
         self._intercept = None
         self._n_features_in = None
+        self._W = None
 
     @property
     def built(self):
@@ -407,6 +410,10 @@ class TF_Ridge:
     @property
     def n_features_in(self):
         return self._n_features_in
+
+    @property
+    def W(self):
+        return self._W
 
     def get_params(self):
         """
