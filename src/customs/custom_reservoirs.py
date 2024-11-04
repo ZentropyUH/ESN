@@ -1,8 +1,11 @@
+"""Custom Reservoirs for Keras."""
 from abc import ABC, abstractmethod
-from typing import Union, Callable
+from typing import Callable, Union
+
 import keras
 
 from src.customs.custom_layers import PowerIndex
+
 
 @keras.saving.register_keras_serializable(package="Reservoirs", name="BaseReservoirCell")
 class BaseReservoirCell(keras.layers.Layer, ABC):
@@ -88,6 +91,10 @@ class BaseReservoir(keras.Model, ABC):
 
     def reset_states(self):
         self.rnn_layer.reset_states()
+
+    @property
+    def units(self):
+        return self.reservoir_cell.units
 
     @abstractmethod
     def compute_output_shape(self, input_shape):
@@ -239,16 +246,9 @@ class EchoStateNetwork(BaseReservoir):
         return config
 
     def compute_output_shape(self, input_shape):
+        if isinstance(input_shape, list):
+            input_shape = tuple(input_shape)
         return input_shape[:-1] + (input_shape[-1] + self.reservoir_cell.units,)
 
-# Finally put here the Dynamical systems reservoir.
 
-# TODO: Implement Pedersen's Automaton Reservoir
-class AutomatonCell(BaseReservoirCell):
-    def __init__(
-        self,
-        units,
-        rule,
-        **kwargs
-    ):
-        super().__init__(units, **kwargs)
+
