@@ -1,12 +1,12 @@
 """Custom keras layers."""
-from typing import Dict, List
+from typing import Dict, List, Union
 
-import tensorflow as tf
 import keras
-import keras.utils
-import keras.layers
-import keras.initializers
 import keras.activations
+import keras.initializers
+import keras.layers
+import keras.utils
+import tensorflow as tf
 
 
 @keras.saving.register_keras_serializable(package="MyLayers", name="PowerIndex")
@@ -91,7 +91,6 @@ class RemoveOutliersAndMean(keras.layers.Layer):
 
     Args:
         method (str): The method to remove the outliers. Can be 'z_score' or 'iqr'. Default is 'z_score'.
-
         threshold (float): The threshold to remove the outliers. Default is 3.0.
 
     Returns:
@@ -102,20 +101,54 @@ class RemoveOutliersAndMean(keras.layers.Layer):
         self.method = method
         self.threshold = threshold
 
-    def call(self, inputs):
+    def build(self, input_shape) -> None:
+        """Build the layer.
+
+        Args:
+            input_shape: The shape of the input tensor.
+        """
+        if isinstance(input_shape, list):
+            input_shape = input_shape[0]
+        super().build(input_shape)
+
+    def call(
+        self,
+        inputs: Union[tf.Tensor, List[tf.Tensor]]
+    ) -> tf.Tensor:
         """Receives a 2D tensor and removes the outliers over the first dimension using the method provided and computes the mean of the remaining elements.
 
         Args:
-            inputs (tf.Tensor): Input tensor. Of shape (samples, features).
+            inputs (Union[tf.Tensor, List[tf.Tensor]]): Either a tensor of shape (samples, features) or a list of tensors of shape (features,). If a list is provided, the tensors are stacked along the first dimension to form a tensor of shape (samples, features).
 
         Returns:
             tf.Tensor: Mean of the remaining elements after removing the outliers. Of shape (1, features).
         """
+        if isinstance(inputs, list):
+            shape = inputs[0].shape
+            for tensor in inputs:
+                assert tensor.shape == shape, "All tensors must have the same shape"
+
+            if len(shape) == 3:
+                for i, tensor in enumerate(inputs):
+                    inputs[i] = tf.squeeze(tensor, axis=0)
+
+            inputs = tf.concat(inputs, axis=0)
+
+        else:
+            # The input tensor is of shape (1, samples, features), we need to strip the batch dimension
+            if inputs.ndim == 3:
+                inputs = tf.squeeze(inputs, axis=0)
+
         if self.method == 'z_score':
             mean = keras.ops.mean(inputs, axis=0, keepdims=True)
             std = keras.ops.std(inputs, axis=0, keepdims=True)
-            z_scores = keras.ops.abs((inputs - mean) / std)
+
+            # Avoid division by zero
+            std_safe = tf.where(tf.equal(std, 0), tf.ones_like(std), std)
+
+            z_scores = keras.ops.abs((inputs - mean) / std_safe)
             mask = z_scores < self.threshold
+
         elif self.method == 'iqr':
             q25, q75 = keras.ops.quantile(inputs, 0.25), keras.ops.quantile(inputs, 0.75)
             iqr = q75 - q25
@@ -123,9 +156,11 @@ class RemoveOutliersAndMean(keras.layers.Layer):
             upper = q75 + self.threshold * iqr
             mask = keras.ops.logical_and(inputs > lower, inputs < upper)
 
-        inputs = keras.ops.multiply(inputs, mask)
-        mean = keras.ops.mean(inputs, axis=0, keepdims=True)
+        output = keras.ops.multiply(inputs, mask)
+        output = keras.ops.mean(output, axis=0, keepdims=True)
 
+        # Add the batch dimension back
+        inputs = tf.expand_dims(output, axis=0)
         return mean
 
     def compute_output_shape(self, input_shape) -> tf.TensorShape:
@@ -137,7 +172,9 @@ class RemoveOutliersAndMean(keras.layers.Layer):
         Returns:
             tf.TensorShape: Output shape same as input shape.
         """
-        return tf.TensorShape(input_shape)
+        if isinstance(input_shape, list):
+            input_shape = input_shape[0]
+        return input_shape
 
     def get_config(self):
         config = super(RemoveOutliersAndMean, self).get_config()
