@@ -1,12 +1,73 @@
 # ESN
 An Echo State Network implementation integrated with a general scheme to use broad range of other reservoirs.
 
+## Installation
+
+### For those that use Anaconda
+
+Create a conda environment with the `environment.yml` file provided in the repository.
+
+```bash
+conda env create -f environment.yml
+```
+
+After creating the environment, you should activate it.
+
+```bash
+conda activate krc
+```
+
+### For those that use virtualenv
+
+Create a virtual environment with the `requirements.txt` file provided in the repository.
+
+```bash
+virtualenv krc
+source krc/bin/activate
+```
+
+### For those who prefer to live on the edge
+
+Skip the environment creation and install the dependencies manually. Let Troy be with you.
+
+
+### Install the package
+
+Then you can install the package using the `setup.py` file.
+
+```bash
+python setup.py install
+```
+
+Alternatively, you can install the package using pip.
+
+```bash
+pip install .
+```
+
+
+From then on you can import the package in your code.
+
+```python
+import keras_reservoir_computing as krc
+
+krc.utils # A module with utility functions
+krc.initializers # A module with custom initializers
+krc.layers # A module with custom layers
+krc.reservoirs # A module with custom reservoirs
+krc.models # A module with custom models
+```
 
 ## General description
 
-The main class is `ReservoirComputer` which is a general class to use any reservoir. The reservoirs are implemented in the `custom_reservoirs` module. 
+The main classes are `ReservoirComputer` which is a general class to use any reservoir, and `ReservoirEnsemble`, which is a class to use several reservoir computers integrated in an ensemble mode. 
 
-The `EchoStateNetwork` class is a subclass of `BaseReservoir` which in turn is the base class for all reservoirs. The `EchoStateNetwork` class is a simple implementation of an ESN with its `ESNCell` class being the reservoir cell.
+The reservoirs are implemented in the `reservoirs` module.
+
+
+`BaseReservoir` and `BaseReservoirCell` are the abstract classes for the reservoirs and reservoir cells, respectively. 
+
+The `EchoStateNetwork` class is a subclass of `BaseReservoir`. The `EchoStateNetwork` class is a simple implementation of an ESN with its `ESNCell` class being the reservoir cell.
 
 
 ### Initializers
@@ -20,13 +81,16 @@ The `WattsStrogatzNX` class is a subclass of `keras.initializers.Initializer` an
 
 ## Usage
 
+
+### ReservoirComputer
+
 To use the `ReservoirComputer` class we have to define the reservoir we want to use. Currently available reservoirs are:
 
 - `EchoStateNetwork` (With feedback only)
 
-### Code example
+#### Code example
 
-#### Define the hyperparameters if needed. Optional but recommended.
+##### Define the hyperparameters if needed. Optional but recommended.
 
 ```python
 input_scaling = 0.1 # This is the scaling of the input weights. Used to set the range of random values for the input weights
@@ -38,7 +102,7 @@ leak_rate = 0.6 # This regulates the speed of the reservoir dynamics
 regularization = 1e-6 # Regularization for the readout layer
 ```
 
-#### Instantiate initializers for the reservoir cell. This is optional, but the default values are not recommended.
+##### Instantiate initializers for the reservoir cell. This is optional, but the default values are not recommended.
 
 ```python
 feedback_init = InputMatrix(sigma=input_scaling, ones=False, seed=seed)
@@ -56,7 +120,7 @@ kernel_init = WattsStrogatzNX(
 ```
 
 
-#### Load the data using the load_data function from utils.py
+##### Load the data using the load_data function from utils.py
 ```python
 data_file = (
     "./src/systems/data/Lorenz/Lorenz_dt0.02_steps150000_t-end3000.0_seed667850.csv"
@@ -79,7 +143,7 @@ features = transient_data.shape[-1]
 # (1, rest_of_timesteps, 3)
 ```
 
-#### Instantiate the reservoir cell and the reservoir computer
+##### Instantiate the reservoir cell and the reservoir computer
 ```python
 esn_cell = ESNCell(
     units=units,
@@ -100,7 +164,7 @@ readout_layer = keras.layers.Dense(
 model = ReservoirComputer(reservoir=reservoir, readout=readout_layer, seed=seed)
 ```
 
-#### Train the reservoir computer
+##### Train the reservoir computer
 
 Since the training of ESN is a non-conventional training, we have a custom train method within the `ReservoirComputer` class. This will be used to train the readout layer instead of the conventional `model.fit` method.
 
@@ -110,7 +174,7 @@ loss = model.train(
 )
 ```
 
-#### Predict using the reservoir computer
+##### Predict using the reservoir computer
 
 The predictions are done using the custom method `forecast` from the `ReservoirComputer` class.
 
@@ -136,3 +200,8 @@ forecast, states, cumulative_error, threshold_steps = model.forecast(
     internal_states=True,
 )
 ```
+
+
+### ReservoirEnsemble
+
+TODO
