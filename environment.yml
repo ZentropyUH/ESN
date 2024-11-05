@@ -1,18 +1,8 @@
 name: krc
 channels:
-  - defaults
   - conda-forge
 dependencies:
   - python=3.10
-  - matplotlib=3.9.2
-  - numpy=1.26.4
-  - pandas=2.2.3
-  - tensorflow=2.17.0
-  - rich=13.8.1
-  - networkx=3.4.2
-  - scipy=1.14.1
-  - keras=3.6.0
-  - ipykernel=6.29.5
   - pip
   - pip:
-    - -r file:requirements.txt
+      - -r requirements.txt
