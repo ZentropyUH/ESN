@@ -127,7 +127,7 @@ class ReservoirComputer(keras.Model):
         self,
         transient_data: tf.Tensor,
         return_states: bool = False
-    ) -> None:
+    ) -> Optional[tf.Tensor]:
         """Ensure the Echo State Property (ESP) of the model by predicting the transient data.
 
         Args:
