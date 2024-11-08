@@ -126,13 +126,16 @@ class ReservoirComputer(keras.Model):
     def ensure_ESP(
         self,
         transient_data: tf.Tensor,
+        return_states: bool = False
     ) -> None:
         """Ensure the Echo State Property (ESP) of the model by predicting the transient data.
 
         Args:
             transient_data (tf.Tensor): Transient data to ensure ESP.
         """
-        self.reservoir.call(transient_data, verbose=0)
+        states = self.reservoir.call(transient_data, verbose=0)
+        if return_states:
+            return states
 
     def _harvest(
         self,
