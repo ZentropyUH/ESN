@@ -36,13 +36,13 @@ Skip the environment creation and install the dependencies manually. Let Troy be
 Then you can install the package using the `setup.py` file.
 
 ```bash
-python setup.py install
+python setup.py debug
 ```
 
 Alternatively, you can install the package using pip.
 
 ```bash
-pip install .
+pip install -e .
 ```
 
 
