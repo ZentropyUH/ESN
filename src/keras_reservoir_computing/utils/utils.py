@@ -156,25 +156,22 @@ def timer(task_name, log=True):
         print(f"{task_name} took: {round(end - start, 2)} seconds.\n")
 
 def animate_trail(
-    x, 
-    y, 
-    z=None, 
-    trail_length=50, 
-    xlabel=None, 
-    ylabel=None, 
-    zlabel=None, 
+    data,
+    trail_length=50,
+    xlabel=None,
+    ylabel=None,
+    zlabel=None,
     title=None,
-    show=True, 
-    save_path=None, 
-    interval=15 
+    show=True,
+    save_path=None,
+    interval=15,
+    dt=None
     ):
     """
     Animate a point moving along the coordinates in x, y, and optionally z, leaving a trailing line.
 
     Args:
-        x (array-like): X-coordinates of the points.
-        y (array-like): Y-coordinates of the points.
-        z (array-like, optional): Z-coordinates of the points for 3D animation.
+        data (np.ndarray): The data to animate. If 3D, it should have shape (T, 3), where T is the number of points. If 2D, it should have shape (T, 2).
         trail_length (int): Number of points to keep in the trail.
         xlabel (str): Label for the x-axis.
         ylabel (str): Label for the y-axis.
@@ -183,7 +180,16 @@ def animate_trail(
         show (bool): Whether to display the animation.
         save_path (str): Path to save the animation file, if specified.
         interval (int): Time in milliseconds between frames.
+        dt (float): Time step between frames. If provided, it will be used to calculate the interval.
     """
+    # Extract x, y, and z coordinates
+    x = data[:, 0]
+    y = data[:, 1]
+    z = data[:, 2] if data.shape[1] == 3 else None
+
+    if dt is not None:
+        interval = int(dt * 1000)
+
     # Set up the figure and axis, 3D if z is provided
     fig = plt.figure()
     if z is not None:
@@ -195,7 +201,7 @@ def animate_trail(
         ax = fig.add_subplot(111)
         ax.set_xlim(min(x) - 1, max(x) + 1)
         ax.set_ylim(min(y) - 1, max(y) + 1)
-    
+
     # Set axis labels and title if provided
     if xlabel:
         ax.set_xlabel(xlabel)
@@ -208,10 +214,10 @@ def animate_trail(
 
     # Initialize the point and trail line
     if z is not None:
-        point, = ax.plot([], [], [], 'bo', markersize=8)  # 3D point
+        point, = ax.plot([], [], [], 'bo', markersize=4)  # 3D point
         trail_line, = ax.plot([], [], [], 'r-', alpha=0.7, linewidth=2)  # 3D trail
     else:
-        point, = ax.plot([], [], 'bo', markersize=8)  # 2D point
+        point, = ax.plot([], [], 'bo', markersize=4)  # 2D point
         trail_line, = ax.plot([], [], 'r-', alpha=0.7, linewidth=2)  # 2D trail
 
     def init():
