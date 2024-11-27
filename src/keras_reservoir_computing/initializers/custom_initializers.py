@@ -10,6 +10,7 @@ from scipy.sparse import linalg
 
 import keras
 from keras import Initializer
+from keras.initializers import RandomUniform #type: ignore
 
 
 @keras.saving.register_keras_serializable(package="MyInitializers", name="InputMatrix")
@@ -532,3 +533,76 @@ class WattsStrogatzNX(Initializer):
         config.update(base_config)
         return config
 
+
+@keras.saving.register_keras_serializable(package="MyInitializers", name="RandomUniformSRAdjusted")
+class RandomUniformSRAdjusted(RandomUniform):
+    """Random uniform initializer with spectral radius adjustment.
+
+    This initializer is a wrapper around the RandomUniform initializer from Keras.
+    It generates a random uniform matrix and adjusts its spectral radius to a given value.
+
+    Args:
+        minval (float): Lower bound of the uniform distribution.
+        maxval (float): Upper bound of the uniform distribution.
+        spectral_radius (float): The desired spectral radius of the matrix.
+
+    Returns:
+        keras.initializers.Initializer: The initializer.
+    """
+
+    def __init__(
+        self,
+        minval: float = -0.05,
+        maxval: float = 0.05,
+        spectral_radius: Union[float, None] = None,
+        seed: Union[int, None] = None,
+    ) -> None:
+        """Initialize the initializer."""
+        super().__init__(minval=minval, maxval=maxval, seed=seed)
+        self.spectral_radius = spectral_radius
+
+    def __call__(
+        self,
+        shape: Union[int, Tuple[int, int]],
+        dtype: tf.dtypes.DType = tf.float32,
+    ) -> tf.Tensor:
+        """Generate the matrix.
+
+        Args:
+            shape (tuple): Shape of the matrix.
+
+        Returns:
+            tf.Tensor: The matrix.
+        """
+        kernel = super().__call__(shape, dtype)
+
+        if self.spectral_radius is None:
+            return kernel
+
+        # Convert to sparse matrix to calculate the spectral radius efficiently
+        kernel = sparse.coo_matrix(kernel)
+
+        print(f"Correcting spectral radius to {self.spectral_radius}")
+
+        rho = abs(linalg.eigs(kernel, k=1, which="LM")[0])[0]
+
+        if rho == 0:
+            print("The matrix is singular, re-initializing")
+            return self(shape, dtype=dtype)
+
+        print(f"Spectral radius was previously {rho}")
+
+        kernel = kernel * self.spectral_radius / rho
+
+        # Convert back to dense matrix
+        kernel = kernel.toarray()
+
+        return tf.convert_to_tensor(kernel, dtype=dtype)
+
+    def get_config(self) -> Dict:
+        """Get the config dictionary of the initializer for serialization."""
+        base_config = super().get_config()
+        config = {"spectral_radius": self.spectral_radius}
+
+        config.update(base_config)
+        return config
