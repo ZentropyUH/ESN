@@ -2,10 +2,6 @@
 from typing import Dict, List, Union
 
 import keras
-import keras.activations
-import keras.initializers
-import keras.layers
-import keras.utils
 import tensorflow as tf
 
 
@@ -161,7 +157,7 @@ class RemoveOutliersAndMean(keras.layers.Layer):
 
         # Add the batch dimension back
         inputs = tf.expand_dims(output, axis=0)
-        return mean
+        return output
 
     def compute_output_shape(self, input_shape) -> tf.TensorShape:
         """Compute the output shape.
