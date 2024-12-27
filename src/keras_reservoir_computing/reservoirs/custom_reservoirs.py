@@ -87,7 +87,7 @@ class BaseReservoir(keras.Model, ABC):
                 if state_shape != new_state.shape:
                     raise ValueError(f"The {i}th new state is of shape {new_state.shape}, should be of shape {state_shape}.")
                 else:
-                    self.rnn_layer.states[i] = new_state
+                    self.rnn_layer.states[i].assign(new_state)
 
     def reset_states(self):
         self.rnn_layer.reset_states()
