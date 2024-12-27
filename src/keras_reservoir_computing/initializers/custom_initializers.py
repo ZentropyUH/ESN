@@ -96,7 +96,7 @@ class InputMatrix(Initializer):
             counter += 1
 
         # Convert the list to a TensorFlow Variable
-        indexes_nonzero = tf.Variable(indexes_list, dtype=tf.int64)
+        indexes_nonzero = tf.constant(indexes_list, dtype=tf.int64)
 
         num_values = len(indexes_list)  #This will dynamically match the length of indexes_list
 
