@@ -240,7 +240,7 @@ class RegularNX(Initializer):
         graph_matrix = sparse.coo_matrix(graph_matrix)
 
         # Correcting the spectral radius
-        print(f"Correcting spectral radius to {self.spectral_radius}")
+        # print(f"Correcting spectral radius to {self.spectral_radius}")
         rho = abs(linalg.eigs(graph_matrix, k=1, which="LM")[0])[0]
 
         if rho == 0:
@@ -249,7 +249,7 @@ class RegularNX(Initializer):
 
         kernel = graph_matrix * self.spectral_radius / rho
 
-        print(f"Spectral radius was previously {rho}")
+        # print(f"Spectral radius was previously {rho}")
 
         # Converting to dense matrix
         kernel = kernel.toarray()
@@ -370,7 +370,7 @@ class ErdosRenyi(Initializer):
         # Convert to sparse matrix to calculate the spectral radius efficiently
         graph_matrix = sparse.coo_matrix(graph_matrix)
 
-        print(f"Correcting spectral radius to {self.spectral_radius}")
+        # print(f"Correcting spectral radius to {self.spectral_radius}")
 
         rho = abs(linalg.eigs(graph_matrix, k=1, which="LM")[0])[0]
 
@@ -378,7 +378,7 @@ class ErdosRenyi(Initializer):
             print("The matrix is singular, re-initializing")
             return self(shape, dtype=dtype)
 
-        print(f"Spectral radius was previously {rho}")
+        # print(f"Spectral radius was previously {rho}")
 
         kernel = graph_matrix * self.spectral_radius / rho
 
@@ -493,7 +493,7 @@ class WattsStrogatzNX(Initializer):
         # Going back to a sparse matrix to calculate the spectral radius efficiently
         graph_matrix = sparse.coo_matrix(graph_matrix)
 
-        print(f"Correcting spectral radius to {self.spectral_radius}")
+        # print(f"Correcting spectral radius to {self.spectral_radius}")
 
         rho = abs(
             linalg.eigs(
@@ -509,7 +509,7 @@ class WattsStrogatzNX(Initializer):
             print("The matrix is singular, re-initializing")
             return self(shape)
 
-        print(f"Spectral radius was previously {rho}")
+        # print(f"Spectral radius was previously {rho}")
 
         kernel = graph_matrix * self.spectral_radius / rho
 
@@ -582,7 +582,7 @@ class RandomUniformSRAdjusted(RandomUniform):
         # Convert to sparse matrix to calculate the spectral radius efficiently
         kernel = sparse.coo_matrix(kernel)
 
-        print(f"Correcting spectral radius to {self.spectral_radius}")
+        # print(f"Correcting spectral radius to {self.spectral_radius}")
 
         rho = abs(linalg.eigs(kernel, k=1, which="LM")[0])[0]
 
@@ -590,7 +590,7 @@ class RandomUniformSRAdjusted(RandomUniform):
             print("The matrix is singular, re-initializing")
             return self(shape, dtype=dtype)
 
-        print(f"Spectral radius was previously {rho}")
+        # print(f"Spectral radius was previously {rho}")
 
         kernel = kernel * self.spectral_radius / rho
 
