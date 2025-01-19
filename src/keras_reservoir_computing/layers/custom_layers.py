@@ -228,8 +228,3 @@ class InputSplitter(keras.layers.Layer):
             'overlap': self.overlap
         })
         return config
-
-    # @classmethod
-    # def from_config(cls, config):
-    #     return cls(**config)
-
