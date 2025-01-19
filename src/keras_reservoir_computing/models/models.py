@@ -148,9 +148,7 @@ class ReservoirComputer(keras.Model):
 
         Args:
             train_data (tf.Tensor): Data to harvest the reservoir states.
-
-            log (bool): Whether to log the time taken for the operation. Defaults to False.
-
+            
         Returns:
             tf.Tensor: The harvested reservoir states.
         """
@@ -278,7 +276,7 @@ class ReservoirComputer(keras.Model):
             return predictions_out, states_out
         return predictions_out, None
 
-    @tf.function
+    @tf.function(reduce_retracing=True)
     def _perform_forecasting_fast_with_states(
         self,
         initial_point: tf.Tensor,
