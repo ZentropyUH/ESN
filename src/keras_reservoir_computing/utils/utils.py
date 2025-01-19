@@ -1,14 +1,18 @@
 """Define some general utility functions."""
 
+import os
+import xarray as xr
 from contextlib import contextmanager
 from time import time
 
+import keras
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 from mpl_toolkits.mplot3d import Axes3D
+
 
 
 # given i it starts from letter x and goes cyclically, when x reached starts xx, xy, etc.
@@ -22,6 +26,7 @@ def letter(n: int) -> str:
         str: The letter corresponding to the given number. Before 26, would be equivalent to chr(n + 97 + 23).
     """
     return "x" * ((n + 23) // 26) + chr(ord("a") + (n + 23) % 26)
+
 
 def lyap_ks(i_th, L_period):
     """Estimation of the i-th largest Lyapunov Time of the KS model.
@@ -40,8 +45,63 @@ def lyap_ks(i_th, L_period):
     # This approximation is taken from the above paper. Verify veracity.
     return 0.093 - 0.94 * (i_th - 0.39) / L_period
 
+
+def load_file(datapath):
+    """Load the data from the given path. Returns a numpy array of shape (1, T, D)."""
+
+    if datapath.endswith(".csv"):
+        data = load_csv(datapath)
+
+    elif datapath.endswith(".npz"):
+        data = load_npz(datapath)
+        
+    elif datapath.endswith(".nc"):
+        data = load_nc(datapath)
+
+
+    return data
+
+def load_csv(datapath):
+    """Load the data from the given path. Returns a numpy array of shape (1, T, D)."""
+
+    data = pd.read_csv(datapath, header=None)
+    data = data.to_numpy()
+    data = data.astype(np.float32)
+
+    T, D = data.shape
+
+    data = data.reshape(1, T, D)
+
+    return data
+
+def load_npz(datapath):
+    """Load the data from the given path. Returns a numpy array of shape (1, T, D)."""
+
+    data = np.load(datapath)
+    data = data["data"]
+    data = data.astype(np.float32)
+
+    T, D = data.shape
+
+    data = data.reshape(1, T, D)
+
+    return data
+
+def load_nc(datapath):
+    """Load the data from the given path. Returns a numpy array of shape (1, T, D)."""
+
+    data = xr.open_dataarray(datapath)
+    data = data.to_numpy()
+    data = data.astype(np.float32)
+
+    T, D = data.shape
+
+    data = data.reshape(1, T, D)
+
+    return data
+
 def load_data(
-    name: str,
+    datapath: str,
     transient: int = 1000,
     train_length: int = 5000,
     normalize: bool = False,
@@ -51,7 +111,7 @@ def load_data(
     Data is supposed to be stored in a .csv and has a shape of (T, D), (T)ime and (D)imensions.
 
     Args:
-        name (str): The name of the file to be loaded.
+        datapath (str): The datapath of the file to be loaded.
 
         transient (int, optional): The length of the training transient
                                     for teacher enforced process. Defaults to 1000.
@@ -76,11 +136,10 @@ def load_data(
                 validation_target: The validation target. This is for forecasting, so target data is
                     the validation data taken shifted 1 index to the right plus one value.
     """
-    data = pd.read_csv(name, header=None).to_numpy().astype(np.float32)
 
-    T, D = data.shape
-    data = data.reshape(1, T, D)
+    data = load_file(datapath)
 
+    _, T, D = data.shape
 
     # Index up to the training end.
     train_index = transient + train_length
@@ -131,6 +190,7 @@ def load_data(
         val_target,
     )
 
+
 @contextmanager
 def timer(task_name, log=True):
     """
@@ -155,6 +215,7 @@ def timer(task_name, log=True):
     if log:
         print(f"{task_name} took: {round(end - start, 2)} seconds.\n")
 
+
 def animate_trail(
     data,
     trail_length=50,
@@ -165,8 +226,8 @@ def animate_trail(
     show=True,
     save_path=None,
     interval=15,
-    dt=None
-    ):
+    dt=None,
+):
     """
     Animate a point moving along the coordinates in x, y, and optionally z, leaving a trailing line.
 
@@ -193,7 +254,7 @@ def animate_trail(
     # Set up the figure and axis, 3D if z is provided
     fig = plt.figure()
     if z is not None:
-        ax = fig.add_subplot(111, projection='3d')
+        ax = fig.add_subplot(111, projection="3d")
         ax.set_xlim(min(x) - 1, max(x) + 1)
         ax.set_ylim(min(y) - 1, max(y) + 1)
         ax.set_zlim(min(z) - 1, max(z) + 1)
@@ -214,11 +275,11 @@ def animate_trail(
 
     # Initialize the point and trail line
     if z is not None:
-        point, = ax.plot([], [], [], 'bo', markersize=4)  # 3D point
-        trail_line, = ax.plot([], [], [], 'r-', alpha=0.7, linewidth=2)  # 3D trail
+        (point,) = ax.plot([], [], [], "bo", markersize=4)  # 3D point
+        (trail_line,) = ax.plot([], [], [], "r-", alpha=0.7, linewidth=2)  # 3D trail
     else:
-        point, = ax.plot([], [], 'bo', markersize=4)  # 2D point
-        trail_line, = ax.plot([], [], 'r-', alpha=0.7, linewidth=2)  # 2D trail
+        (point,) = ax.plot([], [], "bo", markersize=4)  # 2D point
+        (trail_line,) = ax.plot([], [], "r-", alpha=0.7, linewidth=2)  # 2D trail
 
     def init():
         """Initialize the animation with empty point and trail."""
@@ -243,16 +304,22 @@ def animate_trail(
 
         # Update trail coordinates
         if z is not None:
-            trail_line.set_data(x[start:frame+1], y[start:frame+1])
-            trail_line.set_3d_properties(z[start:frame+1])
+            trail_line.set_data(x[start : frame + 1], y[start : frame + 1])
+            trail_line.set_3d_properties(z[start : frame + 1])
         else:
-            trail_line.set_data(x[start:frame+1], y[start:frame+1])
+            trail_line.set_data(x[start : frame + 1], y[start : frame + 1])
 
         return point, trail_line
 
     # Create the animation
     ani = animation.FuncAnimation(
-        fig, update, frames=len(x), init_func=init, blit=True, interval=interval, repeat=False
+        fig,
+        update,
+        frames=len(x),
+        init_func=init,
+        blit=True,
+        interval=interval,
+        repeat=False,
     )
 
     # Display the animation
@@ -262,7 +329,8 @@ def animate_trail(
     # Save the animation
     if save_path is not None:
         # Calculate fps based on interval
-        ani.save(save_path, writer='ffmpeg', fps=int(1000 / interval))
+        ani.save(save_path, writer="ffmpeg", fps=int(1000 / interval))
+
 
 # TF implementation of Ridge using svd. TODO: see if it works as well as sklearn
 class TF_Ridge:
@@ -272,6 +340,7 @@ class TF_Ridge:
     Args:
         alpha (float): Regularization strength.
     """
+
     def __init__(self, alpha: float) -> None:
         if alpha < 0:
             raise ValueError("Regularization strength must be non-negative.")
@@ -350,7 +419,9 @@ class TF_Ridge:
         intercept = y_mean - tf.matmul(X_mean, coef)
 
         self._coef = coef
-        self._intercept = tf.reshape(intercept, [-1]) # Remove the extra dimension of size 1
+        self._intercept = tf.reshape(
+            intercept, [-1]
+        )  # Remove the extra dimension of size 1
         self._built = True
         self._n_features_in = X.shape[-1]
         self._W = tf.concat([coef, intercept], axis=0)
@@ -382,7 +453,6 @@ class TF_Ridge:
         predictions = tf.matmul(X, self._W)
 
         return predictions
-
 
     @property
     def alpha(self):
