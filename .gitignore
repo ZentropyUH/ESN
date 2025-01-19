@@ -1,11 +1,21 @@
+__pycache__
+.vscode
+*.pyc
+
+# Clutter
 src/systems/
 tinker_ensemble.ipynb
 tinker.ipynb
 forecasts
 Models
-__pycache__
-.vscode
-*.pyc
+
+Models_WS
+Models_best_params
+model_utilities.ipynb
+tinker_models.ipynb
+
+
+
 
 # Environments
 .env
