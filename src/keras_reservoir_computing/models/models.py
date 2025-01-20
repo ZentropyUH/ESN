@@ -57,7 +57,6 @@ class ReservoirComputer(keras.Model):
         """
         self.reservoir.build(input_shape)
         self._input_shape = input_shape
-        self.reservoir.build(input_shape)
         reservoir_output_shape = self.reservoir.compute_output_shape(input_shape)
         self.readout.build(reservoir_output_shape)
         super().build(input_shape)
@@ -124,18 +123,21 @@ class ReservoirComputer(keras.Model):
 
         return training_loss
 
-    @tf.function(reduce_retracing=True)
-    def ensure_ESP(
-        self, transient_data: tf.Tensor, return_states: bool = False
-    ) -> Optional[tf.Tensor]:
+    @tf.function(autograph=False)
+    def ensure_ESP(self, transient_data: tf.Tensor) -> tf.Tensor:
         """Ensure the Echo State Property (ESP) of the model by predicting the transient data.
+
+        Will ensure the ESP of the model by predicting the transient data. It returns the reservoir states corresponding to the transient data, used for the ESP index method.
 
         Args:
             transient_data (tf.Tensor): Transient data to ensure ESP.
+
+        Returns:
+            tf.Tensor: The reservoir states corresponding to the transient data
         """
-        states = self.reservoir.call(transient_data, verbose=0)
-        if return_states:
-            return states
+        states = self.reservoir.call(inputs=transient_data, verbose=0)
+
+        return states
 
     def _harvest(
         self,
@@ -148,7 +150,7 @@ class ReservoirComputer(keras.Model):
 
         Args:
             train_data (tf.Tensor): Data to harvest the reservoir states.
-            
+
         Returns:
             tf.Tensor: The harvested reservoir states.
         """
@@ -187,6 +189,7 @@ class ReservoirComputer(keras.Model):
         # Set weights of the readout layer
         coef = regressor._coef
         intercept = regressor._intercept
+
         self.readout.set_weights([coef, intercept])
 
         # Get the predictions
@@ -276,7 +279,7 @@ class ReservoirComputer(keras.Model):
             return predictions_out, states_out
         return predictions_out, None
 
-    @tf.function(reduce_retracing=True)
+    @tf.function(autograph=False)
     def _perform_forecasting_fast_with_states(
         self,
         initial_point: tf.Tensor,
@@ -295,8 +298,8 @@ class ReservoirComputer(keras.Model):
             predictions_out: shape (1, steps+1, input_dim)
             states_out: shape (n_states, steps, units)
         """
-        # Ensure ESP
-        self.ensure_ESP(forecast_transient_data)
+        # Ensure ESP. We don't need the returned states
+        _ = self.ensure_ESP(forecast_transient_data)
 
         # Prepare the predictions array
         predictions_ta = tf.TensorArray(
@@ -336,14 +339,13 @@ class ReservoirComputer(keras.Model):
 
         loop_vars = (0, predictions_ta, states_ta)
 
-        loop_results = tf.while_loop(
+        final_step, final_predictions_ta, final_states_ta = tf.while_loop(
             cond=loop_cond,
             body=loop_body,
             loop_vars=loop_vars,
             parallel_iterations=1,
         )
 
-        final_step, final_predictions_ta, final_states_ta = loop_results
 
         # Convert from TensorArray to Tensor
         predictions_out = tf.stop_gradient(
@@ -355,15 +357,12 @@ class ReservoirComputer(keras.Model):
         )  # (1, steps+1, input_dim)
 
         # Convert TensorArray to Tensor for states if not None
-        if final_states_ta is not None:
-            states_out = tf.stop_gradient(
-                final_states_ta.stack()
-            )  # shape (steps, n_states, units)
-            states_out = tf.transpose(
-                states_out, [1, 0, 2]
-            )  # shape (n_states, steps, units)
-        else:
-            states_out = None
+        states_out = tf.stop_gradient(
+            final_states_ta.stack()
+        )  # shape (steps, n_states, units)
+        states_out = tf.transpose(
+            states_out, [1, 0, 2]
+        )  # shape (n_states, steps, units)
 
         return predictions_out, states_out
 
@@ -452,6 +451,25 @@ class ReservoirComputer(keras.Model):
         model = keras.Model(inputs=inputs, outputs=outputs)
         return keras.utils.plot_model(model, **kwargs)
 
+    def get_build_config(self) -> dict:
+        """
+        Returns a dictionary containing everything needed to rebuild this model
+        when deserialized. In your code, 'plot()' relies on 'get_build_config()["input_shape"]',
+        so we must include it here.
+        """
+        # If the model hasn't been built yet, self._input_shape may be None.
+        # In that case, return an empty dict or handle as needed.
+        return {
+            "input_shape": self._input_shape
+        } if getattr(self, "_input_shape", None) is not None else {}
+
+    def build_from_config(self, config):
+        """Build the model from the given configuration.
+
+        Args:
+            config (dict): Configuration dictionary.
+        """
+        self.built = True # TODO: Perhaps this is a patch and a hideous solution
 
 @keras.saving.register_keras_serializable(
     package="ReservoirComputers", name="ReservoirEnsemble"
