@@ -14,7 +14,6 @@ import tensorflow as tf
 from mpl_toolkits.mplot3d import Axes3D
 
 
-
 # given i it starts from letter x and goes cyclically, when x reached starts xx, xy, etc.
 def letter(n: int) -> str:
     """Return the letter corresponding to the given number.
@@ -46,164 +45,20 @@ def lyap_ks(i_th, L_period):
     return 0.093 - 0.94 * (i_th - 0.39) / L_period
 
 
-def load_file(datapath):
-    """Load the data from the given path. Returns a numpy array of shape (1, T, D)."""
-
-    if datapath.endswith(".csv"):
-        data = load_csv(datapath)
-
-    elif datapath.endswith(".npz"):
-        data = load_npz(datapath)
-        
-    elif datapath.endswith(".nc"):
-        data = load_nc(datapath)
-
-
-    return data
-
-def load_csv(datapath):
-    """Load the data from the given path. Returns a numpy array of shape (1, T, D)."""
-
-    data = pd.read_csv(datapath, header=None)
-    data = data.to_numpy()
-    data = data.astype(np.float32)
-
-    T, D = data.shape
-
-    data = data.reshape(1, T, D)
-
-    return data
-
-def load_npz(datapath):
-    """Load the data from the given path. Returns a numpy array of shape (1, T, D)."""
-
-    data = np.load(datapath)
-    data = data["data"]
-    data = data.astype(np.float32)
-
-    T, D = data.shape
-
-    data = data.reshape(1, T, D)
-
-    return data
-
-def load_nc(datapath):
-    """Load the data from the given path. Returns a numpy array of shape (1, T, D)."""
-
-    data = xr.open_dataarray(datapath)
-    data = data.to_numpy()
-    data = data.astype(np.float32)
-
-    T, D = data.shape
-
-    data = data.reshape(1, T, D)
-
-    return data
-
-def load_data(
-    datapath: str,
-    transient: int = 1000,
-    train_length: int = 5000,
-    normalize: bool = False,
-):
-    """Load the data from the given path. Returns a dataset for training a NN.
-
-    Data is supposed to be stored in a .csv and has a shape of (T, D), (T)ime and (D)imensions.
-
-    Args:
-        datapath (str): The datapath of the file to be loaded.
-
-        transient (int, optional): The length of the training transient
-                                    for teacher enforced process. Defaults to 1000.
-
-        train_length (int, optional): The length of the training data. Defaults to 5000.
-
-    Returns:
-        tuple: A tuple with:
-
-                transient_data: The transient of the training data. This is to ensure ESP.
-
-                training_data: Training data.
-
-                training_target: The training target. This is for forecasting, so target data is
-                    the training data taken shifted 1 index to the right plus one value.
-
-                forecast_transient_data: The last 'transient' elements in training_data.
-                    This is to ensure ESP.
-
-                validation_data: Validation data
-
-                validation_target: The validation target. This is for forecasting, so target data is
-                    the validation data taken shifted 1 index to the right plus one value.
-    """
-
-    data = load_file(datapath)
-
-    _, T, D = data.shape
-
-    # Index up to the training end.
-    train_index = transient + train_length
-
-    if train_index > T:
-        raise ValueError(
-            f"The train size is out of range. Data shape is: "
-            f"{data.shape} and train size + transient is: {train_index}"
-        )
-
-    # Transient data (For ESP purposes)
-    transient_data = data[:, :transient, :]
-
-    train_data = data[:, transient:train_index, :]
-    train_target = data[:, transient + 1 : train_index + 1, :]
-
-    # Forecast transient (For ESP purposes).
-    # These are the last 'transient' values of the training data
-    forecast_transient_data = train_data[:, -transient:, :]
-
-    val_data = data[:, train_index:-1, :]
-    val_target = data[:, train_index + 1 :, :]
-
-    if normalize:
-
-        # Get the mean and std of the training data, over the time axis, independent for each batch (i.e. each element over the first axis)
-        mean = np.mean(train_data, axis=1, keepdims=True)
-        std = np.std(train_data, axis=1, keepdims=True)
-
-        # Normalize the training data
-        train_data = (train_data - mean) / std
-        train_target = (train_target - mean) / std
-
-        # Normalize the validation data
-        val_data = (val_data - mean) / std
-        val_target = (val_target - mean) / std
-
-        # Normalize the transient data
-        transient_data = (transient_data - mean) / std
-        forecast_transient_data = (forecast_transient_data - mean) / std
-
-    return (
-        transient_data,
-        train_data,
-        train_target,
-        forecast_transient_data,
-        val_data,
-        val_target,
-    )
-
-
 @contextmanager
-def timer(task_name, log=True):
+def timer(task_name: str="Task", log: bool=True):
     """
     Context manager to measure the time of a task.
 
     Args:
         task_name (str): Name of the task to measure.
+        log (bool): Whether to log the time taken.
 
     Returns:
         None
 
     Example:
-        >>> with self.timer("Task"):
+        >>> with self.timer("Some Task"):
         >>>     # Code to measure
         Will print the time taken to execute the code block.
     """
