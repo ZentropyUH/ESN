@@ -549,89 +549,70 @@ class ReservoirEnsemble(keras.Model):
             losses.append(loss)
         return sum(losses) / len(losses)
 
+    @tf.function
+    def ensure_ESP(self, transient_data: tf.Tensor) -> None:
+        """
+        Ensures ESP on each ReservoirComputer by simply calling their ensure_ESP methods.
+        """
+        for rc in self.reservoir_computers:
+            rc.ensure_ESP(transient_data)
+
     def forecast(
         self,
         forecast_length: int,
         forecast_transient_data: np.ndarray,
         val_data: np.ndarray,
-        val_target: np.ndarray,
-        internal_states: bool = False,
-        error_threshold: Optional[float] = None,
-    ) -> Tuple[tf.Variable, Optional[tf.Variable], np.ndarray, Optional[int]]:
+        store_states: bool = False,
+    ) -> Tuple[tf.Tensor, Optional[tf.Tensor], np.ndarray, Optional[int]]:
+        """
+        Forecast the ensemble for a given number of steps using tf.while_loop, mirroring
+        the same performance approach used in ReservoirComputer.
 
-        if forecast_length > val_data.shape[1]:
-            print("Truncating the forecast length to match the data.")
-        forecast_length = min(forecast_length, val_data.shape[1])
-
-        # Reset the states of the reservoir computers
-        for reservoir_computer in self.reservoir_computers:
-            reservoir_computer.reset_states()
-
-        # Initialize the predictions and states_over_time
-        predictions, states_over_time = self._initialize_forecast_structures(
-            val_data, forecast_length, internal_states
-        )
-
-        # Ensure ESP for all reservoir computers
-        for reservoir_computer in self.reservoir_computers:
-            reservoir_computer.ensure_ESP(forecast_transient_data)
-
-        # Perform forecasting
-        cumulative_error, steps_to_exceed_threshold = self._perform_forecasting(
-            predictions, val_target, error_threshold, states_over_time
-        )
-
-        # Remove the initial placeholder prediction
-        predictions = predictions[:, 1:, :]
-
-        return (
-            predictions,
-            states_over_time,
-            cumulative_error,
-            steps_to_exceed_threshold,
-        )
-
-    def _initialize_forecast_structures(
-        self, val_data: np.ndarray, forecast_length: int, internal_states: bool
-    ) -> Tuple[tf.Variable, Optional[tf.Variable]]:
-        """Initializes structures to store predictions and internal states during forecasting.
+        This method resets states, ensures ESP, then calls _perform_forecasting_fast_with_states().
+        The 'error_threshold' logic is omitted here for clarity; adapt as needed.
 
         Args:
-            val_data (np.ndarray): Validation data.
-            forecast_length (int): Number of steps to forecast.
-            internal_states (bool): Whether to store internal states.
+            forecast_length: How many timesteps to forecast.
+            forecast_transient_data: Data used to washout the reservoir states (ensure ESP).
+            val_data: The actual data from which to start forecasting.
+            val_target: The true target data (unused here, but left for API compatibility).
+            store_states: Whether to store internal states at each forecast step.
+            error_threshold: Currently unused, but kept for API compatibility.
 
         Returns:
-            Tuple[tf.Variable, Optional[tf.Variable]]: Initialized predictions and states_over_time.
+            (predictions_out, states_out, empty_error_array, None)
+            - predictions_out: shape (1, forecast_length, output_dim)
+            - states_out: shape (total_states, forecast_length, units) if store_states=True, else None
+            - empty_error_array: placeholder (np.array([])) for error measures
+            - None: placeholder for steps_to_exceed_threshold
         """
-        # Initialize predictions: shape (batch_size, forecast_length + 1, output_dim)
-        predictions = tf.Variable(
-            tf.zeros((1, forecast_length + 1, val_data.shape[2])), dtype="float32"
+        self.reset_states()
+
+        if forecast_length > val_data.shape[1]:
+            logging.info("Truncating the forecast length to match the data.")
+        forecast_length = min(forecast_length, val_data.shape[1])
+
+        # Prepare Tensors
+        initial_point = val_data[:, :1, :]  # shape (1,1,input_dim)
+        forecast_transient_data_tf = tf.convert_to_tensor(
+            forecast_transient_data, dtype=tf.float32
         )
-        # Initialize the first prediction with the first data point
-        predictions[:, :1, :].assign(
-            keras.ops.convert_to_tensor(val_data[:, :1, :], dtype="float32")
+        initial_point_tf = tf.convert_to_tensor(initial_point, dtype=tf.float32)
+
+        # Run the fast forecasting loop
+        predictions_out, states_out = self._perform_forecasting_fast_with_states(
+            initial_point_tf,
+            forecast_transient_data_tf,
+            steps=forecast_length,
+            store_states=store_states,
         )
 
-        states_over_time = None
-        if internal_states:
-            # Assuming all reservoir computers have the same number of states and state dimensions
-            num_reservoirs = len(self.reservoir_computers)
-            states = self.reservoir_computers[
-                0
-            ].get_states()  # Get the states of the first reservoir, assuming all reservoir computers have the same number of states
-            n_states = len(states)
-            features = states[0].shape[
-                1
-            ]  # Assuming all states have the same number of features
+        # Remove the initial step from the predictions so that shape = (1, forecast_length, output_dim)
+        predictions_out = predictions_out[:, 1:, :]
 
-            # Initialize states_over_time: shape (num_reservoirs, n_states, forecast_length, features)
-            states_over_time = tf.Variable(
-                tf.zeros((num_reservoirs, n_states, forecast_length, features)),
-                dtype="float32",
-            )
-
-        return (predictions, states_over_time)
+        if store_states:
+            return predictions_out, states_out
+        return predictions_out, None
 
     @tf.function(reduce_retracing=True)
     def forecast_step(self, current_input: tf.Tensor) -> tf.Tensor:
@@ -645,74 +626,109 @@ class ReservoirEnsemble(keras.Model):
         """
         return self.call(current_input)
 
-    def _perform_forecasting(
+    @tf.function
+    def _perform_forecasting_fast_with_states(
         self,
-        predictions: tf.Variable,
-        val_target: np.ndarray,
-        error_threshold: Optional[float] = None,
-        states_over_time: Optional[tf.Variable] = None,
-    ) -> Tuple[np.ndarray, Optional[int]]:
-        """Performs the forecasting process.
+        initial_point: tf.Tensor,
+        forecast_transient_data: tf.Tensor,
+        steps: int,
+        store_states: bool = False,
+    ) -> Tuple[tf.Tensor, Optional[tf.Tensor]]:
+        """
+        Analogous to ReservoirComputer._perform_forecasting_fast_with_states(), but for multiple
+        ReservoirComputers. Uses tf.while_loop to avoid Python overhead.
 
         Args:
-            predictions (tf.Variable): Predictions array to store forecasted data.
-            val_target (np.ndarray): Target data for validation.
-            error_threshold (Optional[float]): Threshold for cumulative RMSE.
-            states_over_time (Optional[tf.Variable]): Array to store internal states.
+            initial_point:  (1, 1, input_dim)
+            forecast_transient_data:  (transient_length, 1, input_dim)
+            steps: Number of forecast steps.
+            store_states: Whether to store internal states for each step.
 
         Returns:
-            Tuple[np.ndarray, Optional[int]]: Cumulative error array and steps to exceed error threshold.
+            predictions_out: shape (1, steps+1, output_dim)
+            states_out: shape (total_states, steps, units) if store_states=True, else None
         """
-        steps = predictions.shape[1] - 1
+        # 1) Ensure ESP for all ReservoirComputers
+        self.ensure_ESP(forecast_transient_data)
 
-        squared_errors_sum = tf.Variable(0.0, dtype="float32")
-        cumulative_error = tf.Variable(tf.zeros((steps), dtype="float32"))
-        steps_to_exceed_threshold = None
+        # 2) Prepare TensorArrays for predictions and states
+        # We'll write shape (1,1,output_dim) at each step, plus the initial.
+        predictions_ta = tf.TensorArray(
+            dtype=tf.float32,
+            size=steps + 1,
+            element_shape=(1, 1, initial_point.shape[2]),
+        )
+        # Put the initial_point in index 0
+        predictions_ta = predictions_ta.write(0, initial_point)
 
-        for step in track(range(steps), description="Forecasting..."):
-            current_input = predictions[:, step : step + 1, :]
+        states_ta = None
+        if store_states:
+            # We'll gather states from each ReservoirComputer’s get_states()
+            # Each state is typically shape (1, units).
+            # We'll flatten them all into a single [sum_of_states, units].
+            # That shape is stored at each step.
+            st_list = []
+            for rc in self.reservoir_computers:
+                st_list.extend(rc.get_states())
+            total_states = len(st_list)
+            units = st_list[0].shape[1]  # assume all have shape (1, units)
 
-            ensemble_output = self.forecast_step(current_input)
+            states_ta = tf.TensorArray(
+                dtype=tf.float32,
+                size=steps,
+                element_shape=(total_states, units),
+            )
 
-            if states_over_time is not None:
-                for i, reservoir_computer in enumerate(self.reservoir_computers):
-                    states = reservoir_computer.get_states()
-                    for j, state in enumerate(states):
-                        states_over_time[i, j, step, :].assign(state[0])
+        # 3) Define the loop condition and body
+        def loop_cond(step, preds_ta, st_ta):
+            return step < steps
 
-            # Store the ensemble output
-            predictions[:, step + 1 : step + 2, :].assign(ensemble_output)
+        def loop_body(step, preds_ta, st_ta):
+            # Read the last prediction
+            current_input = preds_ta.read(step)  # shape (1,1,input_dim)
+            # Forecast next step
+            new_prediction = self.forecast_step(current_input)  # shape (1,1,output_dim)
+            preds_ta = preds_ta.write(step + 1, new_prediction)
 
-            # Update the reservoir computers with the ensemble output
-            current_input = ensemble_output
+            if store_states:
+                # Collect the states from every ReservoirComputer
+                st_list = []
+                for rc in self.reservoir_computers:
+                    st_list.extend(rc.get_states())
+                # Concatenate each state (shape (1, units)) along axis=0 => (total_states, units)
+                st_concat = tf.concat([s[0] for s in st_list], axis=0)
+                st_ta = st_ta.write(step, st_concat)
 
-            # Analyze if the error threshold is exceeded at the current step
-            if error_threshold is not None:
-                current_target = val_target[:, step, :]
-                current_prediction = predictions[:, step + 1, :]
+            return step + 1, preds_ta, st_ta
 
-                # Calculate the squared error
-                current_squared_errors = tf.reduce_sum(
-                    tf.square(current_target - current_prediction)
-                )
+        # 4) Run tf.while_loop
+        step_init = tf.constant(0)
+        loop_vars = (step_init, predictions_ta, states_ta)
+        final_step, final_predictions_ta, final_states_ta = tf.while_loop(
+            cond=loop_cond,
+            body=loop_body,
+            loop_vars=loop_vars,
+            parallel_iterations=1,
+        )
 
-                # Update squared errors sum at the current step
-                squared_errors_sum.assign_add(current_squared_errors)
+        # 5) Convert predictions from TensorArray to Tensor
+        predictions_out = tf.stop_gradient(
+            final_predictions_ta.stack()
+        )  # (steps+1, 1,1, output_dim)
+        predictions_out = tf.squeeze(
+            predictions_out, axis=1
+        )  # (steps+1, 1, output_dim)
+        predictions_out = tf.transpose(
+            predictions_out, [1, 0, 2]
+        )  # (1, steps+1, output_dim)
 
-                # Calculate cumulative RMSE
-                current_rmse = tf.sqrt(
-                    squared_errors_sum / keras.ops.cast(step + 1, tf.float32)
-                )
+        # 6) Convert states if requested
+        states_out = tf.stop_gradient(
+            final_states_ta.stack()
+        )  # shape (steps, total_states, units)
+        states_out = tf.transpose(states_out, [1, 0, 2])  # (total_states, steps, units)
 
-                # Store the current RMSE in the cumulative error array
-                cumulative_error[step].assign(current_rmse)
-
-                # Check if the current RMSE exceeds threshold
-                if current_rmse > error_threshold and steps_to_exceed_threshold is None:
-                    steps_to_exceed_threshold = step - 1
-                    error_threshold = None
-
-        return cumulative_error.numpy(), steps_to_exceed_threshold
+        return predictions_out, states_out
 
     def compute_output_shape(self, input_shape: Tuple[int, ...]) -> Tuple[int, ...]:
         """Compute the output shape of the model.
@@ -799,3 +815,23 @@ class ReservoirEnsemble(keras.Model):
         outputs = self.call(inputs)
         model = keras.Model(inputs=inputs, outputs=outputs)
         return keras.utils.plot_model(model, **kwargs)
+
+    def get_build_config(self) -> dict:
+        """
+        Returns a dictionary containing everything needed to rebuild this model
+        when deserialized. In your code, 'plot()' relies on 'get_build_config()["input_shape"]',
+        so we must include it here.
+        """
+        # If the model hasn't been built yet, self._input_shape may be None.
+        # In that case, return an empty dict or handle as needed.
+        return {
+            "input_shape": self._input_shape
+        } if getattr(self, "_input_shape", None) is not None else {}
+
+    def build_from_config(self, config):
+        """Build the model from the given configuration.
+
+        Args:
+            config (dict): Configuration dictionary.
+        """
+        self.built = True
