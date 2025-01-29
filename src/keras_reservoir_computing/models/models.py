@@ -55,6 +55,8 @@ class ReservoirComputer(keras.Model):
         Args:
             input_shape (tuple): The input shape of the model.
         """
+        if self.built:
+            return
         self.reservoir.build(input_shape)
         self._input_shape = input_shape
         reservoir_output_shape = self.reservoir.compute_output_shape(input_shape)
