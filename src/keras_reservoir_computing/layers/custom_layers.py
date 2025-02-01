@@ -83,7 +83,9 @@ class PowerIndex(keras.layers.Layer):
 
 @keras.saving.register_keras_serializable(package="MyLayers", name="RemoveOutliersAndMean")
 class RemoveOutliersAndMean(keras.layers.Layer):
-    """Removes the outliers from the input tensor and computes the mean of the remaining elements. We use the default threshold of 3.0 for both methods, based on Chebyshev's inequality, which states that at least 88.9% of the data lies within 3 standard deviations of the mean. So, roughly 11.1% of the data can be considered as outliers in worst case scenario.
+    """Removes the outliers from the input tensor and computes the mean of the remaining elements.
+
+    We use the default threshold of 3.0 for both methods, based on Chebyshev's inequality, which states that at least 88.9% of the data lies within 3 standard deviations of the mean. So, roughly 11.1% of the data can be considered as outliers in worst case scenario.
 
     Args:
         method (str): The method to remove the outliers. Can be 'z_score' or 'iqr'. Default is 'z_score'.
