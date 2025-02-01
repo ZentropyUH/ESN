@@ -1,17 +1,9 @@
 """Define some general utility functions."""
 
-import os
-import xarray as xr
 from contextlib import contextmanager
 from time import time
-
-import keras
-import matplotlib.animation as animation
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
 import tensorflow as tf
-from mpl_toolkits.mplot3d import Axes3D
+
 
 
 # given i it starts from letter x and goes cyclically, when x reached starts xx, xy, etc.
@@ -69,122 +61,6 @@ def timer(task_name: str="Task", log: bool=True):
     end = time()
     if log:
         print(f"{task_name} took: {round(end - start, 2)} seconds.\n")
-
-
-def animate_trail(
-    data,
-    trail_length=50,
-    xlabel=None,
-    ylabel=None,
-    zlabel=None,
-    title=None,
-    show=True,
-    save_path=None,
-    interval=15,
-    dt=None,
-):
-    """
-    Animate a point moving along the coordinates in x, y, and optionally z, leaving a trailing line.
-
-    Args:
-        data (np.ndarray): The data to animate. If 3D, it should have shape (T, 3), where T is the number of points. If 2D, it should have shape (T, 2).
-        trail_length (int): Number of points to keep in the trail.
-        xlabel (str): Label for the x-axis.
-        ylabel (str): Label for the y-axis.
-        zlabel (str): Label for the z-axis (3D only).
-        title (str): Title of the plot.
-        show (bool): Whether to display the animation.
-        save_path (str): Path to save the animation file, if specified.
-        interval (int): Time in milliseconds between frames.
-        dt (float): Time step between frames. If provided, it will be used to calculate the interval.
-    """
-    # Extract x, y, and z coordinates
-    x = data[:, 0]
-    y = data[:, 1]
-    z = data[:, 2] if data.shape[1] == 3 else None
-
-    if dt is not None:
-        interval = int(dt * 1000)
-
-    # Set up the figure and axis, 3D if z is provided
-    fig = plt.figure()
-    if z is not None:
-        ax = fig.add_subplot(111, projection="3d")
-        ax.set_xlim(min(x) - 1, max(x) + 1)
-        ax.set_ylim(min(y) - 1, max(y) + 1)
-        ax.set_zlim(min(z) - 1, max(z) + 1)
-    else:
-        ax = fig.add_subplot(111)
-        ax.set_xlim(min(x) - 1, max(x) + 1)
-        ax.set_ylim(min(y) - 1, max(y) + 1)
-
-    # Set axis labels and title if provided
-    if xlabel:
-        ax.set_xlabel(xlabel)
-    if ylabel:
-        ax.set_ylabel(ylabel)
-    if title:
-        ax.set_title(title)
-    if z is not None and zlabel:
-        ax.set_zlabel(zlabel)
-
-    # Initialize the point and trail line
-    if z is not None:
-        (point,) = ax.plot([], [], [], "bo", markersize=4)  # 3D point
-        (trail_line,) = ax.plot([], [], [], "r-", alpha=0.7, linewidth=2)  # 3D trail
-    else:
-        (point,) = ax.plot([], [], "bo", markersize=4)  # 2D point
-        (trail_line,) = ax.plot([], [], "r-", alpha=0.7, linewidth=2)  # 2D trail
-
-    def init():
-        """Initialize the animation with empty point and trail."""
-        point.set_data([], [])
-        trail_line.set_data([], [])
-        if z is not None:
-            point.set_3d_properties([])
-            trail_line.set_3d_properties([])
-        return point, trail_line
-
-    def update(frame):
-        """Update the point and trail for each frame."""
-        # Update the main point position
-        if z is not None:
-            point.set_data([x[frame]], [y[frame]])
-            point.set_3d_properties([z[frame]])
-        else:
-            point.set_data([x[frame]], [y[frame]])
-
-        # Calculate the start of the trail
-        start = max(0, frame - trail_length)
-
-        # Update trail coordinates
-        if z is not None:
-            trail_line.set_data(x[start : frame + 1], y[start : frame + 1])
-            trail_line.set_3d_properties(z[start : frame + 1])
-        else:
-            trail_line.set_data(x[start : frame + 1], y[start : frame + 1])
-
-        return point, trail_line
-
-    # Create the animation
-    ani = animation.FuncAnimation(
-        fig,
-        update,
-        frames=len(x),
-        init_func=init,
-        blit=True,
-        interval=interval,
-        repeat=False,
-    )
-
-    # Display the animation
-    if show:
-        plt.show()
-
-    # Save the animation
-    if save_path is not None:
-        # Calculate fps based on interval
-        ani.save(save_path, writer="ffmpeg", fps=int(1000 / interval))
 
 
 # TF implementation of Ridge using svd. TODO: see if it works as well as sklearn

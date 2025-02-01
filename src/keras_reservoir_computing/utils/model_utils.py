@@ -3,7 +3,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 import keras
 import numpy as np
-from rich.progress import track
+from rich.progress import track, Progress
 
 import keras_reservoir_computing as krc
 from keras_reservoir_computing.utils import timer
@@ -47,7 +47,14 @@ forecast_config = {
 
 
 def model_loader(filepath):
-    """Loads a model from a file and returns it."""
+    """Loads a model from a file and returns it.
+
+    Args:
+        filepath (str): Path to the model file.
+
+    Returns:
+        krc_models.ReservoirComputer: The loaded model.
+    """
     model = krc.models.ReservoirComputer.load(filepath)
     return model
 
@@ -64,7 +71,6 @@ def model_generator(name, model_config, features, seed=None):
     Returns:
         krc_models.ReservoirComputer: The generated model.
     """
-
     if seed is not None:
         model_config["seed"] = seed
     else:
@@ -125,7 +131,6 @@ def model_trainer(name, datapath, model_config, train_config, savepath=None, log
         krc_models.ReservoirComputer: The trained model.
 
     """
-
     # Verify if already calculated and saved. If so, skip and notify.
     if savepath is not None:
         exist_model = os.path.exists(os.path.join(savepath, name + ".keras"))
@@ -171,9 +176,54 @@ def model_trainer(name, datapath, model_config, train_config, savepath=None, log
     return model
 
 
-def model_predictor(modelpath, datapath, train_config, forecast_config, log=True):
-    """Takes a model and a dataset and returns the predictions with the metadata."""
+def model_batch_trainer(
+    data_folder_path, model_config, train_config, savepath, log=True
+):
+    """Function to train a batch of models from a folder of data files
 
+    Args:
+        data_folder_path (str): Path to the folder containing the data files and only the data files.
+        model_config (dict): Dictionary containing the model configuration.
+        train_config (dict): Dictionary containing the training configuration.
+        savepath (str): Path to the folder where the models will be saved
+
+    Returns:
+        None
+    """
+    data_files = krc.utils.list_files_only(data_folder_path)
+
+    if savepath is None:
+        savepath = os.path.join(data_folder_path, "models")
+
+    for data_file in track(data_files):
+
+        model_name = data_file.split(".")[0]  # No need for .keras here
+
+        datapath = os.path.join(data_folder_path, data_file)
+
+        model_trainer(
+            name=model_name,
+            datapath=datapath,
+            model_config=model_config,
+            train_config=train_config,
+            savepath=savepath,
+            log=log,
+        )
+
+
+def model_predictor(modelpath, datapath, train_config, forecast_config, log=True):
+    """Takes a model and a dataset and returns the predictions with the metadata.
+
+    Args:
+        modelpath (str): Path to the model file.
+        datapath (str): Path to the dataset.
+        train_config (dict): Configuration dictionary for the training.
+        forecast_config (dict): Configuration dictionary for the forecasting.
+        log (bool, optional): Whether to log the process. Defaults to True.
+
+    Returns:
+        (val_target, forecast, states): Tuple(np.ndarray, np.ndarray, np.ndarray) containing the targets, the predictions and the internal states.
+    """
     train_length = train_config["train_length"]
     transient_length = train_config["transient_length"]
 
@@ -201,42 +251,6 @@ def model_predictor(modelpath, datapath, train_config, forecast_config, log=True
     return val_target, forecast, states
 
 
-def model_batch_trainer(
-    data_folder_path, model_config, train_config, savepath, log=True
-):
-    """Function to train a batch of models from a folder of data files
-
-    Args:
-        data_folder_path (str): Path to the folder containing the data files and only the data files.
-        model_config (dict): Dictionary containing the model configuration.
-        train_config (dict): Dictionary containing the training configuration.
-        savepath (str): Path to the folder where the models will be saved
-
-    Returns:
-        None
-    """
-
-    data_files = krc.utils.list_files_only(data_folder_path)
-
-    if savepath is None:
-        savepath = os.path.join(data_folder_path, "models")
-
-    for data_file in track(data_files):
-
-        model_name = data_file.split(".")[0]  # No need for .keras here
-
-        datapath = os.path.join(data_folder_path, data_file)
-
-        model_trainer(
-            name=model_name,
-            datapath=datapath,
-            model_config=model_config,
-            train_config=train_config,
-            savepath=savepath,
-            log=log,
-        )
-
-
 def model_batch_predictor(
     model_path,
     data_folder_path,
@@ -245,7 +259,25 @@ def model_batch_predictor(
     savepath=None,
     format="npy",
     log=True,
+    progress=None,
+    task=None,
 ):
+    """Function to predict with a batch of models from a folder of data files
+
+    Args:
+        model_path (str): Path to the model file.
+        data_folder_path (str): Path to the folder containing the data files and only the data files.
+        train_config (dict): Dictionary containing the training configuration.
+        forecast_config (dict): Dictionary containing the forecasting configuration.
+        savepath (str): Path to the folder where the predictions will be saved
+        format (str, optional): Format to save the predictions. Defaults to "npy".
+        log (bool, optional): Whether to log the process. Defaults to True.
+        progress (Progress, optional): Rich Progress object. Defaults to None.
+        task (Task, optional): Rich Task object. Defaults to None.
+
+    Returns:
+        (predictions_array, targets_array): Tuple(np.ndarray, np.ndarray) containing the predictions and the targets. The shapes are (n_samples, n_timesteps, n_features).
+    """
     data_files = krc.utils.list_files_only(data_folder_path)
 
     # Initialize empty arrays for concatenation
@@ -265,12 +297,19 @@ def model_batch_predictor(
         )
 
         if exist_predictons and exist_targets:
+            
+            if progress is not None and task is not None:
+                progress.update(task, advance=1)
+            
             print(
                 f"Predictions and targets already calculated and saved for model {model_path.split('/')[-1]}. Skipping..."
             )
             return None, None
 
-    for data_file in track(data_files):
+    # Create progress bar, inner if progress is None, otherwise update task inside the loop
+    iterator = track(data_files, description=f"Predicting {model_path.split('/')[-1]}") if progress is None else data_files
+
+    for data_file in iterator:
         datapath = os.path.join(data_folder_path, data_file)
 
         val_target, forecast, _ = model_predictor(
@@ -296,6 +335,10 @@ def model_batch_predictor(
             targets_array = val_target
         else:
             targets_array = np.concatenate((targets_array, val_target), axis=0)
+
+        # Update global progress bar
+        if progress is not None and task is not None:
+            progress.update(task, advance=1)
 
     # Save individual files if savepath is provided
     if savepath is not None:
@@ -329,36 +372,69 @@ def models_batch_predictor(
     format="npy",
     log=True,
 ):
+    """Function to predict with a batch of models from a folder of data files
+
+    Args:
+        model_folder_path (str): Path to the folder containing the model files and only the model files.
+        data_folder_path (str): Path to the folder containing the data files and only the data files.
+        train_config (dict): Dictionary containing the training configuration.
+        forecast_config (dict): Dictionary containing the forecasting configuration.
+        savepath (str): Path to the folder where the predictions will be saved
+        format (str, optional): Format to save the predictions. Defaults to "npy".
+        log (bool, optional): Whether to log the process. Defaults to True.
+
+    Returns:
+        None
+    """
     model_files = krc.utils.list_files_only(model_folder_path)
+    
+    total_models = len(model_files)
+    total_data_files = len(krc.utils.list_files_only(data_folder_path))
+    total_iterations = total_models * total_data_files
+    
+    with Progress() as progress:
+        task = progress.add_task("[cyan]Predicting...", total=total_iterations)
 
-    for i, model_file in enumerate(model_files):
 
-        print(f"Predicting with model {i+1}/{len(model_files)}")
+        for i, model_file in enumerate(model_files):
 
-        modelpath = os.path.join(model_folder_path, model_file)
+            print(f"Predicting with model {i+1}/{len(model_files)}")
 
-        val_target, forecast = model_batch_predictor(
-            model_path=modelpath,
-            data_folder_path=data_folder_path,
-            train_config=train_config,
-            forecast_config=forecast_config,
-            savepath=savepath,
-            format=format,
-            log=log,
-        )
+            modelpath = os.path.join(model_folder_path, model_file)
+
+            _, _ = model_batch_predictor(
+                model_path=modelpath,
+                data_folder_path=data_folder_path,
+                train_config=train_config,
+                forecast_config=forecast_config,
+                savepath=savepath,
+                format=format,
+                log=log,
+                progress=progress,
+                task=task,
+            )
 
 
 def ensemble_model_creator(
-    trained_models_folder_path, ensemble_name, log=False
+    trained_models_folder_path, ensemble_name="Reservoir_Ensemble", log=False
 ):
+    """Function to create an ensemble model from a folder of trained models
 
+    Args:
+        trained_models_folder_path (str): Path to the folder containing the trained model files and only the trained model files.
+        ensemble_name (str): Name of the ensemble model.
+        log (bool, optional): Whether to log the process. Defaults to False.
+
+    Returns:
+        krc_models.ReservoirEnsemble: The ensemble model.
+    """
     model_files = krc.utils.list_files_only(trained_models_folder_path)
 
     ensemble_models = []
 
     with timer("Loading models", log=log):
         for model_file in track(
-            model_files, 
+            model_files,
             description="Loading models"
         ):
             model = model_loader(os.path.join(trained_models_folder_path, model_file))
@@ -367,8 +443,6 @@ def ensemble_model_creator(
     ensemble = krc.models.ReservoirEnsemble(reservoir_computers=ensemble_models, name=ensemble_name)
 
     return ensemble
-
-
 
 
 if __name__ == '__main__':
