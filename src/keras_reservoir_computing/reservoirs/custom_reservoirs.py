@@ -62,7 +62,7 @@ class BaseReservoir(keras.Model, ABC):
         self.rnn_layer.build(input_shape)
         super().build(input_shape)
 
-    def call(self, inputs, **kwargs):
+    def call(self, inputs):
         output = self.rnn_layer(inputs)
         return output
 
@@ -188,7 +188,11 @@ class ESNCell(BaseReservoirCell):
             output = output + self.noise_level * keras.random.normal(keras.backend.shape(output))
 
         # Leaky integration
-        new_state = prev_state * (1 - self.leak_rate) + output * self.leak_rate
+        # The casting of 1 is a crazy thing when operating with python floats and tf or np floats, it promotes the operation to the highest precision, i.e. tf.float64, yet we are using tf.float32. What in the actual fuck?
+        lag = prev_state * (keras.ops.cast(1, keras.backend.floatx()) - self.leak_rate) 
+        update = output * self.leak_rate
+
+        new_state = lag + update
 
         return new_state, [new_state]
 
@@ -249,6 +253,3 @@ class EchoStateNetwork(BaseReservoir):
         if isinstance(input_shape, list):
             input_shape = tuple(input_shape)
         return input_shape[:-1] + (input_shape[-1] + self.reservoir_cell.units,)
-
-
-
