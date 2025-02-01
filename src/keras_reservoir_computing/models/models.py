@@ -137,7 +137,7 @@ class ReservoirComputer(keras.Model):
         Returns:
             tf.Tensor: The reservoir states corresponding to the transient data
         """
-        states = self.reservoir.call(inputs=transient_data, verbose=0)
+        states = self.reservoir.call(inputs=transient_data)
 
         return states
 
