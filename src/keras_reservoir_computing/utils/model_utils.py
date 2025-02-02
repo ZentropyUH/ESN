@@ -6,7 +6,7 @@ import numpy as np
 from rich.progress import track, Progress
 
 import keras_reservoir_computing as krc
-from keras_reservoir_computing.utils import timer
+from keras_reservoir_computing.utils import timer, config_loader
 
 # region: example_dicts
 #################### Test Dicts ####################
@@ -77,9 +77,9 @@ def model_generator(name, model_config, features, seed=None):
     ----------
     name : str
         Name of the model.
-    model_config : dict
-        Configuration dictionary for the model. Should include keys such as
-        'feedback_init', 'feedback_bias_init', 'kernel_init', and 'cell'.
+    model_config : str or dict
+        Either the path to the dictionary specifying the model configuration or the dictionary itself.
+        Must contain the keys 'feedback_init', 'feedback_bias_init', 'kernel_init', and 'cell'.
     features : int
         Number of output features for the readout layer.
     seed : int, optional
@@ -95,6 +95,11 @@ def model_generator(name, model_config, features, seed=None):
     This function sets a seed for all random initializations if `seed` is not None.
     Otherwise, it randomly generates a seed to initialize the model parameters.
     """
+
+    model_config_keys = ["feedback_init", "feedback_bias_init", "kernel_init", "cell"]
+    if isinstance(model_config, str):
+        model_config = config_loader(model_config, model_config_keys)
+
     if seed is not None:
         model_config["seed"] = seed
     else:
@@ -149,11 +154,12 @@ def model_trainer(datapath, model_config, train_config, seed=None, name=None, sa
     ----------
     datapath : str
         Path to the dataset file.
-    model_config : dict
-        Dictionary specifying the model configuration.
-    train_config : dict
-        Dictionary specifying the training configuration (e.g., 'train_length',
-        'transient_length', 'normalize', 'regularization').
+    model_config : str or dict
+        Either the path to the dictionary specifying the model configuration or the dictionary itself.
+        Must contain the keys 'feedback_init', 'feedback_bias_init', 'kernel_init', and 'cell'.
+    train_config : str or dict
+        Either the path to the dictionary specifying the training configuration or the dictionary itself.
+        Must contain the keys 'train_length', 'transient_length', 'normalize' and 'regularization'.
     name : str, optional
         Name of the model. If None, the name will be derived from the dataset filename.
     savepath : str, optional
@@ -172,6 +178,23 @@ def model_trainer(datapath, model_config, train_config, seed=None, name=None, sa
     If `savepath` is provided and a model with the same name already exists in that folder,
     the training step is skipped.
     """
+
+    # Load the dictionaries if they are paths
+    model_config_keys = ["feedback_init", "feedback_bias_init", "kernel_init", "cell"]
+    if isinstance(model_config, str):
+        model_config = config_loader(model_config, model_config_keys)
+
+
+    train_config_keys = [
+        "train_length",
+        "transient_length",
+        "normalize",
+        "regularization",
+    ]
+    if isinstance(train_config, str):
+        train_config = config_loader(train_config, train_config_keys)
+    #########################################
+
     if name is None:
         name = datapath.split("/")[-1].split(".")[0]
 
@@ -232,11 +255,12 @@ def model_batch_trainer(
     ----------
     data_folder_path : str
         Path to the folder containing only the data files.
-    model_config : dict
-        Configuration dictionary for the model.
-    train_config : dict
-        Configuration dictionary for the training (e.g., 'train_length',
-        'transient_length', 'normalize', 'regularization').
+    model_config : str or dict
+        Either the path to the dictionary specifying the model configuration or the dictionary itself.
+        Must contain the keys 'feedback_init', 'feedback_bias_init', 'kernel_init', and 'cell'.
+    train_config : str or dict
+        Either the path to the dictionary specifying the training configuration or the dictionary itself.
+        Must contain the keys 'train_length', 'transient_length', 'normalize' and 'regularization'.
     savepath : str
         Path to the folder where the trained models will be saved.
     log : bool, optional
@@ -248,6 +272,20 @@ def model_batch_trainer(
     derived from the filename. If a trained model with the same name already exists,
     it is skipped.
     """
+
+    model_config_keys = ["feedback_init", "feedback_bias_init", "kernel_init", "cell"]
+    if isinstance(model_config, str):
+        model_config = config_loader(model_config, model_config_keys)
+
+    train_config_keys = [
+        "train_length",
+        "transient_length",
+        "normalize",
+        "regularization",
+    ]
+    if isinstance(train_config, str):
+        train_config = config_loader(train_config, train_config_keys)
+
     data_files = krc.utils.list_files_only(data_folder_path)
 
     if savepath is None:
@@ -279,10 +317,12 @@ def model_predictor(model, datapath, train_config, forecast_config, log=True):
         Either the path to the model file or an already instantiated reservoir computing model.
     datapath : str
         Path to the dataset file.
-    train_config : dict
-        Configuration dictionary for the training (used to ensure consistent data loading).
-    forecast_config : dict
-        Configuration dictionary for the forecasting (e.g., 'forecast_length', 'internal_states').
+    train_config : str or dict
+        Either the path to the dictionary specifying the training configuration or the dictionary itself.
+        Must contain the keys 'train_length', 'transient_length', 'normalize' and 'regularization'.
+    forecast_config : str or dict
+        Either the path to the dictionary specifying the forecast configuration or the dictionary itself.
+        Must contain the keys 'forecast_length' and 'internal_states'.
     log : bool, optional
         Whether to log the process. Defaults to True.
 
@@ -301,6 +341,22 @@ def model_predictor(model, datapath, train_config, forecast_config, log=True):
     -----
     The dataset is loaded with the same normalization and partitioning used during training.
     """
+    # Load the model if they are paths
+    train_config_keys = [
+        "train_length",
+        "transient_length",
+        "normalize",
+        "regularization",
+    ]
+    if isinstance(train_config, str):
+        train_config = config_loader(train_config, train_config_keys)
+
+
+    forecast_config_keys = ["forecast_length", "internal_states"]
+    if isinstance(forecast_config, str):
+        forecast_config = config_loader(forecast_config, forecast_config_keys)
+    #########################################
+
     train_length = train_config["train_length"]
     transient_length = train_config["transient_length"]
 
@@ -349,10 +405,12 @@ def model_batch_predictor(
         Path to the model file.
     data_folder_path : str
         Path to the folder containing only the data files.
-    train_config : dict
-        Configuration dictionary for the training (used for consistent data loading).
-    forecast_config : dict
-        Configuration dictionary for the forecasting (e.g., 'forecast_length', 'internal_states').
+    train_config : str or dict
+        Either the path to the dictionary specifying the training configuration or the dictionary itself.
+        Must contain the keys 'train_length', 'transient_length', 'normalize' and 'regularization'.
+    forecast_config : str or dict
+        Either the path to the dictionary specifying the forecast configuration or the dictionary itself.
+        Must contain the keys 'forecast_length' and 'internal_states'.
     savepath : str, optional
         Path to the folder where the predictions and targets will be saved. If None,
         the results will not be saved.
@@ -381,6 +439,21 @@ def model_batch_predictor(
 
     The predictions and targets are saved as separate files with the model name as a prefix.
     """
+    # Load the model if they are paths
+    train_config_keys = [
+        "train_length",
+        "transient_length",
+        "normalize",
+        "regularization",
+    ]
+    if isinstance(train_config, str):
+        train_config = config_loader(train_config, train_config_keys)
+
+    forecast_config_keys = ["forecast_length", "internal_states"]
+    if isinstance(forecast_config, str):
+        forecast_config = config_loader(forecast_config, forecast_config_keys)
+    #########################################
+
     data_files = krc.utils.list_files_only(data_folder_path)
 
     # Initialize empty arrays for concatenation
@@ -390,7 +463,7 @@ def model_batch_predictor(
     # Verify if already calculated and saved. If so, skip and notify.
     if savepath is not None:
         # TODO: Change these so I can make modelpath an instance or a path
-        pred_filename = model_path.split(".")[0].split("/")[-1] + "_predictions" 
+        pred_filename = model_path.split(".")[0].split("/")[-1] + "_predictions"
         target_filename = model_path.split(".")[0].split("/")[-1] + "_targets"
 
         exist_predictons = os.path.exists(
@@ -485,10 +558,12 @@ def models_batch_predictor(
         Path to the folder containing only the model files.
     data_folder_path : str
         Path to the folder containing only the data files.
-    train_config : dict
-        Configuration dictionary for the training (used for consistent data loading).
-    forecast_config : dict
-        Configuration dictionary for the forecasting (e.g., 'forecast_length', 'internal_states').
+    train_config : str or dict
+        Either the path to the dictionary specifying the training configuration or the dictionary itself.
+        Must contain the keys 'train_length', 'transient_length', 'normalize' and 'regularization'.
+    forecast_config : str or dict
+        Either the path to the dictionary specifying the forecast configuration or the dictionary itself.
+        Must contain the keys 'forecast_length' and 'internal_states'.
     savepath : str, optional
         Path to the folder where the predictions and targets will be saved. If None,
         the results will not be saved.
@@ -502,6 +577,21 @@ def models_batch_predictor(
     This function iterates over all models in `model_folder_path` and applies each one to
     all data files in `data_folder_path`, optionally saving the predictions and targets.
     """
+    # Load the model if they are paths
+    train_config_keys = [
+        "train_length",
+        "transient_length",
+        "normalize",
+        "regularization",
+    ]
+    if isinstance(train_config, str):
+        train_config = config_loader(train_config, train_config_keys)
+
+    forecast_config_keys = ["forecast_length", "internal_states"]
+    if isinstance(forecast_config, str):
+        forecast_config = config_loader(forecast_config, forecast_config_keys)
+    #########################################
+
     model_files = krc.utils.list_files_only(model_folder_path)
 
     total_models = len(model_files)

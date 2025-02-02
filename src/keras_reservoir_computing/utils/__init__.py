@@ -1,7 +1,8 @@
 from .utils import (
     TF_Ridge,
     timer,
-    lyap_ks
+    lyap_ks,
+    config_loader,
 )
 
 from .model_utils import (
@@ -40,6 +41,7 @@ __all__ = [
     "TF_Ridge",
     "timer",
     "lyap_ks",
+    "config_loader",
     # model_utils
     "model_loader",
     "model_trainer",

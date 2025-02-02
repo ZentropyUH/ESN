@@ -3,20 +3,37 @@
 from contextlib import contextmanager
 from time import time
 import tensorflow as tf
+import json
+from typing import Tuple
 
 
-
-# given i it starts from letter x and goes cyclically, when x reached starts xx, xy, etc.
-def letter(n: int) -> str:
-    """Return the letter corresponding to the given number.
-
-    Args:
-        n (int): The number to convert to a letter. Starting from letter x, it goes cyclically adding a letter x to the left.
-
-    Returns:
-        str: The letter corresponding to the given number. Before 26, would be equivalent to chr(n + 97 + 23).
+def config_loader(filepath: str, keys: Tuple):
     """
-    return "x" * ((n + 23) // 26) + chr(ord("a") + (n + 23) % 26)
+    Loads a configuration dictionary from a JSON file.
+
+    This is a helper function to load a configuration dictionary from a JSON file, namely model_config, train_config, and forecast_config.
+
+    Parameters
+    ----------
+    filepath : str
+        Path to the JSON configuration file.
+    keys : Tuple[str]
+        Tuple of keys that the configuration dictionary should contain.
+    Returns
+    -------
+    dict
+        The loaded configuration dictionary.
+    """
+    with open(filepath, "r") as file:
+        config = json.load(file)
+
+    all_keys = config.keys()
+
+    for key in keys:
+        if key not in all_keys:
+            raise KeyError(f"Key {key} not found in the configuration file {filepath}. It should contain the following keys: {keys}")
+
+    return config
 
 
 def lyap_ks(i_th, L_period):
