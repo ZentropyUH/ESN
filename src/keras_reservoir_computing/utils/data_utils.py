@@ -142,84 +142,78 @@ def save_nc(data: np.ndarray, savepath: str):
 
 def load_data(
     datapath: str,
+    init_transient: int = 0,
     transient: int = 1000,
     train_length: int = 5000,
     normalize: bool = False,
 ):
-    """Load the data from the given path. Returns a dataset for training a NN.
-
-    Data is supposed to be stored in a .csv and has a shape of (T, D), (T)ime and (D)imensions.
-
-    Args:
-        datapath (str): The datapath of the file to be loaded.
-
-        transient (int, optional): The length of the training transient
-                                    for teacher enforced process. Defaults to 1000.
-
-        train_length (int, optional): The length of the training data. Defaults to 5000.
-
-    Returns:
-        tuple: A tuple with:
-
-                transient_data: The transient of the training data. This is to ensure ESP.
-
-                training_data: Training data.
-
-                training_target: The training target. This is for forecasting, so target data is
-                    the training data taken shifted 1 index to the right plus one value.
-
-                forecast_transient_data: The last 'transient' elements in training_data.
-                    This is to ensure ESP.
-
-                validation_data: Validation data
-
-                validation_target: The validation target. This is for forecasting, so target data is
-                    the validation data taken shifted 1 index to the right plus one value.
     """
+    Load data from a given path and prepare it for neural network training.
 
+    Data is expected to be in the shape (1, T, D), where T is time and D is dimensions.
+
+    Parameters
+    ----------
+    datapath : str
+        Path to the data file. Supported formats: .csv, .npz, .npy, .nc.
+    init_transient : int
+        Number of initial transient time steps to discard before processing.
+    transient : int, optional
+        Length of the training transient for ESP, by default 1000.
+    train_length : int, optional
+        Length of the training data, by default 5000.
+    normalize : bool, optional
+        Whether to normalize the data, by default False.
+
+    Returns
+    -------
+    tuple of np.ndarray
+        Contains the following datasets:
+        - transient_data: Transient portion of the training data (for ESP).
+        - train_data: Training data.
+        - train_target: Training target, shifted by one time step.
+        - forecast_transient_data: Last 'transient' values of training data (for ESP).
+        - val_data: Validation data.
+        - val_target: Validation target, shifted by one time step.
+    """
     print(f"Loading data from: {datapath}")
 
     data = load_file(datapath)
-
     _, T, D = data.shape
 
-    # Index up to the training end.
+    if init_transient >= T:
+        raise ValueError(
+            f"init_transient ({init_transient}) is larger than data length ({T})."
+        )
+
+    # Trim initial transient
+    data = data[:, init_transient:, :]
+    T = data.shape[1]  # Update length after trimming
+
     train_index = transient + train_length
 
     if train_index > T:
         raise ValueError(
-            f"The train size is out of range. Data shape is: "
-            f"{data.shape} and train size + transient is: {train_index}"
+            f"Train size is out of range. Data shape after init_transient: {data.shape},"
+            f" required train size + transient: {train_index}."
         )
 
-    # Transient data (For ESP purposes)
+    # Define data splits
     transient_data = data[:, :transient, :]
-
     train_data = data[:, transient:train_index, :]
     train_target = data[:, transient + 1 : train_index + 1, :]
-
-    # Forecast transient (For ESP purposes).
-    # These are the last 'transient' values of the training data
     forecast_transient_data = train_data[:, -transient:, :]
-
     val_data = data[:, train_index:-1, :]
     val_target = data[:, train_index + 1 :, :]
 
     if normalize:
-
-        # Get the mean and std of the training data, over the time axis, independent for each batch (i.e. each element over the first axis)
         mean = np.mean(train_data, axis=1, keepdims=True)
         std = np.std(train_data, axis=1, keepdims=True)
 
-        # Normalize the training data
         train_data = (train_data - mean) / std
         train_target = (train_target - mean) / std
-
-        # Normalize the validation data
         val_data = (val_data - mean) / std
         val_target = (val_target - mean) / std
-
-        # Normalize the transient data
         transient_data = (transient_data - mean) / std
         forecast_transient_data = (forecast_transient_data - mean) / std
 

@@ -31,6 +31,7 @@ model_config = {
 }
 
 train_config = {
+    "init_transient_length": 1000,
     "train_length": 20000,
     "transient_length": 5000,
     "normalize": True,
@@ -159,7 +160,7 @@ def model_trainer(datapath, model_config, train_config, seed=None, name=None, sa
         Must contain the keys 'feedback_init', 'feedback_bias_init', 'kernel_init', and 'cell'.
     train_config : str or dict
         Either the path to the dictionary specifying the training configuration or the dictionary itself.
-        Must contain the keys 'train_length', 'transient_length', 'normalize' and 'regularization'.
+        Must contain the keys 'init_transient_length', 'train_length', 'transient_length', 'normalize' and 'regularization'.
     name : str, optional
         Name of the model. If None, the name will be derived from the dataset filename.
     savepath : str, optional
@@ -186,6 +187,7 @@ def model_trainer(datapath, model_config, train_config, seed=None, name=None, sa
 
 
     train_config_keys = [
+        "init_transient_length",
         "train_length",
         "transient_length",
         "normalize",
@@ -205,14 +207,16 @@ def model_trainer(datapath, model_config, train_config, seed=None, name=None, sa
             print(f"Model {name} already trained and saved. Skipping...")
             return
 
-    train_length = train_config["train_length"]
+    init_transient_length = train_config["init_transient_length"]
     transient_length = train_config["transient_length"]
+    train_length = train_config["train_length"]
     normalize = train_config["normalize"]
     regularization = train_config["regularization"]
 
     with timer("Loading data", log=log):
         transient_data, train_data, train_target, _, _, _ = krc.utils.load_data(
             datapath=datapath,
+            init_transient=init_transient_length,
             train_length=train_length,
             transient=transient_length,
             normalize=normalize,
@@ -260,7 +264,7 @@ def model_batch_trainer(
         Must contain the keys 'feedback_init', 'feedback_bias_init', 'kernel_init', and 'cell'.
     train_config : str or dict
         Either the path to the dictionary specifying the training configuration or the dictionary itself.
-        Must contain the keys 'train_length', 'transient_length', 'normalize' and 'regularization'.
+        Must contain the keys 'init_transient_length', 'train_length', 'transient_length', 'normalize' and 'regularization'.
     savepath : str
         Path to the folder where the trained models will be saved.
     log : bool, optional
@@ -278,6 +282,7 @@ def model_batch_trainer(
         model_config = config_loader(model_config, model_config_keys)
 
     train_config_keys = [
+        "init_transient_length",
         "train_length",
         "transient_length",
         "normalize",
@@ -319,7 +324,7 @@ def model_predictor(model, datapath, train_config, forecast_config, log=True):
         Path to the dataset file.
     train_config : str or dict
         Either the path to the dictionary specifying the training configuration or the dictionary itself.
-        Must contain the keys 'train_length', 'transient_length', 'normalize' and 'regularization'.
+        Must contain the keys 'init_transient_length', 'train_length', 'transient_length', 'normalize' and 'regularization'.
     forecast_config : str or dict
         Either the path to the dictionary specifying the forecast configuration or the dictionary itself.
         Must contain the keys 'forecast_length' and 'internal_states'.
@@ -343,6 +348,7 @@ def model_predictor(model, datapath, train_config, forecast_config, log=True):
     """
     # Load the model if they are paths
     train_config_keys = [
+        "init_transient_length",
         "train_length",
         "transient_length",
         "normalize",
@@ -351,14 +357,14 @@ def model_predictor(model, datapath, train_config, forecast_config, log=True):
     if isinstance(train_config, str):
         train_config = config_loader(train_config, train_config_keys)
 
-
     forecast_config_keys = ["forecast_length", "internal_states"]
     if isinstance(forecast_config, str):
         forecast_config = config_loader(forecast_config, forecast_config_keys)
     #########################################
 
-    train_length = train_config["train_length"]
+    init_transient_length = train_config["init_transient_length"]
     transient_length = train_config["transient_length"]
+    train_length = train_config["train_length"]
 
     forecast_length = forecast_config["forecast_length"]
     internal_states = forecast_config["internal_states"]
@@ -369,6 +375,7 @@ def model_predictor(model, datapath, train_config, forecast_config, log=True):
     with timer("Loading data", log=log):
         _, _, _, ftransient, val_data, val_target = krc.utils.load_data(
             datapath=datapath,
+            init_transient=init_transient_length,
             train_length=train_length,
             transient=transient_length,
             normalize=True,
@@ -407,7 +414,7 @@ def model_batch_predictor(
         Path to the folder containing only the data files.
     train_config : str or dict
         Either the path to the dictionary specifying the training configuration or the dictionary itself.
-        Must contain the keys 'train_length', 'transient_length', 'normalize' and 'regularization'.
+        Must contain the keys 'init_transient_length', 'train_length', 'transient_length', 'normalize' and 'regularization'.
     forecast_config : str or dict
         Either the path to the dictionary specifying the forecast configuration or the dictionary itself.
         Must contain the keys 'forecast_length' and 'internal_states'.
@@ -441,6 +448,7 @@ def model_batch_predictor(
     """
     # Load the model if they are paths
     train_config_keys = [
+        "init_transient_length",
         "train_length",
         "transient_length",
         "normalize",
@@ -560,7 +568,7 @@ def models_batch_predictor(
         Path to the folder containing only the data files.
     train_config : str or dict
         Either the path to the dictionary specifying the training configuration or the dictionary itself.
-        Must contain the keys 'train_length', 'transient_length', 'normalize' and 'regularization'.
+        Must contain the keys 'init_transient_length', 'train_length', 'transient_length', 'normalize' and 'regularization'.
     forecast_config : str or dict
         Either the path to the dictionary specifying the forecast configuration or the dictionary itself.
         Must contain the keys 'forecast_length' and 'internal_states'.
@@ -579,6 +587,7 @@ def models_batch_predictor(
     """
     # Load the model if they are paths
     train_config_keys = [
+        "init_transient_length",
         "train_length",
         "transient_length",
         "normalize",
