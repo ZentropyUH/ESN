@@ -50,6 +50,10 @@ class BaseReservoir(keras.Model, ABC):
 
         self.reservoir_cell = reservoir_cell
 
+    def build(self, input_shape):
+        if self.built:
+            return
+
         self.rnn_layer = keras.layers.RNN(
             self.reservoir_cell,
             trainable=False,
@@ -58,12 +62,11 @@ class BaseReservoir(keras.Model, ABC):
             name="reservoir_rnn"
             )
 
-    def build(self, input_shape):
         self.rnn_layer.build(input_shape)
         super().build(input_shape)
 
-    def call(self, inputs):
-        output = self.rnn_layer(inputs)
+    def call(self, inputs, **kwargs):
+        output = self.rnn_layer(inputs, **kwargs)
         return output
 
     def get_states(self):
@@ -189,7 +192,7 @@ class ESNCell(BaseReservoirCell):
 
         # Leaky integration
         # The casting of 1 is a crazy thing when operating with python floats and tf or np floats, it promotes the operation to the highest precision, i.e. tf.float64, yet we are using tf.float32. What in the actual fuck?
-        lag = prev_state * (keras.ops.cast(1, keras.backend.floatx()) - self.leak_rate) 
+        lag = prev_state * (keras.ops.cast(1, keras.backend.floatx()) - self.leak_rate)
         update = output * self.leak_rate
 
         new_state = lag + update
@@ -235,9 +238,9 @@ class EchoStateNetwork(BaseReservoir):
         self.concatenate = keras.layers.Concatenate(name="Concat_ESN_input")
 
     def call(self, inputs, **kwargs):
-        states = self.rnn_layer(inputs)
-        power_index = self.power_index(states)
-        output = self.concatenate([inputs, power_index])
+        states = self.rnn_layer(inputs, **kwargs)
+        power_index = self.power_index(states, **kwargs)
+        output = self.concatenate([inputs, power_index], **kwargs)
         return output
 
     def get_config(self):
