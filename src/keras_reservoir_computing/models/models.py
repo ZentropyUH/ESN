@@ -501,7 +501,6 @@ class ReservoirEnsemble(keras.Model):
         if seed is None:
             logging.warning("Seed is None. Reproducibility is not guaranteed.")
 
-
     def build(self, input_shape):
         """Build the model with the given input shape.
 
@@ -530,13 +529,11 @@ class ReservoirEnsemble(keras.Model):
         Returns:
             Tensor: Output tensor after passing through reservoir and readout layers. Of shape (batch_size, timesteps, output_dim).
         """
-        # TODO: See if we can use other than a list here.
         reservoir_outputs = tf.stack([
             reservoir_computer(inputs)
             for reservoir_computer in self.reservoir_computers
         ]) # This will have shape (num_reservoirs, batch_size, timesteps, output_dim)
         output = self.outlier_removal_layer(reservoir_outputs)
-
         return output
 
     def train(
@@ -677,19 +674,16 @@ class ReservoirEnsemble(keras.Model):
         # 3) If storing states, gather all states from all RCs and build a separate TA for each
         states_ta = None
         if store_states:
-            # Flatten all states from each RC into one list
-            rc_states_2d = [rc.get_states() for rc in self.reservoir_computers]
-            flat_states = []
-            for sublist in rc_states_2d:
-                flat_states.extend(sublist)
-            # Make a separate TensorArray for each state
             states_ta = [
-                tf.TensorArray(
-                    dtype=tf.float32,
-                    size=steps,
-                    element_shape=s.shape,  # e.g. (1, units_i)
-                )
-                for s in flat_states
+                [
+                    tf.TensorArray(
+                        dtype=tf.float32,
+                        size=steps,
+                        element_shape=state.shape,  # (batch_size, units_i)
+                    )
+                    for state in rc.get_states()
+                ]
+                for rc in self.reservoir_computers
             ]
 
         # 4) tf.while_loop cond/body
@@ -704,15 +698,10 @@ class ReservoirEnsemble(keras.Model):
             preds_ta = preds_ta.write(step + 1, new_prediction)
 
             if store_states:
-                # Flatten all updated states from each RC
-                new_states_2d = [rc.get_states() for rc in self.reservoir_computers]
-                flat_new_states = []
-                for sublist in new_states_2d:
-                    flat_new_states.extend(sublist)
-
-                # Write each state into its corresponding TensorArray
-                for i, st_tensor in enumerate(flat_new_states):
-                    st_ta[i] = st_ta[i].write(step, st_tensor)
+                new_states_nested = [rc.get_states() for rc in self.reservoir_computers]
+                for rc_idx, rc_states in enumerate(new_states_nested):
+                    for state_idx, st_tensor in enumerate(rc_states):
+                        st_ta[rc_idx][state_idx] = st_ta[rc_idx][state_idx].write(step, st_tensor)
 
             return step + 1, preds_ta, st_ta
 
@@ -736,14 +725,15 @@ class ReservoirEnsemble(keras.Model):
 
         # 7) Convert each states_ta to Tensors => list of (batch_size, steps, units_i)
         if store_states:
-            states_out_list = []
-            for ta in final_states_ta:
-                st_stacked = ta.stack()  # (steps, batch_size, units_i)
-                st_stacked = tf.transpose(
-                    st_stacked, [1, 0, 2]
-                )  # (batch_size, steps, units_i)
-                st_stacked = tf.stop_gradient(st_stacked)
-                states_out_list.append(st_stacked)
+            states_out_list = [
+                [
+                    tf.stop_gradient(
+                        tf.transpose(ta.stack(), [1, 0, 2])
+                    )  # (batch_size, steps, units_i)
+                    for ta in state_tas
+                ]
+                for state_tas in final_states_ta
+            ]
             return predictions_out, states_out_list
 
         return predictions_out, None
