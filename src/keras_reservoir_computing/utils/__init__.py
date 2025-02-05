@@ -7,6 +7,7 @@ from .utils import (
 
 from .model_utils import (
     model_loader,
+    model_generator,
     model_trainer,
     model_predictor,
     model_batch_trainer,
@@ -44,6 +45,7 @@ __all__ = [
     "config_loader",
     # model_utils
     "model_loader",
+    "model_generator",
     "model_trainer",
     "model_predictor",
     "model_batch_trainer",
