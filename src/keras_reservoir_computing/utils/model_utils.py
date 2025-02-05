@@ -236,8 +236,8 @@ def model_trainer(datapath, model_config, train_config, seed=None, name=None, sa
             log=log,
         )
 
-    with timer("Saving model", log=log):
-        if savepath is not None:
+    if savepath is not None:
+        with timer("Saving model", log=log):
             os.makedirs(name=savepath, exist_ok=True)
             fullpath = os.path.join(savepath, name + ".keras")
             model.save(filepath=fullpath)
