@@ -1,18 +1,18 @@
 import os
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+
+import logging
 from typing import List, Optional, Tuple
 
 import keras
 import numpy as np
 import tensorflow as tf
 from keras import Layer
-from rich.progress import track
-import logging
 
-from ..layers import RemoveOutliersAndMean
-from ..reservoirs import BaseReservoir
-from ..utils import TF_Ridge, timer
+from keras_reservoir_computing.layers import RemoveOutliersAndMean
+from keras_reservoir_computing.reservoirs import BaseReservoir
+from keras_reservoir_computing.utils import TF_Ridge, timer
 
 logging.basicConfig(level=logging.INFO)
 
@@ -73,7 +73,7 @@ class ReservoirComputer(keras.Model):
             Tensor: Output tensor after passing through reservoir and readout layers. Of shape (batch_size, timesteps, output_dim).
         """
         # Pass the inputs through the reservoir
-        reservoir_output = self.reservoir(inputs)
+        reservoir_output = self.reservoir(inputs, **kwargs)
         # Pass the reservoir output through the readout
         output = self.readout(reservoir_output)
         return output
@@ -281,92 +281,96 @@ class ReservoirComputer(keras.Model):
             return predictions_out, states_out
         return predictions_out, None
 
-    @tf.function(autograph=False)
+    @tf.function
     def _perform_forecasting_fast_with_states(
         self,
-        initial_point: tf.Tensor,
-        forecast_transient_data: tf.Tensor,
+        initial_point: tf.Tensor,  # (batch_size=1, 1, input_dim)
+        forecast_transient_data: tf.Tensor,  # (transient_len, 1, input_dim)
         steps: int,
-    ) -> Tuple[tf.Tensor, tf.Tensor]:
+    ) -> Tuple[tf.Tensor, List[tf.Tensor]]:
         """
-        Performs the forecasting process in TensorFlow graph mode to reduce Python overhead. It also stores the internal states.
-
-        Args:
-            initial_point: shape (1, 1, input_dim)
-            forecast_transient_data: shape (transient_length, 1, input_dim)
-            steps: Number of steps to forecast.
-
+        Forecasts single steps and stores a separate history for each RNN state.
         Returns:
-            predictions_out: shape (1, steps+1, input_dim)
-            states_out: shape (n_states, steps, units)
+        - predictions_out:  (1, steps+1, input_dim)
+        - states_out_list:  list of Tensors, each (batch_size, steps, units_i)
         """
-        # Ensure ESP. We don't need the returned states
+        # 1) Ensure ESP
         _ = self.ensure_ESP(forecast_transient_data)
 
-        # Prepare the predictions array
+        # 2) Prepare a TensorArray to store predictions
         predictions_ta = tf.TensorArray(
             dtype=tf.float32,
             size=steps + 1,
-            element_shape=(1, 1, initial_point.shape[2]),
+            element_shape=(None, 1, None),  # (batch_size, 1, input_dim)
         )
         predictions_ta = predictions_ta.write(0, initial_point)
 
-        # Prepare the states array
-        current_states = self.get_states()  # list of shape [1, units]
-        n_states = len(current_states)
-        units = current_states[0].shape[1]
-        states_ta = tf.TensorArray(
-            dtype=tf.float32, size=steps, element_shape=(n_states, units)
-        )
+        # 3) Prepare one TensorArray *per internal state*
+        #    self.get_states() → a list of Tensors, each (batch_size, units_i).
+        init_states = self.get_states()
+        states_ta = [
+            tf.TensorArray(
+                dtype=tf.float32,
+                size=steps,
+                element_shape=s.shape,  # must match (batch_size, units_i)
+            )
+            for s in init_states
+        ]
 
+        # 4) Define loop cond/body
         def loop_cond(step, preds_ta, st_ta):
             return step < steps
 
         def loop_body(step, preds_ta, st_ta):
-            current_input = preds_ta.read(step)  # shape (1,1,input_dim)
-            new_prediction = self.forecast_step(current_input)  # shape (1,1,input_dim)
+            # Read the last prediction we wrote
+            current_input = preds_ta.read(step)  # (batch_size, 1, input_dim)
 
-            # Write new prediction
+            # Single-step forward pass
+            new_prediction = self.forecast_step(
+                current_input
+            )  # shape (batch_size, 1, input_dim)
             preds_ta = preds_ta.write(step + 1, new_prediction)
 
-            # Write new states
-            st_list = self.get_states()  # each is (1, units)
-            st_concat = tf.concat(
-                [s[0] for s in st_list], axis=0
-            )  # shape (n_states*units,)
-            st_concat = tf.reshape(st_concat, (n_states, units))
-            st_ta = st_ta.write(step, st_concat)
+            # Grab updated states
+            new_states = self.get_states()  # list of (batch_size, units_i)
+            # Write each state into its own TA
+            for i, state_tensor in enumerate(new_states):
+                st_ta[i] = st_ta[i].write(step, state_tensor)
 
             return step + 1, preds_ta, st_ta
 
-        loop_vars = (0, predictions_ta, states_ta)
-
-        final_step, final_predictions_ta, final_states_ta = tf.while_loop(
+        # 5) Run tf.while_loop
+        step_init = tf.constant(0, dtype=tf.int32)
+        loop_vars = (step_init, predictions_ta, states_ta)
+        _, final_predictions_ta, final_states_ta = tf.while_loop(
             cond=loop_cond,
             body=loop_body,
             loop_vars=loop_vars,
             parallel_iterations=1,
         )
 
+        # 6) Convert predictions to final tensor
+        #    shape => (steps+1, batch_size, 1, input_dim)
+        preds_stacked = final_predictions_ta.stack()
+        # Remove the middle dim=2 if you prefer
+        # e.g., shape => (steps+1, batch_size, input_dim)
+        preds_stacked = tf.squeeze(preds_stacked, axis=2)
 
-        # Convert from TensorArray to Tensor
-        predictions_out = tf.stop_gradient(
-            final_predictions_ta.stack()
-        )  # shape (steps+1, 1, 1, input_dim)
-        predictions_out = tf.squeeze(predictions_out, axis=1)  # (steps+1, 1, input_dim)
-        predictions_out = tf.transpose(
-            predictions_out, [1, 0, 2]
-        )  # (1, steps+1, input_dim)
+        # Now reorder to (batch_size, steps+1, input_dim)
+        predictions_out = tf.transpose(preds_stacked, perm=[1, 0, 2])
+        predictions_out = tf.stop_gradient(predictions_out)
 
-        # Convert TensorArray to Tensor for states if not None
-        states_out = tf.stop_gradient(
-            final_states_ta.stack()
-        )  # shape (steps, n_states, units)
-        states_out = tf.transpose(
-            states_out, [1, 0, 2]
-        )  # shape (n_states, steps, units)
+        # 7) Convert each states_ta to a Tensor and reorder them
+        #    final shape => (batch_size, steps, units_i)
+        states_out_list = []
+        for ta in final_states_ta:
+            st_stacked = ta.stack()  # shape => (steps, batch_size, units_i)
+            # Transpose to => (batch_size, steps, units_i)
+            st_stacked = tf.transpose(st_stacked, perm=[1, 0, 2])
+            st_stacked = tf.stop_gradient(st_stacked)
+            states_out_list.append(st_stacked)
 
-        return predictions_out, states_out
+        return predictions_out, states_out_list
 
     @tf.function(reduce_retracing=True)
     def forecast_step(self, current_input: tf.Tensor) -> tf.Tensor:
@@ -461,9 +465,11 @@ class ReservoirComputer(keras.Model):
         """
         # If the model hasn't been built yet, self._input_shape may be None.
         # In that case, return an empty dict or handle as needed.
-        return {
-            "input_shape": self._input_shape
-        } if getattr(self, "_input_shape", None) is not None else {}
+        return (
+            {"input_shape": self._input_shape}
+            if getattr(self, "_input_shape", None) is not None
+            else {}
+        )
 
     def build_from_config(self, config):
         """Build the model from the given configuration.
@@ -471,7 +477,8 @@ class ReservoirComputer(keras.Model):
         Args:
             config (dict): Configuration dictionary.
         """
-        self.built = True # TODO: Perhaps this is a patch and a hideous solution
+        self.built = True  # TODO: Perhaps this is a patch and a hideous solution
+
 
 @keras.saving.register_keras_serializable(
     package="ReservoirComputers", name="ReservoirEnsemble"
@@ -485,10 +492,15 @@ class ReservoirEnsemble(keras.Model):
         seed (int | None): The seed of the model.
     """
 
-    def __init__(self, reservoir_computers: List[ReservoirComputer], **kwargs):
+    def __init__(self, reservoir_computers: List[ReservoirComputer], seed=None, **kwargs):
         super().__init__(**kwargs)
         self.reservoir_computers = reservoir_computers
         self.outlier_removal_layer = RemoveOutliersAndMean(name="outlier_removal")
+        self.seed = seed
+
+        if seed is None:
+            logging.warning("Seed is None. Reproducibility is not guaranteed.")
+
 
     def build(self, input_shape):
         """Build the model with the given input shape.
@@ -496,12 +508,17 @@ class ReservoirEnsemble(keras.Model):
         Args:
             input_shape (tuple): The input shape of the model.
         """
+        if self.built:
+            return
         for reservoir_computer in self.reservoir_computers:
             reservoir_computer.build(input_shape)
+
         reservoir_computer_output_shape = self.reservoir_computers[
             0
         ].compute_output_shape(input_shape)
+
         self.outlier_removal_layer.build(reservoir_computer_output_shape)
+
         super().build(input_shape)
 
     def call(self, inputs, **kwargs):
@@ -514,10 +531,10 @@ class ReservoirEnsemble(keras.Model):
             Tensor: Output tensor after passing through reservoir and readout layers. Of shape (batch_size, timesteps, output_dim).
         """
         # TODO: See if we can use other than a list here.
-        reservoir_outputs = [
+        reservoir_outputs = tf.stack([
             reservoir_computer(inputs)
             for reservoir_computer in self.reservoir_computers
-        ]
+        ]) # This will have shape (num_reservoirs, batch_size, timesteps, output_dim)
         output = self.outlier_removal_layer(reservoir_outputs)
 
         return output
@@ -631,106 +648,105 @@ class ReservoirEnsemble(keras.Model):
     @tf.function
     def _perform_forecasting_fast_with_states(
         self,
-        initial_point: tf.Tensor,
-        forecast_transient_data: tf.Tensor,
+        initial_point: tf.Tensor,  # (batch_size=1, 1, input_dim)
+        forecast_transient_data: tf.Tensor,  # (transient_len, 1, input_dim)
         steps: int,
         store_states: bool = False,
-    ) -> Tuple[tf.Tensor, Optional[tf.Tensor]]:
+    ) -> Tuple[tf.Tensor, Optional[List[tf.Tensor]]]:
         """
-        Analogous to ReservoirComputer._perform_forecasting_fast_with_states(), but for multiple
-        ReservoirComputers. Uses tf.while_loop to avoid Python overhead.
-
-        Args:
-            initial_point:  (1, 1, input_dim)
-            forecast_transient_data:  (transient_length, 1, input_dim)
-            steps: Number of forecast steps.
-            store_states: Whether to store internal states for each step.
+        Forecasts single steps and (optionally) stores each internal state from each
+        ReservoirComputer across time. Closely mirrors the single-Reservoir approach.
 
         Returns:
-            predictions_out: shape (1, steps+1, output_dim)
-            states_out: shape (total_states, steps, units) if store_states=True, else None
+          predictions_out: (1, steps+1, output_dim)
+          states_out_list:
+            - if store_states=True, a Python list of Tensors, each (1, steps, units_i)
+            - otherwise, None
         """
         # 1) Ensure ESP for all ReservoirComputers
         self.ensure_ESP(forecast_transient_data)
 
-        # 2) Prepare TensorArrays for predictions and states
-        # We'll write shape (1,1,output_dim) at each step, plus the initial.
+        # 2) Prepare a TensorArray to store predictions
         predictions_ta = tf.TensorArray(
             dtype=tf.float32,
             size=steps + 1,
-            element_shape=(1, 1, initial_point.shape[2]),
+            element_shape=(None, 1, None),  # (batch_size, 1, input_dim)
         )
-        # Put the initial_point in index 0
         predictions_ta = predictions_ta.write(0, initial_point)
 
+        # 3) If storing states, gather all states from all RCs and build a separate TA for each
         states_ta = None
         if store_states:
-            # We'll gather states from each ReservoirComputer’s get_states()
-            # Each state is typically shape (1, units).
-            # We'll flatten them all into a single [sum_of_states, units].
-            # That shape is stored at each step.
-            st_list = []
-            for rc in self.reservoir_computers:
-                st_list.extend(rc.get_states())
-            total_states = len(st_list)
-            units = st_list[0].shape[1]  # assume all have shape (1, units)
+            # Flatten all states from each RC into one list
+            rc_states_2d = [rc.get_states() for rc in self.reservoir_computers]
+            flat_states = []
+            for sublist in rc_states_2d:
+                flat_states.extend(sublist)
+            # Make a separate TensorArray for each state
+            states_ta = [
+                tf.TensorArray(
+                    dtype=tf.float32,
+                    size=steps,
+                    element_shape=s.shape,  # e.g. (1, units_i)
+                )
+                for s in flat_states
+            ]
 
-            states_ta = tf.TensorArray(
-                dtype=tf.float32,
-                size=steps,
-                element_shape=(total_states, units),
-            )
-
-        # 3) Define the loop condition and body
+        # 4) tf.while_loop cond/body
         def loop_cond(step, preds_ta, st_ta):
             return step < steps
 
         def loop_body(step, preds_ta, st_ta):
-            # Read the last prediction
-            current_input = preds_ta.read(step)  # shape (1,1,input_dim)
-            # Forecast next step
-            new_prediction = self.forecast_step(current_input)  # shape (1,1,output_dim)
+            current_input = preds_ta.read(step)  # (batch_size,1,input_dim)
+            new_prediction = self.forecast_step(
+                current_input
+            )  # shape (batch_size,1,output_dim)
             preds_ta = preds_ta.write(step + 1, new_prediction)
 
             if store_states:
-                # Collect the states from every ReservoirComputer
-                st_list = []
-                for rc in self.reservoir_computers:
-                    st_list.extend(rc.get_states())
-                # Concatenate each state (shape (1, units)) along axis=0 => (total_states, units)
-                st_concat = tf.concat([s[0] for s in st_list], axis=0)
-                st_ta = st_ta.write(step, st_concat)
+                # Flatten all updated states from each RC
+                new_states_2d = [rc.get_states() for rc in self.reservoir_computers]
+                flat_new_states = []
+                for sublist in new_states_2d:
+                    flat_new_states.extend(sublist)
+
+                # Write each state into its corresponding TensorArray
+                for i, st_tensor in enumerate(flat_new_states):
+                    st_ta[i] = st_ta[i].write(step, st_tensor)
 
             return step + 1, preds_ta, st_ta
 
-        # 4) Run tf.while_loop
-        step_init = tf.constant(0)
+        # 5) Run while_loop
+        step_init = tf.constant(0, dtype=tf.int32)
         loop_vars = (step_init, predictions_ta, states_ta)
-        final_step, final_predictions_ta, final_states_ta = tf.while_loop(
+        _, final_predictions_ta, final_states_ta = tf.while_loop(
             cond=loop_cond,
             body=loop_body,
             loop_vars=loop_vars,
             parallel_iterations=1,
         )
 
-        # 5) Convert predictions from TensorArray to Tensor
-        predictions_out = tf.stop_gradient(
-            final_predictions_ta.stack()
-        )  # (steps+1, 1,1, output_dim)
-        predictions_out = tf.squeeze(
-            predictions_out, axis=1
-        )  # (steps+1, 1, output_dim)
-        predictions_out = tf.transpose(
-            predictions_out, [1, 0, 2]
-        )  # (1, steps+1, output_dim)
+        # 6) Convert predictions to final Tensor => (steps+1, batch_size, 1, input_dim)
+        preds_stacked = final_predictions_ta.stack()
+        # Squeeze out the middle dim => (steps+1, batch_size, input_dim)
+        preds_stacked = tf.squeeze(preds_stacked, axis=2)
+        # Transpose => (batch_size, steps+1, input_dim)
+        predictions_out = tf.transpose(preds_stacked, perm=[1, 0, 2])
+        predictions_out = tf.stop_gradient(predictions_out)
 
-        # 6) Convert states if requested
-        states_out = tf.stop_gradient(
-            final_states_ta.stack()
-        )  # shape (steps, total_states, units)
-        states_out = tf.transpose(states_out, [1, 0, 2])  # (total_states, steps, units)
+        # 7) Convert each states_ta to Tensors => list of (batch_size, steps, units_i)
+        if store_states:
+            states_out_list = []
+            for ta in final_states_ta:
+                st_stacked = ta.stack()  # (steps, batch_size, units_i)
+                st_stacked = tf.transpose(
+                    st_stacked, [1, 0, 2]
+                )  # (batch_size, steps, units_i)
+                st_stacked = tf.stop_gradient(st_stacked)
+                states_out_list.append(st_stacked)
+            return predictions_out, states_out_list
 
-        return predictions_out, states_out
+        return predictions_out, None
 
     def compute_output_shape(self, input_shape: Tuple[int, ...]) -> Tuple[int, ...]:
         """Compute the output shape of the model.
