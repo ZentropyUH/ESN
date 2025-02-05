@@ -382,7 +382,7 @@ def animate_timeseries(
         interval = (1000 * dt) / speed_factor
         fps = (1 / dt) * speed_factor
     else:
-        interval = 1(000 / fps) * speed_factor
+        interval = (1000 / fps) * speed_factor
         fps = fps * speed_factor
 
     # Create figure and axes
@@ -566,9 +566,9 @@ def plot_2d_timeseries(
     t = np.arange(T) * dt * lam
 
     fig, axes = (
-        plt.subplots(D, 1, figsize=(8, 2 * D), sharex=True)
+        plt.subplots(D, 1, figsize=(12, 2 * D), sharex=True)
         if separate_axes
-        else (plt.gcf(), [plt.gca()] * D)
+        else (plt.figure(figsize=(12, 3)), plt.gca())
     )
 
     axes = np.atleast_1d(axes)  # Ensure iterable structure for consistency
@@ -970,7 +970,6 @@ def plot_heatmap(
         plt.subplots_adjust(top=0.88)  # Adjust top margin to make space for suptitle
 
     return axes
-
 
 
 if __name__ == "__main__":
