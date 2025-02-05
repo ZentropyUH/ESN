@@ -94,7 +94,8 @@ class RemoveOutliersAndMean(keras.layers.Layer):
     Returns:
         keras.layers.Layer: A keras layer that removes the outliers from the input tensor and computes the mean of the remaining elements.
     """
-    def __init__(self, method='z_score', threshold=3.0, **kwargs):
+
+    def __init__(self, method="z_score", threshold=3.0, **kwargs):
         super().__init__(**kwargs)
         self.method = method
         self.threshold = threshold
@@ -105,81 +106,88 @@ class RemoveOutliersAndMean(keras.layers.Layer):
         Args:
             input_shape: The shape of the input tensor.
         """
-        if isinstance(input_shape, list):
-            input_shape = input_shape[0]
         super().build(input_shape)
 
-    def call(
-        self,
-        inputs: Union[tf.Tensor, List[tf.Tensor]]
-    ) -> tf.Tensor:
-        """Receives a 2D tensor and removes the outliers over the first dimension using the method provided and computes the mean of the remaining elements.
+    def call(self, inputs):
+        """Remove the outliers from the input tensor and compute the mean of the remaining elements.
 
-        Args:
-            inputs (Union[tf.Tensor, List[tf.Tensor]]): Either a tensor of shape (samples, features) or a list of tensors of shape (features,). If a list is provided, the tensors are stacked along the first dimension to form a tensor of shape (samples, features).
+        The method removes the outliers from the input tensor according to 'method' and computes the mean of the remaining elements.
 
-        Returns:
-            tf.Tensor: Mean of the remaining elements after removing the outliers. Of shape (1, features).
+        Parameters
+        ----------
+        inputs : tf.Tensor
+            The input tensor of shape (samples, batch, sequence_length, features).
+            The outliers will be taken along the first dimension (samples) according to the method respect to the norm of the vectors along the last dimension (features).
+        Returns
+        -------
+        tf.Tensor
+            The output tensor of shape (batch, sequence_length, features) with the mean of the remaining elements.
         """
-        if isinstance(inputs, list):
-            shape = inputs[0].shape
-            for tensor in inputs:
-                assert tensor.shape == shape, "All tensors must have the same shape"
 
-            if len(shape) == 3:
-                for i, tensor in enumerate(inputs):
-                    inputs[i] = tf.squeeze(tensor, axis=0)
+        # Calculate the norm of each vector along the last dimension
+        norms = tf.norm(inputs, axis=-1)
 
-            inputs = tf.concat(inputs, axis=0)
+        if self.method == "z_score":
+            # Calculate the mean and standard deviation of the norms
+            mean_norm = tf.reduce_mean(norms, axis=0)
+            std_norm = tf.math.reduce_std(norms, axis=0)
+
+            # Safety check to avoid division by zero
+            std_norm = tf.where(
+                std_norm > 0, std_norm, tf.ones_like(std_norm)
+            )  # Match shape
+
+            # Identify non-outlier indices using the Z-score method
+            z_scores = tf.abs((norms - mean_norm) / std_norm)
+
+            non_outlier_mask = z_scores < self.threshold
+
+        elif self.method == "iqr":
+            # Calculate the first quartile (Q1) and third quartile (Q3)
+            q1 = keras.ops.quantile(norms, 0.25, axis=0)
+            q3 = keras.ops.quantile(norms, 0.75, axis=0)
+
+            # Calculate the Interquartile Range (IQR)
+            iqr = q3 - q1
+
+            # Identify non-outlier indices using the IQR method
+            lower_bound = q1 - self.threshold * iqr
+            upper_bound = q3 + self.threshold * iqr
+            non_outlier_mask = (norms >= lower_bound) & (norms <= upper_bound)
 
         else:
-            # The input tensor is of shape (1, samples, features), we need to strip the batch dimension
-            if inputs.ndim == 3:
-                inputs = tf.squeeze(inputs, axis=0)
+            raise ValueError(
+                f"Unsupported method: {self.method}. Choose 'z_score' or 'iqr'."
+            )
 
-        if self.method == 'z_score':
-            mean = keras.ops.mean(inputs, axis=0, keepdims=True)
-            std = keras.ops.std(inputs, axis=0, keepdims=True)
+        mask_1d = tf.reduce_any(
+            non_outlier_mask, axis=[1, 2]
+        )  # Reduce over batch & sequence_length
 
-            # Avoid division by zero
-            std_safe = tf.where(tf.equal(std, 0), tf.ones_like(std), std)
+        # Filter out the outliers
+        filtered_inputs = tf.boolean_mask(inputs, mask_1d, axis=0)
 
-            z_scores = keras.ops.abs((inputs - mean) / std_safe)
-            mask = z_scores < self.threshold
+        # Compute the mean of the remaining vectors
+        result = tf.reduce_mean(
+            filtered_inputs, axis=0
+        )  # should be of shape (batch, sequence_length, features)
 
-        elif self.method == 'iqr':
-            q25, q75 = keras.ops.quantile(inputs, 0.25), keras.ops.quantile(inputs, 0.75)
-            iqr = q75 - q25
-            lower = q25 - self.threshold * iqr
-            upper = q75 + self.threshold * iqr
-            mask = keras.ops.logical_and(inputs > lower, inputs < upper)
-
-        output = keras.ops.multiply(inputs, mask)
-        output = keras.ops.mean(output, axis=0, keepdims=True)
-
-        # Add the batch dimension back
-        inputs = tf.expand_dims(output, axis=0)
-        return output
+        return result
 
     def compute_output_shape(self, input_shape) -> tf.TensorShape:
         """Compute the output shape.
 
         Args:
-            input_shape (tf.TensorShape): Input shape.
+            input_shape (tf.TensorShape): Input shape of shape.
 
         Returns:
             tf.TensorShape: Output shape same as input shape.
         """
-        if isinstance(input_shape, list):
-            input_shape = input_shape[0]
-        return input_shape
+        return input_shape[1:]
 
     def get_config(self):
         config = super(RemoveOutliersAndMean, self).get_config()
-        config.update({
-            'method': self.method,
-            'threshold': self.threshold
-        })
+        config.update({"method": self.method, "threshold": self.threshold})
         return config
 
 
