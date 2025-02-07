@@ -6,7 +6,7 @@ from natsort import natsorted
 from scipy.stats import gmean
 
 
-def list_files_only(directory):
+def list_files_only(directory: str) -> list:
     """
     List all files in a directory, excluding subdirectories.
 
@@ -21,7 +21,7 @@ def list_files_only(directory):
     ]
 
 
-def load_file(datapath):
+def load_file(datapath: str) -> np.ndarray:
     """Load the data from the given path. Returns a numpy array of shape (1, T, D)."""
 
     if datapath.endswith(".csv"):
@@ -39,7 +39,7 @@ def load_file(datapath):
     return data
 
 
-def load_csv(datapath):
+def load_csv(datapath: str) -> np.ndarray:
     """Load the data from the given path. Returns a numpy array of shape (1, T, D)."""
 
     data = pd.read_csv(datapath, header=None)
@@ -53,7 +53,7 @@ def load_csv(datapath):
     return data
 
 
-def load_npz(datapath):
+def load_npz(datapath: str) -> np.ndarray:
     """Load the data from the given path. Returns a numpy array of shape (1, T, D)."""
 
     data = np.load(datapath)
@@ -67,7 +67,7 @@ def load_npz(datapath):
     return data
 
 
-def load_npy(datapath):
+def load_npy(datapath: str) -> np.ndarray:
     """Load the data from the given path. Returns a numpy array of shape (1, T, D)."""
 
     data = np.load(datapath)
@@ -80,7 +80,7 @@ def load_npy(datapath):
     return data
 
 
-def load_nc(datapath):
+def load_nc(datapath: str) -> np.ndarray:
     """Load the data from the given path. Returns a numpy array of shape (1, T, D)."""
 
     data = xr.open_dataarray(datapath)
@@ -94,7 +94,7 @@ def load_nc(datapath):
     return data
 
 
-def save_csv(data: np.ndarray, savepath: str):
+def save_csv(data: np.ndarray, savepath: str) -> None:
     """Save the data to the given path in .csv format.
 
     Args:
@@ -106,7 +106,7 @@ def save_csv(data: np.ndarray, savepath: str):
     df.to_csv(savepath, index=False, header=False)
 
 
-def save_npz(data: np.ndarray, savepath: str):
+def save_npz(data: np.ndarray, savepath: str) -> None:
     """Save the data to the given path in .npz format.
 
     Args:
@@ -117,7 +117,7 @@ def save_npz(data: np.ndarray, savepath: str):
     np.savez(savepath, data=data)
 
 
-def save_npy(data: np.ndarray, savepath: str):
+def save_npy(data: np.ndarray, savepath: str) -> None:
     """Save the data to the given path in .npy format.
 
     Args:
@@ -128,7 +128,7 @@ def save_npy(data: np.ndarray, savepath: str):
     np.save(savepath, data)
 
 
-def save_nc(data: np.ndarray, savepath: str):
+def save_nc(data: np.ndarray, savepath: str) -> None:
     """Save the data to the given path in .nc format.
 
     Args:
@@ -146,7 +146,7 @@ def load_data(
     transient: int = 1000,
     train_length: int = 5000,
     normalize: bool = False,
-):
+) -> tuple:
     """
     Load data from a given path and prepare it for neural network training.
 
@@ -227,7 +227,7 @@ def load_data(
     )
 
 
-def save_data(data: np.ndarray, filename: str, savepath: str, format: str = "csv"):
+def save_data(data: np.ndarray, filename: str, savepath: str, format: str = "csv") -> None:
     """Save the data to the given path.
 
     Args:
@@ -258,7 +258,7 @@ def save_data(data: np.ndarray, filename: str, savepath: str, format: str = "csv
         save_nc(data=data, savepath=full_path)
 
 
-def compute_normalized_error(y_true, y_pred):
+def compute_normalized_error(y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarray:
     """
     Compute a time-dependent, normalized RMS error for possibly multiple trajectories.
 
@@ -338,7 +338,7 @@ def compute_normalized_error(y_true, y_pred):
     return final_error
 
 
-def mean_ensemble_prediction(predictions):
+def mean_ensemble_prediction(predictions: np.ndarray) -> np.ndarray:
     """
     Will average the predictions of all samples over the models axis.
 
@@ -354,7 +354,7 @@ def mean_ensemble_prediction(predictions):
     return np.mean(predictions, axis=0)
 
 
-def get_all_predictions(predictions_path):
+def get_all_predictions(predictions_path: str) -> np.ndarray:
     """
     Will load all predictions from the given path and return them in a numpy array. Prediction files will always end with _predictions.[format], where [format] can be either npy, csv or nc. In the folder might be the target data as well, which will end with _target.[format].
 
@@ -386,7 +386,7 @@ def get_all_predictions(predictions_path):
     return predictions
 
 
-def get_all_targets(predictions_path):
+def get_all_targets(predictions_path: str) -> np.ndarray:
     """
     Will load all target data from the given path and return them in a numpy array. Target files will always end with _target.[format], where [format] can be either npy, csv or nc. In the folder might be the predictions as well, which will end with _predictions.[format].
 
@@ -418,7 +418,7 @@ def get_all_targets(predictions_path):
     return targets
 
 
-def get_all_errors(predictions_path):
+def get_all_errors(predictions_path: str) -> np.ndarray:
     """
     Given a path to a directory containing predictions and targets, this function will load all predictions and targets and compute the normalized error for each sample.
 
@@ -440,7 +440,7 @@ def get_all_errors(predictions_path):
     return errors
 
 
-def mean_prediction_error(predictions_path):
+def mean_prediction_error(predictions_path: str) -> np.ndarray:
     """
     Given a datapath this will load all the predictions and take the mean over the models axis. We will then have the mean prediction for each sample. Then we will compare the mean prediction to the target data and return the normalized error.
 

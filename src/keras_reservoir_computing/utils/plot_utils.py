@@ -1,9 +1,8 @@
 from typing import List, Optional, Tuple, Union
 
-import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.animation import FFMpegWriter
+from matplotlib.animation import FFMpegWriter, FuncAnimation
 from rich.progress import Progress
 
 
@@ -24,7 +23,7 @@ def animate_trail(
     speed_factor: float = 1,
     savepath: Optional[str] = None,
     show: bool = True,
-):
+) -> FuncAnimation:
     """
     Animates 2D or 3D parametric trajectories with optional multiple samples.
     Each sample is visualized as a moving point with a trailing path.
@@ -237,7 +236,7 @@ def animate_trail(
                 trails[i].set_data(x[start : frame + 1], y[start : frame + 1])
         return points + trails
 
-    ani = animation.FuncAnimation(
+    ani = FuncAnimation(
         fig=fig,
         func=update,
         frames=T,
@@ -458,7 +457,7 @@ def animate_timeseries(
 
         return lines + [time_text]
 
-    ani = animation.FuncAnimation(
+    ani = FuncAnimation(
         fig=fig,
         func=update,
         frames=T,

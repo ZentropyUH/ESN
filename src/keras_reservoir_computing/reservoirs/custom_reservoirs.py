@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from typing import Callable, Union
 
 import keras
+from keras.src.initializers import Initializer
 
 from keras_reservoir_computing.layers import PowerIndex
 
@@ -132,9 +133,9 @@ class ESNCell(BaseReservoirCell):
         leak_rate: float = 1.0,
         noise_level: float = 0.0, # Add noise to the reservoir state only during training
         activation: Union[str, Callable] = "tanh",
-        input_initializer: Union[str, keras.initializers.Initializer] = "random_uniform",
-        input_bias_initializer: Union[str, keras.initializers.Initializer] = "random_uniform",
-        kernel_initializer: Union[str, keras.initializers.Initializer] = "random_uniform",
+        input_initializer: Union[str, Initializer] = "random_uniform",
+        input_bias_initializer: Union[str, Initializer] = "random_uniform",
+        kernel_initializer: Union[str, Initializer] = "random_uniform",
         **kwargs,
     ):
         super().__init__(units, **kwargs)

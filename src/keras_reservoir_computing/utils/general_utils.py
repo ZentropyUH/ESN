@@ -38,7 +38,7 @@ def create_rng(seed: int = None) -> np.random.Generator:
     return rg
 
 
-def lyap_ks(i_th, L_period):
+def lyap_ks(i_th: int, L_period: float) -> float:
     """Estimation of the i-th largest Lyapunov Time of the KS model.
 
     Args:

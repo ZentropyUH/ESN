@@ -59,7 +59,7 @@ forecast_config = {
 # endregion: example_dicts
 
 
-def config_loader(filepath: str, keys: Tuple):
+def config_loader(filepath: str, keys: Tuple) -> dict:
     """
     Loads a configuration dictionary from a JSON file.
 
@@ -90,7 +90,7 @@ def config_loader(filepath: str, keys: Tuple):
     return config
 
 
-def model_loader(filepath: str):
+def model_loader(filepath: str) -> ReservoirComputer:
     """
     Loads a model from a file.
 
@@ -115,7 +115,7 @@ def model_loader(filepath: str):
 
 def model_generator(
     name: str, model_config: Union[str, dict], features: int, seed: Optional[int] = None
-):
+) -> ReservoirComputer:
     """
     Generates a reservoir computing model based on the provided configuration.
 
@@ -200,7 +200,7 @@ def model_trainer(
     name: Optional[str] = None,
     savepath: Optional[str] = None,
     log: bool = False,
-):
+) -> ReservoirComputer:
     """
     Trains a reservoir computing model using the given dataset and configuration.
 
@@ -307,7 +307,7 @@ def model_batch_trainer(
     train_config: Union[str, dict],
     savepath: Optional[str] = None,
     log: bool = True,
-):
+) -> None:
     """
     Trains multiple reservoir computing models using a folder of data files.
 
@@ -374,7 +374,7 @@ def model_predictor(
     train_config: Union[str, dict],
     forecast_config: Union[str, dict],
     log: bool = True,
-):
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Generates predictions and (optionally) internal states from a trained model and dataset.
 
@@ -464,7 +464,7 @@ def model_batch_predictor(
     log: bool = True,
     progress: Progress = None,
     task: Task = None,
-):
+) -> Tuple[np.ndarray, np.ndarray]:
     """
     Generates predictions for a batch of data files using a single trained model.
 
@@ -622,7 +622,7 @@ def models_batch_predictor(
     savepath: Optional[str] = None,
     format: str = "npy",
     log: bool = True,
-):
+) -> None:
     """
     Generates predictions for multiple models across a batch of data files.
 
@@ -699,7 +699,7 @@ def ensemble_model_creator(
     trained_models_folder_path: str,
     ensemble_name: str = "Reservoir_Ensemble",
     log: bool = False,
-):
+) -> ReservoirEnsemble:
     """
     Creates an ensemble model by loading multiple trained reservoir computing models.
 
