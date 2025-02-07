@@ -972,5 +972,15 @@ def plot_heatmap(
     return axes
 
 
-if __name__ == "__main__":
-    pass
+__all__ = [
+    # plot_utils
+    "animate_trail",
+    "animate_timeseries",
+    "plot_2d_timeseries",
+    "plot_3d_parametric",
+    "plot_heatmap",
+]
+
+
+def __dir__():
+    return __all__

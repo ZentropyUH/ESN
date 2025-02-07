@@ -10,7 +10,7 @@ from scipy.sparse import linalg
 
 import keras
 from keras import Initializer
-from keras.initializers import RandomUniform #type: ignore
+from keras.src.initializers import RandomUniform
 
 
 @keras.saving.register_keras_serializable(package="MyInitializers", name="InputMatrix")

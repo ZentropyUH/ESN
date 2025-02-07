@@ -4,7 +4,7 @@ from typing import Callable, Union
 
 import keras
 
-from ..layers import PowerIndex
+from keras_reservoir_computing.layers import PowerIndex
 
 
 @keras.saving.register_keras_serializable(package="Reservoirs", name="BaseReservoirCell")

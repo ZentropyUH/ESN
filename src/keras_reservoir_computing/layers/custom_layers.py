@@ -1,5 +1,5 @@
 """Custom keras layers."""
-from typing import Dict, List, Union
+from typing import Dict, List
 
 import keras
 import tensorflow as tf

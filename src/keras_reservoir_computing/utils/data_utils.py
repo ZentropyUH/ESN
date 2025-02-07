@@ -443,24 +443,36 @@ def get_all_errors(predictions_path):
 def mean_prediction_error(predictions_path):
     """
     Given a datapath this will load all the predictions and take the mean over the models axis. We will then have the mean prediction for each sample. Then we will compare the mean prediction to the target data and return the normalized error.
-    
+
     Args:
         predictions_path (str): The path to the directory containing the predictions.
-        
+
     Returns:
         np.ndarray: The normalized error of shape (samples, time).
     """
-    
+
     preds = get_all_predictions(predictions_path)
     mean_pred = mean_ensemble_prediction(preds)
     targets = get_all_targets(predictions_path)
-    
-    
-    
+
     error = compute_normalized_error(targets, mean_pred)
-    
+
     return error
 
 
-if __name__ == "__main__":
-    pass
+__all__ = [
+    # data_utils
+    "list_files_only",
+    "load_data",
+    "save_data",
+    "compute_normalized_error",
+    "load_file",
+    "mean_ensemble_prediction",
+    "get_all_predictions",
+    "get_all_targets",
+    "get_all_errors",
+]
+
+
+def __dir__():
+    return __all__

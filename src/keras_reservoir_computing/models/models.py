@@ -12,7 +12,8 @@ from keras import Layer
 
 from keras_reservoir_computing.layers import RemoveOutliersAndMean
 from keras_reservoir_computing.reservoirs import BaseReservoir
-from keras_reservoir_computing.utils import TF_Ridge, timer
+from keras_reservoir_computing.utils.tf_utils import TF_Ridge
+from keras_reservoir_computing.utils.general_utils import timer
 
 logging.basicConfig(level=logging.INFO)
 

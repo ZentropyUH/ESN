@@ -1,92 +1,40 @@
-"""Define some general utility functions."""
-
-from contextlib import contextmanager
-from time import time
 import tensorflow as tf
-import json
-from typing import Tuple
-
-
-def config_loader(filepath: str, keys: Tuple):
-    """
-    Loads a configuration dictionary from a JSON file.
-
-    This is a helper function to load a configuration dictionary from a JSON file, namely model_config, train_config, and forecast_config.
-
-    Parameters
-    ----------
-    filepath : str
-        Path to the JSON configuration file.
-    keys : Tuple[str]
-        Tuple of keys that the configuration dictionary should contain.
-    Returns
-    -------
-    dict
-        The loaded configuration dictionary.
-    """
-    with open(filepath, "r") as file:
-        config = json.load(file)
-
-    all_keys = config.keys()
-
-    for key in keys:
-        if key not in all_keys:
-            raise KeyError(f"Key {key} not found in the configuration file {filepath}. It should contain the following keys: {keys}")
-
-    return config
-
-
-def lyap_ks(i_th, L_period):
-    """Estimation of the i-th largest Lyapunov Time of the KS model.
-
-    Args:
-        i_th (int): The i-th largest Lyapunov Time.
-
-        L_period (int): The period of the system.
-
-    Returns:
-        float: The estimated i-th largest Lyapunov Time.
-
-    Taken from the paper:
-        "Lyapunov Exponents of the Kuramoto-Sivashinsky PDE. arxiv:1902.09651v1"
-    """
-    # This approximation is taken from the above paper. Verify veracity.
-    return 0.093 - 0.94 * (i_th - 0.39) / L_period
-
-
-@contextmanager
-def timer(task_name: str="Task", log: bool=True):
-    """
-    Context manager to measure the time of a task.
-
-    Args:
-        task_name (str): Name of the task to measure.
-        log (bool): Whether to log the time taken.
-
-    Returns:
-        None
-
-    Example:
-        >>> with self.timer("Some Task"):
-        >>>     # Code to measure
-        Will print the time taken to execute the code block.
-    """
-    if log:
-        print(f"\n{task_name}...\n")
-    start = time()
-    yield
-    end = time()
-    if log:
-        print(f"{task_name} took: {round(end - start, 2)} seconds.\n")
 
 
 # TF implementation of Ridge using svd. TODO: see if it works as well as sklearn
 class TF_Ridge:
     """
-    Robust tensorflow ridge regression model using SVD solver.
+    Parameters
+    ----------
+    alpha : float
+        Regularization strength.
 
-    Args:
-        alpha (float): Regularization strength.
+    Attributes
+    ----------
+    alpha : float
+        Regularization strength.
+    built : bool
+        Indicates whether the model has been fitted.
+    coef_ : tf.Tensor or None
+        Coefficients of the fitted model.
+    intercept_ : tf.Tensor or None
+        Intercept of the fitted model.
+    n_features_in : int or None
+        Number of features in the input data.
+    W : tf.Tensor or None
+        Concatenated coefficients and intercept.
+
+    Methods
+    -------
+    fit(X, y)
+        Fit the Ridge regression model using SVD.
+    predict(X)
+    get_params()
+
+    Notes
+    -----
+    - The model uses TensorFlow for all computations.
+    - The model is fitted using the formula W = (X^T X + alpha I)^-1 X^T y.
     """
 
     def __init__(self, alpha: float) -> None:
@@ -251,3 +199,13 @@ class TF_Ridge:
             "coef_": self.coef_,
             "intercept_": self.intercept_,
         }
+
+
+__all__ = [
+    # tf_utils
+    "TF_Ridge",
+]
+
+
+def __dir__():
+    return __all__

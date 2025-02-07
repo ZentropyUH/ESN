@@ -1,12 +1,24 @@
 import os
+
+from keras_reservoir_computing.reservoirs import EchoStateNetwork, ESNCell
+
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+
+import json
+from typing import Optional, Tuple, Union
 
 import keras
 import numpy as np
-from rich.progress import track, Progress
+from rich.progress import Progress, Task, track
 
 import keras_reservoir_computing as krc
-from keras_reservoir_computing.utils import timer, config_loader
+from keras_reservoir_computing.models import ReservoirComputer, ReservoirEnsemble
+from keras_reservoir_computing.utils.data_utils import (
+    list_files_only,
+    load_data,
+    save_data,
+)
+from keras_reservoir_computing.utils.general_utils import timer
 
 # region: example_dicts
 #################### Test Dicts ####################
@@ -47,7 +59,38 @@ forecast_config = {
 # endregion: example_dicts
 
 
-def model_loader(filepath):
+def config_loader(filepath: str, keys: Tuple):
+    """
+    Loads a configuration dictionary from a JSON file.
+
+    This is a helper function to load a configuration dictionary from a JSON file, namely model_config, train_config, and forecast_config.
+
+    Parameters
+    ----------
+    filepath : str
+        Path to the JSON configuration file.
+    keys : Tuple[str]
+        Tuple of keys that the configuration dictionary should contain.
+    Returns
+    -------
+    dict
+        The loaded configuration dictionary.
+    """
+    with open(filepath, "r") as file:
+        config = json.load(file)
+
+    all_keys = config.keys()
+
+    for key in keys:
+        if key not in all_keys:
+            raise KeyError(
+                f"Key {key} not found in the configuration file {filepath}. It should contain the following keys: {keys}"
+            )
+
+    return config
+
+
+def model_loader(filepath: str):
     """
     Loads a model from a file.
 
@@ -66,11 +109,13 @@ def model_loader(filepath):
     Ensure that the file at `filepath` is a valid model file previously saved via the
     `krc.models.ReservoirComputer.save` method.
     """
-    model = krc.models.ReservoirComputer.load(filepath)
+    model = ReservoirComputer.load(filepath)
     return model
 
 
-def model_generator(name, model_config, features, seed=None):
+def model_generator(
+    name: str, model_config: Union[str, dict], features: int, seed: Optional[int] = None
+):
     """
     Generates a reservoir computing model based on the provided configuration.
 
@@ -127,27 +172,35 @@ def model_generator(name, model_config, features, seed=None):
             **model_config["kernel_init"]["params"], seed=seed
         )
 
-    cell = krc.reservoirs.ESNCell(
+    cell = ESNCell(
         **model_config["cell"],
         input_initializer=feedback_init,
         input_bias_initializer=feedback_bias_init,
         kernel_initializer=kernel_init,
     )
 
-    reservoir = krc.reservoirs.EchoStateNetwork(reservoir_cell=cell)
+    reservoir = EchoStateNetwork(reservoir_cell=cell)
 
     readout_layer = keras.layers.Dense(
         features, activation="linear", name="readout", trainable=False
     )
 
-    model = krc.models.ReservoirComputer(
+    model = ReservoirComputer(
         reservoir=reservoir, readout=readout_layer, seed=seed, name=name
     )
 
     return model
 
 
-def model_trainer(datapath, model_config, train_config, seed=None, name=None, savepath=None, log=False):
+def model_trainer(
+    datapath: str,
+    model_config: Union[str, dict],
+    train_config: Union[str, dict],
+    seed: Optional[int] = None,
+    name: Optional[str] = None,
+    savepath: Optional[str] = None,
+    log: bool = False,
+):
     """
     Trains a reservoir computing model using the given dataset and configuration.
 
@@ -185,7 +238,6 @@ def model_trainer(datapath, model_config, train_config, seed=None, name=None, sa
     if isinstance(model_config, str):
         model_config = config_loader(model_config, model_config_keys)
 
-
     train_config_keys = [
         "init_transient_length",
         "train_length",
@@ -214,7 +266,7 @@ def model_trainer(datapath, model_config, train_config, seed=None, name=None, sa
     regularization = train_config["regularization"]
 
     with timer("Loading data", log=log):
-        transient_data, train_data, train_target, _, _, _ = krc.utils.load_data(
+        transient_data, train_data, train_target, _, _, _ = load_data(
             datapath=datapath,
             init_transient=init_transient_length,
             train_length=train_length,
@@ -250,7 +302,11 @@ def model_trainer(datapath, model_config, train_config, seed=None, name=None, sa
 
 
 def model_batch_trainer(
-    data_folder_path, model_config, train_config, savepath, log=True
+    data_folder_path: str,
+    model_config: Union[str, dict],
+    train_config: Union[str, dict],
+    savepath: Optional[str] = None,
+    log: bool = True,
 ):
     """
     Trains multiple reservoir computing models using a folder of data files.
@@ -265,7 +321,7 @@ def model_batch_trainer(
     train_config : str or dict
         Either the path to the dictionary specifying the training configuration or the dictionary itself.
         Must contain the keys 'init_transient_length', 'train_length', 'transient_length', 'normalize' and 'regularization'.
-    savepath : str
+    savepath : str, optional
         Path to the folder where the trained models will be saved.
     log : bool, optional
         Whether to log the process. Defaults to True. See `model_trainer` for more
@@ -291,7 +347,7 @@ def model_batch_trainer(
     if isinstance(train_config, str):
         train_config = config_loader(train_config, train_config_keys)
 
-    data_files = krc.utils.list_files_only(data_folder_path)
+    data_files = list_files_only(data_folder_path)
 
     if savepath is None:
         savepath = os.path.join(data_folder_path, "models")
@@ -312,7 +368,13 @@ def model_batch_trainer(
         )
 
 
-def model_predictor(model, datapath, train_config, forecast_config, log=True):
+def model_predictor(
+    model: Union[str, ReservoirComputer],
+    datapath: str,
+    train_config: Union[str, dict],
+    forecast_config: Union[str, dict],
+    log: bool = True,
+):
     """
     Generates predictions and (optionally) internal states from a trained model and dataset.
 
@@ -373,7 +435,7 @@ def model_predictor(model, datapath, train_config, forecast_config, log=True):
         model = model_loader(model)
 
     with timer("Loading data", log=log):
-        _, _, _, ftransient, val_data, val_target = krc.utils.load_data(
+        _, _, _, ftransient, val_data, val_target = load_data(
             datapath=datapath,
             init_transient=init_transient_length,
             train_length=train_length,
@@ -393,15 +455,15 @@ def model_predictor(model, datapath, train_config, forecast_config, log=True):
 
 
 def model_batch_predictor(
-    model_path,
-    data_folder_path,
-    train_config,
-    forecast_config,
-    savepath=None,
-    format="npy",
-    log=True,
-    progress=None,
-    task=None,
+    model_path: str,
+    data_folder_path: str,
+    train_config: Union[str, dict],
+    forecast_config: Union[str, dict],
+    savepath: Optional[str] = None,
+    format: str = "npy",
+    log: bool = True,
+    progress: Progress = None,
+    task: Task = None,
 ):
     """
     Generates predictions for a batch of data files using a single trained model.
@@ -462,7 +524,7 @@ def model_batch_predictor(
         forecast_config = config_loader(forecast_config, forecast_config_keys)
     #########################################
 
-    data_files = krc.utils.list_files_only(data_folder_path)
+    data_files = list_files_only(data_folder_path)
 
     # Initialize empty arrays for concatenation
     predictions_array = None
@@ -492,7 +554,11 @@ def model_batch_predictor(
             return None, None
 
     # Create progress bar, inner if progress is None, otherwise update task inside the loop
-    iterator = track(data_files, description=f"Predicting {model_path.split('/')[-1]}") if progress is None else data_files
+    iterator = (
+        track(data_files, description=f"Predicting {model_path.split('/')[-1]}")
+        if progress is None
+        else data_files
+    )
 
     for data_file in iterator:
         datapath = os.path.join(data_folder_path, data_file)
@@ -530,7 +596,7 @@ def model_batch_predictor(
         os.makedirs(name=savepath, exist_ok=True)
 
         pred_filename = model_path.split(".")[0].split("/")[-1] + "_predictions"
-        krc.utils.save_data(
+        save_data(
             data=predictions_array,
             filename=pred_filename,
             savepath=savepath,
@@ -538,7 +604,7 @@ def model_batch_predictor(
         )
 
         target_filename = model_path.split(".")[0].split("/")[-1] + "_targets"
-        krc.utils.save_data(
+        save_data(
             data=targets_array,
             filename=target_filename,
             savepath=savepath,
@@ -549,13 +615,13 @@ def model_batch_predictor(
 
 
 def models_batch_predictor(
-    model_folder_path,
-    data_folder_path,
-    train_config,
-    forecast_config,
-    savepath=None,
-    format="npy",
-    log=True,
+    model_folder_path: str,
+    data_folder_path: str,
+    train_config: Union[str, dict],
+    forecast_config: Union[str, dict],
+    savepath: Optional[str] = None,
+    format: str = "npy",
+    log: bool = True,
 ):
     """
     Generates predictions for multiple models across a batch of data files.
@@ -601,10 +667,10 @@ def models_batch_predictor(
         forecast_config = config_loader(forecast_config, forecast_config_keys)
     #########################################
 
-    model_files = krc.utils.list_files_only(model_folder_path)
+    model_files = list_files_only(model_folder_path)
 
     total_models = len(model_files)
-    total_data_files = len(krc.utils.list_files_only(data_folder_path))
+    total_data_files = len(list_files_only(data_folder_path))
     total_iterations = total_models * total_data_files
 
     with Progress() as progress:
@@ -630,7 +696,9 @@ def models_batch_predictor(
 
 
 def ensemble_model_creator(
-    trained_models_folder_path, ensemble_name="Reservoir_Ensemble", log=False
+    trained_models_folder_path: str,
+    ensemble_name: str = "Reservoir_Ensemble",
+    log: bool = False,
 ):
     """
     Creates an ensemble model by loading multiple trained reservoir computing models.
@@ -653,27 +721,34 @@ def ensemble_model_creator(
     -----
     Each model contained in the ensemble is loaded from the trained model files found in `trained_models_folder_path`.
     """
-    model_files = krc.utils.list_files_only(trained_models_folder_path)
+    model_files = list_files_only(trained_models_folder_path)
 
     ensemble_models = []
 
     with timer("Loading models", log=log):
-        for model_file in track(
-            model_files,
-            description="Loading models"
-        ):
+        for model_file in track(model_files, description="Loading models"):
             model = model_loader(os.path.join(trained_models_folder_path, model_file))
             ensemble_models.append(model)
 
-    ensemble = krc.models.ReservoirEnsemble(reservoir_computers=ensemble_models, name=ensemble_name)
+    ensemble = ReservoirEnsemble(
+        reservoir_computers=ensemble_models, name=ensemble_name
+    )
 
     return ensemble
 
 
-if __name__ == '__main__':
-    model = ensemble_model_creator(
-        "/media/elessar/Data/Pincha/TSDynamics/data/discrete/Henon/Models",
-        ensemble_name="HenonEnsemble",
-    )
+__all__ = [
+    # model_utils
+    "model_loader",
+    "model_generator",
+    "model_trainer",
+    "model_predictor",
+    "model_batch_trainer",
+    "model_batch_predictor",
+    "models_batch_predictor",
+    "ensemble_model_creator",
+]
 
-    print(model)
+
+def __dir__():
+    return __all__
