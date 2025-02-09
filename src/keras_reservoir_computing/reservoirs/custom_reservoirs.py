@@ -227,11 +227,12 @@ class EchoStateNetwork(BaseReservoir):
     """
     def __init__(
         self,
+        reservoir_cell: BaseReservoirCell,
         index: int = 2, # Index parity for power_index augmentation
         exponent: int = 2, # For the power_index state augmentation
         **kwargs,
     ):
-        super().__init__(**kwargs) # It will handle the cell here
+        super().__init__(reservoir_cell=reservoir_cell, **kwargs) # It will handle the cell here
 
         self.index = index
         self.exponent = exponent
