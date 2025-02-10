@@ -1,18 +1,12 @@
 """Custom Initializers."""
 
-from typing import Dict, Union, List, Tuple
-
-import networkx as nx
-import numpy as np
-import tensorflow as tf
-from scipy import sparse
-from scipy.sparse import linalg
-
-from keras_reservoir_computing.utils.tf_utils import create_tf_rng
+from typing import Dict, List, Tuple, Union
 
 import keras
+import tensorflow as tf
 from keras import Initializer
-from keras.src.initializers import RandomUniform
+
+from keras_reservoir_computing.utils.tf_utils import create_tf_rng
 
 
 @keras.saving.register_keras_serializable(package="MyInitializers", name="InputMatrix")
