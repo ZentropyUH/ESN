@@ -1,4 +1,29 @@
 import tensorflow as tf
+from typing import Optional
+
+
+def create_tf_rng(seed: Optional[int] = None) -> tf.random.Generator:
+    """
+    Create a TensorFlow random number generator.
+
+    Parameters
+    ----------
+    seed : int, tf.random.Generator, or None
+        Seed for the random number generator. If None, a new generator is created.
+
+    Returns
+    -------
+    tf.random.Generator
+        TensorFlow random number generator.
+    """
+    if seed is not None:
+        rg = tf.random.Generator.from_seed(seed)
+    elif isinstance(seed, tf.random.Generator):
+        rg = seed
+    else:
+        rg = tf.random.Generator.from_non_deterministic_state()
+
+    return rg
 
 
 # TF implementation of Ridge using svd. TODO: see if it works as well as sklearn
@@ -203,6 +228,7 @@ class TF_Ridge:
 
 __all__ = [
     # tf_utils
+    "create_tf_rng",
     "TF_Ridge",
 ]
 
