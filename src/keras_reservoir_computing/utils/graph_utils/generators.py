@@ -1,7 +1,9 @@
 from typing import Union
+
 import numpy as np
-from  networkx import DiGraph, Graph
-from .helpers import create_rng, to_tensor, connected_graph
+from networkx import DiGraph, Graph
+
+from .helpers import connected_graph, create_rng, to_tensor
 
 
 @to_tensor
@@ -183,6 +185,10 @@ def connected_erdos_renyi(
     tf.Tensor
         Adjacency matrix of the connected Erdos-Renyi graph.
     """
+    if p < np.log(n) / n:
+        raise ValueError(
+            f"Edge probability p must be greater than ln(n) / n to be connected, (got p={p}, n={n})."
+        )
     return erdos_renyi(n, p, directed, self_loops, seed)
 
 
@@ -255,35 +261,58 @@ def barabasi_albert(
     directed: bool = False,
     seed: Union[int, np.random.Generator, None] = None,
 ) -> Union[Graph, DiGraph]:
+    """
+    Generates a Barabási-Albert scale-free network using proper preferential attachment.
+
+    Parameters
+    ----------
+    n : int
+        Number of nodes.
+    m : int
+        Number of edges to attach from a new node to existing nodes.
+    directed : bool, optional
+        If True, generates a directed graph; otherwise, an undirected one.
+    seed : int, np.random.Generator, or None, optional
+        Random seed for reproducibility.
+
+    Returns
+    -------
+    nx.Graph or nx.DiGraph
+        The generated Barabási-Albert graph.
+    """
     if m < 1 or m >= n:
         raise ValueError(f"m must be >= 1 and < n, got m={m}, n={n}.")
 
-    rng = create_rng(seed)
+    rng = np.random.default_rng(seed)
     G = DiGraph() if directed else Graph()
 
-    # Start with a fully connected core of m nodes
+    # Step 1: Initialize a complete graph with m nodes
     G.add_nodes_from(range(m))
     for i in range(m):
         for j in range(i + 1, m):
-            weight = rng.choice([-1, 1])
-            G.add_edge(i, j, weight=weight)
+            G.add_edge(i, j, weight=rng.choice([-1, 1]))
             if directed:
                 G.add_edge(j, i, weight=rng.choice([-1, 1]))
 
-    # List to store nodes with degree, allowing for faster attachment
-    targets = list(G.nodes) * m
+    # Step 2: Maintain a list of nodes, where each appears proportional to its degree
+    targets = list(G.nodes) * m  # Initial fully connected core
 
     for i in range(m, n):
         G.add_node(i)
+
+        # Select `m` unique nodes with probability proportional to degree
         new_edges = rng.choice(targets, size=m, replace=False)
+
         for t in new_edges:
-            weight = rng.choice([-1, 1])
-            G.add_edge(i, t, weight=weight)
+            G.add_edge(i, t, weight=rng.choice([-1, 1]))
             if directed:
                 G.add_edge(t, i, weight=rng.choice([-1, 1]))
 
+        # Update targets list to reflect new degree counts
         targets.extend([i] * m)
-        targets.extend(new_edges)
+        targets.extend(
+            new_edges
+        )  # Each selected node appears again for attachment probability
 
     return G
 
@@ -391,3 +420,106 @@ def kleinberg_small_world(
                     G.add_edge(target, (i, j), weight=weight)
 
     return G
+
+
+@to_tensor
+def regular(
+    n: int,
+    k: int,
+    directed: bool = False,
+    self_loops: bool = False,
+    random_weights: bool = True,
+    seed: Union[int, np.random.Generator, None] = None,
+) -> Union[Graph, DiGraph]:
+    """
+    Generates a regular graph with n nodes and each node connected to k neighbors.
+
+    Parameters
+    ----------
+    n : int
+        Number of nodes.
+    k : int
+        Number of neighbors each node is connected to.
+    directed : bool, optional
+        If True, generates a directed graph; otherwise, an undirected one.
+    self_loops : bool, optional
+        If True, allows self-loops in the graph.
+    random_weights : bool, optional
+        If True, weights are randomly chosen (-1 or 1); if False, they alternate across edges.
+    seed : int, np.random.Generator, or None, optional
+        Random seed for reproducibility.
+
+    Returns
+    -------
+    nx.Graph or nx.DiGraph
+        The generated regular graph.
+    """
+    if k > n - (n % 2):  # Ensure no duplicated edges in undirected case
+        raise ValueError(f"k must be at most n//2 (got k={k}, n={n})")
+
+    rng = create_rng(seed)
+    G = DiGraph() if directed else Graph()
+
+    for i in range(n):
+        for j in range(1, (k // 2) + 1):
+            neighbor = (i + j) % n
+
+            # Alternate sign across edges globally
+            weight = rng.choice([-1, 1]) if random_weights else (-1) ** (i + neighbor)
+            G.add_edge(i, neighbor, weight=weight)
+
+            if directed:
+                weight = (
+                    rng.choice([-1, 1]) if random_weights else (-1) ** (i + neighbor)
+                )
+                G.add_edge(neighbor, i, weight=weight)
+
+    if self_loops:
+        for i in range(n):
+            weight = rng.choice([-1, 1]) if random_weights else (-1) ** (i)
+            G.add_edge(i, i, weight=weight)
+
+    return G
+
+
+@to_tensor
+def complete(
+    n: int,
+    self_loops: bool = False,
+    random_weights: bool = True,
+    seed: Union[int, np.random.Generator, None] = None,
+) -> Union[Graph, DiGraph]:
+    """
+    Generates a complete graph with n nodes.
+
+    Parameters
+    ----------
+    n : int
+        Number of nodes.
+    self_loops : bool, optional
+        If True, allows self-loops in the graph.
+    random_weights : bool, optional
+        If True, weights are randomly chosen (-1 or 1); if False, they alternate across edges.
+    seed : int, np.random.Generator, or None, optional
+        Random seed for reproducibility.
+
+    Returns
+    -------
+    nx.Graph or nx.DiGraph
+        The generated complete graph.
+    """
+    rng = create_rng(seed)
+    G = Graph()
+
+    for i in range(n):
+        for j in range(i + 1, n):
+            weight = rng.choice([-1, 1]) if random_weights else (-1) ** (i + j)
+            G.add_edge(i, j, weight=weight)
+
+    if self_loops:
+        for i in range(n):
+            weight = rng.choice([-1, 1]) if random_weights else (-1) ** (i)
+            G.add_edge(i, i, weight=weight)
+
+    return G
+

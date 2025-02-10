@@ -8,10 +8,12 @@ from keras.src.initializers import Initializer
 from keras_reservoir_computing.utils.general_utils import create_rng
 from keras_reservoir_computing.utils.graph_utils import (
     barabasi_albert,
+    complete,
     connected_erdos_renyi,
     connected_watts_strogatz,
-    newman_watts_strogatz,
     kleinberg_small_world,
+    newman_watts_strogatz,
+    regular,
 )
 from keras_reservoir_computing.utils.graph_utils.helpers import spectral_radius_hybrid
 
@@ -414,12 +416,127 @@ class KleinbergSmallWorldGraphInitializer(GraphInitializerBase):
         return config
 
 
+@keras.saving.register_keras_serializable(
+    package="MyInitializers", name="RegularGraphInitializer"
+)
+class RegularGraphInitializer(GraphInitializerBase):
+    """Initializer that generates adjacency matrices of regular graphs.
+
+    Parameters
+    ----------
+    k : int
+        The degree of the graph.
+    directed : bool
+        If True, the generated graph is directed.
+    self_loops : bool
+        If True, the generated graph has self-loops.
+    spectral_radius : float or None
+        The spectral radius of the generated graph. If None, the spectral radius is not controlled.
+    seed : int
+        The random seed for reproducibility. If None, the random seed is not set.
+    Returns
+    -------
+    tf.Tensor
+        An initialized 2D tensor as an adjacency matrix of a regular graph.
+    """
+
+    def __init__(
+        self,
+        k: int=2,
+        directed: bool = True,
+        self_loops: bool = True,
+        random_weights: bool = True,
+        spectral_radius: float = None,
+        seed: int = None,
+    ):
+        self.k = k
+        self.directed = directed
+        self.self_loops = self_loops
+        self.random_weights = random_weights
+        super().__init__(spectral_radius=spectral_radius, seed=seed)
+
+    def _generate_adjacency_matrix(self, n: int) -> np.ndarray:
+        adj = regular(
+            n=n,
+            k=self.k,
+            directed=self.directed,
+            self_loops=self.self_loops,
+            random_weights=self.random_weights,
+            seed=self.rng,
+        )
+        return adj
+
+    def get_config(self):
+        base_config = super().get_config()
+        config = {
+            "k": self.k,
+            "directed": self.directed,
+            "self_loops": self.self_loops,
+        }
+
+        config.update(base_config)
+        return config
+
+
+@keras.saving.register_keras_serializable(
+    package="MyInitializers", name="CompleteGraphInitializer"
+)
+class CompleteGraphInitializer(GraphInitializerBase):
+    """Initializer that generates adjacency matrices of complete graphs.
+
+    Parameters
+    ----------
+    self_loops : bool
+        If True, the generated graph has self-loops.
+    random_weights : bool
+        If True, the generated graph has random weights. If False, the weights will be alternating between 1 and -1.
+    spectral_radius : float or None
+        The spectral radius of the generated graph. If None, the spectral radius is not controlled.
+    seed : int
+        The random seed for reproducibility. If None, the random seed is not set.
+    Returns
+    -------
+    tf.Tensor
+        An initialized 2D tensor as an adjacency matrix of a complete graph.
+    """
+
+    def __init__(
+        self,
+        self_loops: bool = True,
+        random_weights: bool = True,
+        spectral_radius: float = None,
+        seed: int = None,
+    ):
+        self.self_loops = self_loops
+        self.random_weights = random_weights
+        super().__init__(spectral_radius=spectral_radius, seed=seed)
+
+    def _generate_adjacency_matrix(self, n: int) -> np.ndarray:
+        adj = complete(
+            n=n,
+            self_loops=self.self_loops,
+        )
+        return adj
+
+    def get_config(self):
+        base_config = super().get_config()
+        config = {
+            "self_loops": self.self_loops,
+            "random_weights": self.random_weights,
+        }
+
+        config.update(base_config)
+        return config
+
+
 __all__ = [
     "WattsStrogatzGraphInitializer",
     "ErdosRenyiGraphInitializer",
     "BarabasiAlbertGraphInitializer",
     "NewmanWattsStrogatzGraphInitializer",
     "KleinbergSmallWorldGraphInitializer",
+    "RegularGraphInitializer",
+    "CompleteGraphInitializer",
 ]
 
 def __dir__():

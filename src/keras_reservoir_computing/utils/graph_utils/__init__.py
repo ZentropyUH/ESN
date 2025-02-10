@@ -1,19 +1,23 @@
 from .generators import (
-    watts_strogatz,
+    barabasi_albert,
+    complete,
+    connected_erdos_renyi,
     connected_watts_strogatz,
     erdos_renyi,
-    connected_erdos_renyi,
-    newman_watts_strogatz,
-    barabasi_albert,
     kleinberg_small_world,
+    newman_watts_strogatz,
+    regular,
+    watts_strogatz,
 )
 
 __all__ = [
-    "watts_strogatz",
+    "barabasi_albert",
+    "complete",
+    "connected_erdos_renyi",
     "connected_watts_strogatz",
     "erdos_renyi",
-    "connected_erdos_renyi",
-    "newman_watts_strogatz",
-    "barabasi_albert",
     "kleinberg_small_world",
+    "newman_watts_strogatz",
+    "regular",
+    "watts_strogatz",
 ]
