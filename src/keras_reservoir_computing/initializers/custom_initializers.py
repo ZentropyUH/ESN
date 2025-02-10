@@ -144,7 +144,7 @@ class InputMatrix(Initializer):
     def get_config(self) -> Dict:
         """Get the config dictionary of the initializer for serialization."""
         base_config = super().get_config()
-        config = {"sigma": self.sigma, "ones": self.binarize, "seed": self.seed}
+        config = {"sigma": self.sigma, "binarize": self.binarize, "seed": self.seed}
 
         config.update(base_config)
         return config
