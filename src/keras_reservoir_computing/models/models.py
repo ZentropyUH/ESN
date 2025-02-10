@@ -493,7 +493,9 @@ class ReservoirEnsemble(keras.Model):
         seed (int | None): The seed of the model.
     """
 
-    def __init__(self, reservoir_computers: List[ReservoirComputer], seed=None, **kwargs):
+    def __init__(
+        self, reservoir_computers: List[ReservoirComputer], seed=None, **kwargs
+    ):
         super().__init__(**kwargs)
         self.reservoir_computers = reservoir_computers
         self.outlier_removal_layer = RemoveOutliersAndMean(name="outlier_removal")
@@ -530,10 +532,12 @@ class ReservoirEnsemble(keras.Model):
         Returns:
             Tensor: Output tensor after passing through reservoir and readout layers. Of shape (batch_size, timesteps, output_dim).
         """
-        reservoir_outputs = tf.stack([
-            reservoir_computer(inputs)
-            for reservoir_computer in self.reservoir_computers
-        ]) # This will have shape (num_reservoirs, batch_size, timesteps, output_dim)
+        reservoir_outputs = tf.stack(
+            [
+                reservoir_computer(inputs)
+                for reservoir_computer in self.reservoir_computers
+            ]
+        )  # This will have shape (num_reservoirs, batch_size, timesteps, output_dim)
         output = self.outlier_removal_layer(reservoir_outputs)
         return output
 
@@ -702,7 +706,9 @@ class ReservoirEnsemble(keras.Model):
                 new_states_nested = [rc.get_states() for rc in self.reservoir_computers]
                 for rc_idx, rc_states in enumerate(new_states_nested):
                     for state_idx, st_tensor in enumerate(rc_states):
-                        st_ta[rc_idx][state_idx] = st_ta[rc_idx][state_idx].write(step, st_tensor)
+                        st_ta[rc_idx][state_idx] = st_ta[rc_idx][state_idx].write(
+                            step, st_tensor
+                        )
 
             return step + 1, preds_ta, st_ta
 
@@ -833,9 +839,11 @@ class ReservoirEnsemble(keras.Model):
         """
         # If the model hasn't been built yet, self._input_shape may be None.
         # In that case, return an empty dict or handle as needed.
-        return {
-            "input_shape": self._input_shape
-        } if getattr(self, "_input_shape", None) is not None else {}
+        return (
+            {"input_shape": self._input_shape}
+            if getattr(self, "_input_shape", None) is not None
+            else {}
+        )
 
     def build_from_config(self, config):
         """Build the model from the given configuration.
