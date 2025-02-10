@@ -1,6 +1,5 @@
 from .custom_initializers import (
-    InputMatrix, 
-    RandomUniformSRAdjusted
+    InputMatrix,
 )
 
 from .graph_initializers import (
@@ -10,18 +9,19 @@ from .graph_initializers import (
     NewmanWattsStrogatzGraphInitializer,
     KleinbergSmallWorldGraphInitializer,
     RegularGraphInitializer,
+    CompleteGraphInitializer
 )
-    
+
 __all__ = [
-    "InputMatrix", 
-    "RandomUniformSRAdjusted",
-    
+    "InputMatrix",
+
     "WattsStrogatzGraphInitializer",
     "ErdosRenyiGraphInitializer",
     "BarabasiAlbertGraphInitializer",
     "NewmanWattsStrogatzGraphInitializer",
     "KleinbergSmallWorldGraphInitializer",
     "RegularGraphInitializer",
-    
-    ]
+    "CompleteGraphInitializer"
+
+]
 
