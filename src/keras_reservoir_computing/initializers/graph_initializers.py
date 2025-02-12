@@ -1,7 +1,6 @@
-from typing import Optional
+from typing import List, Optional, Tuple, Union
 
 import keras
-import numpy as np
 import tensorflow as tf
 from keras.src.initializers import Initializer
 
@@ -22,30 +21,44 @@ from keras_reservoir_computing.utils.graph_utils.helpers import spectral_radius_
     package="MyInitializers", name="GraphInitializerBase"
 )
 class GraphInitializerBase(Initializer):
-    """Initializer that generates adjacency matrices according to a given function.
+    """
+    Base class for initializers generating adjacency matrices for graph-based models.
+
+    This initializer constructs adjacency matrices based on a specified graph generation
+    function. It allows for optional spectral radius control to adjust the eigenvalues
+    of the generated matrix.
 
     Parameters
     ----------
-    spectral_radius : float or None
-        The spectral radius of the generated graph. If None, the spectral radius is not controlled.
-    seed : int
-        The random seed for reproducibility. If None, the random seed is not set.
+    spectral_radius : float or None, optional
+        Desired spectral radius of the adjacency matrix. If None, no rescaling is applied.
+    seed : int or None, optional
+        Random seed for reproducibility.
+
+    Methods
+    -------
+    __call__(shape, dtype=None)
+        Generates an adjacency matrix with the specified shape.
+    _generate_adjacency_matrix(n, *args, **kwargs)
+        Abstract method for generating a graph adjacency matrix.
+    get_config()
+        Returns a dictionary of the initializer's configuration.
+
     Returns
     -------
-    tf.Tensor
-        An initialized 2D tensor as an adjacency matrix of a graph.
+    Tensor
+        A 2D adjacency matrix representing the generated graph.
 
     Notes
     -----
-    - This is a base class that should be inherited and the `_generate_adjacency_matrix` method should be implemented.
-    - The _generate_adjacency_matrix method should return a 2D numpy array or a 2D tf.Tensor.
+    This is an abstract base class and must be subclassed with a specific graph
+    generation function implemented in `_generate_adjacency_matrix`.
     """
-
     def __init__(
         self,
         spectral_radius: Optional[float] = None,
-        seed: Optional[int] = None,
-    ):
+        seed: Optional[int | tf.random.Generator] = None,
+    ) -> None:
         if spectral_radius is not None and spectral_radius < 0:
             raise ValueError("The spectral radius should be non-negative.")
 
@@ -54,7 +67,11 @@ class GraphInitializerBase(Initializer):
         self.rng = create_rng(seed)
         super().__init__()
 
-    def __call__(self, shape, dtype=None) -> tf.Tensor:
+    def __call__(
+        self,
+        shape: Union[int, Tuple[int, int], List[int, int]],
+        dtype: Optional[tf.dtypes.DType] = None,
+    ) -> tf.Tensor:
         if isinstance(shape, int):
             shape = (shape, shape)
         elif (not isinstance(shape, (tuple, list)) or len(shape) != 2) or shape[
@@ -74,12 +91,12 @@ class GraphInitializerBase(Initializer):
         # Return the adjacency matrix as a 2D tensor
         return tf.convert_to_tensor(adj, dtype=dtype)
 
-    def _generate_adjacency_matrix(self, n: int, *args, **kwargs) -> np.ndarray:
+    def _generate_adjacency_matrix(self, n: int, *args, **kwargs) -> tf.Tensor:
         raise NotImplementedError(
             "The adjacency matrix generation function is not implemented."
         )
 
-    def get_config(self):
+    def get_config(self) -> dict:
         base_config = super().get_config()
 
         config = {
@@ -94,30 +111,39 @@ class GraphInitializerBase(Initializer):
     package="MyInitializers", name="WattsStrogatzGraphInitializer"
 )
 class WattsStrogatzGraphInitializer(GraphInitializerBase):
-    """Initializer that generates adjacency matrices of Watts-Strogatz graphs.
+    """
+    Initializer for adjacency matrices of Watts-Strogatz small-world graphs.
+
+    Generates a connected Watts-Strogatz graph with adjustable rewiring probability.
 
     Parameters
     ----------
     k : int
-        The number of nearest neighbors.
+        Number of nearest neighbors each node is initially connected to.
     p : float
-        The rewiring probability.
-    directed : bool
-        If True, the generated graph is directed.
-    self_loops : bool
-        If True, the generated graph has self-loops.
-    tries : int
-        The maximum number of tries to generate a connected graph.
-    spectral_radius : float or None
-        The spectral radius of the generated graph. If None, the spectral radius is not controlled.
-    seed : int
-        The random seed for reproducibility. If None, the random seed is not set.
+        Probability of rewiring each edge.
+    directed : bool, optional
+        If True, generates a directed graph.
+    self_loops : bool, optional
+        If True, allows self-loops.
+    tries : int, optional
+        Maximum attempts to ensure graph connectivity.
+    spectral_radius : float or None, optional
+        Desired spectral radius of the adjacency matrix. If None, no rescaling is applied.
+    seed : int or None, optional
+        Random seed for reproducibility.
+
     Returns
     -------
-    tf.Tensor
-        An initialized 2D tensor as an adjacency matrix of a connected Watts-Strogatz graph.
-    """
+    Tensor
+        A 2D adjacency matrix of a Watts-Strogatz graph.
 
+    Notes
+    -----
+    - The generated graph is guaranteed to be connected.
+    - The number of tries to ensure connectivity can be adjusted with the `tries` parameter.
+    - The non-zero elements of the adjacency matrix are sampled as -1 or 1.
+    """
     def __init__(
         self,
         k: int=4,
@@ -127,7 +153,7 @@ class WattsStrogatzGraphInitializer(GraphInitializerBase):
         tries: int = 100,
         spectral_radius: float = None,
         seed: int = None,
-    ):
+    ) -> None:
         self.k = k
         self.p = p
         self.directed = directed
@@ -135,7 +161,7 @@ class WattsStrogatzGraphInitializer(GraphInitializerBase):
         self.tries = tries
         super().__init__(spectral_radius=spectral_radius, seed=seed)
 
-    def _generate_adjacency_matrix(self, n: int) -> np.ndarray:
+    def _generate_adjacency_matrix(self, n: int) -> tf.Tensor:
         adj = connected_watts_strogatz(
             n=n,
             k=self.k,
@@ -147,7 +173,7 @@ class WattsStrogatzGraphInitializer(GraphInitializerBase):
         )
         return adj
 
-    def get_config(self):
+    def get_config(self) -> dict:
         base_config = super().get_config()
         config = {
             "k": self.k,
@@ -165,28 +191,37 @@ class WattsStrogatzGraphInitializer(GraphInitializerBase):
     package="MyInitializers", name="ErdosRenyiGraphInitializer"
 )
 class ErdosRenyiGraphInitializer(GraphInitializerBase):
-    """Initializer that generates adjacency matrices of Erdos-Renyi graphs.
+    """
+    Initializer for adjacency matrices of Erdos-Renyi random graphs.
+
+    Generates a connected Erdos-Renyi graph where edges are added with a given probability.
 
     Parameters
     ----------
     p : float
-        The edge probability.
-    directed : bool
-        If True, the generated graph is directed.
-    self_loops : bool
-        If True, the generated graph has self-loops.
-    tries : int
-        The maximum number of tries to generate a connected graph.
-    spectral_radius : float or None
-        The spectral radius of the generated graph. If None, the spectral radius is not controlled.
-    seed : int
-        The random seed for reproducibility. If None, the random seed is not set.
+        Probability of an edge existing between any two nodes.
+    directed : bool, optional
+        If True, generates a directed graph.
+    self_loops : bool, optional
+        If True, allows self-loops.
+    tries : int, optional
+        Maximum attempts to ensure graph connectivity.
+    spectral_radius : float or None, optional
+        Desired spectral radius of the adjacency matrix. If None, no rescaling is applied.
+    seed : int or None, optional
+        Random seed for reproducibility.
+
     Returns
     -------
-    tf.Tensor
-        An initialized 2D tensor as an adjacency matrix of an Erdos-Renyi graph.
-    """
+    Tensor
+        A 2D adjacency matrix of an Erdos-Renyi graph.
 
+    Notes
+    -----
+    - The generated graph is guaranteed to be connected.
+    - The number of tries to ensure connectivity can be adjusted with the `tries` parameter.
+    - The non-zero elements of the adjacency matrix are sampled as -1 or 1.
+    """
     def __init__(
         self,
         p: float=0.5,
@@ -195,14 +230,14 @@ class ErdosRenyiGraphInitializer(GraphInitializerBase):
         tries: int = 100,
         spectral_radius: float = None,
         seed: int = None,
-    ):
+    ) -> None:
         self.p = p
         self.directed = directed
         self.self_loops = self_loops
         self.tries = tries
         super().__init__(spectral_radius=spectral_radius, seed=seed)
 
-    def _generate_adjacency_matrix(self, n: int) -> np.ndarray:
+    def _generate_adjacency_matrix(self, n: int) -> tf.Tensor:
         adj = connected_erdos_renyi(
             n=n,
             p=self.p,
@@ -213,7 +248,7 @@ class ErdosRenyiGraphInitializer(GraphInitializerBase):
         )
         return adj
 
-    def get_config(self):
+    def get_config(self) -> dict:
         base_config = super().get_config()
         config = {
             "p": self.p,
@@ -230,37 +265,43 @@ class ErdosRenyiGraphInitializer(GraphInitializerBase):
     package="MyInitializers", name="BarabasiAlbertGraphInitializer"
 )
 class BarabasiAlbertGraphInitializer(GraphInitializerBase):
-    """Initializer that generates adjacency matrices of Barabasi-Albert graphs.
+    """
+    Initializer for adjacency matrices of Barabasi-Albert scale-free graphs.
+
+    Generates a Barabasi-Albert graph using preferential attachment.
 
     Parameters
     ----------
     m : int
-        The number of edges to attach from a new node to existing nodes.
-    directed : bool
-        If True, the generated graph is directed.
-    spectral_radius : float or None
-        The spectral radius of the generated graph. If None, the spectral radius is not controlled.
-    seed : int
-        The random seed for reproducibility. If None, the random seed is not set.
+        Number of edges each new node forms with existing nodes.
+    directed : bool, optional
+        If True, generates a directed graph.
+    spectral_radius : float or None, optional
+        Desired spectral radius of the adjacency matrix. If None, no rescaling is applied.
+    seed : int or None, optional
+        Random seed for reproducibility.
+
     Returns
     -------
-    tf.Tensor
-        An initialized 2D tensor as an adjacency matrix of a Barabasi-Albert graph.
-    """
+    Tensor
+        A 2D adjacency matrix of a Barabasi-Albert graph.
 
+    Notes
+    -----
+    - The non-zero elements of the adjacency matrix are sampled as -1 or 1.
+    """
     def __init__(
         self,
         m: int=3,
         directed: bool = True,
-
         spectral_radius: float = None,
         seed: int = None,
-    ):
+    ) -> None:
         self.m = m
         self.directed = directed
         super().__init__(spectral_radius=spectral_radius, seed=seed)
 
-    def _generate_adjacency_matrix(self, n: int) -> np.ndarray:
+    def _generate_adjacency_matrix(self, n: int) -> tf.Tensor:
         adj = barabasi_albert(
             n=n,
             m=self.m,
@@ -269,7 +310,7 @@ class BarabasiAlbertGraphInitializer(GraphInitializerBase):
         )
         return adj
 
-    def get_config(self):
+    def get_config(self) -> dict:
         base_config = super().get_config()
         config = {
             "m": self.m,
@@ -284,28 +325,35 @@ class BarabasiAlbertGraphInitializer(GraphInitializerBase):
     package="MyInitializers", name="NewmanWattsStrogatzGraphInitializer"
 )
 class NewmanWattsStrogatzGraphInitializer(GraphInitializerBase):
-    """Initializer that generates adjacency matrices of Newman-Watts-Strogatz graphs.
+    """
+    Initializer for adjacency matrices of Newman-Watts-Strogatz small-world graphs.
+
+    Generates a connected small-world graph with additional randomly rewired edges.
 
     Parameters
     ----------
     k : int
-        Each node initially connects to k/2 predecessors and k/2 successors.
+        Each node is initially connected to `k/2` predecessors and `k/2` successors.
     p : float
-        Rewiring probability.
+        Probability of adding new random edges.
     directed : bool, optional
-        If True, generates a directed graph; otherwise, an undirected one.
+        If True, generates a directed graph.
     self_loops : bool, optional
-        If True, allows self-loops during rewiring.
-    spectral_radius : float or None
-        The spectral radius of the generated graph. If None, the spectral radius is not controlled.
-    seed : int
-        The random seed for reproducibility. If None, the random seed is not set.
+        If True, allows self-loops.
+    spectral_radius : float or None, optional
+        Desired spectral radius of the adjacency matrix. If None, no rescaling is applied.
+    seed : int or None, optional
+        Random seed for reproducibility.
+
     Returns
     -------
-    tf.Tensor
-        An initialized 2D tensor as an adjacency matrix of a connected Newman-Watts-Strogatz graph.
-    """
+    Tensor
+        A 2D adjacency matrix of a Newman-Watts-Strogatz graph.
 
+    Notes
+    -----
+    - The non-zero elements of the adjacency matrix are sampled as -1 or 1.
+    """
     def __init__(
         self,
         k: int=4,
@@ -314,14 +362,14 @@ class NewmanWattsStrogatzGraphInitializer(GraphInitializerBase):
         self_loops: bool = True,
         spectral_radius: float = None,
         seed: int = None,
-    ):
+    ) -> None:
         self.k = k
         self.p = p
         self.directed = directed
         self.self_loops = self_loops
         super().__init__(spectral_radius=spectral_radius, seed=seed)
 
-    def _generate_adjacency_matrix(self, n: int) -> np.ndarray:
+    def _generate_adjacency_matrix(self, n: int) -> tf.Tensor:
         adj = newman_watts_strogatz(
             n=n,
             k=self.k,
@@ -332,7 +380,7 @@ class NewmanWattsStrogatzGraphInitializer(GraphInitializerBase):
         )
         return adj
 
-    def get_config(self):
+    def get_config(self) -> dict:
         base_config = super().get_config()
         config = {
             "k": self.k,
@@ -340,7 +388,7 @@ class NewmanWattsStrogatzGraphInitializer(GraphInitializerBase):
             "directed": self.directed,
             "self_loops": self.self_loops,
         }
-        
+
         config.update(base_config)
         return config
 
@@ -349,30 +397,38 @@ class NewmanWattsStrogatzGraphInitializer(GraphInitializerBase):
     package="MyInitializers", name="KleinbergSmallWorldGraphInitializer"
 )
 class KleinbergSmallWorldGraphInitializer(GraphInitializerBase):
-    """Initializer that generates adjacency matrices of Kleinberg's small-world graphs.
-
-        Parameters
-        ----------
-        q : float, optional
-            Exponent controlling long-range connection probability decay (default: 2).
-        k : int, optional
-            Number of long-range connections per node (default: 1).
-        directed : bool, optional
-            If True, generates a directed graph; otherwise, undirected (default: False).
-        weighted : bool, optional
-            If True, assigns weights proportional to distance^beta (default: False).
-        beta : float, optional
-            Exponent for weight calculation when weighted=True (default: 2).
-        spectral_radius : float or None
-            The spectral radius of the generated graph. If None, the spectral radius is not controlled.
-        seed : int
-            The random seed for reproducibility. If None, the random seed is not set.
-        Returns
-        -------
-        tf.Tensor
-            An initialized 2D tensor as an adjacency matrix of a Kleinberg's small-world graph.
     """
+    Initializer for adjacency matrices of Kleinberg's small-world graphs.
 
+    Generates a graph where long-range connections follow a probability distribution
+    based on distance.
+
+    Parameters
+    ----------
+    q : float, optional
+        Exponent controlling long-range connection probability decay.
+    k : int, optional
+        Number of long-range connections per node.
+    directed : bool, optional
+        If True, generates a directed graph.
+    weighted : bool, optional
+        If True, assigns weights to edges based on distance.
+    beta : float, optional
+        Exponent for weight calculation if `weighted=True`.
+    spectral_radius : float or None, optional
+        Desired spectral radius of the adjacency matrix. If None, no rescaling is applied.
+    seed : int or None, optional
+        Random seed for reproducibility.
+
+    Returns
+    -------
+    Tensor
+        A 2D adjacency matrix of a Kleinberg small-world graph.
+
+    Notes
+    -----
+    - The non-zero elements of the adjacency matrix are sampled as -1 or 1 if `weighted=False`. Otherwise, the weights are generated proportional to the distance to the power of `beta`.
+    """
     def __init__(
         self,
         q: float = 2,
@@ -382,7 +438,7 @@ class KleinbergSmallWorldGraphInitializer(GraphInitializerBase):
         beta: float = 2,
         spectral_radius: float = None,
         seed: int = None,
-    ):
+    ) -> None:
         self.q = q
         self.k = k
         self.directed = directed
@@ -390,7 +446,7 @@ class KleinbergSmallWorldGraphInitializer(GraphInitializerBase):
         self.beta = beta
         super().__init__(spectral_radius=spectral_radius, seed=seed)
 
-    def _generate_adjacency_matrix(self, n: int) -> np.ndarray:
+    def _generate_adjacency_matrix(self, n: int) -> tf.Tensor:
         adj = kleinberg_small_world(
             n=n,
             q=self.q,
@@ -402,7 +458,7 @@ class KleinbergSmallWorldGraphInitializer(GraphInitializerBase):
         )
         return adj
 
-    def get_config(self):
+    def get_config(self) -> dict:
         base_config = super().get_config()
         config = {
             "q": self.q,
@@ -420,26 +476,35 @@ class KleinbergSmallWorldGraphInitializer(GraphInitializerBase):
     package="MyInitializers", name="RegularGraphInitializer"
 )
 class RegularGraphInitializer(GraphInitializerBase):
-    """Initializer that generates adjacency matrices of regular graphs.
+    """
+    Initializer for adjacency matrices of k-regular graphs.
+
+    Generates a connected k-regular graph where each node has exactly `k` neighbors in a ring topology.
 
     Parameters
     ----------
     k : int
-        The degree of the graph.
-    directed : bool
-        If True, the generated graph is directed.
-    self_loops : bool
-        If True, the generated graph has self-loops.
-    spectral_radius : float or None
-        The spectral radius of the generated graph. If None, the spectral radius is not controlled.
-    seed : int
-        The random seed for reproducibility. If None, the random seed is not set.
+        Degree of each node.
+    directed : bool, optional
+        If True, generates a directed graph.
+    self_loops : bool, optional
+        If True, allows self-loops.
+    random_weights : bool, optional
+        If True, assigns random weights to edges.
+    spectral_radius : float or None, optional
+        Desired spectral radius of the adjacency matrix. If None, no rescaling is applied.
+    seed : int or None, optional
+        Random seed for reproducibility.
+
     Returns
     -------
-    tf.Tensor
-        An initialized 2D tensor as an adjacency matrix of a regular graph.
-    """
+    Tensor
+        A 2D adjacency matrix of a k-regular graph.
 
+    Notes
+    -----
+    - The non-zero elements of the adjacency matrix are sampled as -1 or 1 if `random_weights=False`. Otherwise, the weights are alternated between -1 and 1.
+    """
     def __init__(
         self,
         k: int=2,
@@ -448,14 +513,14 @@ class RegularGraphInitializer(GraphInitializerBase):
         random_weights: bool = True,
         spectral_radius: float = None,
         seed: int = None,
-    ):
+    ) -> None:
         self.k = k
         self.directed = directed
         self.self_loops = self_loops
         self.random_weights = random_weights
         super().__init__(spectral_radius=spectral_radius, seed=seed)
 
-    def _generate_adjacency_matrix(self, n: int) -> np.ndarray:
+    def _generate_adjacency_matrix(self, n: int) -> tf.Tensor:
         adj = regular(
             n=n,
             k=self.k,
@@ -466,7 +531,7 @@ class RegularGraphInitializer(GraphInitializerBase):
         )
         return adj
 
-    def get_config(self):
+    def get_config(self) -> dict:
         base_config = super().get_config()
         config = {
             "k": self.k,
@@ -482,43 +547,51 @@ class RegularGraphInitializer(GraphInitializerBase):
     package="MyInitializers", name="CompleteGraphInitializer"
 )
 class CompleteGraphInitializer(GraphInitializerBase):
-    """Initializer that generates adjacency matrices of complete graphs.
+    """
+    Initializer for adjacency matrices of complete graphs.
+
+    Generates a fully connected graph where every node is connected to every other node.
 
     Parameters
     ----------
-    self_loops : bool
-        If True, the generated graph has self-loops.
-    random_weights : bool
-        If True, the generated graph has random weights. If False, the weights will be alternating between 1 and -1.
-    spectral_radius : float or None
-        The spectral radius of the generated graph. If None, the spectral radius is not controlled.
-    seed : int
-        The random seed for reproducibility. If None, the random seed is not set.
+    self_loops : bool, optional
+        If True, allows self-loops.
+    random_weights : bool, optional
+        If True, assigns random weights to edges. If False, weights alternate between 1 and -1.
+    spectral_radius : float or None, optional
+        Desired spectral radius of the adjacency matrix. If None, no rescaling is applied.
+    seed : int or None, optional
+        Random seed for reproducibility.
+
     Returns
     -------
-    tf.Tensor
-        An initialized 2D tensor as an adjacency matrix of a complete graph.
-    """
+    Tensor
+        A 2D adjacency matrix of a complete graph.
 
+    Notes
+    -----
+    - The non-zero elements of the adjacency matrix are sampled as -1 or 1 if `random_weights=False`. Otherwise, the weights are alternated between -1 and 1.
+    - This is equivalent to a dense matrix with alternating -1 and 1 values.
+    """
     def __init__(
         self,
         self_loops: bool = True,
         random_weights: bool = True,
         spectral_radius: float = None,
         seed: int = None,
-    ):
+    ) -> None:
         self.self_loops = self_loops
         self.random_weights = random_weights
         super().__init__(spectral_radius=spectral_radius, seed=seed)
 
-    def _generate_adjacency_matrix(self, n: int) -> np.ndarray:
+    def _generate_adjacency_matrix(self, n: int) -> tf.Tensor:
         adj = complete(
             n=n,
             self_loops=self.self_loops,
         )
         return adj
 
-    def get_config(self):
+    def get_config(self) -> dict:
         base_config = super().get_config()
         config = {
             "self_loops": self.self_loops,

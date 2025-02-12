@@ -1,6 +1,6 @@
 """Custom Initializers."""
 
-from typing import Dict, List, Tuple, Union
+from typing import List, Tuple, Union
 
 import keras
 import tensorflow as tf
@@ -12,28 +12,54 @@ from keras_reservoir_computing.utils.tf_utils import create_tf_rng
 @keras.saving.register_keras_serializable(package="MyInitializers", name="InputMatrix")
 class InputMatrix(Initializer):
     """
-    Makes an initializer that generates an input matrix which connects the input to the reservoir.
+    An initializer that generates an input matrix connecting inputs to reservoir nodes.
 
-    Every node in the network receives exactly one scalar input and
-    every input is connected to N/D nodes. N being the number of nodes (columns)
-    and D is the number of inputs (rows).
-    Every non-zero element in the matrix is randomly generated from
-    a uniform distribution in [-sigma,sigma]
+    Each node in the reservoir receives exactly one scalar input, and each input is connected
+    to approximately `N/D` nodes, where `N` is the number of nodes (columns) and `D` is the
+    number of inputs (rows). The non-zero elements of the matrix are sampled from a uniform
+    distribution in the range `[-sigma, sigma]`.
 
-    Args:
-        sigma (float): Standard deviation of the uniform distribution.
+    Parameters
+    ----------
+    sigma : float, default=0.5
+        The maximum absolute value of the uniform distribution.
+    binarize : bool, default=False
+        If True, the matrix values are binarized to `{-sigma, sigma}`.
+    seed : int, tf.random.Generator, or None, default=None
+        Seed for random number generation.
 
-    Returns:
-        keras.initializers.Initializer: The initializer.
+    Attributes
+    ----------
+    sigma : float
+        The maximum absolute value for the uniform distribution.
+    binarize : bool
+        Whether to binarize the matrix values.
+    seed : int, tf.random.Generator, or None
+        Seed for random number generation.
+    tf_rng : tf.random.Generator
+        TensorFlow random generator initialized with the given seed.
 
-    #### Usage example:
-    >>> w_init = InputMatrix(sigma=1)
-    >>> w = tf.Variable(w_init((5,10)))
-    >>> w is a 5x10 matrix with values in [-1, 1]
+    Methods
+    -------
+    __call__(shape, dtype=tf.float32)
+        Generates the initialized input matrix with the given shape.
+    get_config()
+        Returns a dictionary containing the initializer's configuration.
+
+    Returns
+    -------
+    keras.initializers.Initializer
+        The initializer instance.
+
+    Examples
+    --------
+    >>> w_init = InputMatrix(sigma=1, binarize=True, seed=42)
+    >>> w = w_init((5, 10))
+    >>> print(w)
+    # A 5x10 matrix with values in [-1, 1], two non-zero values per row.
     """
-
     def __init__(
-        self, sigma: float = 0.5, binarize: bool = False, seed: Union[int, None] = None
+        self, sigma: float = 0.5, binarize: bool = False, seed: Union[int, tf.random.Generator, None] = None
     ) -> None:
         """Initialize the initializer."""
         assert sigma > 0, "sigma must be positive"
@@ -135,7 +161,7 @@ class InputMatrix(Initializer):
         w_in = tf.sparse.reorder(w_in)
         return tf.sparse.to_dense(w_in)
 
-    def get_config(self) -> Dict:
+    def get_config(self) -> dict:
         """Get the config dictionary of the initializer for serialization."""
         base_config = super().get_config()
         config = {"sigma": self.sigma, "binarize": self.binarize, "seed": self.seed}
