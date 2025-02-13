@@ -22,19 +22,74 @@ logging.basicConfig(level=logging.INFO)
     package="ReservoirComputers", name="ReservoirComputer"
 )
 class ReservoirComputer(keras.Model):
+    r"""
+    A base reservoir computing model that integrates a reservoir layer and a readout layer.
+
+    This class provides:
+    - Forward propagation through a **reservoir** and a **readout** layer.
+    - **Training** the readout layer via ridge regression on harvested reservoir states.
+    - **Managing reservoir states**, including retrieval, resetting, and modification.
+    - **Forecasting** future timesteps using iterative single-step predictions.
+
+    Parameters
+    ----------
+    reservoir : BaseReservoir
+        The reservoir layer (subclass of `BaseReservoir`) responsible for dynamic transformations.
+    readout : keras.Layer
+        The readout layer (typically a linear layer) applied to the reservoir's output.
+    seed : int or None, optional
+        Random seed for reproducibility. If None, reproducibility is not guaranteed.
+    **kwargs : dict
+        Additional keyword arguments passed to the `keras.Model` constructor.
+
+    Attributes
+    ----------
+    reservoir : BaseReservoir
+        The internal reservoir layer handling state updates.
+    units : int
+        Number of reservoir units.
+    readout : keras.Layer
+        The internal readout layer used for final predictions.
+    seed : int or None
+        The random seed for reproducibility.
+    _input_shape : tuple of int or None
+        Shape of the input data, set during model building.
+
+    Methods
+    -------
+    **build**(input_shape)
+        Builds the model by constructing the reservoir and readout layers.
+    **call**(inputs, **kwargs)
+        Passes inputs through the reservoir and readout layers.
+    **train**(inputs, train_target, regularization, log=False)
+        Trains the readout layer using ridge regression on reservoir states.
+    **ensure_ESP**(transient_data)
+        Ensures the Echo State Property (ESP) by feeding transient data through the reservoir.
+    **get_states**()
+        Retrieves the current reservoir states.
+    **set_states**(new_states)
+        Sets the reservoir's internal states.
+    **reset_states**()
+        Resets all reservoir states to their initial values.
+    **forecast**(forecast_length, forecast_transient_data, val_data, store_states=False)
+        Forecasts future values using the trained model.
+    **forecast_step**(current_input)
+        Performs a single-step forecast.
+    **compute_output_shape**(input_shape)
+        Computes the output shape of the model.
+    **get_config**()
+        Returns a dictionary containing the model configuration.
+    **from_config**(config)
+        Creates an instance of the model from a configuration dictionary.
+    **load**(path)
+        Loads a saved `ReservoirComputer` model from a file.
+    **plot**(**kwargs)
+        Plots the model architecture.
+    **get_build_config**()
+        Retrieves build-related information for model reconstruction.
+    **build_from_config**(config)
+        Marks the model as built based on a configuration.
     """
-    Base Reservoir Computer model.\n
-    Works as a base class for different types of Reservoir Computers. The key components will be a reservoir and a readout layer.
-    Groups a set of basic functionalities for all Reservoir Computers.
-
-    Args:
-        reservoir (keras.Layer): The reservoir layer of the Reservoir Computer.
-
-        readout (keras.Layer): The readout layer of the Reservoir Computer.
-
-        seed (int | None): The seed of the model.
-    """
-
     def __init__(
         self,
         reservoir: BaseReservoir,
@@ -50,11 +105,14 @@ class ReservoirComputer(keras.Model):
         if seed is None:
             logging.warning("Seed is None. Reproducibility is not guaranteed.")
 
-    def build(self, input_shape):
-        """Build the model with the given input shape.
+    def build(self, input_shape: Tuple[int, ...]) -> None:
+        r"""
+        Builds the model by first building the reservoir and then the readout layer.
 
-        Args:
-            input_shape (tuple): The input shape of the model.
+        Parameters
+        ----------
+        input_shape : tuple of int
+            Shape of the input data, typically (batch_size, timesteps, input_dim).
         """
         if self.built:
             return
@@ -64,18 +122,24 @@ class ReservoirComputer(keras.Model):
         self.readout.build(reservoir_output_shape)
         super().build(input_shape)
 
-    def call(self, inputs, **kwargs):
-        """Forward pass of the model.
+    def call(self, inputs: tf.Tensor, **kwargs) -> tf.Tensor:
+        r"""
+        Forward pass of the reservoir computer, passing the inputs through the reservoir
+        and then through the readout layer.
 
-        Args:
-            inputs (Tensor): Input tensor. Of shape (batch_size, timesteps, input_dim).
+        Parameters
+        ----------
+        inputs : tf.Tensor
+            Input tensor of shape (batch_size, timesteps, input_dim).
+        **kwargs : dict
+            Additional keyword arguments passed to the reservoir's `call`.
 
-        Returns:
-            Tensor: Output tensor after passing through reservoir and readout layers. Of shape (batch_size, timesteps, output_dim).
+        Returns
+        -------
+        tf.Tensor
+            Output tensor of shape (batch_size, timesteps, output_dim).
         """
-        # Pass the inputs through the reservoir
         reservoir_output = self.reservoir(inputs, **kwargs)
-        # Pass the reservoir output through the readout
         output = self.readout(reservoir_output)
         return output
 
@@ -86,76 +150,92 @@ class ReservoirComputer(keras.Model):
         regularization: float,
         log: bool = False,
     ) -> float:
-        """Train the model with the given data.
+        r"""
+        Trains the reservoir computer model in a single step, using ridge regression
+        to fit the readout layer.
 
-        It trains the model fully in one step.
+        Parameters
+        ----------
+        inputs : tuple of np.ndarray
+            A tuple (transient_data, train_data). Both arrays should be of shape
+            (batch_size, timesteps, input_dim). The first is used to ensure ESP,
+            the second is used to harvest states and fit the readout.
+        train_target : np.ndarray
+            The target data to fit. Shape should match the readout's output
+            (batch_size, timesteps, output_dim).
+        regularization : float
+            Ridge regularization parameter.
+        log : bool, optional
+            Whether to log timing information via the `timer` decorator.
 
-        Args:
-            inputs (Tuple[np.array, np.array]): The input data for the training. It is a tuple with the transient data and the training data.
-            train_target (np.array): The target data for the training.
-            regularization (float): Regularization value for linear readout.
-
-        Returns:
-            float: The training loss of the model.
+        Returns
+        -------
+        float
+            The training loss (mean squared error over the training set).
         """
-        # unpack the data, this will be a tuple with all inside
+        # Unpack
         transient_data, train_data = inputs
 
         # 1. Ensure the model is built
         if not self.built:
             self.build(train_data.shape)
 
-        # 2. Ensure the Echo State Property (ESP) of the model by predicting the transient data
+        # 2. Ensure ESP
         transient_data = keras.ops.convert_to_tensor(transient_data, dtype="float32")
         with timer("Ensuring ESP", log=log):
             self.ensure_ESP(transient_data)
 
-        # 3. Harvest the reservoir states
+        # 3. Harvest reservoir states from the training data
         train_data = keras.ops.convert_to_tensor(train_data, dtype="float32")
         with timer("Harvesting reservoir states", log=log):
             harvested_states = self._harvest(train_data)
 
-        # 4. Perform the Ridge regression  and get predictions
+        # 4. Perform ridge regression and get predictions
         with timer("Calculating readout", log=log):
             predictions = self._calculate_readout(
                 harvested_states, train_target, regularization=regularization
             )
 
-        # Calculate the training loss
+        # 5. Calculate the training loss
         training_loss = self._calculate_loss(predictions, train_target)
-
-        return training_loss
+        return float(training_loss)
 
     @tf.function(autograph=False)
     def ensure_ESP(self, transient_data: tf.Tensor) -> tf.Tensor:
-        """Ensure the Echo State Property (ESP) of the model by predicting the transient data.
+        r"""
+        Ensures the Echo State Property (ESP) by making a forward pass through
+        the reservoir with transient data.
 
-        Will ensure the ESP of the model by predicting the transient data. It returns the reservoir states corresponding to the transient data, used for the ESP index method.
+        Parameters
+        ----------
+        transient_data : tf.Tensor
+            Transient data to wash out the reservoir states,
+            shape (batch_size, timesteps, input_dim).
 
-        Args:
-            transient_data (tf.Tensor): Transient data to ensure ESP.
-
-        Returns:
-            tf.Tensor: The reservoir states corresponding to the transient data
+        Returns
+        -------
+        tf.Tensor
+            Reservoir states or outputs corresponding to the transient data.
+            Shape depends on the reservoir architecture.
         """
         states = self.reservoir.call(inputs=transient_data)
-
         return states
 
-    def _harvest(
-        self,
-        train_data: tf.Tensor,
-    ) -> tf.Tensor:
-        """Harvests the reservoir states after ensuring Echo State Property (ESP).
+    # @tf.function(autograph=False)
+    def _harvest(self, train_data: tf.Tensor) -> tf.Tensor:
+        r"""
+        Harvests the reservoir states by calling the reservoir in inference mode
+        (via `predict`) on the training data.
 
-        This method ensures ESP by predicting the training data and harvests the reservoir states.
-        It returns the harvested reservoir states corresponding to the training data.
+        Parameters
+        ----------
+        train_data : tf.Tensor
+            Training data of shape (batch_size, timesteps, input_dim).
 
-        Args:
-            train_data (tf.Tensor): Data to harvest the reservoir states.
-
-        Returns:
-            tf.Tensor: The harvested reservoir states.
+        Returns
+        -------
+        tf.Tensor
+            The harvested reservoir states, typically (batch_size, timesteps, reservoir_units).
         """
         return self.reservoir.predict(train_data, verbose=0)
 
@@ -166,70 +246,97 @@ class ReservoirComputer(keras.Model):
         regularization: float = 0,
         log: bool = False,
     ) -> tf.Tensor:
+        r"""
+        Fits a ridge regression model (via `TF_Ridge`) to map harvested_states
+        to the train_target. Then updates the readout layer weights from the
+        fitted model. Finally, it returns the predictions on the training set.
+
+        Parameters
+        ----------
+        harvested_states : tf.Tensor
+            Reservoir states of shape (batch_size, timesteps, reservoir_units).
+        train_target : np.ndarray
+            Target data of shape (batch_size, timesteps, output_dim).
+        regularization : float, optional
+            Regularization (alpha) for ridge regression.
+        log : bool, optional
+            If True, logs timing information.
+            Currently unused inside this method but kept for interface consistency.
+
+        Returns
+        -------
+        tf.Tensor
+            Predictions on the training data, expanded to shape
+            (1, timesteps, output_dim) to mimic a batch dimension of 1.
         """
-        Calculate the readout of the model using Ridge regression with SVD solver.
-
-        Args:
-            harvested_states (tf.Tensor): The harvested reservoir states.
-
-            train_target (np.ndarray): The target data for the training.
-
-            regularization (float): Regularization value for linear readout.
-
-            log (bool): Whether to log the time taken for the operation. Defaults to False.
-
-        Returns:
-            tf.Tensor: The predictions on the training data.
-        """
-        # Cast the data to float64
+        # Cast to float64 for SVD-based ridge solver
         harvested_states = keras.ops.cast(harvested_states, dtype="float64")
         train_target = keras.ops.cast(train_target, dtype="float64")
 
         regressor = TF_Ridge(alpha=regularization)
-
         regressor.fit(harvested_states, train_target)
 
-        # Set weights of the readout layer
-        coef = regressor._coef
-        intercept = regressor._intercept
-
+        coef = regressor._coef  # shape (reservoir_units, output_dim)
+        intercept = regressor._intercept  # shape (output_dim,)
+        # Update readout weights
         self.readout.set_weights([coef, intercept])
 
-        # Get the predictions
-        predictions = regressor.predict(harvested_states)
-
+        # Predict on the harvested states
+        predictions = regressor.predict(harvested_states)  # (timesteps, output_dim)
         predictions = tf.expand_dims(
             predictions, axis=0
-        )  # predictions shape is (timesteps, output_dim), we need to add the batch size
+        )  # => (1, timesteps, output_dim)
 
         return predictions
 
     def _calculate_loss(
         self, predictions: tf.Tensor, train_target: np.ndarray
-    ) -> float:
-        # Calculate the loss
-        loss = tf.reduce_mean(tf.square(train_target - predictions))
+    ) -> tf.Tensor:
+        r"""
+        Computes mean squared error (MSE) between predictions and the target.
 
+        Parameters
+        ----------
+        predictions : tf.Tensor
+            Predictions of shape (1, timesteps, output_dim).
+        train_target : np.ndarray
+            Ground truth target of shape (batch_size, timesteps, output_dim).
+            Typically, batch_size==1 in this approach, but not strictly enforced.
+
+        Returns
+        -------
+        tf.Tensor
+            A scalar tensor representing the MSE loss.
+        """
+        loss = tf.reduce_mean(tf.square(train_target - predictions))
         return loss
 
     def get_states(self) -> List[tf.Tensor]:
-        """Retrieve the current states of all RNN layers in the model.
+        r"""
+        Retrieves the current internal states from the reservoir.
 
-        Returns:
-            List[tf.Tensor]: List of current reservoir states.
+        Returns
+        -------
+        List of tf.Tensor
+            A list containing each state's tensor (e.g., hidden state).
         """
         return self.reservoir.get_states()
 
     def set_states(self, new_states: List[tf.Tensor]) -> None:
-        """Set the states of the reservoir.
+        r"""
+        Sets the reservoir's internal states to the provided tensors.
 
-        Args:
-            new_states (List[tf.Tensor]): List of new states to set.
+        Parameters
+        ----------
+        new_states : list of tf.Tensor
+            The new reservoir states to assign.
         """
         self.reservoir.set_states(new_states)
 
-    def reset_states(self):
-        """Reset internal states of the RNNs of the model."""
+    def reset_states(self) -> None:
+        r"""
+        Resets the reservoir’s internal states to their default (typically zeros).
+        """
         self.reservoir.reset_states()
 
     def forecast(
@@ -239,43 +346,52 @@ class ReservoirComputer(keras.Model):
         val_data: np.ndarray,
         store_states: bool = False,
     ) -> Tuple[tf.Tensor, Optional[tf.Tensor]]:
-        """
-        Forecasts the model for a given number of steps, optionally storing internal states.
+        r"""
+        Generates a forecast of a given length, using single-step predictions in a loop.
 
-        Args:
-            forecast_length (int): Number of steps to forecast.
-            forecast_transient_data (np.ndarray): Transient data to ensure ESP.
-            val_data (np.ndarray): Validation data to forecast from.
-            store_states (bool): Whether to store internal states for each forecast step.
+        Parameters
+        ----------
+        forecast_length : int
+            Number of timesteps to forecast.
+        forecast_transient_data : np.ndarray
+            Data used to wash out states before starting the forecast,
+            shape (batch_size, transient_steps, input_dim).
+        val_data : np.ndarray
+            Validation data to serve as the initial input for forecasting.
+            Must have shape (batch_size, timesteps, input_dim) with
+            timesteps >= 1 to extract the initial point.
+        store_states : bool, optional
+            If True, returns a second output capturing internal states at each step.
+            Otherwise, returns None for the second output.
 
-        Returns:
-            (predictions, states_out):
-            - predictions: tf.Tensor of shape (1, forecast_length, output_dim)
-            - states_out: tf.Tensor of shape (n_states, forecast_length, units) if store_states=True, else None
+        Returns
+        -------
+        tuple
+            (predictions_out, states_out)
+            - predictions_out : tf.Tensor
+                Forecasted output, shape (batch_size, forecast_length, output_dim).
+            - states_out : tf.Tensor or None
+                If `store_states=True`, shape depends on the reservoir; otherwise None.
         """
         self.reset_states()
+
         if forecast_length > val_data.shape[1]:
             print("Truncating the forecast length to match the data.")
         forecast_length = min(forecast_length, val_data.shape[1])
 
-        # Take the first time step as the initial point
-        initial_point = val_data[:, :1, :]  # shape (1,1,input_dim)
+        initial_point = val_data[:, :1, :]  # (batch_size, 1, input_dim)
 
-        # Convert to Tensor
+        # Convert to Tensors
         forecast_transient_data_tf = tf.convert_to_tensor(
             forecast_transient_data, dtype=tf.float32
         )
         initial_point_tf = tf.convert_to_tensor(initial_point, dtype=tf.float32)
 
-        # Run the loop, getting predictions plus optional states
+        # Run the loop
         predictions_out, states_out = self._perform_forecasting_fast_with_states(
-            initial_point_tf,
-            forecast_transient_data_tf,
-            steps=forecast_length,
+            initial_point_tf, forecast_transient_data_tf, steps=forecast_length
         )
-
-        # The returned predictions contain the initial point in index 0; remove it
-        # predictions_out shape: (1, steps+1, input_dim)
+        # Remove the initial step from predictions
         predictions_out = predictions_out[:, 1:, :]
 
         if store_states:
@@ -285,62 +401,77 @@ class ReservoirComputer(keras.Model):
     @tf.function
     def _perform_forecasting_fast_with_states(
         self,
-        initial_point: tf.Tensor,  # (batch_size=1, 1, input_dim)
-        forecast_transient_data: tf.Tensor,  # (transient_len, 1, input_dim)
+        initial_point: tf.Tensor,
+        forecast_transient_data: tf.Tensor,
         steps: int,
     ) -> Tuple[tf.Tensor, List[tf.Tensor]]:
-        """
-        Forecasts single steps and stores a separate history for each RNN state.
-        Returns:
-        - predictions_out:  (1, steps+1, input_dim)
-        - states_out_list:  list of Tensors, each (batch_size, steps, units_i)
+        r"""
+        Internal helper to perform multi-step forecasting in a loop,
+        optionally capturing the states at each step.
+
+        Steps:
+        1) Ensure ESP with transient data.
+        2) Store the initial point in a TensorArray.
+        3) Iteratively forecast steps, storing predictions and states.
+
+        Parameters
+        ----------
+        initial_point : tf.Tensor
+            Shape (batch_size, 1, input_dim), the first input for forecasting.
+        forecast_transient_data : tf.Tensor
+            Shape (batch_size, transient_timesteps, input_dim), used to wash out states.
+        steps : int
+            Number of timesteps to forecast.
+
+        Returns
+        -------
+        tuple
+            (predictions_out, states_out_list)
+            - predictions_out : tf.Tensor
+                Shape (batch_size, steps+1, input_dim) containing the forecast,
+                including the initial point at index 0.
+            - states_out_list : list of tf.Tensor
+                Each tensor captures the states across forecasting steps.
+                states_out_list[i] has shape (batch_size, steps, units_i).
         """
         # 1) Ensure ESP
         _ = self.ensure_ESP(forecast_transient_data)
 
-        # 2) Prepare a TensorArray to store predictions
+        # 2) Prepare a TensorArray for predictions
         predictions_ta = tf.TensorArray(
             dtype=tf.float32,
             size=steps + 1,
-            element_shape=(None, 1, None),  # (batch_size, 1, input_dim)
+            element_shape=(None, 1, None),
         )
         predictions_ta = predictions_ta.write(0, initial_point)
 
-        # 3) Prepare one TensorArray *per internal state*
-        #    self.get_states() → a list of Tensors, each (batch_size, units_i).
-        init_states = self.get_states()
+        # 3) Prepare TAs for states
+        init_states = self.get_states()  # list of (batch_size, units_i)
         states_ta = [
             tf.TensorArray(
                 dtype=tf.float32,
                 size=steps,
-                element_shape=s.shape,  # must match (batch_size, units_i)
+                element_shape=s.shape,
             )
             for s in init_states
         ]
 
-        # 4) Define loop cond/body
+        # Loop condition
         def loop_cond(step, preds_ta, st_ta):
             return step < steps
 
+        # Loop body
         def loop_body(step, preds_ta, st_ta):
-            # Read the last prediction we wrote
             current_input = preds_ta.read(step)  # (batch_size, 1, input_dim)
-
-            # Single-step forward pass
-            new_prediction = self.forecast_step(
-                current_input
-            )  # shape (batch_size, 1, input_dim)
+            new_prediction = self.forecast_step(current_input)
             preds_ta = preds_ta.write(step + 1, new_prediction)
 
-            # Grab updated states
-            new_states = self.get_states()  # list of (batch_size, units_i)
-            # Write each state into its own TA
+            new_states = self.get_states()
             for i, state_tensor in enumerate(new_states):
                 st_ta[i] = st_ta[i].write(step, state_tensor)
 
             return step + 1, preds_ta, st_ta
 
-        # 5) Run tf.while_loop
         step_init = tf.constant(0, dtype=tf.int32)
         loop_vars = (step_init, predictions_ta, states_ta)
         _, final_predictions_ta, final_states_ta = tf.while_loop(
@@ -350,23 +481,22 @@ class ReservoirComputer(keras.Model):
             parallel_iterations=1,
         )
 
-        # 6) Convert predictions to final tensor
-        #    shape => (steps+1, batch_size, 1, input_dim)
-        preds_stacked = final_predictions_ta.stack()
-        # Remove the middle dim=2 if you prefer
-        # e.g., shape => (steps+1, batch_size, input_dim)
-        preds_stacked = tf.squeeze(preds_stacked, axis=2)
-
-        # Now reorder to (batch_size, steps+1, input_dim)
-        predictions_out = tf.transpose(preds_stacked, perm=[1, 0, 2])
+        # Convert predictions to final tensor => (steps+1, batch_size, 1, input_dim)
+        preds_stacked = (
+            final_predictions_ta.stack()
+        )  # => shape (steps+1, batch_size, 1, input_dim)
+        preds_stacked = tf.squeeze(
+            preds_stacked, axis=2
+        )  # => (steps+1, batch_size, input_dim)
+        predictions_out = tf.transpose(
+            preds_stacked, perm=[1, 0, 2]
+        )  # => (batch_size, steps+1, input_dim)
         predictions_out = tf.stop_gradient(predictions_out)
 
-        # 7) Convert each states_ta to a Tensor and reorder them
-        #    final shape => (batch_size, steps, units_i)
+        # Convert states to final list => each (batch_size, steps, units_i)
         states_out_list = []
         for ta in final_states_ta:
-            st_stacked = ta.stack()  # shape => (steps, batch_size, units_i)
-            # Transpose to => (batch_size, steps, units_i)
+            st_stacked = ta.stack()  # (steps, batch_size, units_i)
             st_stacked = tf.transpose(st_stacked, perm=[1, 0, 2])
             st_stacked = tf.stop_gradient(st_stacked)
             states_out_list.append(st_stacked)
@@ -375,38 +505,63 @@ class ReservoirComputer(keras.Model):
 
     @tf.function(reduce_retracing=True)
     def forecast_step(self, current_input: tf.Tensor) -> tf.Tensor:
-        """Forecasts a single step.
+        r"""
+        Forecasts a single step by calling the model on the current input.
 
-        Args:
-            current_input (tf.Tensor): Current input tensor.
+        Parameters
+        ----------
+        current_input : tf.Tensor
+            A tensor of shape (batch_size, 1, input_dim).
 
-        Returns:
-            tf.Tensor: Forecasted output tensor.
+        Returns
+        -------
+        tf.Tensor
+            Single-step forecast, shape (batch_size, 1, output_dim).
         """
         return self.call(current_input)
 
     def compute_output_shape(self, input_shape: Tuple[int, ...]) -> Tuple[int, ...]:
-        """Compute the output shape of the model.
+        r"""
+        Computes the output shape by chaining reservoir and readout shapes.
 
-        Args:
-            input_shape (tuple): The input shape of the model.
+        Parameters
+        ----------
+        input_shape : tuple of int
+            The shape of the input (batch_size, timesteps, input_dim).
 
-        Returns:
-            tuple: The output shape of the model.
+        Returns
+        -------
+        tuple of int
+            The computed output shape (batch_size, timesteps, output_dim).
         """
         reservoir_output_shape = self.reservoir.compute_output_shape(input_shape)
         output_shape = self.readout.compute_output_shape(reservoir_output_shape)
-        return output_shape
+        return tuple(output_shape)
 
     @property
     def units(self) -> int:
+        r"""
+        Number of reservoir units.
+
+        Returns
+        -------
+        int
+            The number of units in the reservoir layer.
+        """
         return self.reservoir.units
 
     def get_config(self) -> dict:
-        """Returns the configuration of the model.
+        r"""
+        Returns a Python dictionary containing the configuration
+        used to initialize this `ReservoirComputer`.
 
-        Returns:
-            dict: Configuration dictionary.
+        Returns
+        -------
+        dict
+            A dictionary containing:
+            - reservoir : serialized reservoir layer
+            - readout : serialized readout layer
+            - seed : the random seed
         """
         config = super().get_config()
         config.update(
@@ -420,15 +575,19 @@ class ReservoirComputer(keras.Model):
 
     @classmethod
     def from_config(cls, config: dict) -> "ReservoirComputer":
-        """Creates a model from its configuration.
+        r"""
+        Creates a `ReservoirComputer` from its configuration.
 
-        Args:
-            config (dict): Configuration dictionary.
+        Parameters
+        ----------
+        config : dict
+            A configuration dictionary (as returned by `get_config`).
 
-        Returns:
-            ReservoirComputerKeras: An instance of the model.
+        Returns
+        -------
+        ReservoirComputer
+            The instantiated ReservoirComputer.
         """
-        # Deserialize reservoir and readout layers
         reservoir = keras.layers.deserialize(config.pop("reservoir"))
         readout = keras.layers.deserialize(config.pop("readout"))
         seed = config.pop("seed", None)
@@ -436,19 +595,36 @@ class ReservoirComputer(keras.Model):
 
     @classmethod
     def load(cls, path: str) -> "ReservoirComputer":
-        """Loads a model from the given path.
+        r"""
+        Loads a `ReservoirComputer` from a given file path.
 
-        Args:
-            path (str): Path to the saved model.
+        Parameters
+        ----------
+        path : str
+            Path to the saved Keras model.
 
-        Returns:
-            ReservoirComputerKeras: Loaded model instance.
+        Returns
+        -------
+        ReservoirComputer
+            The loaded model.
         """
         model = keras.models.load_model(path, compile=False)
         return model
 
     def plot(self, **kwargs):
-        """Plot the model architecture."""
+        r"""
+        Plots the model architecture using Keras's `plot_model` utility.
+
+        Raises
+        ------
+        ValueError
+            If the model has not been built yet.
+
+        Returns
+        -------
+        keras.utils.vis_utils.Dot
+            The plot of the model.
+        """
         if not self.built:
             raise ValueError("Model needs to be built before plotting.")
         input_shape = self.get_build_config()["input_shape"]
@@ -459,38 +635,60 @@ class ReservoirComputer(keras.Model):
         return keras.utils.plot_model(model, **kwargs)
 
     def get_build_config(self) -> dict:
+        r"""
+        Returns a dictionary with information needed to rebuild this model
+        or to visualize it (e.g. in `plot()`).
+
+        Returns
+        -------
+        dict
+            A dictionary containing "input_shape" if the model has been built,
+            otherwise an empty dict.
         """
-        Returns a dictionary containing everything needed to rebuild this model
-        when deserialized. In your code, 'plot()' relies on 'get_build_config()["input_shape"]',
-        so we must include it here.
-        """
-        # If the model hasn't been built yet, self._input_shape may be None.
-        # In that case, return an empty dict or handle as needed.
         return (
             {"input_shape": self._input_shape}
             if getattr(self, "_input_shape", None) is not None
             else {}
         )
 
-    def build_from_config(self, config):
-        """Build the model from the given configuration.
+    def build_from_config(self, config: dict) -> None:
+        r"""
+        Builds the model from a given configuration.
 
-        Args:
-            config (dict): Configuration dictionary.
+        Parameters
+        ----------
+        config : dict
+            A configuration dictionary containing building parameters.
+
+        Notes
+        -----
+        Currently sets `self.built = True` as a placeholder.
         """
-        self.built = True  # TODO: Perhaps this is a patch and a hideous solution
+        self.built = True  # This is a manual override/patch.
 
 
 @keras.saving.register_keras_serializable(
     package="ReservoirComputers", name="ReservoirEnsemble"
 )
 class ReservoirEnsemble(keras.Model):
-    """
-    Reservoir Ensemble model.
+    r"""
+    An ensemble of multiple `ReservoirComputer` models whose outputs are combined
+    via an outlier removal layer (`RemoveOutliersAndMean`).
 
-    Args:
-        reservoir_computers (List[ReservoirComputer]): List of Reservoir Computers in the ensemble.
-        seed (int | None): The seed of the model.
+    This ensemble:
+    - Builds each `ReservoirComputer` on the same input shape.
+    - Stacks their outputs to shape (num_reservoirs, batch, timesteps, output_dim).
+    - Applies `RemoveOutliersAndMean` to remove outliers across ensemble members
+      and then returns the mean of the inlier outputs.
+
+    Parameters
+    ----------
+    reservoir_computers : list of ReservoirComputer
+        The list of reservoir computers forming the ensemble.
+    seed : int or None, optional
+        Random seed for reproducibility. If None, reproducibility is not guaranteed.
+    **kwargs : dict
+        Additional keyword arguments for the `keras.Model` constructor.
     """
 
     def __init__(
@@ -504,11 +702,14 @@ class ReservoirEnsemble(keras.Model):
         if seed is None:
             logging.warning("Seed is None. Reproducibility is not guaranteed.")
 
-    def build(self, input_shape):
-        """Build the model with the given input shape.
+    def build(self, input_shape: Tuple[int, ...]) -> None:
+        r"""
+        Builds all reservoir computers in the ensemble and the outlier-removal layer.
 
-        Args:
-            input_shape (tuple): The input shape of the model.
+        Parameters
+        ----------
+        input_shape : tuple of int
+            Shape of the input data (batch_size, timesteps, input_dim).
         """
         if self.built:
             return
@@ -520,24 +721,32 @@ class ReservoirEnsemble(keras.Model):
         ].compute_output_shape(input_shape)
 
         self.outlier_removal_layer.build(reservoir_computer_output_shape)
-
         super().build(input_shape)
 
-    def call(self, inputs, **kwargs):
-        """Forward pass of the model.
+    def call(self, inputs: tf.Tensor, **kwargs) -> tf.Tensor:
+        r"""
+        Forwards the input through each `ReservoirComputer`, stacks the outputs,
+        then applies the outlier-removal layer.
 
-        Args:
-            inputs (Tensor): Input tensor. Of shape (batch_size, timesteps, input_dim).
+        Parameters
+        ----------
+        inputs : tf.Tensor
+            Input tensor of shape (batch_size, timesteps, input_dim).
+        **kwargs : dict
+            Additional keyword arguments passed to each reservoir_computer's call.
 
-        Returns:
-            Tensor: Output tensor after passing through reservoir and readout layers. Of shape (batch_size, timesteps, output_dim).
+        Returns
+        -------
+        tf.Tensor
+            The ensemble-averaged (after outlier removal) output,
+            shape (batch_size, timesteps, output_dim).
         """
         reservoir_outputs = tf.stack(
             [
                 reservoir_computer(inputs)
                 for reservoir_computer in self.reservoir_computers
             ]
-        )  # This will have shape (num_reservoirs, batch_size, timesteps, output_dim)
+        )  # shape => (num_reservoirs, batch_size, timesteps, output_dim)
         output = self.outlier_removal_layer(reservoir_outputs)
         return output
 
@@ -548,17 +757,24 @@ class ReservoirEnsemble(keras.Model):
         regularization: float,
         log: bool = False,
     ) -> float:
-        """Train the model with the given data.
+        r"""
+        Trains each `ReservoirComputer` in the ensemble.
 
-        It trains the model fully in one step.
+        Parameters
+        ----------
+        inputs : tuple of np.ndarray
+            A tuple (transient_data, train_data), each shaped (batch_size, timesteps, input_dim).
+        train_target : np.ndarray
+            The target data for fitting, shape (batch_size, timesteps, output_dim).
+        regularization : float
+            Ridge regularization parameter.
+        log : bool, optional
+            Whether to log timing information (passed to each RC).
 
-        Args:
-            inputs (Tuple[np.array, np.array]): The input data for the training. It is a tuple with the transient data and the training data.
-            train_target (np.array): The target data for the training.
-            regularization (float): Regularization value for linear readout.
-
-        Returns:
-            float: The training loss of the model.
+        Returns
+        -------
+        float
+            The average training loss across all reservoir computers in the ensemble.
         """
         if not self.built:
             self.build(inputs[1].shape)
@@ -568,12 +784,17 @@ class ReservoirEnsemble(keras.Model):
             logging.info(f"Training Reservoir {i+1}/{len(self.reservoir_computers)}")
             loss = reservoir.train(inputs, train_target, regularization, log=log)
             losses.append(loss)
-        return sum(losses) / len(losses)
+        return float(sum(losses) / len(losses))
 
     @tf.function
     def ensure_ESP(self, transient_data: tf.Tensor) -> None:
-        """
-        Ensures ESP on each ReservoirComputer by simply calling their ensure_ESP methods.
+        r"""
+        Ensures ESP in each `ReservoirComputer` by calling their `ensure_ESP` method.
+
+        Parameters
+        ----------
+        transient_data : tf.Tensor
+            Data used to wash out states, shape (batch_size, timesteps, input_dim).
         """
         for rc in self.reservoir_computers:
             rc.ensure_ESP(transient_data)
@@ -584,28 +805,32 @@ class ReservoirEnsemble(keras.Model):
         forecast_transient_data: np.ndarray,
         val_data: np.ndarray,
         store_states: bool = False,
-    ) -> Tuple[tf.Tensor, Optional[tf.Tensor], np.ndarray, Optional[int]]:
-        """
-        Forecast the ensemble for a given number of steps using tf.while_loop, mirroring
-        the same performance approach used in ReservoirComputer.
+    ) -> Tuple[tf.Tensor, Optional[tf.Tensor]]:
+        r"""
+        Forecasts the ensemble for a given number of steps, following a similar procedure
+        to a single `ReservoirComputer` but stacking each computer’s outputs and removing
+        outliers.
 
-        This method resets states, ensures ESP, then calls _perform_forecasting_fast_with_states().
-        The 'error_threshold' logic is omitted here for clarity; adapt as needed.
+        Parameters
+        ----------
+        forecast_length : int
+            Number of timesteps to forecast.
+        forecast_transient_data : np.ndarray
+            Data used to ensure ESP, shape (batch_size, transient_timesteps, input_dim).
+        val_data : np.ndarray
+            Validation data from which to start forecasting,
+            shape (batch_size, timesteps, input_dim).
+        store_states : bool, optional
+            If True, returns a second output capturing states across timesteps; else None.
 
-        Args:
-            forecast_length: How many timesteps to forecast.
-            forecast_transient_data: Data used to washout the reservoir states (ensure ESP).
-            val_data: The actual data from which to start forecasting.
-            val_target: The true target data (unused here, but left for API compatibility).
-            store_states: Whether to store internal states at each forecast step.
-            error_threshold: Currently unused, but kept for API compatibility.
-
-        Returns:
-            (predictions_out, states_out, empty_error_array, None)
-            - predictions_out: shape (1, forecast_length, output_dim)
-            - states_out: shape (total_states, forecast_length, units) if store_states=True, else None
-            - empty_error_array: placeholder (np.array([])) for error measures
-            - None: placeholder for steps_to_exceed_threshold
+        Returns
+        -------
+        tuple
+            (predictions_out, states_out)
+            - predictions_out : tf.Tensor
+                Forecasted output, shape (batch_size, forecast_length, output_dim).
+            - states_out : None or nested list of tf.Tensor
+                If `store_states=True`, shape(s) depend on each reservoir’s internal states.
         """
         self.reset_states()
 
@@ -613,22 +838,19 @@ class ReservoirEnsemble(keras.Model):
             logging.info("Truncating the forecast length to match the data.")
         forecast_length = min(forecast_length, val_data.shape[1])
 
-        # Prepare Tensors
-        initial_point = val_data[:, :1, :]  # shape (1,1,input_dim)
+        initial_point = val_data[:, :1, :]  # (batch_size,1,input_dim)
         forecast_transient_data_tf = tf.convert_to_tensor(
             forecast_transient_data, dtype=tf.float32
         )
         initial_point_tf = tf.convert_to_tensor(initial_point, dtype=tf.float32)
 
-        # Run the fast forecasting loop
         predictions_out, states_out = self._perform_forecasting_fast_with_states(
             initial_point_tf,
             forecast_transient_data_tf,
             steps=forecast_length,
             store_states=store_states,
         )
-
-        # Remove the initial step from the predictions so that shape = (1, forecast_length, output_dim)
+        # Remove the initial step => shape => (batch_size, forecast_length, output_dim)
         predictions_out = predictions_out[:, 1:, :]
 
         if store_states:
@@ -637,46 +859,66 @@ class ReservoirEnsemble(keras.Model):
 
     @tf.function(reduce_retracing=True)
     def forecast_step(self, current_input: tf.Tensor) -> tf.Tensor:
-        """Forecasts a single step.
+        r"""
+        Single-step forecast by calling `self.call` on the current input.
 
-        Args:
-            current_input (tf.Tensor): Current input tensor.
+        Parameters
+        ----------
+        current_input : tf.Tensor
+            Shape (batch_size, 1, input_dim).
 
-        Returns:
-            tf.Tensor: Forecasted output tensor.
+        Returns
+        -------
+        tf.Tensor
+            Forecasted output, shape (batch_size, 1, output_dim).
         """
         return self.call(current_input)
 
     @tf.function
     def _perform_forecasting_fast_with_states(
         self,
-        initial_point: tf.Tensor,  # (batch_size=1, 1, input_dim)
-        forecast_transient_data: tf.Tensor,  # (transient_len, 1, input_dim)
+        initial_point: tf.Tensor,
+        forecast_transient_data: tf.Tensor,
         steps: int,
         store_states: bool = False,
-    ) -> Tuple[tf.Tensor, Optional[List[tf.Tensor]]]:
-        """
-        Forecasts single steps and (optionally) stores each internal state from each
-        ReservoirComputer across time. Closely mirrors the single-Reservoir approach.
+    ) -> Tuple[tf.Tensor, Optional[List[List[tf.Tensor]]]]:
+        r"""
+        Internal multi-step forecast using tf.while_loop, stacking the ensemble outputs,
+        and optionally storing each internal state from each `ReservoirComputer`.
 
-        Returns:
-          predictions_out: (1, steps+1, output_dim)
-          states_out_list:
-            - if store_states=True, a Python list of Tensors, each (1, steps, units_i)
-            - otherwise, None
+        Parameters
+        ----------
+        initial_point : tf.Tensor
+            Shape (batch_size, 1, input_dim). The initial input for forecasting.
+        forecast_transient_data : tf.Tensor
+            Shape (batch_size, transient_timesteps, input_dim). Used to wash out states.
+        steps : int
+            Number of forecasting steps.
+        store_states : bool, optional
+            Whether to store the states from each reservoir computer at each step.
+
+        Returns
+        -------
+        tuple
+            (predictions_out, states_out_list)
+            - predictions_out : tf.Tensor
+                Shape (batch_size, steps+1, output_dim).
+            - states_out_list : None or list of lists of tf.Tensor
+                If `store_states=True`, for each ReservoirComputer and each of its states,
+                a Tensor of shape (batch_size, steps, units_i).
         """
-        # 1) Ensure ESP for all ReservoirComputers
+        # 1) Ensure ESP in each reservoir
         self.ensure_ESP(forecast_transient_data)
 
-        # 2) Prepare a TensorArray to store predictions
+        # 2) TensorArray for predictions
         predictions_ta = tf.TensorArray(
             dtype=tf.float32,
             size=steps + 1,
-            element_shape=(None, 1, None),  # (batch_size, 1, input_dim)
+            element_shape=(None, 1, None),
         )
         predictions_ta = predictions_ta.write(0, initial_point)
 
-        # 3) If storing states, gather all states from all RCs and build a separate TA for each
+        # 3) If storing states, build a TensorArray for each reservoir’s states
         states_ta = None
         if store_states:
             states_ta = [
@@ -684,22 +926,19 @@ class ReservoirEnsemble(keras.Model):
                     tf.TensorArray(
                         dtype=tf.float32,
                         size=steps,
-                        element_shape=state.shape,  # (batch_size, units_i)
+                        element_shape=state.shape,
                     )
                     for state in rc.get_states()
                 ]
                 for rc in self.reservoir_computers
             ]
 
-        # 4) tf.while_loop cond/body
         def loop_cond(step, preds_ta, st_ta):
             return step < steps
 
         def loop_body(step, preds_ta, st_ta):
-            current_input = preds_ta.read(step)  # (batch_size,1,input_dim)
-            new_prediction = self.forecast_step(
-                current_input
-            )  # shape (batch_size,1,output_dim)
+            current_input = preds_ta.read(step)
+            new_prediction = self.forecast_step(current_input)
             preds_ta = preds_ta.write(step + 1, new_prediction)
 
             if store_states:
@@ -709,10 +948,8 @@ class ReservoirEnsemble(keras.Model):
                         st_ta[rc_idx][state_idx] = st_ta[rc_idx][state_idx].write(
                             step, st_tensor
                         )
-
             return step + 1, preds_ta, st_ta
 
-        # 5) Run while_loop
         step_init = tf.constant(0, dtype=tf.int32)
         loop_vars = (step_init, predictions_ta, states_ta)
         _, final_predictions_ta, final_states_ta = tf.while_loop(
@@ -722,62 +959,85 @@ class ReservoirEnsemble(keras.Model):
             parallel_iterations=1,
         )
 
-        # 6) Convert predictions to final Tensor => (steps+1, batch_size, 1, input_dim)
-        preds_stacked = final_predictions_ta.stack()
-        # Squeeze out the middle dim => (steps+1, batch_size, input_dim)
-        preds_stacked = tf.squeeze(preds_stacked, axis=2)
-        # Transpose => (batch_size, steps+1, input_dim)
-        predictions_out = tf.transpose(preds_stacked, perm=[1, 0, 2])
+        # Convert predictions => (steps+1, batch_size, 1, output_dim)
+        preds_stacked = (
+            final_predictions_ta.stack()
+        )  # => (steps+1, batch_size, 1, output_dim)
+        preds_stacked = tf.squeeze(
+            preds_stacked, axis=2
+        )  # => (steps+1, batch_size, output_dim)
+        predictions_out = tf.transpose(
+            preds_stacked, [1, 0, 2]
+        )  # => (batch_size, steps+1, output_dim)
         predictions_out = tf.stop_gradient(predictions_out)
 
-        # 7) Convert each states_ta to Tensors => list of (batch_size, steps, units_i)
         if store_states:
-            states_out_list = [
-                [
-                    tf.stop_gradient(
-                        tf.transpose(ta.stack(), [1, 0, 2])
-                    )  # (batch_size, steps, units_i)
-                    for ta in state_tas
-                ]
-                for state_tas in final_states_ta
-            ]
+            states_out_list = []
+            for rc_tas in final_states_ta:  # each reservoir’s list
+                rc_states = []
+                for ta in rc_tas:
+                    st_stacked = ta.stack()  # => (steps, batch_size, units)
+                    st_stacked = tf.transpose(
+                        st_stacked, perm=[1, 0, 2]
+                    )  # => (batch_size, steps, units)
+                    st_stacked = tf.stop_gradient(st_stacked)
+                    rc_states.append(st_stacked)
+                states_out_list.append(rc_states)
             return predictions_out, states_out_list
 
         return predictions_out, None
 
     def compute_output_shape(self, input_shape: Tuple[int, ...]) -> Tuple[int, ...]:
-        """Compute the output shape of the model.
+        r"""
+        Computes the output shape of the ensemble. In this implementation,
+        the output shape is the same as the input shape (batch_size, timesteps, input_dim)
+        or adjusted according to the final outlier-removal layer.
 
-        Args:
-            input_shape (tuple): The input shape of the model.
+        Parameters
+        ----------
+        input_shape : tuple of int
+            The input shape (batch_size, timesteps, input_dim).
 
-        Returns:
-            tuple: The output shape of the model.
+        Returns
+        -------
+        tuple of int
+            The computed output shape.
         """
-        # The output shape will be the same as the input shape
+        # If needed, you can refine this to check the shape from outlier_removal_layer.
         return input_shape
 
     def get_states(self) -> List[List[tf.Tensor]]:
-        """Retrieve the current states of all RNN layers in the model.
+        r"""
+        Retrieves the internal states from each `ReservoirComputer` in the ensemble.
 
-        Returns:
-            List[tf.Tensor]: List of current reservoir computers states.
+        Returns
+        -------
+        list of list of tf.Tensor
+            A nested list, where each sub-list corresponds to one `ReservoirComputer`
+            and contains its internal state tensors.
         """
         return [
             reservoir_computer.get_states()
             for reservoir_computer in self.reservoir_computers
         ]
 
-    def reset_states(self):
-        """Reset internal states of the RNNs of the model."""
+    def reset_states(self) -> None:
+        r"""
+        Resets the internal states for every `ReservoirComputer` in the ensemble.
+        """
         for reservoir_computer in self.reservoir_computers:
             reservoir_computer.reset_states()
 
     def get_config(self) -> dict:
-        """Returns the configuration of the model.
+        r"""
+        Returns a configuration dictionary that describes how to re-instantiate
+        this ensemble model.
 
-        Returns:
-            dict: Configuration dictionary.
+        Returns
+        -------
+        dict
+            A dictionary containing:
+            - reservoir_computers : list of serialized `ReservoirComputer` objects
         """
         config = super().get_config()
         config.update(
@@ -792,15 +1052,19 @@ class ReservoirEnsemble(keras.Model):
 
     @classmethod
     def from_config(cls, config: dict) -> "ReservoirEnsemble":
-        """Creates a model from its configuration.
+        r"""
+        Creates a `ReservoirEnsemble` from its configuration dictionary.
 
-        Args:
-            config (dict): Configuration dictionary.
+        Parameters
+        ----------
+        config : dict
+            Configuration dictionary.
 
-        Returns:
-            ReservoirComputerKeras: An instance of the model.
+        Returns
+        -------
+        ReservoirEnsemble
+            An instance of the ensemble model.
         """
-        # Deserialize reservoir computer and readout layers
         reservoir_computers = [
             keras.layers.deserialize(reservoir_computer)
             for reservoir_computer in config.pop("reservoir_computers")
@@ -809,19 +1073,31 @@ class ReservoirEnsemble(keras.Model):
 
     @classmethod
     def load(cls, path: str) -> "ReservoirEnsemble":
-        """Loads a model from the given path.
+        r"""
+        Loads a `ReservoirEnsemble` from a saved model file.
 
-        Args:
-            path (str): Path to the saved model.
+        Parameters
+        ----------
+        path : str
+            The path to the saved Keras model.
 
-        Returns:
-            ReservoirComputerKeras: Loaded model instance.
+        Returns
+        -------
+        ReservoirEnsemble
+            The loaded ensemble model.
         """
         model = keras.models.load_model(path, compile=False)
         return model
 
     def plot(self, **kwargs):
-        """Plot the model architecture."""
+        r"""
+        Plots the architecture of the ensemble using Keras's `plot_model` utility.
+
+        Raises
+        ------
+        ValueError
+            If the model is not built yet.
+        """
         if not self.built:
             raise ValueError("Model needs to be built before plotting.")
         input_shape = self.get_build_config()["input_shape"]
@@ -832,23 +1108,31 @@ class ReservoirEnsemble(keras.Model):
         return keras.utils.plot_model(model, **kwargs)
 
     def get_build_config(self) -> dict:
+        r"""
+        Returns model build information for plotting or re-initializing.
+
+        Returns
+        -------
+        dict
+            A dictionary containing "input_shape" if set; otherwise empty.
         """
-        Returns a dictionary containing everything needed to rebuild this model
-        when deserialized. In your code, 'plot()' relies on 'get_build_config()["input_shape"]',
-        so we must include it here.
-        """
-        # If the model hasn't been built yet, self._input_shape may be None.
-        # In that case, return an empty dict or handle as needed.
         return (
             {"input_shape": self._input_shape}
             if getattr(self, "_input_shape", None) is not None
             else {}
         )
 
-    def build_from_config(self, config):
-        """Build the model from the given configuration.
+    def build_from_config(self, config: dict) -> None:
+        r"""
+        Builds the ensemble from a given configuration.
 
-        Args:
-            config (dict): Configuration dictionary.
+        Parameters
+        ----------
+        config : dict
+            Build configuration dictionary.
+
+        Notes
+        -----
+        Currently sets `self.built = True` as a placeholder.
         """
         self.built = True
