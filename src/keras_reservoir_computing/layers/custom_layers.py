@@ -1,4 +1,9 @@
-"""Custom keras layers."""
+"""
+Custom Keras layers.
+
+This module contains custom Keras layers that are not part of the standard Keras library. 
+The layers are used as part of the Reservoir Computing models in this package.
+"""
 from typing import Dict, List, Union
 
 import keras
