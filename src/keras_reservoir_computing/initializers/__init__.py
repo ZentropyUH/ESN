@@ -9,19 +9,20 @@ from .graph_initializers import (
     NewmanWattsStrogatzGraphInitializer,
     KleinbergSmallWorldGraphInitializer,
     RegularGraphInitializer,
-    CompleteGraphInitializer
+    CompleteGraphInitializer,
 )
 
 __all__ = [
     "InputMatrix",
-
     "WattsStrogatzGraphInitializer",
     "ErdosRenyiGraphInitializer",
     "BarabasiAlbertGraphInitializer",
     "NewmanWattsStrogatzGraphInitializer",
     "KleinbergSmallWorldGraphInitializer",
     "RegularGraphInitializer",
-    "CompleteGraphInitializer"
-
+    "CompleteGraphInitializer",
 ]
 
+
+def __dir__():
+    return __all__
