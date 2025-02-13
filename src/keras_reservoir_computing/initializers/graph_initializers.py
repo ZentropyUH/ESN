@@ -57,7 +57,7 @@ class GraphInitializerBase(Initializer):
     def __init__(
         self,
         spectral_radius: Optional[float] = None,
-        seed: Optional[int | tf.random.Generator] = None,
+        seed: Union[int, tf.random.Generator, None] = None,
     ) -> None:
         if spectral_radius is not None and spectral_radius < 0:
             raise ValueError("The spectral radius should be non-negative.")
@@ -69,7 +69,7 @@ class GraphInitializerBase(Initializer):
 
     def __call__(
         self,
-        shape: Union[int, Tuple[int, int], List[int, int]],
+        shape: Union[int, Tuple[int, int], List[int]],
         dtype: Optional[tf.dtypes.DType] = None,
     ) -> tf.Tensor:
         if isinstance(shape, int):

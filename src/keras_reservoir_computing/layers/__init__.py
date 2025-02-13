@@ -3,8 +3,13 @@ from .custom_layers import (
     RemoveOutliersAndMean, 
     InputSplitter
     )
+
+
 __all__ = [
     "PowerIndex", 
     "RemoveOutliersAndMean", 
     "InputSplitter"
     ]
+
+def __dir__():
+    return __all__
