@@ -21,3 +21,7 @@ __all__ = [
     "regular",
     "watts_strogatz",
 ]
+
+
+def __dir__():
+    return __all__

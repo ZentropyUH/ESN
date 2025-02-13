@@ -18,3 +18,6 @@ __all__ = [
     "load_file",
     "save_data",
 ]
+
+def __dir__():
+    return __all__

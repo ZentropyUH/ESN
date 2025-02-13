@@ -8,3 +8,7 @@ __all__ = [
     "tf_utils",
     "graph_utils",
 ]
+
+
+def __dir__():
+    return __all__

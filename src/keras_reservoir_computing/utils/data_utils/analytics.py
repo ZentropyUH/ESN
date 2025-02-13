@@ -11,15 +11,15 @@ def compute_normalized_error(y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarr
     """
     Compute the time-dependent normalized root mean square (RMS) error between predicted and true trajectories.
 
-    This function supports single and multiple trajectory comparisons. If `y_true` contains a single trajectory,
-    all trajectories in `y_pred` are compared to it. If `y_true` contains multiple trajectories, `y_pred` must have
-    the same shape, and comparisons are made pairwise.
+    Supports single and multiple trajectory comparisons. If `y_true` contains a single trajectory,
+    all trajectories in `y_pred` are compared to it. If `y_true` contains multiple trajectories,
+    `y_pred` must have the same shape, and comparisons are made pairwise.
 
     Parameters
     ----------
     y_true : np.ndarray
         Reference trajectories with shape:
-        - (time, features): A single reference trajectory. All `y_pred` samples will be compared against this.
+        - (time, features): A single reference trajectory. All `y_pred` samples are compared against this.
         - (samples, time, features): Multiple reference trajectories, where each `y_true[i]` is compared to `y_pred[i]`.
 
     y_pred : np.ndarray
@@ -29,7 +29,7 @@ def compute_normalized_error(y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarr
 
     Returns
     -------
-    final_error : np.ndarray
+    np.ndarray
         A 1D array of shape `(time,)`, representing the normalized RMS error at each time step,
         averaged over all samples when applicable.
 
@@ -93,15 +93,20 @@ def compute_normalized_error(y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarr
 
 def mean_ensemble_prediction(predictions: np.ndarray) -> np.ndarray:
     """
-    Will average the predictions of all samples over the models axis.
+    Compute the mean ensemble prediction across multiple models.
 
-    To explain in more detail, this will receive predictions of multiple models over multiple samples. The shape of the predictions is (models, samples, time, features), meaning that we have multiple models, each with multiple sample predictions over time and features. This function will average over the models axis, meaning that we will get the mean prediction over all models for each sample, over time and features.
+    The input consists of multiple models predicting multiple samples over time and features.
+    This function averages over the model axis, producing a mean prediction per sample.
 
-    Args:
-        predictions (np.ndarray): The predictions of shape (models, samples, time, features).
+    Parameters
+    ----------
+    predictions : np.ndarray
+        Array of shape `(models, samples, time, features)`, containing predictions from multiple models.
 
-    Returns:
-        np.ndarray: The mean predictions of shape (samples, time, features).
+    Returns
+    -------
+    np.ndarray
+        Mean prediction of shape `(samples, time, features)`, averaged over all models.
     """
 
     return np.mean(predictions, axis=0)
@@ -109,13 +114,24 @@ def mean_ensemble_prediction(predictions: np.ndarray) -> np.ndarray:
 
 def get_all_predictions(predictions_path: str) -> np.ndarray:
     """
-    Will load all predictions from the given path and return them in a numpy array. Prediction files will always end with _predictions.[format], where [format] can be either npy, csv or nc. In the folder might be the target data as well, which will end with _target.[format].
+    Load all prediction files from a directory and return them as a NumPy array.
 
-    Args:
-        predictions_path (str): The path to the directory containing the predictions.
+    Prediction files must end with `_predictions.[format]`, where `[format]` can be `npy`, `csv`, or `nc`.
 
-    Returns:
-        np.ndarray: The predictions of shape (models, samples, time, features).
+    Parameters
+    ----------
+    predictions_path : str
+        Path to the directory containing the prediction files.
+
+    Returns
+    -------
+    np.ndarray
+        Loaded predictions with shape `(models, samples, time, features)`.
+
+    Raises
+    ------
+    ValueError
+        If no prediction files are found in the directory.
     """
 
     # Get all files in the directory
@@ -141,13 +157,24 @@ def get_all_predictions(predictions_path: str) -> np.ndarray:
 
 def get_all_targets(predictions_path: str) -> np.ndarray:
     """
-    Will load all target data from the given path and return them in a numpy array. Target files will always end with _target.[format], where [format] can be either npy, csv or nc. In the folder might be the predictions as well, which will end with _predictions.[format].
+    Load all target files from a directory and return them as a NumPy array.
 
-    Args:
-        predictions_path (str): The path to the directory containing the targets.
+    Target files must end with `_targets.[format]`, where `[format]` can be `npy`, `csv`, or `nc`.
 
-    Returns:
-        np.ndarray: The targets of shape (samples, time, features).
+    Parameters
+    ----------
+    predictions_path : str
+        Path to the directory containing the target files.
+
+    Returns
+    -------
+    np.ndarray
+        Loaded target data with shape `(samples, time, features)`.
+
+    Raises
+    ------
+    ValueError
+        If no target files are found in the directory.
     """
 
     # Get all files in the directory
@@ -173,13 +200,20 @@ def get_all_targets(predictions_path: str) -> np.ndarray:
 
 def get_all_errors(predictions_path: str) -> np.ndarray:
     """
-    Given a path to a directory containing predictions and targets, this function will load all predictions and targets and compute the normalized error for each sample.
+    Compute the normalized error for all prediction-target pairs in a directory.
 
-    Args:
-        predictions_path (str): The path to the directory containing the predictions and targets.
+    This function loads all predictions and targets from a given directory,
+    computes the normalized error for each sample, and returns the results.
 
-    Returns:
-        np.ndarray: The normalized errors of shape (samples, time).
+    Parameters
+    ----------
+    predictions_path : str
+        Path to the directory containing the predictions and targets.
+
+    Returns
+    -------
+    np.ndarray
+        Normalized errors of shape `(samples, time, 1)`.
     """
 
     preds = get_all_predictions(predictions_path)
@@ -195,13 +229,23 @@ def get_all_errors(predictions_path: str) -> np.ndarray:
 
 def mean_prediction_error(predictions_path: str) -> np.ndarray:
     """
-    Given a datapath this will load all the predictions and take the mean over the models axis. We will then have the mean prediction for each sample. Then we will compare the mean prediction to the target data and return the normalized error.
+    Compute the normalized error of the mean ensemble prediction.
 
-    Args:
-        predictions_path (str): The path to the directory containing the predictions.
+    This function:
+    1. Loads all predictions.
+    2. Computes the mean prediction over all models.
+    3. Loads the target data.
+    4. Computes the normalized error between the mean prediction and targets.
 
-    Returns:
-        np.ndarray: The normalized error of shape (samples, time).
+    Parameters
+    ----------
+    predictions_path : str
+        Path to the directory containing the predictions.
+
+    Returns
+    -------
+    np.ndarray
+        Normalized error of shape `(samples, time)`.
     """
 
     preds = get_all_predictions(predictions_path)

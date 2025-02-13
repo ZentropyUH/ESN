@@ -25,39 +25,59 @@ def model_predictor(
     train_config: Union[str, dict],
     forecast_config: Union[str, dict],
     log: bool = True,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray, np.ndarray, Optional[np.ndarray]]:
     """
-    Generates predictions and (optionally) internal states from a trained model and dataset.
+    Generate predictions (and optionally internal states) from a trained model and dataset.
+
+    This function loads (or uses) a reservoir computing model and applies it to a dataset
+    to produce forecasts. Additionally, it can return internal states if configured to do so.
 
     Parameters
     ----------
-    model : str or krc.models.ReservoirComputer
-        Either the path to the model file or an already instantiated reservoir computing model.
+    model : str or ReservoirComputer
+        Either a file path to a saved model or an already-instantiated
+        ``ReservoirComputer`` object.
     datapath : str
-        Path to the dataset file.
+        Path to the dataset file (e.g., CSV, NPZ, NPY, or NC).
     train_config : str or dict
-        Either the path to the dictionary specifying the training configuration or the dictionary itself.
-        Must contain the keys 'init_transient_length', 'train_length', 'transient_length', 'normalize' and 'regularization'.
+        Either a path to a JSON file containing the training configuration or a dictionary
+        with the following keys:
+
+        - ``init_transient_length``
+        - ``train_length``
+        - ``transient_length``
+        - ``normalize``
+        - ``regularization``
+
+        If a key is missing, a fallback default is used (e.g., ``train_length=20000``).
     forecast_config : str or dict
-        Either the path to the dictionary specifying the forecast configuration or the dictionary itself.
-        Must contain the keys 'forecast_length' and 'internal_states'.
+        Either a path to a JSON file containing the forecast configuration or a dictionary
+        with the following keys:
+
+        - ``forecast_length``
+        - ``internal_states``
+
+        If a key is missing, a fallback default is used.
     log : bool, optional
-        Whether to log the process. Defaults to True.
+        Whether to log timing info via the ``timer`` context manager. Default is True.
 
     Returns
     -------
-    tuple of (np.ndarray, np.ndarray, np.ndarray)
-        A tuple containing:
-        - val_target : ndarray
-            The validation targets.
-        - forecast : ndarray
-            The model forecasts.
-        - states : ndarray
-            The internal states, if `internal_states` is True; otherwise, None.
+    val_target : np.ndarray
+        The validation targets of shape ``(1, T_val, D)``.
+    forecast : np.ndarray
+        The model forecasts, typically of shape ``(1, T_for, D)`` (may differ if forecast length
+        is truncated).
+    states : np.ndarray or None
+        The internal states if ``internal_states=True``, otherwise ``None``.
 
     Notes
     -----
-    The dataset is loaded with the same normalization and partitioning used during training.
+    - The dataset is split consistently with the training setup: an initial transient is discarded,
+      and the remaining data is split into training and validation sets.
+    - If you pass strings for ``train_config`` or ``forecast_config``, they are automatically
+      loaded from JSON via :func:`load_train_config` or :func:`load_forecast_config`.
+    - If you pass a string for ``model``, it is loaded via :func:`load_model`.
     """
     # Load the model if they are paths
     if isinstance(train_config, str):
@@ -65,20 +85,18 @@ def model_predictor(
 
     if isinstance(forecast_config, str):
         forecast_config = load_forecast_config(forecast_config)
-    #########################################
 
-    ### Failsafe for missing keys ###
-
-    # train_config parameters
+    # Extract training configuration
     init_transient_length = train_config.get("init_transient_length", 5000)
     transient_length = train_config.get("transient_length", 1000)
     train_length = train_config.get("train_length", 20000)
     normalize = train_config.get("normalize", True)
 
-    # forecast_config parameters
+    # Extract forecast configuration
     forecast_length = forecast_config.get("forecast_length", 1000)
     internal_states = forecast_config.get("internal_states", True)
 
+    # Load the model if input is a path
     if isinstance(model, str):
         model = load_model(model)
 
@@ -110,96 +128,101 @@ def model_batch_predictor(
     savepath: Optional[str] = None,
     format: str = "npy",
     log: bool = True,
-    progress: Progress = None,
-    task: Task = None,
-) -> Tuple[np.ndarray, np.ndarray]:
+    progress: Optional[Progress] = None,
+    task: Optional[Task] = None,
+) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
     """
-    Generates predictions for a batch of data files using a single trained model.
+    Generate predictions for a batch of data files using a single trained model.
+
+    This function iterates over all files in a data folder, uses a single model
+    to forecast each file, and then concatenates the predictions and targets
+    along the first dimension (i.e., stacking each new file's forecast/target).
 
     Parameters
     ----------
     model_path : str
-        Path to the model file.
+        Path to the file containing the trained model (e.g., .h5, .pkl).
     data_folder_path : str
-        Path to the folder containing only the data files.
+        Path to a directory containing **only** the data files for prediction.
     train_config : str or dict
-        Either the path to the dictionary specifying the training configuration or the dictionary itself.
-        Must contain the keys 'init_transient_length', 'train_length', 'transient_length', 'normalize' and 'regularization'.
+        Either a path to a JSON file containing training configuration or a dictionary
+        with the keys (``init_transient_length``, ``train_length``, ``transient_length``,
+        ``normalize``, ``regularization``). Missing keys have fallback defaults.
     forecast_config : str or dict
-        Either the path to the dictionary specifying the forecast configuration or the dictionary itself.
-        Must contain the keys 'forecast_length' and 'internal_states'.
+        Either a path to a JSON file containing forecast configuration or a dictionary
+        with the keys (``forecast_length``, ``internal_states``). Missing keys have
+        fallback defaults.
     savepath : str, optional
-        Path to the folder where the predictions and targets will be saved. If None,
-        the results will not be saved.
+        Directory where the predictions/targets are saved. If ``None``, results
+        are **not** saved.
     format : str, optional
-        File format to use when saving data. Defaults to "npy".
+        Output file format if saving (e.g., "csv", "npz", "npy", "nc"). Defaults to "npy".
     log : bool, optional
-        Whether to log the process. Defaults to True.
+        Whether to log timing info. Defaults to True.
     progress : rich.progress.Progress, optional
-        A Rich Progress object for manual progress control.
+        A Rich progress object to manage or display progress externally.
     task : rich.progress.Task, optional
-        A specific Rich Task object to update during the prediction loop.
+        A specific Rich Task object to update within the provided `progress`.
 
     Returns
     -------
-    tuple of (np.ndarray, np.ndarray)
-        A tuple containing:
-        - predictions_array : ndarray
-            Concatenated forecasts for all data files. Shape will be (N, T, D).
-        - targets_array : ndarray
-            Concatenated validation targets corresponding to each forecast. Shape will be (N, T, D).
+    predictions_array : np.ndarray or None
+        Concatenated model forecasts of shape ``(N, T, D)``, where N is the number
+        of data files. If data was never processed (due to skipping), returns None.
+    targets_array : np.ndarray or None
+        Concatenated validation targets corresponding to ``predictions_array``.
+        Shape ``(N, T, D)``. If data was never processed, returns None.
 
     Notes
     -----
-    If both predictions and targets for the given model are found in `savepath` with the
-    specified `format`, the prediction step is skipped.
+    - If the relevant predictions and targets are already found in ``savepath`` with
+      the correct file names and format, the function skips prediction and returns
+      ``(None, None)``.
+    - The model is loaded for each file by calling :func:`model_predictor`, and the
+      resulting predictions/targets are concatenated along axis 0.
+    - If ``savepath`` is not None, the final concatenated arrays are saved under:
 
-    The predictions and targets are saved as separate files with the model name as a prefix.
+      .. code-block:: none
+
+          {model_file_stem}_predictions.{format}
+          {model_file_stem}_targets.{format}
     """
-    # Load the model if they are paths
-    # if isinstance(train_config, str):
-    #     train_config = load_train_config(train_config)
-
-    # if isinstance(forecast_config, str):
-    #     forecast_config = load_forecast_config(forecast_config)
-    #########################################
-
     data_files = list_files_only(data_folder_path)
 
-    # Initialize empty arrays for concatenation
     predictions_array = None
     targets_array = None
 
-    # Verify if already calculated and saved. If so, skip and notify.
+    # Derive base filenames for saved predictions/targets
+    base_name = model_path.split(".")[0].split("/")[-1]
+    pred_filename = base_name + "_predictions"
+    target_filename = base_name + "_targets"
+
+    # Check if predictions/targets already exist
     if savepath is not None:
-        # TODO: Change these so I can make modelpath an instance or a path
-        pred_filename = model_path.split(".")[0].split("/")[-1] + "_predictions"
-        target_filename = model_path.split(".")[0].split("/")[-1] + "_targets"
+        pred_path = os.path.join(savepath, pred_filename + "." + format)
+        targ_path = os.path.join(savepath, target_filename + "." + format)
+        exist_predictions = os.path.exists(pred_path)
+        exist_targets = os.path.exists(targ_path)
 
-        exist_predictons = os.path.exists(
-            os.path.join(savepath, pred_filename + "." + format)
-        )
-        exist_targets = os.path.exists(
-            os.path.join(savepath, target_filename + "." + format)
-        )
-
-        if exist_predictons and exist_targets:
-
+        if exist_predictions and exist_targets:
+            # Possibly update Rich progress
             if progress is not None and task is not None:
                 progress.update(task, advance=1)
 
             print(
-                f"Predictions and targets already calculated and saved for model {model_path.split('/')[-1]}. Skipping..."
+                f"Predictions and targets already exist for model '{base_name}'. "
+                f"Skipping batch prediction."
             )
             return None, None
 
-    # Create progress bar, inner if progress is None, otherwise update task inside the loop
+    # Decide how to iterate (Rich track or internal track)
     iterator = (
-        track(data_files, description=f"Predicting {model_path.split('/')[-1]}")
+        track(data_files, description=f"Predicting {base_name}")
         if progress is None
         else data_files
     )
 
+    # Process each data file
     for data_file in iterator:
         datapath = os.path.join(data_folder_path, data_file)
 
@@ -211,12 +234,12 @@ def model_batch_predictor(
             log=log,
         )
 
+        # Align forecast/target lengths
         T = min(forecast.shape[1], val_target.shape[1])
-
         val_target = val_target[:, :T, :]
         forecast = forecast[:, :T, :]
 
-        # Concatenate predictions and targets along the first axis
+        # Concatenate along axis=0
         if predictions_array is None:
             predictions_array = forecast
         else:
@@ -227,23 +250,22 @@ def model_batch_predictor(
         else:
             targets_array = np.concatenate((targets_array, val_target), axis=0)
 
-        # Update global progress bar
+        # Update Rich progress
         if progress is not None and task is not None:
             progress.update(task, advance=1)
 
-    # Save individual files if savepath is provided
+    # Optionally save final arrays
     if savepath is not None:
         os.makedirs(name=savepath, exist_ok=True)
 
-        pred_filename = model_path.split(".")[0].split("/")[-1] + "_predictions"
+        # Save predictions
         save_data(
             data=predictions_array,
             filename=pred_filename,
             savepath=savepath,
             format=format,
         )
-
-        target_filename = model_path.split(".")[0].split("/")[-1] + "_targets"
+        # Save targets
         save_data(
             data=targets_array,
             filename=target_filename,
@@ -264,43 +286,49 @@ def models_batch_predictor(
     log: bool = True,
 ) -> None:
     """
-    Generates predictions for multiple models across a batch of data files.
+    Generate predictions for **all models** in a folder, applied to **all data files** in a data folder.
+
+    For each model file found in ``model_folder_path``, this function calls
+    :func:`model_batch_predictor`, which iterates over all data files in
+    ``data_folder_path``.
 
     Parameters
     ----------
     model_folder_path : str
-        Path to the folder containing only the model files.
+        Path to a folder containing **only** model files (e.g., .h5, .pkl).
     data_folder_path : str
-        Path to the folder containing only the data files.
+        Path to a folder containing **only** the data files for prediction.
     train_config : str or dict
-        Either the path to the dictionary specifying the training configuration or the dictionary itself.
-        Must contain the keys 'init_transient_length', 'train_length', 'transient_length', 'normalize' and 'regularization'.
+        Either a path to a JSON file or a dictionary with the training configuration
+        keys (``init_transient_length``, ``train_length``, ``transient_length``,
+        ``normalize``, ``regularization``).
     forecast_config : str or dict
-        Either the path to the dictionary specifying the forecast configuration or the dictionary itself.
-        Must contain the keys 'forecast_length' and 'internal_states'.
+        Either a path to a JSON file or a dictionary with the forecast configuration
+        keys (``forecast_length``, ``internal_states``).
     savepath : str, optional
-        Path to the folder where the predictions and targets will be saved. If None,
-        the results will not be saved.
+        If not None, directory where concatenated predictions/targets are saved
+        for each model. Defaults to None.
     format : str, optional
         File format to use when saving data. Defaults to "npy".
     log : bool, optional
-        Whether to log the process. Defaults to True.
+        Whether to log progress and timing info. Defaults to True.
+
+    Returns
+    -------
+    None
+        This function does not return anything; it iterates over all models
+        and performs batch predictions. If ``savepath`` is not None, results
+        are saved to files.
 
     Notes
     -----
-    This function iterates over all models in `model_folder_path` and applies each one to
-    all data files in `data_folder_path`, optionally saving the predictions and targets.
+    - A :class:`rich.progress.Progress` object is used internally to track progress
+      across all models and data files.
+    - The total steps are determined by the product of the number of model files
+      and the number of data files.
+    - If any model's predictions already exist in ``savepath``, those are skipped.
     """
-    # Load the model if they are paths
-    # if isinstance(train_config, str):
-    #     train_config = load_train_config(train_config)
-
-    # if isinstance(forecast_config, str):
-    #     forecast_config = load_forecast_config(forecast_config)
-    #########################################
-
     model_files = list_files_only(model_folder_path)
-
     total_models = len(model_files)
     total_data_files = len(list_files_only(data_folder_path))
     total_iterations = total_models * total_data_files
@@ -309,12 +337,12 @@ def models_batch_predictor(
         task = progress.add_task("[cyan]Predicting...", total=total_iterations)
 
         for i, model_file in enumerate(model_files):
-
             print(f"Predicting with model {i+1}/{len(model_files)}")
 
             modelpath = os.path.join(model_folder_path, model_file)
 
-            _, _ = model_batch_predictor(
+            # For each model, run batch predictor over all data files
+            model_batch_predictor(
                 model_path=modelpath,
                 data_folder_path=data_folder_path,
                 train_config=train_config,

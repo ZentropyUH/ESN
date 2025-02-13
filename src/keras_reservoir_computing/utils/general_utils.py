@@ -2,30 +2,39 @@
 
 from contextlib import contextmanager
 from time import time
+from typing import Optional, Union, Generator
 import numpy as np
 
 
-def create_rng(seed: int = None) -> np.random.Generator:
+def create_rng(
+    seed: Optional[Union[int, np.random.Generator]] = None
+) -> np.random.Generator:
     """
-    Creates a random number generator from a seed.
+    Create and return a NumPy random number generator (RNG).
 
     Parameters
     ----------
-    seed : int, np.random.Generator, or None
-        Seed for the random number generator. If None, a new generator is created.
+    seed : int, np.random.Generator, or None, optional
+        Seed or an existing RNG. If an integer, a new generator is created from that seed.
+        If it's already an instance of ``np.random.Generator``, it is returned as is.
+        If None, a new generator is created without a fixed seed (non-deterministic).
 
     Returns
     -------
     np.random.Generator
-        Random
+        A NumPy generator instance.
+
+    Raises
+    ------
+    ValueError
+        If ``seed`` is neither an integer, a ``np.random.Generator``, nor None.
 
     Notes
     -----
-    - If seed is an integer, a new generator is created using the seed.
-    - If seed is a generator, it is returned as is.
-    - If seed is None, a new generator is created without a seed.
+    - This function consolidates the creation of a random generator from an integer seed,
+      an existing generator, or from no seed at all.
+    - Using a fixed seed makes your random operations reproducible.
     """
-    # create random generator from seed
     if isinstance(seed, int):
         rg = np.random.default_rng(seed)
     elif isinstance(seed, np.random.Generator):
@@ -33,45 +42,64 @@ def create_rng(seed: int = None) -> np.random.Generator:
     elif seed is None:
         rg = np.random.default_rng()
     else:
-        raise ValueError("Seed must be an integer, a random generator, or None.")
+        raise ValueError("Seed must be an integer, a np.random.Generator, or None.")
 
     return rg
 
 
 def lyap_ks(i_th: int, L_period: float) -> float:
-    """Estimation of the i-th largest Lyapunov Time of the KS model.
-
-    Args:
-        i_th (int): The i-th largest Lyapunov Time.
-
-        L_period (int): The period of the system.
-
-    Returns:
-        float: The estimated i-th largest Lyapunov Time.
-
-    Taken from the paper:
-        "Lyapunov Exponents of the Kuramoto-Sivashinsky PDE. arxiv:1902.09651v1"
     """
-    # This approximation is taken from the above paper. Verify veracity.
-    return 0.093 - 0.94 * (i_th - 0.39) / L_period
+    Estimate the i-th largest Lyapunov Time for the Kuramoto-Sivashinsky (KS) PDE model.
+
+    This approximation is from:
+    "Lyapunov Exponents of the Kuramoto-Sivashinsky PDE. arXiv:1902.09651v1"
+
+    Parameters
+    ----------
+    i_th : int
+        The index (1-based) of the desired Lyapunov Time (i-th largest).
+    L_period : float
+        The spatial period of the KS system.
+
+    Returns
+    -------
+    float
+        The estimated value of the i-th Lyapunov Time.
+
+    Notes
+    -----
+    - The expression is an empirically derived approximation, so exact accuracy
+      may vary.
+    - The formula used is:
+        .. math::
+           0.093 - 0.94 \\times \\frac{(i_{th} - 0.39)}{L_{period}}.
+    """
+    return 0.093 - 0.94 * ((i_th - 0.39) / L_period)
 
 
 @contextmanager
-def timer(task_name: str = "Task", log: bool = True):
+def timer(task_name: str = "Task", log: bool = True) -> Generator[None, None, None]:
     """
-    Context manager to measure the time of a task.
+    Measure and optionally log the execution time of a code block.
 
-    Args:
-        task_name (str): Name of the task to measure.
-        log (bool): Whether to log the time taken.
+    Parameters
+    ----------
+    task_name : str, optional
+        A descriptive name for the task being measured. Default is "Task".
+    log : bool, optional
+        If True, prints timing information to stdout.
 
-    Returns:
-        None
+    Yields
+    ------
+    None
+        This context yields no value; it simply measures and logs time.
 
-    Example:
-        >>> with self.timer("Some Task"):
-        >>>     # Code to measure
-        Will print the time taken to execute the code block.
+    Examples
+    --------
+    >>> with timer("Data Loading", log=True):
+    ...     data = load_big_file("some_file.csv")
+    ...
+    # Prints something like: "Data Loading took: 0.45 seconds."
     """
     if log:
         print(f"\n{task_name}...\n")
@@ -79,11 +107,11 @@ def timer(task_name: str = "Task", log: bool = True):
     yield
     end = time()
     if log:
-        print(f"{task_name} took: {round(end - start, 2)} seconds.\n")
+        duration = round(end - start, 2)
+        print(f"{task_name} took: {duration} seconds.\n")
 
 
 __all__ = [
-    # utils
     "timer",
     "lyap_ks",
     "create_rng",

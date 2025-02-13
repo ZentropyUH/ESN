@@ -1,5 +1,4 @@
-from typing import Union
-
+from typing import Union, Optional
 import numpy as np
 from networkx import DiGraph, Graph
 
@@ -13,36 +12,52 @@ def watts_strogatz(
     p: float,
     directed: bool = False,
     self_loops: bool = False,
-    seed: Union[int, np.random.Generator, None] = None,
-) -> Union[Graph, DiGraph]:
+    seed: Optional[Union[int, np.random.Generator]] = None,
+) -> Union[DiGraph, Graph]:
     """
-    Generates a Watts-Strogatz small-world graph with rewiring probability p.
+    Generates a Watts-Strogatz small-world graph and returns its adjacency matrix as a Tensor.
+
+    The function starts by creating a ring lattice where each node is connected to ``k/2`` neighbors
+    on each side. Then, with probability ``p``, each edge is rewired to a new node (allowing
+    for possible self-loops if specified). Weights on edges are chosen randomly from the set ``{-1, 1}``.
+
+    .. note::
+        Since this function is decorated with ``@to_tensor``, the returned value is a Tensor
+        of the adjacency matrix, *not* a NetworkX graph object.
 
     Parameters
     ----------
     n : int
         Number of nodes.
     k : int
-        Each node initially connects to k/2 predecessors and k/2 successors.
+        Each node is initially connected to ``k/2`` predecessors and ``k/2`` successors.
+        If ``k`` is odd, it will be incremented by 1 internally.
+        Must be smaller than ``n``.
     p : float
-        Rewiring probability.
+        Rewiring probability in the interval [0, 1].
     directed : bool, optional
-        If True, generates a directed graph; otherwise, an undirected one.
+        If True, generates a directed graph; otherwise, generates an undirected graph.
     self_loops : bool, optional
-        If True, allows self-loops during rewiring.
-    seed : int, np.random.Generator, or None, optional
-        Random seed for reproducibility.
+        If True, allows self-loops during the rewiring step.
+    seed : int or np.random.Generator or None, optional
+        Seed for random number generator (RNG). If None, a random seed is used.
 
     Returns
     -------
-    nx.Graph or nx.DiGraph
-        The generated Watts-Strogatz graph.
+    tf.Tensor
+        Adjacency matrix of the generated Watts-Strogatz graph, as a Tensor.
+
+    Raises
+    ------
+    ValueError
+        If ``k >= n`` (not a valid ring lattice).
     """
     if k >= n:
-        raise ValueError(f"k must be smaller than n (got k={k}, n={n})")
+        raise ValueError(f"k must be smaller than n (got k={k}, n={n}).")
 
+    # Ensure k is even
     if k % 2 != 0:
-        k += 1  # Ensure k is even
+        k += 1
 
     rng = create_rng(seed)
     G = DiGraph() if directed else Graph()
@@ -50,22 +65,23 @@ def watts_strogatz(
     # Initial ring lattice
     for i in range(n):
         for j in range(1, k // 2 + 1):
-            G.add_edge(i, (i + j) % n, weight=rng.choice([-1, 1]))  # Forward
+            G.add_edge(i, (i + j) % n, weight=rng.choice([-1, 1]))  # forward edge
             if directed:
-                G.add_edge(i, (i - j) % n, weight=rng.choice([-1, 1]))  # Backward
-
-    edges = list(G.edges())  # Ensure a stable edge list
+                G.add_edge(i, (i - j) % n, weight=rng.choice([-1, 1]))  # backward edge
 
     # Rewire edges with probability p
+    edges = list(G.edges())
     for u, v in edges:
         if rng.random() < p:
-            G.remove_edge(u, v)  # Watts-Strogatz removes the original edge
+            # Remove the original edge
+            G.remove_edge(u, v)
 
-            candidates = rng.permutation(n)  # Shuffle node choices
+            # Find a new candidate node for rewiring
+            candidates = rng.permutation(n)
             for new_v in candidates:
                 if (new_v != u or self_loops) and not G.has_edge(u, new_v):
                     G.add_edge(u, new_v, weight=rng.choice([-1, 1]))
-                    break  # Found a valid new_v, stop searching
+                    break
 
     return G
 
@@ -77,32 +93,38 @@ def connected_watts_strogatz(
     p: float,
     directed: bool = True,
     self_loops: bool = True,
-    seed: Union[int, np.random.Generator, None] = None,
-) -> Union[Graph, DiGraph]:
+    seed: Optional[Union[int, np.random.Generator]] = None,
+) -> Union[DiGraph, Graph]:
     """
-    Generates a connected Watts-Strogatz graph with rewiring probability p.
+    Generates a **connected** Watts-Strogatz graph and returns its adjacency matrix as a Tensor.
+
+    This function wraps :func:`watts_strogatz` with a decorator that attempts multiple
+    generations until a connected graph is obtained (up to a certain number of tries).
+    Then, the resulting graph is converted to a Tensor adjacency matrix.
 
     Parameters
     ----------
     n : int
         Number of nodes.
     k : int
-        Each node initially connects to k/2 predecessors and k/2 successors.
+        Each node initially connects to ``k/2`` predecessors and ``k/2`` successors.
     p : float
-        Rewiring probability.
+        Rewiring probability in the interval [0, 1].
     directed : bool, optional
-        If True, generates a directed graph; otherwise, an undirected one. Default is True.
+        If True, generates a directed graph; otherwise, an undirected graph.
+        Default is True.
     self_loops : bool, optional
-        If True, allows self-loops during rewiring. Default is True.
-    seed : int or None, optional
-        Seed for the random number generator. Default is None.
+        If True, allows self-loops during the rewiring step. Default is True.
+    seed : int or np.random.Generator or None, optional
+        Seed for random number generator (RNG). If None, a random seed is used.
     tries : int, optional
-        Number of attempts to generate a connected graph. **Handled by the `connected_graph` decorator**. Default is 100.
+        Number of attempts to generate a connected graph. This parameter is handled
+        by the ``@connected_graph`` decorator, not passed directly here.
 
     Returns
     -------
     tf.Tensor
-        Adjacency matrix of the connected Watts-Strogatz graph.
+        Adjacency matrix (as a Tensor) of the connected Watts-Strogatz graph.
     """
     return watts_strogatz(n, k, p, directed, self_loops, seed)
 
@@ -113,38 +135,42 @@ def erdos_renyi(
     p: float,
     directed: bool = True,
     self_loops: bool = True,
-    seed: Union[int, np.random.Generator, None] = None,
-) -> Union[Graph, DiGraph]:
+    seed: Optional[Union[int, np.random.Generator]] = None,
+) -> Union[DiGraph, Graph]:
     """
-    Generates an Erdos-Renyi graph with edge probability p.
+    Generates an Erdos-Renyi (G(n, p)) graph and returns its adjacency matrix as a Tensor.
+
+    Every possible edge is included with probability ``p``, independently of every other edge.
+    Weights on edges are chosen randomly from the set ``{-1, 1}``.
 
     Parameters
     ----------
     n : int
         Number of nodes.
     p : float
-        Edge probability.
+        Probability of including each edge (in [0, 1]).
     directed : bool
-        If True, generates a directed graph; otherwise, an undirected one.
+        If True, generates a directed graph; otherwise, an undirected graph.
     self_loops : bool
         If True, allows self-loops in the graph.
-    seed : int, np.random.Generator, or None
-        Seed for the random number generator. Default is None.
+    seed : int or np.random.Generator or None
+        Seed for the random number generator.
 
     Returns
     -------
-    nx.Graph or nx.DiGraph
-        Erdos-Renyi graph.
+    tf.Tensor
+        Adjacency matrix (as a Tensor) of the generated Erdos-Renyi graph.
     """
     rng = create_rng(seed)
     G = DiGraph() if directed else Graph()
 
     nodes = range(n)
-    G.add_nodes_from(nodes)  # Ensure all nodes are included
+    G.add_nodes_from(nodes)
 
     if directed:
         edges = [(u, v) for u in nodes for v in nodes if self_loops or u != v]
     else:
+        # For undirected, only consider edges (u, v) with u <= v to avoid duplicates
         edges = [(u, v) for u in nodes for v in range(u, n) if self_loops or u != v]
 
     selected_edges = [edge for edge in edges if rng.random() < p]
@@ -160,75 +186,101 @@ def connected_erdos_renyi(
     p: float,
     directed: bool = True,
     self_loops: bool = True,
-    seed: Union[int, np.random.Generator, None] = None,
-) -> Union[Graph, DiGraph]:
+    seed: Optional[Union[int, np.random.Generator]] = None,
+) -> Union[DiGraph, Graph]:
     """
-    Generates a connected Erdos-Renyi graph with edge probability p.
+    Generates a **connected** Erdos-Renyi graph and returns its adjacency matrix as a Tensor.
+
+    This function wraps :func:`erdos_renyi` with a decorator that attempts multiple
+    generations until a connected graph is obtained (up to a certain number of tries).
+    Then, the resulting graph is converted to a Tensor adjacency matrix.
 
     Parameters
     ----------
     n : int
         Number of nodes.
     p : float
-        Edge probability.
+        Probability of including each edge (in [0, 1]).
     directed : bool
-        If True, generates a directed graph; otherwise, an undirected one.
+        If True, generates a directed graph; otherwise, an undirected graph.
     self_loops : bool
         If True, allows self-loops in the graph.
-    seed : int, np.random.Generator, or None
-        Seed for the random number generator. Default is None.
+    seed : int or np.random.Generator or None
+        Seed for the random number generator.
     tries : int, optional
-        Number of attempts to generate a connected graph. **Handled by the `connected_graph` decorator**. Default is 100.
+        Number of attempts to generate a connected graph. This parameter is handled
+        by the ``@connected_graph`` decorator.
 
     Returns
     -------
     tf.Tensor
-        Adjacency matrix of the connected Erdos-Renyi graph.
+        Adjacency matrix (as a Tensor) of the connected Erdos-Renyi graph.
+
+    Raises
+    ------
+    ValueError
+        If the probability `p` is too small to expect a connected graph. As a rough guideline,
+        `p` should be greater than `ln(n)/n` for a good chance of connectivity.
     """
     if p < np.log(n) / n:
         raise ValueError(
-            f"Edge probability p must be greater than ln(n) / n to be connected, (got p={p}, n={n})."
+            f"Edge probability p must be > ln(n) / n to have a good chance of connectivity. "
+            f"(Got p={p}, n={n})."
         )
     return erdos_renyi(n, p, directed, self_loops, seed)
 
 
-@to_tensor  # Newman-Watts-Strogatz is always connected
+@to_tensor
 def newman_watts_strogatz(
     n: int,
     k: int,
     p: float,
     directed: bool = False,
     self_loops: bool = False,
-    seed: Union[int, np.random.Generator, None] = None,
-) -> Union[Graph, DiGraph]:
+    seed: Optional[Union[int, np.random.Generator]] = None,
+) -> Union[DiGraph, Graph]:
     """
-    Generates a Newman-Watts-Strogatz small-world graph with rewiring probability p.
+    Generates a Newman-Watts-Strogatz small-world graph and returns its adjacency matrix as a Tensor.
+
+    Similar to Watts-Strogatz, except existing edges are **not removed** during rewiring.
+    Instead, new edges are added with probability ``p``.
+
+    .. note::
+        Since the function is decorated with ``@to_tensor``, the returned value is a
+        Tensor adjacency matrix, not a NetworkX graph.
 
     Parameters
     ----------
     n : int
         Number of nodes.
     k : int
-        Each node initially connects to k/2 predecessors and k/2 successors.
+        Each node initially connects to ``k/2`` predecessors and ``k/2`` successors.
+        If ``k`` is odd, it will be incremented by 1 internally.
+        Must be smaller than ``n``.
     p : float
-        Rewiring probability.
+        Probability of adding a long-range (random) edge.
     directed : bool, optional
-        If True, generates a directed graph; otherwise, an undirected one.
+        If True, generates a directed graph; otherwise, an undirected graph.
     self_loops : bool, optional
-        If True, allows self-loops during rewiring.
-    seed : int or None, optional
-        Random seed for reproducibility.
+        If True, allows self-loops during the additional edge creation.
+    seed : int or np.random.Generator or None, optional
+        Seed for the random number generator.
 
     Returns
     -------
-    nx.Graph or nx.DiGraph
-        The generated Newman-Watts-Strogatz graph.
+    tf.Tensor
+        Adjacency matrix of the Newman-Watts-Strogatz graph.
+
+    Raises
+    ------
+    ValueError
+        If ``k >= n``.
     """
     if k >= n:
-        raise ValueError(f"k must be smaller than n (got k={k}, n={n})")
+        raise ValueError(f"k must be smaller than n (got k={k}, n={n}).")
 
     if k % 2 != 0:
-        k += 1  # Ensure k is even
+        k += 1
 
     rng = create_rng(seed)
     G = DiGraph() if directed else Graph()
@@ -236,20 +288,19 @@ def newman_watts_strogatz(
     # Initial ring lattice
     for i in range(n):
         for j in range(1, k // 2 + 1):
-            G.add_edge(i, (i + j) % n, weight=rng.choice([-1, 1]))  # Forward
+            G.add_edge(i, (i + j) % n, weight=rng.choice([-1, 1]))
             if directed:
-                G.add_edge(i, (i - j) % n, weight=rng.choice([-1, 1]))  # Backward
+                G.add_edge(i, (i - j) % n, weight=rng.choice([-1, 1]))
 
-    edges = list(G.edges())  # Ensure a stable edge list
-
-    # Rewire edges with probability p (without removing existing edges)
+    # Add edges with probability p (no edge removal)
+    edges = list(G.edges())
     for u, v in edges:
         if rng.random() < p:
-            candidates = rng.permutation(n)  # Shuffle node choices
+            candidates = rng.permutation(n)
             for new_v in candidates:
                 if (new_v != u or self_loops) and not G.has_edge(u, new_v):
                     G.add_edge(u, new_v, weight=rng.choice([-1, 1]))
-                    break  # Found a valid new_v, stop searching
+                    break
 
     return G
 
@@ -259,26 +310,39 @@ def barabasi_albert(
     n: int,
     m: int,
     directed: bool = False,
-    seed: Union[int, np.random.Generator, None] = None,
-) -> Union[Graph, DiGraph]:
+    seed: Optional[Union[int, np.random.Generator]] = None,
+) -> Union[DiGraph, Graph]:
     """
-    Generates a Barabási-Albert scale-free network using proper preferential attachment.
+    Generates a Barabási-Albert scale-free network and returns its adjacency matrix as a Tensor.
+
+    The Barabási-Albert model grows a graph one node at a time, linking the new node to
+    ``m`` existing nodes with probability proportional to their degrees.
+
+    .. note::
+        This function is decorated with ``@to_tensor``, so it returns the adjacency matrix
+        as a Tensor.
 
     Parameters
     ----------
     n : int
-        Number of nodes.
+        Total number of nodes in the final graph.
     m : int
-        Number of edges to attach from a new node to existing nodes.
+        Number of edges each new node creates with already existing nodes.
+        Must be >= 1 and < n.
     directed : bool, optional
-        If True, generates a directed graph; otherwise, an undirected one.
-    seed : int, np.random.Generator, or None, optional
-        Random seed for reproducibility.
+        If True, creates a directed scale-free network; otherwise, undirected.
+    seed : int or np.random.Generator or None, optional
+        Seed for the RNG.
 
     Returns
     -------
-    nx.Graph or nx.DiGraph
-        The generated Barabási-Albert graph.
+    tf.Tensor
+        Adjacency matrix of the Barabási-Albert graph.
+
+    Raises
+    ------
+    ValueError
+        If ``m < 1 or m >= n``.
     """
     if m < 1 or m >= n:
         raise ValueError(f"m must be >= 1 and < n, got m={m}, n={n}.")
@@ -286,7 +350,7 @@ def barabasi_albert(
     rng = np.random.default_rng(seed)
     G = DiGraph() if directed else Graph()
 
-    # Step 1: Initialize a complete graph with m nodes
+    # Initialize a complete graph with m nodes
     G.add_nodes_from(range(m))
     for i in range(m):
         for j in range(i + 1, m):
@@ -294,25 +358,21 @@ def barabasi_albert(
             if directed:
                 G.add_edge(j, i, weight=rng.choice([-1, 1]))
 
-    # Step 2: Maintain a list of nodes, where each appears proportional to its degree
-    targets = list(G.nodes) * m  # Initial fully connected core
+    # Keep track of node 'targets' with frequency proportional to node degree
+    targets = list(G.nodes) * m
 
+    # Add remaining nodes
     for i in range(m, n):
         G.add_node(i)
-
-        # Select `m` unique nodes with probability proportional to degree
         new_edges = rng.choice(targets, size=m, replace=False)
-
         for t in new_edges:
             G.add_edge(i, t, weight=rng.choice([-1, 1]))
             if directed:
                 G.add_edge(t, i, weight=rng.choice([-1, 1]))
 
-        # Update targets list to reflect new degree counts
+        # Update 'targets' to reflect new degrees
         targets.extend([i] * m)
-        targets.extend(
-            new_edges
-        )  # Each selected node appears again for attachment probability
+        targets.extend(new_edges)
 
     return G
 
@@ -320,101 +380,97 @@ def barabasi_albert(
 @to_tensor
 def kleinberg_small_world(
     n: int,
-    q: int = 2,
+    q: float = 2,
     k: int = 1,
     directed: bool = False,
     weighted: bool = False,
     beta: float = 2,
-    seed: Union[int, np.random.Generator, None] = None,
-):
+    seed: Optional[Union[int, np.random.Generator]] = None,
+) -> Union[DiGraph, Graph]:
     """
-    Generates a 2D Kleinberg small-world graph on an n x n toroidal grid.
-    Total number of nodes = n^2.
+    Generates a 2D Kleinberg small-world graph on an ``n x n`` toroidal grid and returns
+    its adjacency matrix as a Tensor.
 
-    Each node (i, j) has 4 nearest neighbors in a wrapping/toroidal fashion:
-        - up:    (i-1) mod n, j
-        - down:  (i+1) mod n, j
-        - left:  i, (j-1) mod n
-        - right: i, (j+1) mod n
-    Then each node is assigned 'k' long-range links with probability
-    P(d) ∝ d^-q, where d is the toroidal Manhattan distance.
+    Each node corresponds to a position on the 2D torus (i, j). Local edges connect each
+    node to its 4 immediate neighbors (up, down, left, right) with wrapping. Additionally,
+    each node gains ``k`` long-range edges, where the probability of connecting to a
+    particular node depends on the toroidal Manhattan distance raised to the power ``-q``.
+
+    When ``weighted=True``, weights are assigned as ``distance^beta`` for long-range links.
 
     Parameters
     ----------
     n : int
-        Grid dimension. Total nodes = n^2.
+        Dimension of the grid; total nodes = n^2.
     q : float, optional
-        Exponent controlling long-range connection probability decay (default: 2).
+        Exponent controlling the probability of long-range connections. Default: 2.
     k : int, optional
-        Number of long-range connections per node (default: 1).
+        Number of long-range connections per node. Default: 1.
     directed : bool, optional
-        If True, generates a directed graph; otherwise, undirected (default: False).
+        If True, graph is directed; otherwise, undirected. Default: False.
     weighted : bool, optional
-        If True, assigns weights proportional to distance^beta (default: False).
+        If True, weight of each long-range link is ``distance^beta``; otherwise, it is
+        randomly chosen from {-1, 1}. Default: False.
     beta : float, optional
-        Exponent for weight calculation when weighted=True (default: 2).
-    seed : int, np.random.Generator, or None
-        Seed for random number generator.
+        Exponent used when computing long-range weights if ``weighted=True``. Default: 2.
+    seed : int or np.random.Generator or None, optional
+        Seed for the RNG.
 
     Returns
     -------
-    nx.Graph or nx.DiGraph
-        Kleinberg small-world graph on an n x n torus.
+    tf.Tensor
+        Adjacency matrix of the Kleinberg small-world graph.
     """
-    rng = np.random.default_rng(seed)
+    rng = create_rng(seed)
     G = DiGraph() if directed else Graph()
 
-    # Helper function: Toroidal Manhattan distance
     def toroidal_manhattan(i1, j1, i2, j2):
-        di = min(abs(i1 - i2), n - abs(i1 - i2))  # Wrap vertically
-        dj = min(abs(j1 - j2), n - abs(j1 - j2))  # Wrap horizontally
+        # Wrap distances on a torus
+        di = min(abs(i1 - i2), n - abs(i1 - i2))
+        dj = min(abs(j1 - j2), n - abs(j1 - j2))
         return di + dj
 
-    # Step 1: Add n^2 nodes labeled (i, j)
+    # Create nodes
     for i in range(n):
         for j in range(n):
+            # Assign a random weight to the node (optionally used or not)
             G.add_node((i, j), weight=rng.choice([-1, 1]))
 
-    # Step 2: Connect each node to its 4 nearest neighbors (toroidal)
+    # Local edges to 4 neighbors (toroidal wrap)
     for i in range(n):
         for j in range(n):
             neighbors = [
-                ((i - 1) % n, j),  # Up
-                ((i + 1) % n, j),  # Down
-                (i, (j - 1) % n),  # Left
-                (i, (j + 1) % n),  # Right
+                ((i - 1) % n, j),  # up
+                ((i + 1) % n, j),  # down
+                (i, (j - 1) % n),  # left
+                (i, (j + 1) % n),  # right
             ]
             for neighbor in neighbors:
                 weight = rng.choice([-1, 1])
                 G.add_edge((i, j), neighbor, weight=weight)
                 if not directed:
-                    G.add_edge(
-                        neighbor, (i, j), weight=weight
-                    )  # Ensure bidirectionality
+                    G.add_edge(neighbor, (i, j), weight=weight)
 
-    # Step 3: Add k long-range connections per node
+    # Add k long-range connections per node
     for i in range(n):
         for j in range(n):
             candidates = [
                 (x, y) for x in range(n) for y in range(n) if (x, y) != (i, j)
             ]
-
             distances = np.array(
                 [toroidal_manhattan(i, j, x, y) for (x, y) in candidates], dtype=float
             )
 
-            # Probability distribution ~ d^-q
+            # Probability ~ distance^-q
             probs = distances**-q
             probs /= probs.sum()
 
-            n_candidates = len(candidates)
-            k = min(k, n_candidates)
-
-            chosen_indices = rng.choice(n_candidates, size=k, replace=False, p=probs)
-            for idx in chosen_indices:
+            k_eff = min(k, len(candidates))
+            chosen = rng.choice(len(candidates), size=k_eff, replace=False, p=probs)
+            for idx in chosen:
                 target = candidates[idx]
-                distance = toroidal_manhattan(i, j, *target)
-                weight = distance ** beta if weighted else rng.choice([-1, 1])
+                dist = toroidal_manhattan(i, j, *target)
+                weight = (dist**beta) if weighted else rng.choice([-1, 1])
                 G.add_edge((i, j), target, weight=weight)
                 if not directed:
                     G.add_edge(target, (i, j), weight=weight)
@@ -429,45 +485,55 @@ def regular(
     directed: bool = False,
     self_loops: bool = False,
     random_weights: bool = True,
-    seed: Union[int, np.random.Generator, None] = None,
-) -> Union[Graph, DiGraph]:
+    seed: Optional[Union[int, np.random.Generator]] = None,
+) -> Union[DiGraph, Graph]:
     """
-    Generates a regular graph with n nodes and each node connected to k neighbors.
+    Generates a regular ring-lattice graph (each node has k neighbors) and returns
+    its adjacency matrix as a Tensor.
+
+    .. note::
+        - If ``directed=True``, each undirected edge is replaced with two directed edges.
+        - If ``self_loops=True``, each node also has a self-loop.
+        - Weights can either be random in {-1, 1} or deterministically alternating.
 
     Parameters
     ----------
     n : int
         Number of nodes.
     k : int
-        Number of neighbors each node is connected to.
+        Number of neighbors each node is connected to. Must be <= n - (n % 2) in undirected mode.
     directed : bool, optional
-        If True, generates a directed graph; otherwise, an undirected one.
+        If True, the graph is directed; else undirected. Default: False.
     self_loops : bool, optional
-        If True, allows self-loops in the graph.
+        If True, adds a self-loop to each node. Default: False.
     random_weights : bool, optional
-        If True, weights are randomly chosen (-1 or 1); if False, they alternate across edges.
-    seed : int, np.random.Generator, or None, optional
-        Random seed for reproducibility.
+        If True, weights are drawn from {-1, 1} randomly; otherwise, they alternate according
+        to (-1)^(i + j). Default: True.
+    seed : int or np.random.Generator or None, optional
+        Seed for the RNG.
 
     Returns
     -------
-    nx.Graph or nx.DiGraph
-        The generated regular graph.
+    tf.Tensor
+        Adjacency matrix of the generated regular ring-lattice graph.
+
+    Raises
+    ------
+    ValueError
+        If ``k > n - (n % 2)`` (an invalid regular ring-lattice configuration).
     """
-    if k > n - (n % 2):  # Ensure no duplicated edges in undirected case
-        raise ValueError(f"k must be at most n//2 (got k={k}, n={n})")
+    if k > n - (n % 2):
+        raise ValueError(f"k must be <= n - (n % 2). Got k={k}, n={n}.")
 
     rng = create_rng(seed)
     G = DiGraph() if directed else Graph()
 
+    # Connect each node to k/2 neighbors on each side
     for i in range(n):
         for j in range(1, (k // 2) + 1):
             neighbor = (i + j) % n
-
-            # Alternate sign across edges globally
             weight = rng.choice([-1, 1]) if random_weights else (-1) ** (i + neighbor)
             G.add_edge(i, neighbor, weight=weight)
-
             if directed:
                 weight = (
                     rng.choice([-1, 1]) if random_weights else (-1) ** (i + neighbor)
@@ -476,7 +542,7 @@ def regular(
 
     if self_loops:
         for i in range(n):
-            weight = rng.choice([-1, 1]) if random_weights else (-1) ** (i)
+            weight = rng.choice([-1, 1]) if random_weights else (-1) ** i
             G.add_edge(i, i, weight=weight)
 
     return G
@@ -487,29 +553,33 @@ def complete(
     n: int,
     self_loops: bool = False,
     random_weights: bool = True,
-    seed: Union[int, np.random.Generator, None] = None,
-) -> Union[Graph, DiGraph]:
+    seed: Optional[Union[int, np.random.Generator]] = None,
+) -> Union[DiGraph, Graph]:
     """
-    Generates a complete graph with n nodes.
+    Generates a complete (undirected) graph of n nodes and returns its adjacency matrix as a Tensor.
+
+    Each pair of distinct nodes is connected by an edge. Optionally, self-loops can be included.
+    Weights on edges can be random in {-1, 1} or follow a deterministic alternating pattern.
 
     Parameters
     ----------
     n : int
         Number of nodes.
     self_loops : bool, optional
-        If True, allows self-loops in the graph.
+        If True, adds a self-loop to each node. Default: False.
     random_weights : bool, optional
-        If True, weights are randomly chosen (-1 or 1); if False, they alternate across edges.
-    seed : int, np.random.Generator, or None, optional
-        Random seed for reproducibility.
+        If True, weights are chosen randomly from {-1, 1}; otherwise, they alternate
+        according to (-1)^(i + j). Default: True.
+    seed : int or np.random.Generator or None, optional
+        Seed for the RNG.
 
     Returns
     -------
-    nx.Graph or nx.DiGraph
-        The generated complete graph.
+    tf.Tensor
+        Adjacency matrix of the complete graph.
     """
     rng = create_rng(seed)
-    G = Graph()
+    G = Graph()  # Always undirected in this function
 
     for i in range(n):
         for j in range(i + 1, n):
@@ -518,8 +588,7 @@ def complete(
 
     if self_loops:
         for i in range(n):
-            weight = rng.choice([-1, 1]) if random_weights else (-1) ** (i)
+            weight = rng.choice([-1, 1]) if random_weights else (-1) ** i
             G.add_edge(i, i, weight=weight)
 
     return G
-
