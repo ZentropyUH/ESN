@@ -1,36 +1,108 @@
-"""Custom Reservoirs for Keras."""
-from abc import ABC, abstractmethod
-from typing import Callable, Union
+"""
+Custom Reservoirs for Keras.
 
+This module defines abstract base classes and concrete implementations
+for custom reservoir layers and cells in Keras, following the Echo
+State Network (ESN) paradigm.
+"""
+from abc import ABC, abstractmethod
+from typing import Callable, Union, List, Tuple
+
+import tensorflow as tf
 import keras
 from keras.src.initializers import Initializer
 
 from keras_reservoir_computing.layers import PowerIndex
 
 
-@keras.saving.register_keras_serializable(package="Reservoirs", name="BaseReservoirCell")
+@keras.saving.register_keras_serializable(
+    package="Reservoirs", name="BaseReservoirCell"
+)
 class BaseReservoirCell(keras.layers.Layer, ABC):
     """
-    Abstract base class for different types of reservoir cells. This is the one-step computation unit of a reservoir.
+    Abstract base class for different types of reservoir cells.
+    Each reservoir cell represents the one-step computation unit
+    of a reservoir (akin to an RNN cell).
+
+    Parameters
+    ----------
+    units : int
+        Number of units in the reservoir cell.
+
+    Attributes
+    ----------
+    units : int
+        Number of units in the reservoir cell.
+    state_size : int
+        Size of the state (same as `units`).
     """
-    def __init__(self, units, **kwargs):
+    def __init__(self, units: int, **kwargs) -> None:
+        """
+        Initialize the BaseReservoirCell.
+
+        Parameters
+        ----------
+        units : int
+            Number of units in the reservoir cell.
+        **kwargs : dict
+            Additional keyword arguments for the Layer base class.
+        """
         super().__init__(**kwargs)
         self.units = units
         self.state_size = units
 
     @abstractmethod
-    def build(self, input_shape):
+    def build(self, input_shape: tf.TensorShape) -> None:
+        """
+        Create the weights of the reservoir cell.
+
+        Parameters
+        ----------
+        input_shape : tf.TensorShape
+            Shape of the inputs.
+        """
         pass
 
     @abstractmethod
-    def call(self, inputs, states):
+    def call(
+        self, inputs: tf.Tensor, states: List[tf.Tensor], training: bool = False
+    ) -> Tuple[tf.Tensor, List[tf.Tensor]]:
+        """
+        Forward pass of one time step of the reservoir cell.
+
+        Parameters
+        ----------
+        inputs : tf.Tensor
+            The input tensor for the current time step.
+        states : List[tf.Tensor]
+            Previous state(s) of the reservoir.
+        training : bool, optional
+            Whether the call is in training mode, by default False
+
+        Returns
+        -------
+        tf.Tensor
+            The new output state of the reservoir cell.
+        List[tf.Tensor]
+            A list containing the new state(s).
+        """
         pass
 
-    def get_config(self):
+    def get_config(self) -> dict:
+        """
+        Return the configuration of the BaseReservoirCell.
+
+        Returns
+        -------
+        dict
+            Dictionary containing configuration parameters.
+        """
         config = super().get_config()
-        config.update({
-                        "units": self.units,
-                    })
+        config.update(
+            {
+                "units": self.units,
+            }
+        )
         return config
 
 
@@ -38,106 +110,240 @@ class BaseReservoirCell(keras.layers.Layer, ABC):
 class BaseReservoir(keras.Model, ABC):
     """
     Abstract base class for different types of reservoirs.
-    All reservoirs should inherit from this class. This wraps the reservoir cell within an RNN layer.
+    This wraps the reservoir cell within a Keras RNN layer.
 
-    Args:
-        reservoir_cell (BaseReservoirCell): The reservoir cell to use in the reservoir.
+    Parameters
+    ----------
+    reservoir_cell : BaseReservoirCell
+        The reservoir cell to use in the reservoir.
 
-    Returns:
-        keras.layers.Layer: The reservoir layer.
+    Attributes
+    ----------
+    reservoir_cell : BaseReservoirCell
+        The reservoir cell used inside this Reservoir.
+    rnn_layer : keras.layers.RNN
+        The RNN layer that internally wraps the reservoir cell.
     """
-    def __init__(self, reservoir_cell, **kwargs):
+    def __init__(self, reservoir_cell: BaseReservoirCell, **kwargs) -> None:
+        """
+        Initialize the BaseReservoir.
+
+        Parameters
+        ----------
+        reservoir_cell : BaseReservoirCell
+            The reservoir cell to be used.
+        **kwargs : dict
+            Additional keyword arguments for the Model base class.
+        """
         super().__init__(**kwargs)
-
         self.reservoir_cell = reservoir_cell
+        self.rnn_layer: keras.layers.RNN = None  # Will be built later in build()
 
-    def build(self, input_shape):
+    def build(self, input_shape: tf.TensorShape) -> None:
+        """
+        Create the internal RNN layer using the given reservoir cell.
+
+        Parameters
+        ----------
+        input_shape : tf.TensorShape
+            Shape of the inputs.
+        """
         if self.built:
             return
 
         self.rnn_layer = keras.layers.RNN(
             self.reservoir_cell,
-            trainable=False,
+            trainable=False,  # Classic ESN uses a fixed reservoir
             stateful=True,
             return_sequences=True,
-            name="reservoir_rnn"
-            )
-
+            name="reservoir_rnn",
+        )
         self.rnn_layer.build(input_shape)
         super().build(input_shape)
 
-    def call(self, inputs, **kwargs):
-        output = self.rnn_layer(inputs, **kwargs)
-        return output
+    def call(self, inputs: tf.Tensor, **kwargs) -> tf.Tensor:
+        """
+        Forward pass of the reservoir.
 
-    def get_states(self):
+        Parameters
+        ----------
+        inputs : tf.Tensor
+            Input tensor of shape (batch, time, features).
+        **kwargs : dict
+            Additional keyword arguments for the RNN call.
+
+        Returns
+        -------
+        tf.Tensor
+            Output of the reservoir (the RNN layer).
+        """
+        return self.rnn_layer(inputs, **kwargs)
+
+    def get_states(self) -> List[tf.Tensor]:
+        """
+        Retrieve the current states of the reservoir's RNN layer.
+
+        Returns
+        -------
+        List[tf.Tensor]
+            The current state(s) of the reservoir.
+        """
         return self.rnn_layer.states
 
-    def set_states(self, new_states):
+    def set_states(self, new_states: List[tf.Tensor]) -> None:
         """
-        Sets the new states of the Reservoir (i. e., the rnn_layer within)
+        Set the reservoir's RNN layer states.
 
-        Args:
-            new_states (List): The list of new states of the reservoir. Should maintain the shapes of the internal states.
+        Parameters
+        ----------
+        new_states : List[tf.Tensor]
+            A list of new states for the reservoir.
+
+        Raises
+        ------
+        RuntimeError
+            If the reservoir is not yet built.
+        ValueError
+            If the length or shapes of `new_states` do not match the existing states.
         """
         if not self.built:
             raise RuntimeError("The Reservoir must be built first.")
 
         if len(self.rnn_layer.states) != len(new_states):
-            raise ValueError(f"The new states are of length {len(new_states)}, must be of same size and shapes as the Reservoir States {len(self.rnn_layer.states)}.")
-        else:
-            for (i, new_state) in enumerate(new_states):
-                state_shape = self.rnn_layer.states[i].shape
-                if state_shape != new_state.shape:
-                    raise ValueError(f"The {i}th new state is of shape {new_state.shape}, should be of shape {state_shape}.")
-                else:
-                    self.rnn_layer.states[i].assign(new_state)
+            raise ValueError(
+                f"The new states are of length {len(new_states)}, must match "
+                f"the Reservoir's states length {len(self.rnn_layer.states)}."
+            )
 
-    def reset_states(self):
+        for i, new_state in enumerate(new_states):
+            expected_shape = self.rnn_layer.states[i].shape
+            if expected_shape != new_state.shape:
+                raise ValueError(
+                    f"The {i}th new state is of shape {new_state.shape}, "
+                    f"should be {expected_shape}."
+                )
+            self.rnn_layer.states[i].assign(new_state)
+
+    def reset_states(self) -> None:
+        """
+        Reset the reservoir's RNN layer states to zeros.
+        """
         self.rnn_layer.reset_states()
 
     @property
-    def units(self):
+    def units(self) -> int:
+        """
+        Number of units in the underlying reservoir cell.
+
+        Returns
+        -------
+        int
+            The number of units of the reservoir cell.
+        """
         return self.reservoir_cell.units
 
     @abstractmethod
-    def compute_output_shape(self, input_shape):
+    def compute_output_shape(self, input_shape: tf.TensorShape) -> tf.TensorShape:
+        """
+        Compute the output shape of the reservoir.
+
+        Parameters
+        ----------
+        input_shape : tf.TensorShape
+            Shape of the inputs.
+
+        Returns
+        -------
+        tf.TensorShape
+            The output shape of the reservoir.
+        """
         pass
 
-    def get_config(self):
+    def get_config(self) -> dict:
+        """
+        Return the configuration of the BaseReservoir.
+
+        Returns
+        -------
+        dict
+            Dictionary containing configuration parameters.
+        """
         config = super().get_config()
-        config.update({
-                        "reservoir_cell": keras.layers.serialize(self.reservoir_cell),
-                    })
+        config.update(
+            {
+                "reservoir_cell": keras.layers.serialize(self.reservoir_cell),
+            }
+        )
         return config
 
     @classmethod
-    def from_config(cls, config):
-        # Deserialize reservoir_cell from config
-        reservoir_cell_config = config.pop('reservoir_cell')
-        reservoir_cell = keras.layers.deserialize(reservoir_cell_config)
+    def from_config(cls, config: dict):
+        """
+        Create an instance of the reservoir from a config dictionary.
 
-        # Return the instance of BaseReservoir with deserialized reservoir_cell
+        Parameters
+        ----------
+        config : dict
+            The config dictionary.
+
+        Returns
+        -------
+        BaseReservoir
+            An instance of the reservoir.
+        """
+        reservoir_cell_config = config.pop("reservoir_cell")
+        reservoir_cell = keras.layers.deserialize(reservoir_cell_config)
         return cls(reservoir_cell=reservoir_cell, **config)
 
-# Classic ESN components, TODO: Implement the cell that receives an input drive signal as well as the feedback.
 
 @keras.saving.register_keras_serializable(package="Reservoirs", name="ESNCell")
 class ESNCell(BaseReservoirCell):
     """
     Simple Reservoir cell implementing the classic Echo State Network (ESN) model.
+
+    Parameters
+    ----------
+    units : int
+        Number of units in the reservoir cell.
+    leak_rate : float, optional
+        Leaky integration rate, by default 1.0
+    noise_level : float, optional
+        Standard deviation of noise added to the state (only during training), by default 0.0
+    activation : str or Callable, optional
+        Activation function, by default 'tanh'
+    input_initializer : str or Initializer, optional
+        Initializer for input weights, by default 'random_uniform'
+    input_bias_initializer : str or Initializer, optional
+        Initializer for input bias, by default 'random_uniform'
+    kernel_initializer : str or Initializer, optional
+        Initializer for the reservoir recurrent weights, by default 'random_uniform'
+
+    Attributes
+    ----------
+    leak_rate : float
+        Leaky integration rate.
+    noise_level : float
+        Standard deviation of noise added to the state.
+    activation : Callable
+        Activation function used in the reservoir.
+    input_initializer : Initializer
+        Initializer for input weights.
+    input_bias_initializer : Initializer
+        Initializer for input bias.
+    kernel_initializer : Initializer
+        Initializer for reservoir recurrent weights.
     """
     def __init__(
         self,
         units: int,
         leak_rate: float = 1.0,
-        noise_level: float = 0.0, # Add noise to the reservoir state only during training
+        noise_level: float = 0.0,
         activation: Union[str, Callable] = "tanh",
         input_initializer: Union[str, Initializer] = "random_uniform",
         input_bias_initializer: Union[str, Initializer] = "random_uniform",
         kernel_initializer: Union[str, Initializer] = "random_uniform",
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(units, **kwargs)
         self.leak_rate = leak_rate
         self.noise_level = noise_level
@@ -146,115 +352,231 @@ class ESNCell(BaseReservoirCell):
         self.input_bias_initializer = keras.initializers.get(input_bias_initializer)
         self.kernel_initializer = keras.initializers.get(kernel_initializer)
 
-    def build(self, input_shape):
+    def build(self, input_shape: tf.TensorShape) -> None:
+        """
+        Create the input, bias, and reservoir kernels.
 
+        Parameters
+        ----------
+        input_shape : tf.TensorShape
+            Shape of the inputs (batch, timesteps, features).
+        """
         features = input_shape[-1]
 
         self.input_kernel = self.add_weight(
             shape=(features, self.units),
             initializer=self.input_initializer,
             trainable=False,
+            name="input_kernel",
         )
         self.input_bias = self.add_weight(
-            shape=(1, self.units,),
+            shape=(1, self.units),
             initializer=self.input_bias_initializer,
             trainable=False,
+            name="input_bias",
         )
         self.reservoir_kernel = self.add_weight(
             shape=(self.units, self.units),
             initializer=self.kernel_initializer,
             trainable=False,
+            name="reservoir_kernel",
         )
         super().build(input_shape)
 
-    def call(self, inputs, states, training=False):
+    def call(
+        self, inputs: tf.Tensor, states: List[tf.Tensor], training: bool = False
+    ) -> Tuple[tf.Tensor, List[tf.Tensor]]:
         """
-        Compute one step of the reservoir according to the ESN model. With leaky integration and noise if specified.
+        Perform one step of the ESN cell update.
 
-        Args:
-            inputs (tf.Tensor): The input tensor.
-            states (List): The list of states of the reservoir.
-            training (bool): Whether the model is in training mode or not.
+        Parameters
+        ----------
+        inputs : tf.Tensor
+            The input tensor for the current time step (batch, features).
+        states : List[tf.Tensor]
+            List containing the previous reservoir state (batch, units).
+        training : bool, optional
+            Whether the layer is in training mode, by default False
 
-        Returns:
-            tf.Tensor: The new state of the reservoir.
+        Returns
+        -------
+        tf.Tensor
+            The new reservoir state of shape (batch, units).
+        List[tf.Tensor]
+            A list containing the new reservoir state (same as first return).
         """
         prev_state = states[0]
 
+        # Linear transformation of inputs
         input_part = keras.ops.matmul(inputs, self.input_kernel) + self.input_bias
-
+        # Recurrent part from previous state
         state_part = keras.ops.matmul(prev_state, self.reservoir_kernel)
 
+        # Activation
         output = self.activation(input_part + state_part)
 
-        # Add noise to the reservoir state only during training
+        # Add noise only in training mode
         if training:
-            output = output + self.noise_level * keras.random.normal(keras.backend.shape(output))
+            output += self.noise_level * keras.random.normal(tf.shape(output))
 
         # Leaky integration
-        # The casting of 1 is a crazy thing when operating with python floats and tf or np floats, it promotes the operation to the highest precision, i.e. tf.float64, yet we are using tf.float32. What in the actual fuck?
-        lag = prev_state * (keras.ops.cast(1, keras.backend.floatx()) - self.leak_rate)
+        # The cast ensures consistent float types.
+        one = keras.ops.cast(1, tf.keras.backend.floatx())
+        lag = prev_state * (one - self.leak_rate)
         update = output * self.leak_rate
-
         new_state = lag + update
 
         return new_state, [new_state]
 
-    def get_config(self):
+    def get_config(self) -> dict:
         """
-        Get the configuration of the ESNCell.
+        Return the configuration of the ESNCell.
 
-        Returns:
-            dict: The configuration of the ESNCell.
+        Returns
+        -------
+        dict
+            Dictionary containing configuration parameters.
         """
         config = super().get_config()
-        config.update({
-                        "leak_rate": self.leak_rate,
-                        "noise_level": self.noise_level,
-                        "activation": keras.activations.serialize(self.activation),
-                        "input_initializer": keras.initializers.serialize(self.input_initializer),
-                        "input_bias_initializer": keras.initializers.serialize(self.input_bias_initializer),
-                        "kernel_initializer": keras.initializers.serialize(self.kernel_initializer),
-                    })
-
+        config.update(
+            {
+                "leak_rate": self.leak_rate,
+                "noise_level": self.noise_level,
+                "activation": keras.activations.serialize(self.activation),
+                "input_initializer": keras.initializers.serialize(
+                    self.input_initializer
+                ),
+                "input_bias_initializer": keras.initializers.serialize(
+                    self.input_bias_initializer
+                ),
+                "kernel_initializer": keras.initializers.serialize(
+                    self.kernel_initializer
+                ),
+            }
+        )
         return config
 
 
 @keras.saving.register_keras_serializable(package="Reservoirs", name="EchoStateNetwork")
 class EchoStateNetwork(BaseReservoir):
     """
-    Simple Reservoir model implementing the classic Echo State Network (EchoStateNetwork).
+    Simple Reservoir model implementing the classic Echo State Network (ESN).
+    This class augments the standard RNN output with a "power index" transformation
+    before concatenating back to the original input.
+
+    Parameters
+    ----------
+    reservoir_cell : BaseReservoirCell
+        The reservoir cell to use (e.g., ESNCell).
+    index : int, optional
+        The index parameter for power index augmentation, by default 2.
+    exponent : int, optional
+        The exponent for the power index augmentation, by default 2.
+
+    Attributes
+    ----------
+    index : int
+        The index parameter for power index augmentation.
+    exponent : int
+        The exponent for power index augmentation.
+    power_index : PowerIndex
+        The layer that applies the power-index transformation.
+    concatenate : keras.layers.Concatenate
+        Keras layer used to concatenate the original input with the power-indexed state.
     """
     def __init__(
         self,
         reservoir_cell: BaseReservoirCell,
-        index: int = 2, # Index parity for power_index augmentation
-        exponent: int = 2, # For the power_index state augmentation
+        index: int = 2,
+        exponent: int = 2,
         **kwargs,
-    ):
-        super().__init__(reservoir_cell=reservoir_cell, **kwargs) # It will handle the cell here
+    ) -> None:
+        """
+        Initialize the EchoStateNetwork.
 
+        Parameters
+        ----------
+        reservoir_cell : BaseReservoirCell
+            The reservoir cell to use (e.g., ESNCell).
+        index : int, optional
+            The index parameter for power index augmentation, by default 2.
+        exponent : int, optional
+            The exponent for the power index augmentation, by default 2.
+        **kwargs : dict
+            Additional keyword arguments for the BaseReservoir.
+        """
+        super().__init__(reservoir_cell=reservoir_cell, **kwargs)
         self.index = index
         self.exponent = exponent
-        self.power_index = PowerIndex(exponent=exponent, index=2, name="pwr")
+        self.power_index = PowerIndex(
+            exponent=self.exponent, index=self.index, name="pwr"
+        )
         self.concatenate = keras.layers.Concatenate(name="Concat_ESN_input")
 
-    def call(self, inputs, **kwargs):
+    def call(self, inputs: tf.Tensor, **kwargs) -> tf.Tensor:
+        """
+        Forward pass of the EchoStateNetwork.
+
+        1. Passes the input through the reservoir RNN layer.
+        2. Applies the power index transformation on the RNN outputs.
+        3. Concatenates the original input with the power index outputs.
+
+        Parameters
+        ----------
+        inputs : tf.Tensor
+            Input tensor of shape (batch, time, features).
+        **kwargs : dict
+            Additional arguments for the internal RNN or layer calls.
+
+        Returns
+        -------
+        tf.Tensor
+            Concatenated tensor of shape (batch, time, features + reservoir_units).
+        """
         states = self.rnn_layer(inputs, **kwargs)
         power_index = self.power_index(states, **kwargs)
-        output = self.concatenate([inputs, power_index], **kwargs)
-        return output
+        return self.concatenate([inputs, power_index], **kwargs)
 
-    def get_config(self):
+    def compute_output_shape(self, input_shape: tf.TensorShape) -> tf.TensorShape:
+        """
+        Compute the output shape of EchoStateNetwork.
+
+        Parameters
+        ----------
+        input_shape : tf.TensorShape
+            Shape of the inputs (batch, time, features).
+
+        Returns
+        -------
+        tf.TensorShape
+            (batch, time, features + reservoir_units)
+        """
+        # Expect shape: (batch, time, features)
+        # Output shape is (batch, time, features + self.reservoir_cell.units)
+        if isinstance(input_shape, (list, tuple)):
+            input_shape = tf.TensorShape(input_shape)
+        return tf.TensorShape(
+            [
+                input_shape[0],
+                input_shape[1],
+                input_shape[-1] + self.reservoir_cell.units,
+            ]
+        )
+
+    def get_config(self) -> dict:
+        """
+        Return the configuration of the EchoStateNetwork.
+
+        Returns
+        -------
+        dict
+            Dictionary containing configuration parameters.
+        """
         config = super().get_config()
-        config.update({
-                        "index": self.index,
-                        "exponent": self.exponent,
-                    })
-
+        config.update(
+            {
+                "index": self.index,
+                "exponent": self.exponent,
+            }
+        )
         return config
-
-    def compute_output_shape(self, input_shape):
-        if isinstance(input_shape, list):
-            input_shape = tuple(input_shape)
-        return input_shape[:-1] + (input_shape[-1] + self.reservoir_cell.units,)
