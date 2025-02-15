@@ -3,19 +3,13 @@ __pycache__
 *.pyc
 
 # Clutter
-src/systems/
-tinker_ensemble.ipynb
-tinker.ipynb
-forecasts
+Best_params_WS
 Models
+Models_best_params
+Models_WS
 Research
 
-Models_WS
-Models_best_params
-model_utilities.ipynb
-tinker_models.ipynb
-
-
+*.ipynb
 
 
 # Environments
