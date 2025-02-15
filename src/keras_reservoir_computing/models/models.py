@@ -335,7 +335,7 @@ class ReservoirComputer(keras.Model):
 
     def reset_states(self) -> None:
         r"""
-        Resets the reservoir’s internal states to their default (typically zeros).
+        Resets the reservoir's internal states to their default (typically zeros).
         """
         self.reservoir.reset_states()
 
@@ -808,7 +808,7 @@ class ReservoirEnsemble(keras.Model):
     ) -> Tuple[tf.Tensor, Optional[tf.Tensor]]:
         r"""
         Forecasts the ensemble for a given number of steps, following a similar procedure
-        to a single `ReservoirComputer` but stacking each computer’s outputs and removing
+        to a single `ReservoirComputer` but stacking each computer's outputs and removing
         outliers.
 
         Parameters
@@ -830,7 +830,7 @@ class ReservoirEnsemble(keras.Model):
             - predictions_out : tf.Tensor
                 Forecasted output, shape (batch_size, forecast_length, output_dim).
             - states_out : None or nested list of tf.Tensor
-                If `store_states=True`, shape(s) depend on each reservoir’s internal states.
+                If `store_states=True`, shape(s) depend on each reservoir's internal states.
         """
         self.reset_states()
 
@@ -918,7 +918,7 @@ class ReservoirEnsemble(keras.Model):
         )
         predictions_ta = predictions_ta.write(0, initial_point)
 
-        # 3) If storing states, build a TensorArray for each reservoir’s states
+        # 3) If storing states, build a TensorArray for each reservoir's states
         states_ta = None
         if store_states:
             states_ta = [
@@ -973,7 +973,7 @@ class ReservoirEnsemble(keras.Model):
 
         if store_states:
             states_out_list = []
-            for rc_tas in final_states_ta:  # each reservoir’s list
+            for rc_tas in final_states_ta:  # each reservoir's list
                 rc_states = []
                 for ta in rc_tas:
                     st_stacked = ta.stack()  # => (steps, batch_size, units)

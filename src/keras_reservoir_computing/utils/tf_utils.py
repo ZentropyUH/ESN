@@ -85,7 +85,7 @@ class TF_Ridge:
     predict(X)
         Generate predictions using the fitted model.
     get_params()
-        Return a dictionary of model parameters, including 'alpha', 'coef_', 'intercept_'.
+        Return a dictionary of model parameters, including `alpha`, `coef_`, `intercept_`.
 
     Notes
     -----
@@ -327,9 +327,9 @@ class TF_Ridge:
         -------
         dict
             Keys:
-            - 'alpha' : float
-            - 'coef_' : tf.Tensor or None
-            - 'intercept_' : tf.Tensor or None
+            - `alpha` : float
+            - `coef_` : tf.Tensor or None
+            - `intercept_` : tf.Tensor or None
         """
         return {
             "alpha": self._alpha,

@@ -162,7 +162,14 @@ class InputMatrix(Initializer):
         return tf.sparse.to_dense(w_in)
 
     def get_config(self) -> dict:
-        """Get the config dictionary of the initializer for serialization."""
+        """
+        Get the config dictionary of the initializer for serialization.
+        
+        Returns
+        -------
+        dict
+            The configuration dictionary.
+        """
         base_config = super().get_config()
         config = {"sigma": self.sigma, "binarize": self.binarize, "seed": self.seed}
 

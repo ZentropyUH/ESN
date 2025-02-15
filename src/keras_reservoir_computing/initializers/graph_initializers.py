@@ -92,11 +92,44 @@ class GraphInitializerBase(Initializer):
         return tf.convert_to_tensor(adj, dtype=dtype)
 
     def _generate_adjacency_matrix(self, n: int, *args, **kwargs) -> tf.Tensor:
+        """
+        Abstract method for generating a graph adjacency matrix.
+
+        This method should be implemented by subclasses to generate the adjacency matrix
+        for a specific type of graph.
+
+        Parameters
+        ----------
+        n : int
+            The number of nodes in the graph.
+        *args : tuple
+            Additional positional arguments for the graph generation function.
+        **kwargs : dict
+            Additional keyword arguments for the graph generation function.
+
+        Returns
+        -------
+        tf.Tensor
+            A 2D adjacency matrix representing the generated graph.
+
+        Raises
+        ------
+        NotImplementedError
+            If the method is not implemented by a subclass.
+        """
         raise NotImplementedError(
             "The adjacency matrix generation function is not implemented."
         )
 
     def get_config(self) -> dict:
+        """
+        Get the config dictionary of the initializer for serialization.
+
+        Returns
+        -------
+        dict
+            The configuration dictionary.
+        """
         base_config = super().get_config()
 
         config = {
@@ -162,6 +195,19 @@ class WattsStrogatzGraphInitializer(GraphInitializerBase):
         super().__init__(spectral_radius=spectral_radius, seed=seed)
 
     def _generate_adjacency_matrix(self, n: int) -> tf.Tensor:
+        """
+        Generate the adjacency matrix for a connected Watts-Strogatz graph.
+
+        Parameters
+        ----------
+        n : int
+            The number of nodes in the graph.
+
+        Returns
+        -------
+        tf.Tensor
+            A 2D adjacency matrix representing the generated Watts-Strogatz graph.
+        """
         adj = connected_watts_strogatz(
             n=n,
             k=self.k,
@@ -174,6 +220,14 @@ class WattsStrogatzGraphInitializer(GraphInitializerBase):
         return adj
 
     def get_config(self) -> dict:
+        """
+        Get the config dictionary of the initializer for serialization.
+
+        Returns
+        -------
+        dict
+            The configuration dictionary.
+        """
         base_config = super().get_config()
         config = {
             "k": self.k,
@@ -238,6 +292,19 @@ class ErdosRenyiGraphInitializer(GraphInitializerBase):
         super().__init__(spectral_radius=spectral_radius, seed=seed)
 
     def _generate_adjacency_matrix(self, n: int) -> tf.Tensor:
+        """
+        Generate the adjacency matrix for a connected Erdos-Renyi graph.
+
+        Parameters
+        ----------
+        n : int
+            The number of nodes in the graph.
+
+        Returns
+        -------
+        tf.Tensor
+            A 2D adjacency matrix representing the generated Erdos-Renyi graph.
+        """
         adj = connected_erdos_renyi(
             n=n,
             p=self.p,
@@ -249,6 +316,14 @@ class ErdosRenyiGraphInitializer(GraphInitializerBase):
         return adj
 
     def get_config(self) -> dict:
+        """
+        Get the config dictionary of the initializer for serialization.
+
+        Returns
+        -------
+        dict
+            The configuration dictionary.
+        """
         base_config = super().get_config()
         config = {
             "p": self.p,
@@ -302,6 +377,19 @@ class BarabasiAlbertGraphInitializer(GraphInitializerBase):
         super().__init__(spectral_radius=spectral_radius, seed=seed)
 
     def _generate_adjacency_matrix(self, n: int) -> tf.Tensor:
+        """
+        Generate the adjacency matrix for a Barabasi-Albert graph.
+
+        Parameters
+        ----------
+        n : int
+            The number of nodes in the graph.
+
+        Returns
+        -------
+        tf.Tensor
+            A 2D adjacency matrix representing the generated Barabasi-Albert graph.
+        """
         adj = barabasi_albert(
             n=n,
             m=self.m,
@@ -311,6 +399,14 @@ class BarabasiAlbertGraphInitializer(GraphInitializerBase):
         return adj
 
     def get_config(self) -> dict:
+        """
+        Get the config dictionary of the initializer for serialization.
+
+        Returns
+        -------
+        dict
+            The configuration dictionary.
+        """
         base_config = super().get_config()
         config = {
             "m": self.m,
@@ -370,6 +466,19 @@ class NewmanWattsStrogatzGraphInitializer(GraphInitializerBase):
         super().__init__(spectral_radius=spectral_radius, seed=seed)
 
     def _generate_adjacency_matrix(self, n: int) -> tf.Tensor:
+        """
+        Generate the adjacency matrix for a Newman-Watts-Strogatz graph.
+
+        Parameters
+        ----------
+        n : int
+            The number of nodes in the graph.
+
+        Returns
+        -------
+        tf.Tensor
+            A 2D adjacency matrix representing the generated Newman-Watts-Strogatz graph.
+        """
         adj = newman_watts_strogatz(
             n=n,
             k=self.k,
@@ -381,6 +490,14 @@ class NewmanWattsStrogatzGraphInitializer(GraphInitializerBase):
         return adj
 
     def get_config(self) -> dict:
+        """
+        Get the config dictionary of the initializer for serialization.
+
+        Returns
+        -------
+        dict
+            The configuration dictionary.
+        """
         base_config = super().get_config()
         config = {
             "k": self.k,
@@ -447,6 +564,19 @@ class KleinbergSmallWorldGraphInitializer(GraphInitializerBase):
         super().__init__(spectral_radius=spectral_radius, seed=seed)
 
     def _generate_adjacency_matrix(self, n: int) -> tf.Tensor:
+        """
+        Generate the adjacency matrix for a Kleinberg small-world graph.
+
+        Parameters
+        ----------
+        n : int
+            The number of nodes in the graph.
+
+        Returns
+        -------
+        tf.Tensor
+            A 2D adjacency matrix representing the generated Kleinberg small-world graph.
+        """
         adj = kleinberg_small_world(
             n=n,
             q=self.q,
@@ -459,6 +589,14 @@ class KleinbergSmallWorldGraphInitializer(GraphInitializerBase):
         return adj
 
     def get_config(self) -> dict:
+        """
+        Get the config dictionary of the initializer for serialization.
+
+        Returns
+        -------
+        dict
+            The configuration dictionary.
+        """
         base_config = super().get_config()
         config = {
             "q": self.q,
@@ -521,6 +659,19 @@ class RegularGraphInitializer(GraphInitializerBase):
         super().__init__(spectral_radius=spectral_radius, seed=seed)
 
     def _generate_adjacency_matrix(self, n: int) -> tf.Tensor:
+        """
+        Generate the adjacency matrix for a k-regular graph.
+
+        Parameters
+        ----------
+        n : int
+            The number of nodes in the graph.
+
+        Returns
+        -------
+        tf.Tensor
+            A 2D adjacency matrix representing the generated k-regular graph.
+        """
         adj = regular(
             n=n,
             k=self.k,
@@ -532,6 +683,14 @@ class RegularGraphInitializer(GraphInitializerBase):
         return adj
 
     def get_config(self) -> dict:
+        """
+        Get the config dictionary of the initializer for serialization.
+
+        Returns
+        -------
+        dict
+            The configuration dictionary.
+        """
         base_config = super().get_config()
         config = {
             "k": self.k,
@@ -585,6 +744,19 @@ class CompleteGraphInitializer(GraphInitializerBase):
         super().__init__(spectral_radius=spectral_radius, seed=seed)
 
     def _generate_adjacency_matrix(self, n: int) -> tf.Tensor:
+        """
+        Generate the adjacency matrix for a complete graph.
+
+        Parameters
+        ----------
+        n : int
+            The number of nodes in the graph.
+
+        Returns
+        -------
+        tf.Tensor
+            A 2D adjacency matrix representing the generated complete graph.
+        """
         adj = complete(
             n=n,
             self_loops=self.self_loops,
@@ -592,6 +764,14 @@ class CompleteGraphInitializer(GraphInitializerBase):
         return adj
 
     def get_config(self) -> dict:
+        """
+        Get the config dictionary of the initializer for serialization.
+        
+        Returns
+        -------
+        dict
+            The configuration dictionary.
+        """
         base_config = super().get_config()
         config = {
             "self_loops": self.self_loops,
