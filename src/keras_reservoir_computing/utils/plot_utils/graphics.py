@@ -1,7 +1,10 @@
-from typing import List, Optional, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
+
+from .helpers import _timeseries_base_plot, _delay_transform, _relative_extremes, plot_2d, scatter_2d
+from functools import partial
 
 
 def plot_2d_timeseries(
@@ -14,183 +17,188 @@ def plot_2d_timeseries(
     xlabels: Union[str, List[str]] = "Time",
     ylabels: Union[str, List[str]] = "Feature Value",
     separate_axes: bool = False,
+    figsize: Optional[Tuple[int, int]] = None,
+    sharex: bool = True,
     yscale: str = "linear",
     xscale: str = "linear",
+    data_transform: Optional[
+        Callable
+    ] = None,  # For advanced transformations (e.g., time delay, maxima detection, etc.)
     **kwargs,
 ) -> List[plt.Axes]:
     """
-    Plot 2D time series data with optional multiple samples and multiple features.
+    Makes a 2D time-series plot of the input data.
 
-    This function can handle data of shape:
-    - (T, D), interpreted as one sample with T time steps and D features, or
-    - (N, T, D), interpreted as N samples, each with T time steps and D features.
+    This function is a specialized wrapper around `_timeseries_base_plot`,
+    automatically setting `plot_func=plot_2d`.
 
-    Parameters
-    ----------
-    data : np.ndarray
-        The input array of shape (N, T, D) or (T, D).
-        - N: Number of samples (optional).
-        - T: Number of time steps.
-        - D: Number of features.
-    dt : float, optional
-        Time step between consecutive data points (default 1.0).
-    lam : float, optional
-        Additional scaling factor for the time axis (default 1.0).
-    suptitle : str, optional
-        Title for the entire figure.
-    sample_labels : list of str, optional
-        Labels for each of the N samples. Must be length N if provided.
-        If None, samples are labeled "Sample 1", "Sample 2", etc.
-    feature_labels : list of str, optional
-        Labels for each of the D features. Must be length D if provided.
-        If None, features are labeled "Feature 1", "Feature 2", etc.
-    xlabels : str or list of str, optional
-        Label(s) for the x-axis. If a single string, it is applied to each feature plot.
-        If a list, must be length D. Defaults to "Time".
-    ylabels : str or list of str, optional
-        Label(s) for the y-axis. If a single string, it is applied to each feature plot.
-        If a list, must be length D. Defaults to "Feature Value".
-    separate_axes : bool, optional
-        If True, each feature is plotted on a separate axis (vertical stack). Otherwise,
-        all features are plotted in a single subplot (default=False).
-    yscale : {'linear', 'log'}, optional
-        Scale for the y-axis (default='linear').
-    xscale : {'linear', 'log'}, optional
-        Scale for the x-axis (default='linear').
-    **kwargs : dict
-        Additional keyword arguments passed to :func:`plt.plot`.
-
-    Returns
-    -------
-    list of matplotlib.axes.Axes
-        A list of Axes objects corresponding to the created plots (one per feature).
-
-    Raises
-    ------
-    ValueError
-        If data dimensionality is greater than 3, or if label lengths don't match
-        the data's N or D dimensions.
-
-    Notes
-    -----
-    - If multiple samples share a single plot (`separate_axes=False`), the legend
-      distinguishes them by color and a label that combines the sample and feature names.
-    - If `separate_axes=True`, each feature is plotted in a separate subplot (vertical).
-      If multiple samples exist, each subplot has lines for all N samples.
-    - The time axis is computed as `t = np.arange(T) * dt * lam`.
+    See Also
+    --------
+    :func:`_timeseries_base_plot` : The base function for time series plotting.
     """
-    # Validate or reshape data into (N, T, D)
-    if data.ndim > 3:
-        raise ValueError(f"Data must have ndim <= 3, got {data.ndim}.")
-    if data.ndim == 1:
-        # Force shape (1, T, 1)
-        data = data[np.newaxis, ..., np.newaxis]
-    if data.ndim == 2:
-        # Force shape (1, T, D)
-        data = data[np.newaxis, ...]
+    return _timeseries_base_plot(
+        data=data,
+        dt=dt,
+        lam=lam,
+        suptitle=suptitle,
+        sample_labels=sample_labels,
+        feature_labels=feature_labels,
+        xlabels=xlabels,
+        ylabels=ylabels,
+        separate_axes=separate_axes,
+        figsize=figsize,
+        sharex=sharex,
+        yscale=yscale,
+        xscale=xscale,
+        data_transform=data_transform,
+        plot_func=plot_2d,
+        **kwargs,
+    )
 
-    N, T, D = data.shape
 
-    # Time axis
-    t = np.arange(T) * dt * lam
+def scatter_2d_timeseries(
+    data: np.ndarray,
+    dt: float = 1.0,
+    lam: float = 1.0,
+    suptitle: Optional[str] = None,
+    sample_labels: Optional[List[str]] = None,
+    feature_labels: Optional[List[str]] = None,
+    xlabels: Union[str, List[str]] = "Time",
+    ylabels: Union[str, List[str]] = "Feature Value",
+    separate_axes: bool = False,
+    figsize: Optional[Tuple[int, int]] = None,
+    sharex: bool = True,
+    yscale: str = "linear",
+    xscale: str = "linear",
+    data_transform: Optional[
+        Callable
+    ] = None,  # For advanced transformations (e.g., time delay, maxima detection, etc.)
+    **kwargs,
+) -> List[plt.Axes]:
+    """
+    Makes a 2D scatter plot of the input data.
 
-    # Prepare figure/axes
-    if separate_axes:
-        fig, axes = plt.subplots(
-            D, 1, figsize=(12, 2 * D), sharex=True
-        )  # one subplot per feature
-    else:
-        fig = plt.figure(figsize=(12, 3))
-        axes = plt.gca()  # single subplot for all features
+    This function is a specialized wrapper around `_timeseries_base_plot`,
+    automatically setting `plot_func=scatter_2d`.
 
-    axes = np.atleast_1d(axes)  # Make sure axes is array-like
+    See Also
+    --------
+    :func:`_timeseries_base_plot` : The base function for time series plotting.
+    """
+    return _timeseries_base_plot(
+        data=data,
+        dt=dt,
+        lam=lam,
+        suptitle=suptitle,
+        sample_labels=sample_labels,
+        feature_labels=feature_labels,
+        xlabels=xlabels,
+        ylabels=ylabels,
+        separate_axes=separate_axes,
+        figsize=figsize,
+        sharex=sharex,
+        yscale=yscale,
+        xscale=xscale,
+        data_transform=data_transform,
+        plot_func=scatter_2d,
+        **kwargs,
+    )
 
-    if suptitle:
-        fig.suptitle(suptitle, fontsize=14)
 
-    # Default sample/feature labels
-    sample_labels = sample_labels or [f"Sample {i+1}" for i in range(N)]
-    feature_labels = feature_labels or [f"Feature {j+1}" for j in range(D)]
+def delay_2d_timeseries(
+    data: np.ndarray,
+    delay_time: float = 1.0,
+    dt: float = 1.0,
+    lam: float = 1.0,
+    suptitle: Optional[str] = None,
+    sample_labels: Optional[List[str]] = None,
+    feature_labels: Optional[List[str]] = None,
+    xlabels: Union[str, List[str]] = "Time",
+    ylabels: Union[str, List[str]] = "Feature Value",
+    separate_axes: bool = False,
+    figsize: Optional[Tuple[int, int]] = None,
+    sharex: bool = True,
+    yscale: str = "linear",
+    xscale: str = "linear",
+    plot_func: Callable = plot_2d,
+    **kwargs,
+) -> List[plt.Axes]:
+    """
+    Makes a 2D time-series plot of the input data with a delay transformation applied.
 
-    if len(sample_labels) != N:
-        raise ValueError(
-            f"Length of sample_labels must be {N}, got {len(sample_labels)}."
-        )
-    if len(feature_labels) != D:
-        raise ValueError(
-            f"Length of feature_labels must be {D}, got {len(feature_labels)}."
-        )
+    This function is a specialized wrapper around `_timeseries_base_plot`,
+    automatically setting `data_transform=_delay_transform`.
 
-    # Handle xlabels, ylabels
-    if isinstance(xlabels, str):
-        xlabels = [xlabels] * D
-    elif len(xlabels) != D:
-        raise ValueError(f"Expected {D} x-labels, got {len(xlabels)}.")
+    See Also
+    --------
+    :func:`_timeseries_base_plot` : The base function for time series plotting.
+    """
+    return _timeseries_base_plot(
+        data=data,
+        dt=dt,
+        lam=lam,
+        suptitle=suptitle,
+        sample_labels=sample_labels,
+        feature_labels=feature_labels,
+        xlabels=xlabels,
+        ylabels=ylabels,
+        separate_axes=separate_axes,
+        figsize=figsize,
+        sharex=sharex,
+        yscale=yscale,
+        xscale=xscale,
+        data_transform=partial(_delay_transform, delay_time=delay_time),
+        plot_func=plot_func,
+        **kwargs,
+    )
 
-    if isinstance(ylabels, str):
-        ylabels = [ylabels] * D
-    elif len(ylabels) != D:
-        raise ValueError(f"Expected {D} y-labels, got {len(ylabels)}.")
 
-    # Plot data
-    for feature_idx, ax in enumerate(axes):
-        for sample_idx in range(N):
-            # Combine labels depending on whether features share an axis
-            if N > 1 and not separate_axes:
-                label = f"{sample_labels[sample_idx]} - {feature_labels[feature_idx]}"
-            else:
-                # Single-sample or separate-axes mode
-                label = (
-                    sample_labels[sample_idx]
-                    if N > 1 and separate_axes
-                    else feature_labels[feature_idx]
-                )
+def relative_extremes_2d_timeseries(
+    data: np.ndarray,
+    dt: float = 1.0,
+    lam: float = 1.0,
+    extreme_type: str = "max",
+    suptitle: Optional[str] = None,
+    sample_labels: Optional[List[str]] = None,
+    feature_labels: Optional[List[str]] = None,
+    xlabels: Union[str, List[str]] = "Time",
+    ylabels: Union[str, List[str]] = "Feature Value",
+    separate_axes: bool = False,
+    figsize: Optional[Tuple[int, int]] = None,
+    sharex: bool = True,
+    yscale: str = "linear",
+    xscale: str = "linear",
+    plot_func: Callable = scatter_2d,
+    **kwargs,
+) -> List[plt.Axes]:
+    """
+    Makes a 2D time-series plot of the input data with a relative extremes transformation applied.
 
-            ax.plot(t, data[sample_idx, :, feature_idx], label=label, **kwargs)
+    This function is a specialized wrapper around `_timeseries_base_plot`,
+    automatically setting `data_transform=_relative_extremes`.
 
-        # Axis scales and labels
-        ax.set_yscale(yscale)
-        ax.set_xscale(xscale)
-        ax.set_ylabel(ylabels[feature_idx])
-        ax.set_xlabel(xlabels[feature_idx])
-        ax.set_title(feature_labels[feature_idx])
-
-    # Handle legends and layout
-    if separate_axes:
-        for ax in axes:
-            ax.legend(loc="upper left")
-        plt.tight_layout()
-    else:
-        handles, legend_labels = axes[0].get_legend_handles_labels()
-        if N == 1:
-            # Only one sample
-            axes[0].legend(handles, legend_labels, loc="upper left", frameon=True)
-        else:
-            # Multiple samples in a single plot
-            # Group legends by sample_labels
-            grouped_handles = {sample: [] for sample in sample_labels}
-            grouped_labels = {sample: [] for sample in sample_labels}
-
-            for h, lbl in zip(handles, legend_labels):
-                for sample in sample_labels:
-                    if lbl.startswith(sample):
-                        grouped_handles[sample].append(h)
-                        grouped_labels[sample].append(lbl)
-                        break
-
-            ordered_handles = sum(grouped_handles.values(), [])
-            ordered_labels = sum(grouped_labels.values(), [])
-
-            axes[0].legend(
-                ordered_handles,
-                ordered_labels,
-                ncol=N,
-                title="Grouped by Samples",
-                loc="upper left",
-                frameon=True,
-            )
-
-    return list(axes)
+    See Also
+    --------
+    :func:`_timeseries_base_plot` : The base function for time series plotting.
+    """
+    return _timeseries_base_plot(
+        data=data,
+        dt=dt,
+        lam=lam,
+        suptitle=suptitle,
+        sample_labels=sample_labels,
+        feature_labels=feature_labels,
+        xlabels=xlabels,
+        ylabels=ylabels,
+        separate_axes=separate_axes,
+        figsize=figsize,
+        sharex=sharex,
+        yscale=yscale,
+        xscale=xscale,
+        data_transform=partial(_relative_extremes, extreme_type=extreme_type),
+        plot_func=plot_func,
+        **kwargs,
+    )
 
 
 def plot_3d_parametric(
@@ -516,6 +524,9 @@ def plot_heatmap(
 
 __all__ = [
     "plot_2d_timeseries",
+    "scatter_2d_timeseries",
+    "delay_2d_timeseries",
+    "relative_extremes_2d_timeseries",
     "plot_3d_parametric",
     "plot_heatmap",
 ]
