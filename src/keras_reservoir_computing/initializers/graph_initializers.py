@@ -4,8 +4,7 @@ import keras
 import tensorflow as tf
 from keras.src.initializers import Initializer
 
-from keras_reservoir_computing.utils.general_utils import create_rng
-from keras_reservoir_computing.utils.graph_utils import (
+from keras_reservoir_computing.initializers.graph_utils import (
     barabasi_albert,
     complete,
     connected_erdos_renyi,
@@ -14,7 +13,10 @@ from keras_reservoir_computing.utils.graph_utils import (
     newman_watts_strogatz,
     regular,
 )
-from keras_reservoir_computing.utils.graph_utils.helpers import spectral_radius_hybrid
+from keras_reservoir_computing.initializers.graph_utils.helpers import (
+    spectral_radius_hybrid,
+)
+from keras_reservoir_computing.utils.general_utils import create_rng
 
 
 @keras.saving.register_keras_serializable(
