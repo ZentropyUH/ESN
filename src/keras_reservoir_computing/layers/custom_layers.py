@@ -12,7 +12,7 @@ import tensorflow as tf
 
 
 @keras.saving.register_keras_serializable(
-    package="MyLayers", name="SelectiveExponentiation"
+    package="krc", name="SelectiveExponentiation"
 )
 class SelectiveExponentiation(keras.layers.Layer):
     r"""
@@ -118,7 +118,7 @@ class SelectiveExponentiation(keras.layers.Layer):
 
 
 @keras.saving.register_keras_serializable(
-    package="MyLayers", name="OutliersFilteredMean"
+    package="krc", name="OutliersFilteredMean"
 )
 class OutliersFilteredMean(keras.layers.Layer):
     r"""
@@ -261,7 +261,7 @@ class OutliersFilteredMean(keras.layers.Layer):
 
 
 # For the ParallelReservoir model
-@keras.saving.register_keras_serializable(package="MyLayers", name="FeaturePartitioner")
+@keras.saving.register_keras_serializable(package="krc", name="FeaturePartitioner")
 class FeaturePartitioner(keras.layers.Layer):
     r"""
     A Keras layer that splits the feature dimension into multiple overlapping partitions,

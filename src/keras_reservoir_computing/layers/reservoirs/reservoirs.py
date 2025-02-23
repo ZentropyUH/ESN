@@ -6,7 +6,7 @@ from .base import BaseReservoir
 from .cells import ESNCell
 
 
-@keras.saving.register_keras_serializable(package="MyLayers", name="ESNReservoir")
+@keras.saving.register_keras_serializable(package="krc", name="ESNReservoir")
 class ESNReservoir(BaseReservoir):
     """
     An Echo State Network (ESN) reservoir layer implementation.

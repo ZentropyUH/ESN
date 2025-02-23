@@ -1,10 +1,12 @@
 from typing import Dict, Union
 
+import keras
 import tensorflow as tf
 
 from .base import ReadOut
 
 
+@keras.saving.register_keras_serializable(package="krc", name="RidgeSVDReadout")
 class RidgeSVDReadout(ReadOut):
     """
     A Keras-like, SVD-based Ridge Regression layer.

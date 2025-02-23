@@ -1,10 +1,12 @@
 from typing import Callable, List, Optional, Union
-from .base import BaseCell
-import tensorflow as tf
+
 import keras
+import tensorflow as tf
+
+from .base import BaseCell
 
 
-@keras.saving.register_keras_serializable(package="MyLayers", name="ESNCell")
+@keras.saving.register_keras_serializable(package="krc", name="ESNCell")
 class ESNCell(BaseCell):
     """
     A custom RNN cell that splits the incoming features into:

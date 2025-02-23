@@ -1,10 +1,11 @@
 from abc import ABC, abstractmethod
-import keras
-import tensorflow as tf
 from typing import List, Tuple, Union
 
+import keras
+import tensorflow as tf
 
-@keras.saving.register_keras_serializable(package="MyLayers", name="BaseCell")
+
+@keras.saving.register_keras_serializable(package="krc", name="BaseCell")
 class BaseCell(keras.Layer, ABC):
     """
     Abstract base class for different types of reservoir cells.
@@ -121,7 +122,7 @@ class BaseCell(keras.Layer, ABC):
         return config
 
 
-@keras.saving.register_keras_serializable(package="MyLayers", name="BaseReservoir")
+@keras.saving.register_keras_serializable(package="krc", name="BaseReservoir")
 class BaseReservoir(keras.layers.RNN):
     """
     Abstract base class for different types of reservoirs.

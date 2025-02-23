@@ -1,8 +1,10 @@
-import keras
-import tensorflow as tf
 from abc import ABC, abstractmethod
 
+import keras
+import tensorflow as tf
 
+
+@keras.saving.register_keras_serializable(package="krc", name="ReadOut")
 class ReadOut(keras.Layer, ABC):
     """
     Base class for readout layers in a reservoir.
