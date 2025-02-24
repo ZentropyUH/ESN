@@ -93,6 +93,7 @@ def classical_ESN(
     input_layer = keras.layers.Input(shape=(None, features), batch_size=batch)
 
     reservoir_config["units"] = units
+    reservoir_config["feedback_dim"] = features
     reservoir = ESNReservoir_builder(reservoir_config)(input_layer)
 
     selective_exponentiation = SelectiveExponentiation(
