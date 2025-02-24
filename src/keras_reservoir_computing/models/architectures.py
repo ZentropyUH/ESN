@@ -56,6 +56,7 @@ def classical_ESN(
     readout_config: Union[str, dict] = READOUT_CONFIG,
     batch=1,
     features=1,
+    name="classical_ESN",
 ) -> keras.Model:
     """
     Builds and returns a classical, feedback-only Echo State Network (ESN) model using Keras.
@@ -103,7 +104,7 @@ def classical_ESN(
 
     readout = ReadOut_builder(readout_config)(concat)
 
-    model = keras.Model(inputs=input_layer, outputs=readout)
+    model = keras.Model(inputs=input_layer, outputs=readout, name=name)
     return model
 
 
@@ -114,6 +115,7 @@ def ensemble_with_mean_ESN(
     readout_config: Union[str, dict] = READOUT_CONFIG,
     batch=1,
     features=1,
+    name="ensemble_with_mean_ESN",
 ) -> keras.Model:
 
     input_layer = keras.layers.Input(shape=(None, features), batch_size=batch)
@@ -150,7 +152,7 @@ def ensemble_with_mean_ESN(
 
     filtered_mean = OutliersFilteredMean()(readouts)
 
-    model = keras.Model(inputs=input_layer, outputs=filtered_mean)
+    model = keras.Model(inputs=input_layer, outputs=filtered_mean, name=name)
     return model
 
 
