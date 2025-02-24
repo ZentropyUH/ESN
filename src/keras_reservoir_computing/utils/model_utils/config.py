@@ -1,10 +1,23 @@
 import inspect
 import json
 import types
-from typing import Tuple, Optional, Dict, Any
+from typing import Optional, Dict, Union
 
 
-def get_default_params(cls: type) -> Dict[str, Any]:
+def load_user_config(config: Union[str, Dict]) -> Dict:
+    """
+    Load JSON config from a file path or take an existing dict.
+    """
+    if isinstance(config, str):
+        with open(config, "r") as f:
+            return json.load(f)
+    elif isinstance(config, dict):
+        return config
+    else:
+        raise ValueError("Config must be a dict or a path to a JSON file.")
+
+
+def get_default_params(cls: type) -> Dict:
     """
     Retrieve the default parameters from a class's __init__ method.
 
@@ -39,10 +52,10 @@ def get_default_params(cls: type) -> Dict[str, Any]:
 
 
 def merge_with_defaults(
-    default_params: Dict[str, Any],
-    user_params: Dict[str, Any],
-    override_params: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+    default_params: Dict,
+    user_params: Dict,
+    override_params: Optional[Dict] = None,
+) -> Dict:
     """
     Merge user-specified parameters with a dictionary of default parameters.
 
@@ -67,9 +80,9 @@ def merge_with_defaults(
         defaults, and ``override_params`` override everything else.
     """
     # Start with default parameters, override with user_params
-    params = {
-        key: user_params.get(key, default) for key, default in default_params.items()
-    }
+    params = default_params.copy()
+    params.update(user_params)
+
     # Optionally apply final overrides
     if override_params is not None:
         params.update(override_params)
@@ -104,142 +117,3 @@ def get_class_from_name(name: str, module: types.ModuleType) -> type:
     return class_
 
 
-def load_config(filepath: str, keys: Tuple[str, ...]) -> Dict[str, Any]:
-    """
-    Load a configuration dictionary from a JSON file and validate required keys.
-
-    Parameters
-    ----------
-    filepath : str
-        Path to the JSON configuration file.
-    keys : tuple of str
-        Keys that the configuration file must contain.
-
-    Returns
-    -------
-    dict
-        A dictionary loaded from the JSON file.
-
-    Raises
-    ------
-    FileNotFoundError
-        If the specified file does not exist.
-    json.JSONDecodeError
-        If the file is not valid JSON.
-    KeyError
-        If any of the required keys are missing from the loaded dictionary.
-    """
-    with open(filepath, "r") as file:
-        config = json.load(file)
-
-    # Validate that all required keys are present
-    missing_keys = [k for k in keys if k not in config]
-    if missing_keys:
-        raise KeyError(
-            f"The following keys are missing from '{filepath}': {missing_keys}. "
-            f"Expected keys: {list(keys)}."
-        )
-
-    return config
-
-
-def load_model_config(filepath: str) -> Dict[str, Any]:
-    """
-    Load a model configuration dictionary from a JSON file.
-
-    The JSON file is expected to include the following keys:
-    ``["feedback_init", "feedback_bias_init", "kernel_init", "cell"]``.
-
-    Parameters
-    ----------
-    filepath : str
-        Path to the JSON configuration file.
-
-    Returns
-    -------
-    dict
-        The model configuration dictionary, guaranteed to have the keys
-        specified above.
-
-    Raises
-    ------
-    FileNotFoundError
-        If the file is not found.
-    json.JSONDecodeError
-        If the file is not valid JSON.
-    KeyError
-        If any required keys are missing from the JSON.
-    """
-    model_config_keys = ("feedback_init", "feedback_bias_init", "kernel_init", "cell")
-    model_config = load_config(filepath, model_config_keys)
-    return model_config
-
-
-def load_train_config(filepath: str) -> Dict[str, Any]:
-    """
-    Load a training configuration dictionary from a JSON file.
-
-    The JSON file is expected to include the following keys:
-    ``["init_transient_length", "train_length", "transient_length", "normalize", "regularization"]``.
-
-    Parameters
-    ----------
-    filepath : str
-        Path to the JSON configuration file.
-
-    Returns
-    -------
-    dict
-        The training configuration dictionary, guaranteed to have the keys
-        specified above.
-
-    Raises
-    ------
-    FileNotFoundError
-        If the file is not found.
-    json.JSONDecodeError
-        If the file is not valid JSON.
-    KeyError
-        If any required keys are missing from the JSON.
-    """
-    train_config_keys = (
-        "init_transient_length",
-        "train_length",
-        "transient_length",
-        "normalize",
-        "regularization",
-    )
-    train_config = load_config(filepath, train_config_keys)
-    return train_config
-
-
-def load_forecast_config(filepath: str) -> Dict[str, Any]:
-    """
-    Load a forecast configuration dictionary from a JSON file.
-
-    The JSON file is expected to include the following keys:
-    ``["forecast_length", "internal_states"]``.
-
-    Parameters
-    ----------
-    filepath : str
-        Path to the JSON configuration file.
-
-    Returns
-    -------
-    dict
-        The forecast configuration dictionary, guaranteed to have the keys
-        specified above.
-
-    Raises
-    ------
-    FileNotFoundError
-        If the file is not found.
-    json.JSONDecodeError
-        If the file is not valid JSON.
-    KeyError
-        If any required keys are missing from the JSON.
-    """
-    forecast_config_keys = ("forecast_length", "internal_states")
-    forecast_config = load_config(filepath, forecast_config_keys)
-    return forecast_config
