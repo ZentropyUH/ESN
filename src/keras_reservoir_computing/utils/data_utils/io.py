@@ -1,8 +1,10 @@
 import os
+from typing import List, Tuple, Union
+
 import numpy as np
 import pandas as pd
+import tensorflow as tf
 import xarray as xr
-from typing import List, Tuple
 
 
 def load_csv(datapath: str) -> np.ndarray:
@@ -267,7 +269,7 @@ def load_file(datapath: str) -> np.ndarray:
 
 
 def load_data(
-    datapath: str,
+    datapath: Union[str, List[str]],
     init_transient: int = 0,
     transient: int = 1000,
     train_length: int = 5000,
@@ -276,12 +278,13 @@ def load_data(
     """
     Load and prepare time-series data for neural network (e.g., ESN/Reservoir) training.
 
-    The data is assumed to be of shape (1, T, D), where T is time steps, and D is the dimension.
+    The data is assumed to be of shape (B, T, D), where T is time steps, and D is the dimension.
 
     Parameters
     ----------
-    datapath : str
-        Path to the data file. Supported formats: .csv, .npz, .npy, .nc.
+    datapath : str or List[str]
+        Path to the data file. Supported formats: .csv, .npz, .npy, .nc. If a list of paths is
+        provided, the data will be concatenated along the batch dimension.
     init_transient : int, optional
         Number of initial transient time steps to discard, by default 0.
     transient : int, optional
@@ -309,8 +312,13 @@ def load_data(
         If the required train size (transient + train_length) exceeds the available time steps.
     """
     print(f"Loading data from: {datapath}")
-    data = load_file(datapath)
-    _, T, D = data.shape
+
+    if isinstance(datapath, list):
+        data = np.concatenate([load_file(f) for f in datapath], axis=0)
+    else:
+        data = load_file(datapath)
+
+    B, T, D = data.shape
 
     if init_transient >= T:
         raise ValueError(
@@ -349,6 +357,14 @@ def load_data(
         forecast_transient_data = (forecast_transient_data - mean) / std
         val_data = (val_data - mean) / std
         val_target = (val_target - mean) / std
+
+    # Convert everyone to tensor
+    transient_data = tf.convert_to_tensor(transient_data)
+    train_data = tf.convert_to_tensor(train_data)
+    train_target = tf.convert_to_tensor(train_target)
+    forecast_transient_data = tf.convert_to_tensor(forecast_transient_data)
+    val_data = tf.convert_to_tensor(val_data)
+    val_target = tf.convert_to_tensor(val_target)
 
     return (
         transient_data,
