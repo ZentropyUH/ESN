@@ -311,7 +311,6 @@ def load_data(
         If init_transient is >= the total time steps T.
         If the required train size (transient + train_length) exceeds the available time steps.
     """
-    print(f"Loading data from: {datapath}")
 
     if isinstance(datapath, list):
         data = np.concatenate([load_file(f) for f in datapath], axis=0)
