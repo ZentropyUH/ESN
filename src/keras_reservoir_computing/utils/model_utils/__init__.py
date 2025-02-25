@@ -5,7 +5,8 @@ from .config import (
     merge_with_defaults,
 )
 
-from . import training, forecasting
+from . import forecasting
+from . import training
 
 __all__ = [
     "get_class_from_name",
