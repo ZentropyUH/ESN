@@ -132,13 +132,9 @@ class ESNReservoir(BaseReservoir):
             (batch_size, timesteps, feedback_dim + input_dim)
         Then call super().build(...) with that shape so it can build the cell.
         """
-        if isinstance(input_shape, list):
-            if len(input_shape) != 2:
-                raise ValueError(
-                    f"Expected exactly two inputs: [feedback_seq, input_seq]. Got: {input_shape}"
-                )
 
-            shape_fb, shape_in = input_shape
+        if all(isinstance(shape, (list, tuple)) for shape in input_shape):
+            shape_fb, shape_in = map(tuple, input_shape)
             # shape_fb = (batch_size, timesteps, fb_feats)
             # shape_in = (batch_size, timesteps, in_feats)
             # Some or all dims might be None at this stage.
@@ -170,7 +166,7 @@ class ESNReservoir(BaseReservoir):
 
         else:
             # Single input shape. We assume it’s the feedback sequence only.
-            shape_total = input_shape
+            shape_total = tuple(input_shape)
             if shape_total[-1] != self.feedback_dim:
                 raise ValueError(
                     f"Feedback sequence has {shape_total[-1]} features, expected {self.feedback_dim}"
