@@ -1,7 +1,7 @@
 """
 Custom Keras layers.
 
-This module contains custom Keras layers that are not part of the standard Keras library. 
+This module contains custom Keras layers that are not part of the standard Keras library.
 The layers are used as part of the Reservoir Computing models in this package.
 """
 
@@ -48,7 +48,7 @@ class SelectiveExponentiation(keras.layers.Layer):
     def __init__(self, index: int, exponent: float, **kwargs) -> None:
         super().__init__(**kwargs)
         # Determine parity only once
-        self.index = (index + 1) % 2
+        self.index = index
         self.exponent = exponent
 
     def call(self, inputs: tf.Tensor) -> tf.Tensor:
@@ -68,12 +68,12 @@ class SelectiveExponentiation(keras.layers.Layer):
             by ``self.exponent``, depending on ``index`` parity.
         """
         dim = tf.shape(inputs)[-1]
-        
+
         # mask = 0 for even indices, 1 for odd indices
         mask = tf.math.mod(tf.range(dim), 2)
 
         # If index is odd => invert the mask => exponentiate odd indices
-        mask = self.index - mask
+        mask = ((self.index + 1) % 2) - mask
 
         mask_f = tf.cast(mask, dtype=tf.float32)
 
