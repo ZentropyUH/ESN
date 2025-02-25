@@ -284,6 +284,6 @@ class RidgeSVDReadout(ReadOut):
             "units": self.units,
             "alpha": self._alpha,
             "washout": self.washout,
-            "trainable": self.train
+            "trainable": self.trainable
         })
         return config
