@@ -1,9 +1,11 @@
 from keras import Model
 from keras_reservoir_computing.layers.readouts.base import ReadOut
+from typing import Union, List
+import tensorflow as tf
 
 
 class ReservoirTrainer:
-    def __init__(self, model: Model, readout_targets: dict):
+    def __init__(self, model: Model, readout_targets: dict, log: bool = False) -> None:
         """
         Custom trainer for Read-Out layers, ensuring correct dependency order.
 
@@ -37,6 +39,7 @@ class ReservoirTrainer:
         """
         self.model = model
         self.readout_targets = readout_targets
+        self.log = log
 
         # Find all ReadOut layers in topological order
         # model.layers is already sorted in topological order
@@ -53,7 +56,11 @@ class ReservoirTrainer:
                 inputs=model.input, outputs=readout_layer.input
             )
 
-    def fit_readout_layers(self, X):
+    def fit_readout_layers(
+        self,
+        warmup_data: Union[tf.Tensor, List[tf.Tensor]],
+        X: Union[tf.Tensor, List[tf.Tensor]],
+    ) -> None:
         """
         Train all ReadOut layers in the correct order using intermediate models.
 
@@ -62,7 +69,10 @@ class ReservoirTrainer:
 
         Parameters
         ----------
-        X : tf.Tensor
+        warmup_data : tf.Tensor or List[tf.Tensor]
+            The input data to warm up the model before training the ReadOut layers.
+
+        X : tf.Tensor or List[tf.Tensor]
             The input data to generate intermediate outputs.
 
         Notes
@@ -70,27 +80,29 @@ class ReservoirTrainer:
         - The input data `X` should be compatible with the input shape of the model.
         - The method prints the progress of training each `ReadOut` layer.
         """
-        print("\n=== Training ReadOut Layers in Topological Order ===")
-        
+
+        if self.log:
+            print("\n=== Training ReadOut Layers in Topological Order ===")
+
         batch_size = X.shape[0]
 
         for readout_layer in self.readout_layers_list:
 
             # Get intermediate output for this ReadOut layer
             intermediate_model = self.intermediate_models[readout_layer.name]
+            # Warm up the model
+            _ = intermediate_model.predict(warmup_data, batch_size=batch_size, verbose=0)
+
+            # Get the intermediate output
             readout_input = intermediate_model.predict(X, batch_size=batch_size, verbose=0)
 
             # Get the expected target
             target = self.readout_targets[readout_layer.name]
 
             # Train ReadOut layer
-            print(f"Fitting {readout_layer.name}...")
+            if self.log:
+                print(f"Fitting {readout_layer.name}...")
             readout_layer.fit(readout_input, target)
 
-        print("All ReadOut layers fitted successfully.")
-
-
-__all__ = ["ReservoirTrainer"]
-
-def __dir__() -> list:
-    return __all__
+        if self.log:
+            print("All ReadOut layers fitted successfully.")
