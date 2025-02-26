@@ -1,7 +1,8 @@
-from networkx import DiGraph
-import tensorflow as tf
 from typing import Optional, Union
+
+import keras
 import networkx as nx
+import tensorflow as tf
 from keras import Model
 
 
@@ -50,7 +51,7 @@ def create_tf_rng(
     return rg
 
 
-def build_layer_graph(model: Model) -> DiGraph:
+def build_layer_graph(model: Model) -> nx.DiGraph:
     """
     Build a directed graph of layers from a Functional Keras model.
 
@@ -67,28 +68,82 @@ def build_layer_graph(model: Model) -> DiGraph:
     """
     graph = nx.DiGraph()
 
-    # Add all layers as graph nodes
+    # Add all layers as nodes
     for layer in model.layers:
         graph.add_node(layer.name, layer=layer)
 
-    # Build edges: parent -> child
+    # Add edges to represent connections between layers
     for layer in model.layers:
         inbound_layers = []
-
-        if isinstance(layer.input, (list, tuple)):  # Ensure compatibility with tuples
+        if isinstance(layer.input, (list, tuple)):
             for inp in layer.input:
                 if hasattr(inp, "_keras_history"):
-                    inbound_layers.append(
-                        inp._keras_history[0]
-                    )  # The actual parent layer
-        elif hasattr(layer.input, "_keras_history"):  # Handle single tensor case
+                    inbound_layers.append(inp._keras_history[0])
+        elif hasattr(layer.input, "_keras_history"):
             inbound_layers.append(layer.input._keras_history[0])
 
-        # Add edges from each inbound layer to the current layer
         for inbound_layer in inbound_layers:
             graph.add_edge(inbound_layer.name, layer.name)
 
     return graph
+
+
+def rebuild_model_with_new_batch_size(old_model: Model, new_batch_size: int) -> Model:
+    """
+    Rebuild the model while modifying only the batch size of the input layers.
+    Ensures that all layers are correctly connected in the new model.
+    """
+    graph = build_layer_graph(old_model)
+    layer_mapping = {}
+
+    # Create new input layers with updated batch size
+    for layer_name, attrs in graph.nodes(data=True):
+        layer = attrs["layer"]
+        if isinstance(layer, keras.layers.InputLayer):
+            new_input = keras.Input(
+                shape=layer.batch_shape[1:], batch_size=new_batch_size, name=layer.name
+            )
+            layer_mapping[layer_name] = new_input
+
+    # Rebuild all other layers while maintaining their original connections
+    for layer_name, attrs in graph.nodes(data=True):
+        if layer_name in layer_mapping:  # Skip input layers (already handled)
+            continue
+
+        layer = attrs["layer"]
+        inbound_nodes = list(graph.predecessors(layer_name))  # Get parent layers
+        inbound_tensors = [layer_mapping[parent] for parent in inbound_nodes]
+
+        # Ensure single inputs are not enclosed in a list
+        if len(inbound_tensors) == 1:
+            inbound_tensors = inbound_tensors[0]
+
+        # Recreate the layer with the same config, connected to the proper inputs
+        new_layer = layer.__class__.from_config(layer.get_config())(inbound_tensors)
+        layer_mapping[layer_name] = new_layer
+
+    # Extract the final outputs
+    new_outputs = [
+        layer_mapping[old_model.output_names[i]] for i in range(len(old_model.outputs))
+    ]
+
+    if len(new_outputs) == 1:
+        new_outputs = new_outputs[0]
+
+    inputs = list(layer_mapping.values())[: len(old_model.inputs)]
+    if len(inputs) == 1:
+        inputs = inputs[0]
+
+    # Create the new model
+    new_model = Model(
+        inputs=inputs,
+        outputs=new_outputs,
+    )
+
+    # Load the trained weights
+    new_model.set_weights(old_model.get_weights())
+
+    return new_model
 
 
 __all__ = [
