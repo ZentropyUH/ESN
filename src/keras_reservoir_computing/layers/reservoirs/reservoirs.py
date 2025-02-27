@@ -181,8 +181,7 @@ class ESNReservoir(BaseReservoir):
         Since the RNN always returns the full sequence, the output shape is:
             (batch_size, timesteps, units)
         """
-        if isinstance(input_shape, (list)):
-            # Handle case where input is [feedback_seq, input_seq]
+        if all(isinstance(shape, (list, tuple)) for shape in input_shape):
             feedback_shape = input_shape[0]  # feedback sequence shape
             batch_size, timesteps = feedback_shape[:2]
         else:
