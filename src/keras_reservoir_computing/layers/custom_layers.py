@@ -177,7 +177,7 @@ class OutliersFilteredMean(keras.layers.Layer):
         # No trainable parameters to build
         super().build(input_shape)
 
-    def call(self, inputs: tf.Tensor) -> tf.Tensor:
+    def call(self, inputs: Union[tf.Tensor, List[tf.Tensor]]) -> tf.Tensor:
         """
         Removes outliers at each (batch, timestep), then averages over the samples dimension.
 
@@ -192,6 +192,11 @@ class OutliersFilteredMean(keras.layers.Layer):
             A tensor of shape ``(batch, timesteps, features)``, representing the mean of the
             non-outlier samples.
         """
+        if isinstance(inputs, list):
+            inputs = tf.stack(inputs, axis=0)  # (samples, batch, None, features)
+        else:
+            inputs = tf.expand_dims(inputs, axis=0)  # (1, batch, None, features)
+
         # 1) Compute the norm over the last dimension => shape (samples, batch, timesteps)
         norms = tf.norm(inputs, axis=-1)
 
@@ -212,8 +217,8 @@ class OutliersFilteredMean(keras.layers.Layer):
 
         else:  # self.method == "iqr"
             # Q1, Q3 => shape (batch, timesteps)
-            q1 = keras.ops.quantile(norms, 0.25, axis=0, interpolation="linear")
-            q3 = keras.ops.quantile(norms, 0.75, axis=0, interpolation="linear")
+            q1 = keras.ops.quantile(norms, 0.25, axis=0)
+            q3 = keras.ops.quantile(norms, 0.75, axis=0)
             iqr = q3 - q1
 
             # Lower/upper bounds
@@ -237,7 +242,7 @@ class OutliersFilteredMean(keras.layers.Layer):
 
         # 5) Count inlier samples at each (batch, timestep) => shape (batch, timesteps, 1)
         count_ = tf.reduce_sum(mask_expanded, axis=0, keepdims=False)
-        count_ = tf.expand_dims(count_, axis=-1)  # shape => (batch, timesteps, 1)
+        count_ = tf.broadcast_to(count_, tf.shape(sum_))  # (batch, timesteps, features)
 
         # Avoid dividing by zero: if count_ is 0, replace with 1
         count_ = tf.where(count_ > 0, count_, tf.ones_like(count_))
@@ -247,12 +252,14 @@ class OutliersFilteredMean(keras.layers.Layer):
 
         return mean_
 
-    def compute_output_shape(self, input_shape) -> tf.TensorShape:
-        """
-        Output shape is (batch, timesteps, features).
-        """
-        # input_shape => (samples, batch, timesteps, features)
-        return tf.TensorShape([input_shape[1], input_shape[2], input_shape[3]])
+    def compute_output_shape(self, input_shape):
+        # If input is a list, use one element’s shape (they all have the same shape)
+        if isinstance(input_shape, list):
+            input_shape = input_shape[0]  # Single tensor shape: (batch, timesteps, features)
+
+        # Ensure it's the expected format (batch, timesteps, features) before returning
+        return tf.TensorShape([input_shape[0], input_shape[1], input_shape[2]])
+
 
     def get_config(self):
         config = super().get_config()
