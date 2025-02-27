@@ -1,6 +1,7 @@
 from typing import Union
 
 import keras
+import tensorflow as tf
 from keras.src.layers import Concatenate
 
 from keras_reservoir_computing.layers import (
@@ -11,6 +12,8 @@ from keras_reservoir_computing.layers.builders import (
     ESNReservoir_builder,
     ReadOut_builder,
 )
+
+from keras_reservoir_computing.utils.model_utils.config import load_user_config
 
 ESN_RESERVOIR_CONFIG = {
     "units": 10,
@@ -80,15 +83,18 @@ def classical_ESN(
     -------
     keras.Model
         A Keras Model representing the classical ESN.
-        
+
     Notes
     -----
     - The model built is based on Edward Ott's ESN formulation.
     - The architecture is the following:
         - `Input Layer` -> `ESN Reservoir` -> `Readout Layer`
         - The caveat is to augment the reservoir output with a selective exponentiation of even positions to their squared value, afterwards concatenate the augmented reservoir output with the input (feedback), then feed it to the readout layer.
-    
+
     """
+
+    if isinstance(reservoir_config, str):
+        reservoir_config = load_user_config(reservoir_config)
 
     input_layer = keras.layers.Input(shape=(None, features), batch_size=batch)
 
@@ -119,6 +125,12 @@ def ensemble_with_mean_ESN(
     name="ensemble_with_mean_ESN",
 ) -> keras.Model:
 
+    if isinstance(reservoir_config, str):
+        reservoir_config = load_user_config(reservoir_config)
+
+    if isinstance(readout_config, str):
+        readout_config = load_user_config(readout_config)
+
     input_layer = keras.layers.Input(shape=(None, features), batch_size=batch)
 
     reservoir_config["units"] = units
@@ -140,16 +152,14 @@ def ensemble_with_mean_ESN(
         for exponentiation in exponentiations
     ]
 
-    readouts = [
-        ReadOut_builder(readout_config)(concatenation)
-        for concatenation in concatenations
-    ]
+    readouts = []
+
+    for i, concatenation in enumerate(concatenations):
+        readout_config["name"] = f"readout_{i}"
+        readout = ReadOut_builder(readout_config)(concatenation)
+        readouts.append(readout)
 
     # All readouts are of shape (batch, timestep, features). We need to stack them along a new axis on the left, so the sahpe becomes (ensemble_size, batch, timestep, features)
-    readouts = keras.layers.Lambda(
-        lambda x: keras.backend.stack(x, axis=0),
-        output_shape=(ensemble_size, batch, None, features),
-    )(readouts)
 
     filtered_mean = OutliersFilteredMean()(readouts)
 
