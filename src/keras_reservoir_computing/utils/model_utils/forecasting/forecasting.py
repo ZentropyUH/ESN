@@ -190,7 +190,7 @@ def warmup_forecast(
         initial_feedback = forecast_data[0][:, :1, :]
         external_inputs_post_warmup = tuple(forecast_data[1:])
 
-    _ = model.predict(warmup_data, batch_size=batch_size)
+    _ = model.predict(warmup_data, batch_size=batch_size, verbose=0)
 
     # 6) Run forecast
     forecasted_output, states = forecast(
