@@ -26,7 +26,7 @@ class ReadOut(keras.Layer, ABC):
     """
 
     def __init__(
-        self, units: int, washout: int = 0, trainable: bool = False, **kwargs
+        self, units: int, trainable: bool = False, **kwargs
     ) -> None:
         """
         Initialize the ReadOut layer.
@@ -40,7 +40,6 @@ class ReadOut(keras.Layer, ABC):
         """
         super().__init__(trainable=trainable, **kwargs)
         self.units = units
-        self.washout = washout
         self._fitted = False
 
     @abstractmethod
@@ -97,7 +96,7 @@ class ReadOut(keras.Layer, ABC):
         """
         config = super().get_config()
         config.update(
-            {"units": self.units, "washout": self.washout, "trainable": self.trainable}
+            {"units": self.units, "trainable": self.trainable}
         )
         return config
 

@@ -53,7 +53,6 @@ class MoorePenroseReadout(ReadOut):
         self,
         units: int,
         alpha: float = 1.0,
-        washout: int = 0,
         trainable: bool = False,
         **kwargs,
     ):
@@ -63,10 +62,10 @@ class MoorePenroseReadout(ReadOut):
         self._alpha = alpha
         self.kernel = None
         self.bias = None
-        
+
         self._fitted = False
-        
-        super().__init__(units=units, washout=washout, trainable=trainable, **kwargs)
+
+        super().__init__(units=units, trainable=trainable, **kwargs)
 
     def build(self, input_shape) -> None:
         input_dim = input_shape[-1]
@@ -105,10 +104,9 @@ class MoorePenroseReadout(ReadOut):
         else:
             y = tf.cast(y, tf.float64)
 
-        X = X[self.washout :]
-        y = y[self.washout :]
+
         X = tf.reshape(X, (-1, X.shape[-1]))
-        y = tf.reshape(y, (-1, y.shape[-1] if len(y.shape) > 1 else 1))
+        y = tf.reshape(y, (-1, y.shape[-1]))
 
         n_samples, n_features = X.shape
         if not self.built:
@@ -131,9 +129,9 @@ class MoorePenroseReadout(ReadOut):
         # xTx = tf.matmul(X_centered, X_centered, transpose_a=True) + self._alpha * identity
         # xTx_inv = tf.linalg.pinv(xTx)  # Moore-Penrose pseudoinverse
         # coef = tf.matmul(xTx_inv, tf.matmul(X_centered, y_centered, transpose_a=True))
-        
-        
-        
+
+
+
         # Compute SVD of X_centered
         s, u, v = tf.linalg.svd(X_centered, full_matrices=False)
 
@@ -187,7 +185,6 @@ class MoorePenroseReadout(ReadOut):
         config.update({
             "units": self.units,
             "alpha": self._alpha,
-            "washout": self.washout,
             "trainable": self.trainable
         })
         return config

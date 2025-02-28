@@ -68,7 +68,6 @@ class RidgeSVDReadout(ReadOut):
         self,
         units: int,
         alpha: float = 1.0,
-        washout: int = 0,
         trainable: bool = False,
         **kwargs,
     ):
@@ -82,8 +81,6 @@ class RidgeSVDReadout(ReadOut):
         trainable : bool
             Whether to allow gradient-based updates on the weights
             after they are fit with the closed-form solver.
-        washout : int
-            Number of time steps to ignore during training.
         """
         if alpha < 0:
             raise ValueError("Regularization strength `alpha` must be non-negative.")
@@ -93,10 +90,10 @@ class RidgeSVDReadout(ReadOut):
         # Will be created in build() with known shapes.
         self.kernel = None  # shape: (input_dim, units)
         self.bias = None  # shape: (units,)
-        
+
         self._fitted = False
 
-        super().__init__(units=units, washout=washout, trainable=trainable, **kwargs)
+        super().__init__(units=units, trainable=trainable, **kwargs)
 
     def build(self, input_shape) -> None:
         """
@@ -180,13 +177,8 @@ class RidgeSVDReadout(ReadOut):
         else:
             y = tf.cast(y, tf.float64)
 
-        # Remove washout
-        X = X[self.washout :]
-        y = y[self.washout :]
-
-        # Ensure shape
         X = tf.reshape(X, (-1, X.shape[-1]))  # (n_samples, n_features)
-        y = tf.reshape(y, (-1, y.shape[-1] if len(y.shape) > 1 else 1))
+        y = tf.reshape(y, (-1, y.shape[-1]))
 
         n_samples, n_features = X.shape
         # Build layer if not built yet
@@ -283,7 +275,6 @@ class RidgeSVDReadout(ReadOut):
         config.update({
             "units": self.units,
             "alpha": self._alpha,
-            "washout": self.washout,
             "trainable": self.trainable
         })
         return config
