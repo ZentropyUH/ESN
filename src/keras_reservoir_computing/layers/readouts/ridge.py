@@ -147,7 +147,7 @@ class RidgeSVDReadout(ReadOut):
         return outputs
 
     @tf.function()
-    def fit(self, X: tf.Tensor, y: tf.Tensor) -> "RidgeSVDReadout":
+    def fit(self, X: tf.Tensor, y: tf.Tensor) -> None:
         """
         Compute the closed-form Ridge solution via SVD:
 

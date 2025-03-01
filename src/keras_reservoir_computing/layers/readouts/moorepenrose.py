@@ -93,7 +93,7 @@ class MoorePenroseReadout(ReadOut):
         return outputs
 
     @tf.function()
-    def fit(self, X: tf.Tensor, y: tf.Tensor) -> "MoorePenroseReadout":
+    def fit(self, X: tf.Tensor, y: tf.Tensor) -> None:
         if not isinstance(X, tf.Tensor):
             X = tf.convert_to_tensor(X, dtype=tf.float64)
         else:
