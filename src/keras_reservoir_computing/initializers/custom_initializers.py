@@ -9,7 +9,7 @@ from keras import Initializer
 from keras_reservoir_computing.utils.tf_utils import create_tf_rng
 
 
-@keras.saving.register_keras_serializable(package="MyInitializers", name="InputMatrix")
+@keras.saving.register_keras_serializable(package="krc", name="InputMatrix")
 class InputMatrix(Initializer):
     """
     An initializer that generates an input matrix connecting inputs to reservoir nodes.

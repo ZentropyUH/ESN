@@ -1,22 +1,22 @@
-from .config import load_forecast_config, load_model_config, load_train_config
-from .forecasting import model_batch_predictor, model_predictor, models_batch_predictor
-from .model import create_ensemble, create_model, load_model
-from .training import model_batch_trainer, model_trainer
+from .config import (
+    get_class_from_name,
+    get_default_params,
+    load_user_config,
+    merge_with_defaults,
+)
+
+from . import forecasting
+from . import training
 
 __all__ = [
-    "load_forecast_config",
-    "load_model_config",
-    "load_train_config",
-    "model_batch_predictor",
-    "model_predictor",
-    "models_batch_predictor",
-    "create_ensemble",
-    "create_model",
-    "load_model",
-    "model_batch_trainer",
-    "model_trainer",
+    "get_class_from_name",
+    "get_default_params",
+    "load_user_config",
+    "merge_with_defaults",
+    "training",
+    "forecasting",
 ]
 
 
-def __dir__():
+def __dir__() -> list[str]:
     return __all__

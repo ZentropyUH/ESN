@@ -8,6 +8,8 @@ Models
 Models_best_params
 Models_WS
 Research
+Best_params_WS_Old
+optuna_HP
 
 *.ipynb
 

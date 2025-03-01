@@ -1,5 +1,9 @@
+from typing import Optional, Union
+
+import keras
+import networkx as nx
 import tensorflow as tf
-from typing import Optional, Union, Dict
+from keras import Model
 
 
 def create_tf_rng(
@@ -47,300 +51,104 @@ def create_tf_rng(
     return rg
 
 
-class TF_Ridge:
+def build_layer_graph(model: Model) -> nx.DiGraph:
     """
-    A simple Ridge Regression model implemented in TensorFlow using SVD.
-
-    The ridge regression solution is computed with:
-    W = (X^T X + alpha I)^{-1} X^T y
-    but is actually solved via SVD for numerical stability:
-
-    W = V * (S^{-1} * (U^T y)), with S^{-1} adjusted for the alpha regularization.
+    Build a directed graph of layers from a Functional Keras model.
 
     Parameters
     ----------
-    alpha : float
-        Non-negative regularization strength.
+    model : tf.keras.Model
+        The Keras model from which to build the layer graph.
 
-    Attributes
-    ----------
-    alpha : float
-        Regularization strength (L2 penalty). If changed, the model must be refitted.
-    built : bool
-        Indicates whether the model has been fitted at least once.
-    coef_ : tf.Tensor or None
-        Coefficients of the fitted model (shape: (features, outputs)).
-    intercept_ : tf.Tensor or None
-        Intercept of the fitted model (shape: (outputs,)).
-    n_features_in : int or None
-        Number of features in the training data.
-    W : tf.Tensor or None
-        Concatenated coefficients and intercept, used for predictions
-        (shape: (features+1, outputs)).
-
-    Methods
+    Returns
     -------
-    fit(X, y)
-        Fit the Ridge regression model on the data.
-    predict(X)
-        Generate predictions using the fitted model.
-    get_params()
-        Return a dictionary of model parameters, including `alpha`, `coef_`, `intercept_`.
-
-    Notes
-    -----
-    - All computations are done with dtype float64 to reduce floating-point errors.
-    - Centering is performed to ensure an unbiased estimate of the intercept.
-    - If any alpha > 0, it shrinks singular values of X to mitigate overfitting.
+    graph : networkx.DiGraph
+        A directed graph where nodes are layer names and edges represent the
+        connections between layers.
     """
+    graph = nx.DiGraph()
 
-    def __init__(self, alpha: float) -> None:
-        """
-        Initialize the TF_Ridge model with a given regularization strength (alpha).
+    # Add all layers as nodes
+    for layer in model.layers:
+        graph.add_node(layer.name, layer=layer)
 
-        Parameters
-        ----------
-        alpha : float
-            Non-negative regularization strength.
-        """
-        if alpha < 0:
-            raise ValueError("Regularization strength `alpha` must be non-negative.")
-        if not isinstance(alpha, (int, float)):
-            raise TypeError("`alpha` must be an integer or float.")
+    # Add edges to represent connections between layers
+    for layer in model.layers:
+        inbound_layers = []
+        if isinstance(layer.input, (list, tuple)):
+            for inp in layer.input:
+                if hasattr(inp, "_keras_history"):
+                    inbound_layers.append(inp._keras_history[0])
+        elif hasattr(layer.input, "_keras_history"):
+            inbound_layers.append(layer.input._keras_history[0])
 
-        self._alpha = float(alpha)
-        self._built = False
-        self._coef = None
-        self._intercept = None
-        self._W = None
-        self._n_features_in = None
+        for inbound_layer in inbound_layers:
+            graph.add_edge(inbound_layer.name, layer.name)
 
-    def fit(self, X: tf.Tensor, y: tf.Tensor) -> "TF_Ridge":
-        """
-        Fit the Ridge regression model using SVD-based solution.
+    return graph
 
-        The formula used is:
 
-        W = V * diag(1 / (s + alpha)) * U^T * y
+def rebuild_model_with_new_batch_size(old_model: Model, new_batch_size: int) -> Model:
+    """
+    Rebuild the model while modifying only the batch size of the input layers.
+    Ensures that all layers are correctly connected in the new model.
+    """
+    graph = build_layer_graph(old_model)
+    layer_mapping = {}
 
-        where X = U * diag(s) * V^T is the SVD of X,
-        and s are singular values.
+    # Create new input layers with updated batch size
+    for layer_name, attrs in graph.nodes(data=True):
+        layer = attrs["layer"]
+        if isinstance(layer, keras.layers.InputLayer):
+            new_input = keras.Input(
+                shape=layer.batch_shape[1:], batch_size=new_batch_size, name=layer.name
+            )
+            layer_mapping[layer_name] = new_input
 
-        Parameters
-        ----------
-        X : tf.Tensor
-            Input data of shape (n_samples, n_features).
-        y : tf.Tensor
-            Target data of shape (n_samples,) or (n_samples, n_targets).
+    # Rebuild all other layers while maintaining their original connections
+    for layer_name, attrs in graph.nodes(data=True):
+        if layer_name in layer_mapping:  # Skip input layers (already handled)
+            continue
 
-        Returns
-        -------
-        TF_Ridge
-            The fitted model (self).
+        layer = attrs["layer"]
+        inbound_nodes = list(graph.predecessors(layer_name))  # Get parent layers
+        inbound_tensors = [layer_mapping[parent] for parent in inbound_nodes]
 
-        Raises
-        ------
-        TypeError
-            If X or y is not a tf.Tensor.
-        ValueError
-            If alpha < 0 or model dimension doesn't match.
+        # Ensure single inputs are not enclosed in a list
+        if len(inbound_tensors) == 1:
+            inbound_tensors = inbound_tensors[0]
 
-        Notes
-        -----
-        - X and y are reshaped to 2D: (n_samples, n_features) and (n_samples, n_targets).
-        - Data is cast to float64 for numerical stability.
-        """
-        if not isinstance(X, tf.Tensor):
-            raise TypeError("`X` must be a TensorFlow tensor.")
-        if not isinstance(y, tf.Tensor):
-            raise TypeError("`y` must be a TensorFlow tensor.")
+        # Recreate the layer with the same config, connected to the proper inputs
+        new_layer = layer.__class__.from_config(layer.get_config())(inbound_tensors)
+        layer_mapping[layer_name] = new_layer
 
-        # Reshape to 2D if necessary
-        X = tf.reshape(X, (-1, X.shape[-1]))
-        y = tf.reshape(y, (-1, y.shape[-1] if y.ndim > 1 else 1))
+    # Extract the final outputs
+    new_outputs = [
+        layer_mapping[old_model.output_names[i]] for i in range(len(old_model.outputs))
+    ]
 
-        X = tf.cast(X, dtype=tf.float64)
-        y = tf.cast(y, dtype=tf.float64)
+    if len(new_outputs) == 1:
+        new_outputs = new_outputs[0]
 
-        # Center the data
-        X_mean = tf.reduce_mean(X, axis=0, keepdims=True)
-        y_mean = tf.reduce_mean(y, axis=0, keepdims=True)
-        X_centered = X - X_mean
-        y_centered = y - y_mean
+    inputs = list(layer_mapping.values())[: len(old_model.inputs)]
+    if len(inputs) == 1:
+        inputs = inputs[0]
 
-        # SVD of X_centered: X_centered = U * diag(s) * V^T
-        s, U, Vt = tf.linalg.svd(X_centered, full_matrices=False)
+    # Create the new model
+    new_model = Model(
+        inputs=inputs,
+        outputs=new_outputs,
+    )
 
-        # Avoid division by zero for small singular values
-        eps = tf.keras.backend.epsilon()
-        threshold = eps * tf.reduce_max(s)
+    # Load the trained weights
+    new_model.set_weights(old_model.get_weights())
 
-        # Apply ridge correction by shifting singular values
-        # s_inv = 1 / (s + alpha)
-        s_inv = tf.where(s > threshold, 1.0 / (s + self._alpha), 0.0)
-
-        # Compute U^T * y_centered
-        UTy = tf.matmul(U, y_centered, transpose_a=True)
-
-        # Expand s_inv to a 2D for multiplication
-        s_inv = s_inv[:, tf.newaxis]
-
-        # Coefficients = V * diag(s_inv) * U^T * y_centered
-        coef = tf.matmul(Vt, s_inv * UTy)
-
-        # Intercept = y_mean - X_mean * coef
-        intercept = y_mean - tf.matmul(X_mean, coef)
-
-        self._coef = coef
-        # Flatten intercept to shape (n_targets,)
-        self._intercept = tf.reshape(intercept, [-1])
-
-        self._built = True
-        self._n_features_in = X.shape[-1]
-
-        # Concatenate coef + intercept to facilitate prediction
-        self._W = tf.concat([coef, intercept], axis=0)
-
-        return self
-
-    def predict(self, X: tf.Tensor) -> tf.Tensor:
-        """
-        Generate predictions using the fitted Ridge model.
-
-        Parameters
-        ----------
-        X : tf.Tensor
-            Input data of shape (n_samples, n_features).
-
-        Returns
-        -------
-        tf.Tensor
-            Predicted values, shape (n_samples, n_targets).
-
-        Raises
-        ------
-        ValueError
-            If the model has not been fitted yet.
-        TypeError
-            If X is not a tf.Tensor.
-        """
-        if not self._built:
-            raise ValueError("Model must be fitted before making predictions.")
-        if not isinstance(X, tf.Tensor):
-            raise TypeError("`X` must be a TensorFlow tensor.")
-
-        # Reshape if necessary, cast to float64
-        X = tf.reshape(X, (-1, X.shape[-1]))
-        X = tf.cast(X, dtype=tf.float64)
-
-        # Append a column of ones for intercept
-        ones_column = tf.ones([X.shape[0], 1], dtype=tf.float64)
-        X_bias = tf.concat([X, ones_column], axis=1)
-
-        # (n_samples, n_features+1) x (n_features+1, n_targets) = (n_samples, n_targets)
-        return tf.matmul(X_bias, self._W)
-
-    @property
-    def alpha(self) -> float:
-        """Return the regularization strength."""
-        return self._alpha
-
-    @alpha.setter
-    def alpha(self, value: float) -> None:
-        """
-        Set the regularization strength and invalidate current fit.
-
-        Parameters
-        ----------
-        value : float
-            New value for alpha. Must be >= 0.
-        """
-        if value < 0:
-            raise ValueError("Regularization strength must be non-negative.")
-        if not isinstance(value, (int, float)):
-            raise TypeError("`alpha` must be an integer or float.")
-
-        self._alpha = float(value)
-        self._built = False
-        self._coef = None
-        self._intercept = None
-        self._W = None
-        self._n_features_in = None
-
-    @property
-    def built(self) -> bool:
-        """Return whether the model has been fitted."""
-        return self._built
-
-    @property
-    def coef_(self) -> Optional[tf.Tensor]:
-        """
-        Get the model coefficients (excluding intercept).
-
-        Returns
-        -------
-        tf.Tensor or None
-            Shape (n_features, n_targets) or None if not fitted.
-        """
-        return self._coef
-
-    @property
-    def intercept_(self) -> Optional[tf.Tensor]:
-        """
-        Get the model intercept.
-
-        Returns
-        -------
-        tf.Tensor or None
-            Shape (n_targets,) or None if not fitted.
-        """
-        return self._intercept
-
-    @property
-    def n_features_in(self) -> Optional[int]:
-        """
-        Number of features in the fitted model.
-
-        Returns
-        -------
-        int or None
-        """
-        return self._n_features_in
-
-    @property
-    def W(self) -> Optional[tf.Tensor]:
-        """
-        Get the concatenated [coefficients, intercept] matrix.
-
-        Returns
-        -------
-        tf.Tensor or None
-            Shape (n_features+1, n_targets) or None if not fitted.
-        """
-        return self._W
-
-    def get_params(self) -> Dict[str, Union[float, tf.Tensor, None]]:
-        """
-        Return a dictionary of model parameters.
-
-        Returns
-        -------
-        dict
-            Keys:
-            - `alpha` : float
-            - `coef_` : tf.Tensor or None
-            - `intercept_` : tf.Tensor or None
-        """
-        return {
-            "alpha": self._alpha,
-            "coef_": self._coef,
-            "intercept_": self._intercept,
-        }
+    return new_model
 
 
 __all__ = [
     "create_tf_rng",
-    "TF_Ridge",
+    "build_layer_graph",
 ]
 
 

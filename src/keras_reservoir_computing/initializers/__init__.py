@@ -1,19 +1,22 @@
+from . import graph_utils
 from .custom_initializers import (
     InputMatrix,
 )
-
 from .graph_initializers import (
-    WattsStrogatzGraphInitializer,
-    ErdosRenyiGraphInitializer,
     BarabasiAlbertGraphInitializer,
-    NewmanWattsStrogatzGraphInitializer,
-    KleinbergSmallWorldGraphInitializer,
-    RegularGraphInitializer,
     CompleteGraphInitializer,
+    ErdosRenyiGraphInitializer,
+    KleinbergSmallWorldGraphInitializer,
+    NewmanWattsStrogatzGraphInitializer,
+    RegularGraphInitializer,
+    WattsStrogatzGraphInitializer,
 )
 
 __all__ = [
     "InputMatrix",
+]
+
+__all__ += [
     "WattsStrogatzGraphInitializer",
     "ErdosRenyiGraphInitializer",
     "BarabasiAlbertGraphInitializer",
@@ -21,6 +24,10 @@ __all__ = [
     "KleinbergSmallWorldGraphInitializer",
     "RegularGraphInitializer",
     "CompleteGraphInitializer",
+]
+
+__all__ += [
+    "graph_utils",
 ]
 
 
