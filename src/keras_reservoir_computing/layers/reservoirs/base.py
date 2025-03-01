@@ -216,6 +216,62 @@ class BaseReservoir(keras.layers.RNN):
         for s, new_s in zip(self.states, states):
             s.assign(new_s)
 
+    def build(self, input_shape):
+        """
+        Keras will pass the 'input_shape' that this RNN layer sees at build-time.
+        It might be:
+         - a single shape (batch_size, timesteps, features)
+         - a list of two shapes [ (batch_size, timesteps, fb_feats),
+                                  (batch_size, timesteps, in_feats) ]
+           or something partially defined (None for batch or timesteps).
+
+        We must figure out the "combined" shape that our cell expects:
+            (batch_size, timesteps, feedback_dim + input_dim)
+        Then call super().build(...) with that shape so it can build the cell.
+        """
+
+        if all(isinstance(shape, (list, tuple)) for shape in input_shape):
+            shape_fb, shape_in = map(tuple, input_shape)
+            # shape_fb = (batch_size, timesteps, fb_feats)
+            # shape_in = (batch_size, timesteps, in_feats)
+            # Some or all dims might be None at this stage.
+
+            # If 'input_dim' is supposed to be 0 or if the input is genuinely None,
+            # we won't know in advance. Typically you want shape_in[-1] == self.input_dim,
+            # shape_fb[-1] == self.feedback_dim.
+            # We'll define an aggregated 'features' dimension for the cell.
+
+            fb_feats = shape_fb[-1]
+
+            if fb_feats != self.feedback_dim:
+                raise ValueError(
+                    f"Feedback sequence has {fb_feats} features, expected {self.feedback_dim}"
+                )
+
+            in_feats = shape_in[-1] if shape_in is not None else self.input_dim
+
+            if in_feats is not None and in_feats != self.input_dim:
+                raise ValueError(
+                    f"Input sequence has {in_feats} features, expected {self.input_dim}"
+                )
+
+            combined_features = fb_feats + in_feats
+            # Now define a synthetic shape to pass to super().build(...).
+            # We only really need (batch_size, timesteps, combined_features).
+            # The batch_size or timesteps might be None, but that’s fine.
+            shape_total = (shape_fb[0], shape_fb[1], combined_features)
+
+        else:
+            # Single input shape. We assume it’s the feedback sequence only.
+            shape_total = tuple(input_shape)
+            if shape_total[-1] != self.feedback_dim:
+                raise ValueError(
+                    f"Feedback sequence has {shape_total[-1]} features, expected {self.feedback_dim}"
+                )
+
+        # Now let the RNN (and thus the cell) build weights for that total dimension.
+        super().build(shape_total)
+
     def call(self, inputs: Union[tf.Tensor, List[tf.Tensor]]) -> tf.Tensor:
         """
         Forward pass of the reservoir.
@@ -256,19 +312,15 @@ class BaseReservoir(keras.layers.RNN):
         # Concatenated input and feedback sequences. Cell expects (batch_size, timesteps, feedback_dim + input_dim)
         return super().call(total_seq)
 
-    def compute_output_shape(self, input_shape) -> Union[List[int], Tuple[int]]:
+    def compute_output_shape(self, input_shape):
         """
         Computes the output shape of the reservoir.
         Since the RNN always returns the full sequence, the output shape is:
             (batch_size, timesteps, units)
         """
-        if isinstance(input_shape, (list)):
-            # Handle case where input is [feedback_seq, input_seq]
-            feedback_shape = input_shape[0]  # feedback sequence shape
-            batch_size, timesteps = feedback_shape[:2]
-        else:
-            # Single input case (feedback only)
-            batch_size, timesteps = input_shape[:2]
+        if all(isinstance(shape, (list, tuple)) for shape in input_shape):
+            input_shape = input_shape[0]  # feedback sequence shape
+        batch_size, timesteps = input_shape[:2]
 
         return (batch_size, timesteps, self.units)
 
