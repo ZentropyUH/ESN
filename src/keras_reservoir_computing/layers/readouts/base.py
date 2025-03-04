@@ -71,8 +71,7 @@ class ReadOut(keras.Layer, ABC):
         """
         pass
 
-    @abstractmethod
-    def fit(X: tf.Tensor, Y: tf.Tensor) -> None:
+    def fit(self, X: tf.Tensor, y: tf.Tensor) -> None:
         """
         Fit the readout layer to the data. This method can be called or not optionally.
 
@@ -82,6 +81,42 @@ class ReadOut(keras.Layer, ABC):
             Input data of shape (batch_size, timesteps, features).
         Y : tf.Tensor
             Target data of shape (batch_size, timesteps, units).
+        """
+        X = tf.cast(X, dtype=tf.float64)
+        y = tf.cast(y, dtype=tf.float64)
+
+        X = tf.reshape(X, (-1, X.shape[-1]))  # (n_samples, n_features)
+        y = tf.reshape(y, (-1, y.shape[-1]))
+
+        n_samples, n_features = X.shape
+        # Build layer if not built yet
+        if not self.built:
+            self.build(X.shape)
+
+        # Check that y matches self.units
+        if y.shape[-1] != self.units:
+            raise ValueError(
+                f"Expected y to have shape (n_samples, {self.units}), "
+                f"but got {y.shape} instead."
+            )
+
+        self._fit(X, y)
+
+        self._fitted = True
+
+    @abstractmethod
+    def _fit(self, X: tf.Tensor, y: tf.Tensor) -> None:
+        """
+        Fit the readout layer to the data.
+
+        This is a private method that is called by `fit()`. Must end assigning the weights directly to the kernel and bias attributes.
+
+        Parameters
+        ----------
+        X : tf.Tensor
+            Input data of shape (n_samples, n_features).
+        y : tf.Tensor
+            Target data of shape (n_samples, units).
         """
         pass
 

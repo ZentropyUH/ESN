@@ -147,13 +147,12 @@ class RidgeSVDReadout(ReadOut):
         return outputs
 
     @tf.function()
-    def fit(self, X: tf.Tensor, y: tf.Tensor) -> None:
+    def _fit(self, X: tf.Tensor, y: tf.Tensor) -> None:
         """
-        Compute the closed-form Ridge solution via SVD:
+        Compute the closed-form Ridge solution via SVD.
 
-            coef = V * diag(1 / (s + alpha)) * U^T * y
-
-        Then assign it to `kernel`, and compute intercept to assign to `bias`.
+        This is a private method that is called by `fit()`.
+        It assumes that the input tensors are already cast to float64.
 
         Parameters
         ----------
@@ -161,36 +160,7 @@ class RidgeSVDReadout(ReadOut):
             Input tensor of shape (n_samples, n_features).
         y : tf.Tensor
             Target tensor of shape (n_samples, units).
-
-        Returns
-        -------
-        TFRidgeLayer
-            The fitted layer.
         """
-        if not isinstance(X, tf.Tensor):
-            X = tf.convert_to_tensor(X, dtype=tf.float64)
-        else:
-            X = tf.cast(X, tf.float64)
-
-        if not isinstance(y, tf.Tensor):
-            y = tf.convert_to_tensor(y, dtype=tf.float64)
-        else:
-            y = tf.cast(y, tf.float64)
-
-        X = tf.reshape(X, (-1, X.shape[-1]))  # (n_samples, n_features)
-        y = tf.reshape(y, (-1, y.shape[-1]))
-
-        n_samples, n_features = X.shape
-        # Build layer if not built yet
-        if not self.built:
-            self.build(X.shape)
-
-        # Check that y matches self.units
-        if y.shape[-1] != self.units:
-            raise ValueError(
-                f"Expected y to have shape (n_samples, {self.units}), "
-                f"but got {y.shape} instead."
-            )
 
         # Center the data
         X_mean = tf.reduce_mean(X, axis=0, keepdims=True)
@@ -223,8 +193,6 @@ class RidgeSVDReadout(ReadOut):
         # Assign to kernel/bias
         self.kernel.assign(coef)
         self.bias.assign(intercept)
-
-        self._fitted = True
 
     @property
     def alpha(self) -> float:

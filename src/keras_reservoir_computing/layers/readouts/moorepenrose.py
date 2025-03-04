@@ -93,31 +93,26 @@ class MoorePenroseReadout(ReadOut):
         return outputs
 
     @tf.function()
-    def fit(self, X: tf.Tensor, y: tf.Tensor) -> None:
-        if not isinstance(X, tf.Tensor):
-            X = tf.convert_to_tensor(X, dtype=tf.float64)
-        else:
-            X = tf.cast(X, tf.float64)
+    def _fit(self, X: tf.Tensor, y: tf.Tensor) -> None:
+        """
+        Fit the readout layer to the data using the Moore-Penrose pseudoinverse.
 
-        if not isinstance(y, tf.Tensor):
-            y = tf.convert_to_tensor(y, dtype=tf.float64)
-        else:
-            y = tf.cast(y, tf.float64)
+        Parameters
+        ----------
+        X : tf.Tensor
+            Input data of shape (n_samples, n_features).
+        y : tf.Tensor
+            Target data of shape (n_samples, n_outputs).
 
+        Returns
+        -------
+        None
 
-        X = tf.reshape(X, (-1, X.shape[-1]))
-        y = tf.reshape(y, (-1, y.shape[-1]))
+        Notes
+        -----
+        - The Moore-Penrose pseudoinverse is computed using the singular value decomposition (SVD) of the input data.
 
-        n_samples, n_features = X.shape
-        if not self.built:
-            self.build(X.shape)
-
-        if y.shape[-1] != self.units:
-            raise ValueError(
-                f"Expected y to have shape (n_samples, {self.units}), "
-                f"but got {y.shape} instead."
-            )
-
+        """
         # Center the data
         X_mean = tf.reduce_mean(X, axis=0, keepdims=True)
         y_mean = tf.reduce_mean(y, axis=0, keepdims=True)
@@ -129,8 +124,6 @@ class MoorePenroseReadout(ReadOut):
         # xTx = tf.matmul(X_centered, X_centered, transpose_a=True) + self._alpha * identity
         # xTx_inv = tf.linalg.pinv(xTx)  # Moore-Penrose pseudoinverse
         # coef = tf.matmul(xTx_inv, tf.matmul(X_centered, y_centered, transpose_a=True))
-
-
 
         # Compute SVD of X_centered
         s, u, v = tf.linalg.svd(X_centered, full_matrices=False)
@@ -144,7 +137,6 @@ class MoorePenroseReadout(ReadOut):
         # Compute coefficients
         coef = tf.matmul(X_pinv, y_centered)
 
-
         # Compute intercept
         intercept = y_mean - tf.matmul(X_mean, coef)
         intercept = tf.reshape(intercept, [self.units])
@@ -152,7 +144,6 @@ class MoorePenroseReadout(ReadOut):
         # Assign values
         self.kernel.assign(coef)
         self.bias.assign(intercept)
-        self._fitted = True
 
     @property
     def alpha(self) -> float:
