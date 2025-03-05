@@ -2,6 +2,7 @@ from .custom_layers import (
     SelectiveExponentiation,
     OutliersFilteredMean,
     FeaturePartitioner,
+    SelectiveDropout
 )
 
 from .readouts import RidgeSVDReadout, MoorePenroseReadout
@@ -11,7 +12,7 @@ from .reservoirs import ESNReservoir
 from . import builders
 
 
-__all__ = ["SelectiveExponentiation", "OutliersFilteredMean", "FeaturePartitioner"]
+__all__ = ["SelectiveExponentiation", "OutliersFilteredMean", "FeaturePartitioner", "SelectiveDropout"]
 
 __all__ += ["ESNReservoir"]
 
