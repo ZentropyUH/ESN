@@ -1,7 +1,6 @@
 from typing import Union
 
 import keras
-import tensorflow as tf
 from keras.src.layers import Concatenate
 
 from keras_reservoir_computing.layers import (
@@ -47,7 +46,6 @@ READOUT_CONFIG = {
     "kind": "ridge",
     "units": 100,
     "alpha": 0.1,
-    "washout": 0,
     "trainable": False,
 }
 
