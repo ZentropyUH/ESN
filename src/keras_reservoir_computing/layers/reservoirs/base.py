@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Optional
 
 import keras
 import tensorflow as tf
@@ -41,6 +41,7 @@ class BaseCell(keras.Layer, ABC):
         feedback_dim: int = 1,
         input_dim: int = 1,
         leak_rate: float = 1.0,
+        state_sizes: Optional[List[int]] = None,
         **kwargs,
     ) -> None:
         """
@@ -57,7 +58,7 @@ class BaseCell(keras.Layer, ABC):
         self.units = units
         self.feedback_dim = feedback_dim
         self.input_dim = input_dim
-        self.state_size = units
+        self.state_size = state_sizes if state_sizes is not None else [units]
         self.leak_rate = leak_rate
 
     @abstractmethod
@@ -99,7 +100,12 @@ class BaseCell(keras.Layer, ABC):
         pass
 
     def get_initial_state(self, batch_size: int = None) -> List[tf.Tensor]:
-        return [tf.zeros((batch_size, self.state_size), dtype=self.compute_dtype)]
+        return [
+            tf.random.uniform(
+                (batch_size, size), minval=-1.0, maxval=1.0, dtype=self.compute_dtype
+            )
+            for size in self.state_size
+        ]
 
     def get_config(self) -> dict:
         """
@@ -117,6 +123,7 @@ class BaseCell(keras.Layer, ABC):
                 "feedback_dim": self.feedback_dim,
                 "input_dim": self.input_dim,
                 "leak_rate": self.leak_rate,
+                "state_sizes": self.state_size
             }
         )
         return config
@@ -216,7 +223,32 @@ class BaseReservoir(keras.layers.RNN):
         for s, new_s in zip(self.states, states):
             s.assign(new_s)
 
-    def build(self, input_shape):
+    @tf.function
+    def set_random_states(self, dist: str = "uniform") -> None:
+        """
+        Set the states of the reservoir to random values.
+
+        Parameters
+        ----------
+        dist : str, optional
+            The distribution to sample from. Can be "uniform" or "normal".
+        """
+        if dist not in {"uniform", "normal"}:
+            raise ValueError(
+                f"Invalid distribution: {dist}. Should be 'uniform' or 'normal'."
+            )
+
+        for i in range(
+            len(self.states)
+        ):  # Ensures TensorFlow properly tracks assignment
+            if dist == "uniform":
+                self.states[i].assign(
+                    tf.random.uniform(self.states[i].shape, -1.0, 1.0)
+                )
+            else:  # "normal"
+                self.states[i].assign(tf.random.normal(self.states[i].shape))
+
+    def build(self, input_shape) -> None:
         """
         Keras will pass the 'input_shape' that this RNN layer sees at build-time.
         It might be:
@@ -279,9 +311,11 @@ class BaseReservoir(keras.layers.RNN):
         Parameters
         ----------
         inputs : Union[tf.Tensor, List[tf.Tensor]]
-            The feedback and input sequences for the reservoir. They both have shape (batch_size, timesteps, features). The input sequence can be None, in which case a zero tensor will be used.
-        training : bool, optional
-            Whether the call is in training mode, by default False
+            The input to the reservoir. If a single tensor is provided, it is assumed to be only the feedback sequence.
+            If a list of two tensors is provided, it must be [feedback_sequence, input_sequence], where:
+            - feedback_sequence: shape (batch_size, timesteps, feedback_dim)
+            - input_sequence: shape (batch_size, timesteps, input_dim) (can be None, replaced by zeros).
+
 
         Returns
         -------
@@ -304,7 +338,7 @@ class BaseReservoir(keras.layers.RNN):
                 zeros_shape = (batch_size, timesteps, self.input_dim)
                 input_seq = tf.zeros(zeros_shape)
 
-            total_seq = tf.concat([input_seq, feedback_seq], axis=-1)
+            total_seq = tf.concat([feedback_seq, input_seq], axis=-1)
 
         else:
             total_seq = inputs
@@ -312,7 +346,7 @@ class BaseReservoir(keras.layers.RNN):
         # Concatenated input and feedback sequences. Cell expects (batch_size, timesteps, feedback_dim + input_dim)
         return super().call(total_seq)
 
-    def compute_output_shape(self, input_shape):
+    def compute_output_shape(self, input_shape) -> Tuple[int, ...]:
         """
         Computes the output shape of the reservoir.
         Since the RNN always returns the full sequence, the output shape is:
@@ -324,7 +358,7 @@ class BaseReservoir(keras.layers.RNN):
 
         return (batch_size, timesteps, self.units)
 
-    def get_config(self):
+    def get_config(self) -> dict:
         """
         Ensure that hardcoded parameters (return_sequences, stateful, etc.)
         are removed from the saved configuration to avoid redundancy and deserialization issues.
