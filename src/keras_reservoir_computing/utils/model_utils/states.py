@@ -361,6 +361,11 @@ def esp_index(
         Dictionary of ESP indices for each BaseReservoir layer.
     esp_history : dict, optional
         Dictionary of time evolution of norm differences (if history=True).
+
+    References
+    ----------
+    .. [1] C. Gallicchio, “Chasing the Echo State Property,” Sep. 24, 2019, arXiv: arXiv:1811.10892. Accessed: May 30, 2023. [Online]. Available: http://arxiv.org/abs/1811.10892
+
     """
 
     # Save current states for restoring later
