@@ -6,11 +6,11 @@ from keras.models import clone_model # type: ignore
 
 from tqdm import tqdm
 
-from keras_reservoir_computing.utils.data_utils import list_files_only, load_data
-from keras_reservoir_computing.utils.general_utils import timer
+from keras_reservoir_computing.utils.data import list_files_only, load_data
+from keras_reservoir_computing.utils.general import timer
 
-from keras_reservoir_computing.utils.model_utils import load_user_config
-from keras_reservoir_computing.utils.model_utils.training.training import ReservoirTrainer
+from keras_reservoir_computing.layers.config import load_user_config
+from keras_reservoir_computing.training.training import ReservoirTrainer
 
 
 # Only works for single readout models. Readout layer name must be "readout". Also the model must not be input-driven.

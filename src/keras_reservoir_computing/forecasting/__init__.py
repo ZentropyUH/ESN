@@ -1,4 +1,4 @@
-from .file_forecasting import model_predictor, model_batch_predictor
+from .io_forecasting import model_predictor, model_batch_predictor
 from .forecasting import forecast, warmup_forecast
 
 __all__ = [

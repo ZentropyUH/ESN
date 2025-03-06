@@ -6,7 +6,7 @@ from scipy.sparse import coo_matrix
 from scipy.sparse.csgraph import connected_components
 from scipy.sparse.linalg import eigs
 
-from keras_reservoir_computing.utils.general_utils import create_rng
+from keras_reservoir_computing.utils.general import create_rng
 from typing import Callable, Union, Optional
 
 

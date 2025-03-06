@@ -1,11 +1,10 @@
-from . import data_utils, general_utils, plot_utils, tf_utils, model_utils
+from . import data, general, visualization, tensorflow
 
 __all__ = [
-    "general_utils",
-    "data_utils",
-    "plot_utils",
-    "tf_utils",
-    "model_utils",
+    "general",
+    "data",
+    "visualization",
+    "tensorflow",
 ]
 
 

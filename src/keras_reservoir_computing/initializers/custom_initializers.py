@@ -6,7 +6,7 @@ import keras
 import tensorflow as tf
 from keras import Initializer
 
-from keras_reservoir_computing.utils.tf_utils import create_tf_rng
+from keras_reservoir_computing.utils.tensorflow import create_tf_rng
 
 
 @keras.saving.register_keras_serializable(package="krc", name="InputMatrix")

@@ -1,4 +1,3 @@
-from . import graph_utils
 from .custom_initializers import (
     InputMatrix,
 )
@@ -24,10 +23,6 @@ __all__ += [
     "KleinbergSmallWorldGraphInitializer",
     "RegularGraphInitializer",
     "CompleteGraphInitializer",
-]
-
-__all__ += [
-    "graph_utils",
 ]
 
 

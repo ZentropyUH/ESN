@@ -4,13 +4,13 @@ from typing import Dict, List, Tuple, Union
 import keras
 import tensorflow as tf
 
-from keras_reservoir_computing.utils.data_utils import (
+from keras_reservoir_computing.utils.data import (
     # list_files_only,
     load_data,
 )
-from keras_reservoir_computing.utils.general_utils import timer
+from keras_reservoir_computing.utils.general import timer
 
-from keras_reservoir_computing.utils.model_utils import load_user_config
+from keras_reservoir_computing.layers.config import load_user_config
 from .forecasting import forecast
 
 

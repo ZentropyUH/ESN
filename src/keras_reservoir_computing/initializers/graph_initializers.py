@@ -16,7 +16,7 @@ from keras_reservoir_computing.initializers.generators import (
 from keras_reservoir_computing.initializers.helpers import (
     spectral_radius_hybrid,
 )
-from keras_reservoir_computing.utils.general_utils import create_rng
+from keras_reservoir_computing.utils.general import create_rng
 
 
 @keras.saving.register_keras_serializable(

@@ -3,7 +3,7 @@ from keras_reservoir_computing.layers import ESNReservoir
 from keras_reservoir_computing.layers.readouts.base import ReadOut
 from keras_reservoir_computing.layers.readouts.ridge import RidgeSVDReadout
 from keras_reservoir_computing.layers.readouts.moorepenrose import MoorePenroseReadout
-from keras_reservoir_computing.utils.model_utils.config import get_default_params, merge_with_defaults, load_user_config
+from keras_reservoir_computing.layers.config import get_default_params, merge_with_defaults, load_user_config
 import keras
 
 

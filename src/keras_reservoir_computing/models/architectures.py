@@ -12,7 +12,7 @@ from keras_reservoir_computing.layers.builders import (
     ReadOut_builder,
 )
 
-from keras_reservoir_computing.utils.model_utils.config import load_user_config
+from keras_reservoir_computing.layers.config import load_user_config
 
 ESN_RESERVOIR_CONFIG = {
     "units": 10,
