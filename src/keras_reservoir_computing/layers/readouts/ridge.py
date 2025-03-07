@@ -171,13 +171,12 @@ class RidgeSVDReadout(ReadOut):
         # SVD of centered X
         s, U, V = tf.linalg.svd(X_centered, full_matrices=False)
 
-        # Regularize singular values
+        # Safeguard: threshold small singular values for numerical stability
         eps = tf.keras.backend.epsilon()
         threshold = eps * tf.reduce_max(s)
 
         s_inv = tf.math.reciprocal_no_nan(s + self._alpha)
         s_inv = tf.where(s > threshold, s_inv, 0.0)
-
         s_inv = tf.reshape(s_inv, (-1, 1))
 
         # U^T y_centered
