@@ -23,7 +23,7 @@ ESN_RESERVOIR_CONFIG = {
     "activation": "tanh",
     "input_initializer": {"name": "glorot_uniform", "params": {}},
     "feedback_initializer": {
-        "name": "InputMatrix",
+        "name": "PseudoDiagonalInitializer",
         "params": {"sigma": 0.5, "binarize": False, "seed": None},
     },
     "feedback_bias_initializer": {"name": "glorot_uniform", "params": {}},
