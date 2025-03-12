@@ -152,8 +152,6 @@ class DigitalChaosInitializer(Initializer):
 
         W_recurrent = tf.convert_to_tensor(W_recurrent, dtype=dtype)
 
-        print(W_recurrent.shape)
-
         if self.spectral_radius is not None:
             sr = spectral_radius_hybrid(W_recurrent)
             W_recurrent = W_recurrent * self.spectral_radius / sr
