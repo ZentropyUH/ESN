@@ -237,7 +237,7 @@ def esp_index(
 
     References
     ----------
-    .. [1] C. Gallicchio, “Chasing the Echo State Property,” Sep. 24, 2019, arXiv: arXiv:1811.10892. Accessed: May 30, 2023. [Online]. Available: http://arxiv.org/abs/1811.10892
+    .. C. Gallicchio, “Chasing the Echo State Property,” Sep. 24, 2019, arXiv: arXiv:1811.10892. Accessed: May 30, 2023. [Online]. Available: http://arxiv.org/abs/1811.10892
 
     """
 
