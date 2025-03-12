@@ -9,8 +9,10 @@ from keras import Initializer
 from keras_reservoir_computing.utils.tensorflow import create_tf_rng
 
 
-@keras.saving.register_keras_serializable(package="krc", name="InputMatrix")
-class InputMatrix(Initializer):
+@keras.saving.register_keras_serializable(
+    package="krc", name="PseudoDiagonalInitializer"
+)
+class PseudoDiagonalInitializer(Initializer):
     """
     An initializer that generates an input matrix connecting inputs to reservoir nodes.
 
@@ -53,13 +55,17 @@ class InputMatrix(Initializer):
 
     Examples
     --------
-    >>> w_init = InputMatrix(sigma=1, binarize=True, seed=42)
+    >>> w_init = PseudoDiagonalInitializer(sigma=1, binarize=True, seed=42)
     >>> w = w_init((5, 10))
     >>> print(w)
     # A 5x10 matrix with values in [-1, 1], two non-zero values per row.
     """
+
     def __init__(
-        self, sigma: float = 0.5, binarize: bool = False, seed: Union[int, tf.random.Generator, None] = None
+        self,
+        sigma: float = 0.5,
+        binarize: bool = False,
+        seed: Union[int, tf.random.Generator, None] = None,
     ) -> None:
         """Initialize the initializer."""
         assert sigma > 0, "sigma must be positive"
@@ -164,14 +170,13 @@ class InputMatrix(Initializer):
     def get_config(self) -> dict:
         """
         Get the config dictionary of the initializer for serialization.
-        
+
         Returns
         -------
         dict
             The configuration dictionary.
         """
-        base_config = super().get_config()
         config = {"sigma": self.sigma, "binarize": self.binarize, "seed": self.seed}
-
-        config.update(base_config)
-        return config
+        base_config = super().get_config()
+        base_config.update(config)
+        return base_config
