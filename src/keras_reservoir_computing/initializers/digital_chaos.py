@@ -1,7 +1,12 @@
+from typing import Optional
+
+import keras
 import numpy as np
 import tensorflow as tf
 from keras import Initializer
-import keras
+
+from .helpers import spectral_radius_hybrid
+
 
 @keras.saving.register_keras_serializable(package="krc", name="DigitalChaosInitializer")
 class DigitalChaosInitializer(Initializer):
@@ -55,6 +60,9 @@ class DigitalChaosInitializer(Initializer):
         Number of random transitions \( K \) per state. Defaults to 5.
     non_zero_percentage : float, optional
         Fraction of \( M \) to determine \( K \). If provided, `samples_per_state` is ignored.
+    spectral_radius : float, optional
+        Spectral radius of the reservoir matrix. If None, the matrix is not scaled
+        to have a specific spectral radius.
 
     Returns
     -------
@@ -80,13 +88,27 @@ class DigitalChaosInitializer(Initializer):
     ----------
     .. M. Xie, Q. Wang, and S. Yu, “Time Series Prediction of ESN Based on Chebyshev Mapping and Strongly Connected Topology,” Neural Process Lett, vol. 56, no. 1, p. 30, Feb. 2024, doi: 10.1007/s11063-024-11474-7.
 
+    Examples
+    --------
+    >>> from keras_reservoir_computing.initializers import DigitalChaosInitializer
+    >>> w_init = DigitalChaosInitializer(samples_per_state=5, non_zero_percentage=0.1, spectral_radius=0.9)
+    >>> w = w_init((16, 16), D=2)
+    >>> print(w)
+    # A 16x16 adjacency matrix initialized using digital chaos.
+
     """
 
-    def __init__(self, samples_per_state=5, non_zero_percentage=None):
+    def __init__(
+        self,
+        samples_per_state: int = 5,
+        non_zero_percentage: float = None,
+        spectral_radius: Optional[float] = None,
+    ) -> None:
         self.samples_per_state = samples_per_state
         self.non_zero_percentage = non_zero_percentage
+        self.spectral_radius = spectral_radius
 
-    def __call__(self, shape, dtype=None, D=None):
+    def __call__(self, shape: tuple, D: int = None, dtype=None) -> tf.Tensor:
         if D is None:
             raise ValueError("D must be provided when calling the initializer.")
 
@@ -110,7 +132,7 @@ class DigitalChaosInitializer(Initializer):
 
             return x1_next & ((1 << D) - 1), x2_next & ((1 << D) - 1)
 
-        A = np.zeros((M, M), dtype=np.uint8)
+        W_recurrent = np.zeros((M, M), dtype=np.float32)
 
         if self.non_zero_percentage is not None:
             K = int(M * self.non_zero_percentage)
@@ -126,11 +148,19 @@ class DigitalChaosInitializer(Initializer):
                 u = np.random.randint(0, 1 << D)
                 x1_new, x2_new = next_state_2d_digital(x1_old, x2_old, s, u, D)
                 new_state = (x1_new << D) | x2_new
-                A[old_state, new_state] = 1
+                W_recurrent[old_state, new_state] = 1
 
-        return tf.convert_to_tensor(A, dtype=dtype or tf.float32)
+        W_recurrent = tf.convert_to_tensor(W_recurrent, dtype=dtype)
 
-    def get_config(self):
+        print(W_recurrent.shape)
+
+        if self.spectral_radius is not None:
+            sr = spectral_radius_hybrid(W_recurrent)
+            W_recurrent = W_recurrent * self.spectral_radius / sr
+
+        return W_recurrent
+
+    def get_config(self) -> dict:
         """
         Get the config dictionary of the initializer for serialization.
 

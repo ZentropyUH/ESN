@@ -1,7 +1,9 @@
+from typing import Optional
+
+import keras
+import numpy as np
 import tensorflow as tf
 from keras import Initializer
-import numpy as np
-import keras
 
 
 @keras.saving.register_keras_serializable(package="krc", name="ChebyshevInitializer")
@@ -66,6 +68,8 @@ class ChebyshevInitializer(Initializer):
         Parameter controlling the initial sinusoidal distribution. Default is 5.9.
     k : float, optional
         Control parameter of the Chebyshev map (chaotic regime: \( 2 < k < 4 \)). Default is 3.8.
+    sigma : float, optional
+        Input scaling factor. If None, the rescaling is disabled.
 
     Returns
     -------
@@ -86,15 +90,30 @@ class ChebyshevInitializer(Initializer):
     References
     ----------
     .. M. Xie, Q. Wang, and S. Yu, “Time Series Prediction of ESN Based on Chebyshev Mapping and Strongly Connected Topology,” Neural Process Lett, vol. 56, no. 1, p. 30, Feb. 2024, doi: 10.1007/s11063-024-11474-7.
+    
+    Examples
+    --------
+    >>> from keras_reservoir_computing.initializers import ChebyshevInitializer
+    >>> w_init = ChebyshevInitializer(p=0.3, q=5.9, k=3.8, sigma=0.5)
+    >>> w = w_init((5, 10))
+    >>> print(w)
+    # A 5x10 matrix initialized using Chebyshev mapping.
 
     """
 
-    def __init__(self, p=0.3, q=5.9, k=3.8):
+    def __init__(
+        self,
+        p: float = 0.3,
+        q: float = 5.9,
+        k: float = 3.8,
+        sigma: Optional[float] = None,
+    ) -> None:
         self.p = p
         self.q = q
         self.k = k
+        self.sigma = sigma
 
-    def __call__(self, shape, dtype=tf.float32):
+    def __call__(self, shape: tuple, dtype=tf.float32) -> tf.Tensor:
         """
         Generates the weight matrix for Keras layers, applying the Chebyshev map **column-wise**
         for correct post-multiplication behavior.
@@ -124,9 +143,15 @@ class ChebyshevInitializer(Initializer):
         for j in range(1, N):
             W[:, j] = np.cos(self.k * np.arccos(np.clip(W[:, j - 1], -1.0, 1.0)))
 
+        # Rescale the matrix if requested
+        if self.sigma is not None:
+            max_abs_sv = np.max(np.abs(np.linalg.svd(W, compute_uv=False)))
+            W /= max_abs_sv
+            W *= self.sigma
+
         return tf.convert_to_tensor(W, dtype=dtype)
 
-    def get_config(self):
+    def get_config(self) -> dict:
         """
         Get the config dictionary of the initializer for serialization.
 
@@ -135,7 +160,7 @@ class ChebyshevInitializer(Initializer):
         dict
             The configuration dictionary.
         """
-        config = {"p": self.p, "q": self.q, "k": self.k}
+        config = {"p": self.p, "q": self.q, "k": self.k, "sigma": self.sigma}
         base_config = super().get_config()
         base_config.update(config)
         return base_config

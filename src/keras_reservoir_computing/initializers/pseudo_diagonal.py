@@ -1,6 +1,6 @@
 """Custom Initializers."""
 
-from typing import List, Tuple, Union
+from typing import Union
 
 import keras
 import tensorflow as tf
@@ -23,38 +23,21 @@ class PseudoDiagonalInitializer(Initializer):
 
     Parameters
     ----------
-    sigma : float, default=0.5
-        The maximum absolute value of the uniform distribution.
+    sigma : float, optional
+        Input scaling factor. If None, the rescaling is disabled.
     binarize : bool, default=False
         If True, the matrix values are binarized to `{-sigma, sigma}`.
     seed : int, tf.random.Generator, or None, default=None
         Seed for random number generation.
 
-    Attributes
-    ----------
-    sigma : float
-        The maximum absolute value for the uniform distribution.
-    binarize : bool
-        Whether to binarize the matrix values.
-    seed : int, tf.random.Generator, or None
-        Seed for random number generation.
-    tf_rng : tf.random.Generator
-        TensorFlow random generator initialized with the given seed.
-
-    Methods
-    -------
-    __call__(shape, dtype=tf.float32)
-        Generates the initialized input matrix with the given shape.
-    get_config()
-        Returns a dictionary containing the initializer's configuration.
-
     Returns
     -------
-    keras.initializers.Initializer
-        The initializer instance.
+    tf.Tensor
+        The initialized weight matrix matching the requested shape.
 
     Examples
     --------
+    >>> from keras_reservoir_computing.initializers import PseudoDiagonalInitializer
     >>> w_init = PseudoDiagonalInitializer(sigma=1, binarize=True, seed=42)
     >>> w = w_init((5, 10))
     >>> print(w)
@@ -63,12 +46,11 @@ class PseudoDiagonalInitializer(Initializer):
 
     def __init__(
         self,
-        sigma: float = 0.5,
+        sigma: float = None,
         binarize: bool = False,
         seed: Union[int, tf.random.Generator, None] = None,
     ) -> None:
         """Initialize the initializer."""
-        assert sigma > 0, "sigma must be positive"
 
         self.sigma = sigma
         self.binarize = binarize
@@ -78,7 +60,7 @@ class PseudoDiagonalInitializer(Initializer):
 
     def __call__(
         self,
-        shape: Union[int, Tuple[int, int], List[int]],
+        shape: tuple,
         dtype=tf.float32,
     ) -> tf.Tensor:
         """
@@ -86,7 +68,7 @@ class PseudoDiagonalInitializer(Initializer):
 
         Parameters
         ----------
-        shape : int or tuple of two ints
+        shape :
             Shape of the matrix, (m, n). If an integer, creates an m x m matrix.
         dtype : tf.dtypes.DType
             Data type of the matrix.
@@ -96,12 +78,6 @@ class PseudoDiagonalInitializer(Initializer):
         tf.Tensor
             The block-diagonal style matrix.
         """
-        if isinstance(shape, int):
-            shape = (shape, shape)
-        elif not (isinstance(shape, (list, tuple)) and len(shape) == 2):
-            raise ValueError(
-                "Shape must be an integer or a tuple/list of two integers."
-            )
 
         rows, cols = shape
         # We will build up indices and values for a tf.SparseTensor
@@ -152,11 +128,9 @@ class PseudoDiagonalInitializer(Initializer):
         num_values = tf.shape(indices_nonzero)[0]
 
         # Sample values in [-sigma, sigma]
-        values = self.tf_rng.uniform(
-            (num_values,), minval=-self.sigma, maxval=self.sigma, dtype=dtype
-        )
+        values = self.tf_rng.uniform((num_values,), minval=-1, maxval=1, dtype=dtype)
         if self.binarize:
-            values = tf.sign(values) * self.sigma
+            values = tf.sign(values)
 
         # Construct the sparse tensor
         w_in = tf.SparseTensor(
@@ -165,7 +139,14 @@ class PseudoDiagonalInitializer(Initializer):
             dense_shape=[rows, cols],
         )
         w_in = tf.sparse.reorder(w_in)
-        return tf.sparse.to_dense(w_in)
+        w_in = tf.sparse.to_dense(w_in)
+
+        if self.sigma is not None:
+            max_abs_sv = tf.reduce_max(tf.abs(tf.linalg.svd(w_in, compute_uv=False)))
+            w_in /= max_abs_sv
+            w_in *= self.sigma
+
+        return w_in
 
     def get_config(self) -> dict:
         """
