@@ -175,7 +175,8 @@ class RidgeSVDReadout(ReadOut):
         eps = tf.keras.backend.epsilon()
         threshold = eps * tf.reduce_max(s)
 
-        s_inv = tf.math.reciprocal_no_nan(s + self._alpha)
+        # More stable ridge regression formula
+        s_inv = s / (s ** 2 + self._alpha)
         s_inv = tf.where(s > threshold, s_inv, 0.0)
         s_inv = tf.reshape(s_inv, (-1, 1))
 
@@ -183,7 +184,10 @@ class RidgeSVDReadout(ReadOut):
         UTy = tf.matmul(U, y_centered, transpose_a=True)
 
         # Coefficients: shape (n_features, units)
-        coef = tf.matmul(V, s_inv * UTy, transpose_b=False)
+        d_UT_y = s_inv * UTy
+
+        # Compute final Ridge regression coefficients
+        coef = tf.matmul(V, d_UT_y)
 
         # Intercept: shape (1, units) -> flatten to shape (units,)
         intercept = y_mean - tf.matmul(tf.reshape(X_mean, [1, -1]), coef)

@@ -17,8 +17,6 @@ class MoorePenroseReadout(ReadOut):
         Number of output units.
     alpha : float, optional
         Regularization strength, must be non-negative (default is 1.0).
-    washout : int, optional
-        Number of initial time steps to discard during training (default is 0).
     trainable : bool, optional
         Whether the layer's weights are trainable (default is False).
     **kwargs : dict
@@ -119,31 +117,25 @@ class MoorePenroseReadout(ReadOut):
         X_centered = X - X_mean
         y_centered = y - y_mean
 
-        # Compute Moore-Penrose pseudoinverse with ridge regularization
-        # identity = tf.eye(n_features, dtype=tf.float64)
-        # xTx = tf.matmul(X_centered, X_centered, transpose_a=True) + self._alpha * identity
-        # xTx_inv = tf.linalg.pinv(xTx)  # Moore-Penrose pseudoinverse
-        # coef = tf.matmul(xTx_inv, tf.matmul(X_centered, y_centered, transpose_a=True))
-
         # Compute SVD of X_centered
-        s, u, v = tf.linalg.svd(X_centered, full_matrices=False)
+        s, U, V = tf.linalg.svd(X_centered, full_matrices=False)
 
-        # Safeguard: threshold small singular values for numerical stability
-        eps = tf.keras.backend.epsilon()
-        threshold = eps * tf.reduce_max(s)
+        # Threshold small singular values for numerical stability
+        threshold = 1e-15
 
-        s_inv = tf.math.reciprocal_no_nan(s + self._alpha)
+        # More stable ridge regression formula
+        s_inv = s / (s**2 + self._alpha)
         s_inv = tf.where(s > threshold, s_inv, 0.0)
-        s_inv = tf.linalg.diag(s_inv)
+        s_inv = tf.reshape(s_inv, (-1, 1))
 
-        # Compute the pseudoinverse of the singular values with regularization
-        s_inv = tf.linalg.diag(1.0 / (s + self._alpha))
+        # U^T y_centered
+        UTy = tf.matmul(U, y_centered, transpose_a=True)
 
-        # Compute pseudoinverse using SVD
-        X_pinv = tf.matmul(v, tf.matmul(s_inv, tf.transpose(u)))
+        # Apply pseudoinverse transformation
+        d_UT_y = tf.broadcast_to(s_inv, tf.shape(UTy)) * UTy
 
         # Compute coefficients
-        coef = tf.matmul(X_pinv, y_centered)
+        coef = tf.matmul(V, d_UT_y)
 
         # Compute intercept
         intercept = y_mean - tf.matmul(X_mean, coef)
@@ -151,7 +143,6 @@ class MoorePenroseReadout(ReadOut):
 
         # Assign values
         self.kernel.assign(coef)
-        self.bias.assign(intercept)
 
     @property
     def alpha(self) -> float:
