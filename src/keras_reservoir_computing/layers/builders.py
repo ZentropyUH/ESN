@@ -27,7 +27,7 @@ def ESNReservoir_builder(user_config: Union[str, dict]) -> ESNReservoir:
             "noise_level": 0.0,
             "activation": "tanh",
             "input_initializer": {"name": "glorot_uniform", "params": {}},
-            "feedback_initializer": {"name": "InputMatrix", "params": {"sigma": 0.5, "binarize": False, "seed": None}},
+            "feedback_initializer": {"name": "PseudoDiagonalInitializer", "params": {"sigma": 0.5, "binarize": False, "seed": None}},
             "feedback_bias_initializer": {"name": "glorot_uniform", "params": {}},
             "kernel_initializer": {"name": "WattsStrogatzGraphInitializer", "params": {"k": 6, "p": 0.2, "directed": True, "self_loops": True, "tries": 100, "spectral_radius": 0.9, "seed": None}},
         }
@@ -43,7 +43,7 @@ def ESNReservoir_builder(user_config: Union[str, dict]) -> ESNReservoir:
     - The final configuration merges the user-defined parameters with default values.
     - The reservoir supports multiple initializers for different weight matrices, which can be:
       - Keras built-in initializers (e.g., "glorot_uniform")
-      - Custom initializers prefixed with "krc>" (e.g., "krc>InputMatrix")
+      - Custom initializers prefixed with "krc>" (e.g., "krc>PseudoDiagonalInitializer")
     - The function ensures that all initializers specified in the configuration are correctly resolved.
 
     Raises
@@ -56,6 +56,12 @@ def ESNReservoir_builder(user_config: Union[str, dict]) -> ESNReservoir:
     default_config = get_default_params(ESNReservoir)
     final_config = merge_with_defaults(default_config, user_config)
 
+    if "spectral_radius" in final_config["kernel_initializer"]["params"]:
+        raw_sr = final_config["kernel_initializer"]["params"]["spectral_radius"]
+        leak_rate = final_config.get("leak_rate", 1.0)
+        effective_sr = raw_sr * (1 - leak_rate)/leak_rate
+        final_config["kernel_initializer"]["params"]["spectral_radius"] = effective_sr
+
     # Convert each initializer from {name, params} to a Keras-recognized initializer
     for key in [
         "input_initializer",
@@ -64,7 +70,7 @@ def ESNReservoir_builder(user_config: Union[str, dict]) -> ESNReservoir:
         "kernel_initializer",
     ]:
         if key in final_config and isinstance(final_config[key], dict):
-            # E.g. {"name": "InputMatrix", "params": {...}}
+            # E.g. {"name": "PseudoDiagonalInitializer", "params": {...}}
             name = final_config[key]["name"]
             params = final_config[key].get("params", {})
             try:
@@ -99,7 +105,6 @@ def ReadOut_builder(user_config: Union[Dict, str]) -> ReadOut:
             "kind": "ridge",
             "units": 100,
             "alpha": 0.1,
-            "washout": 0,
             "trainable": False
         }
 
