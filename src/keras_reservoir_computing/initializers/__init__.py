@@ -1,6 +1,15 @@
-from .custom_initializers import (
-    InputMatrix,
+from .pseudo_diagonal import (
+    PseudoDiagonalInitializer,
 )
+
+from .chebyshev import (
+    ChebyshevInitializer,
+)
+
+from .digital_chaos import (
+    DigitalChaosInitializer,
+)
+
 from .graph_initializers import (
     BarabasiAlbertGraphInitializer,
     CompleteGraphInitializer,
@@ -12,7 +21,15 @@ from .graph_initializers import (
 )
 
 __all__ = [
-    "InputMatrix",
+    "PseudoDiagonalInitializer",
+]
+
+__all__ += [
+    "ChebyshevInitializer",
+]
+
+__all__ += [
+    "DigitalChaosInitializer",
 ]
 
 __all__ += [
