@@ -90,7 +90,7 @@ def classical_ESN(
 
     References
     ----------
-    .. [1] E. Ott, J. Pathak, B. Hunt, M. Girvan, and Z. Lu, “Model-Free Prediction of Large Spatiotemporally Chaotic Systems from Data: A Reservoir Computing Approach,” Phys. Rev. Lett., vol. 120, no. 2, p. 024102, Jan. 2018, doi: 10.1103/PhysRevLett.120.024102.
+    .. E. Ott, J. Pathak, B. Hunt, M. Girvan, and Z. Lu, “Model-Free Prediction of Large Spatiotemporally Chaotic Systems from Data: A Reservoir Computing Approach,” Phys. Rev. Lett., vol. 120, no. 2, p. 024102, Jan. 2018, doi: 10.1103/PhysRevLett.120.024102.
 
 
     """
