@@ -72,8 +72,6 @@ class DigitalChaosInitializer(Initializer):
     Raises
     ------
     ValueError
-        If `D` is not provided during initialization.
-    ValueError
         If the provided shape does not match the expected \( (M, M) \).
 
     Notes
@@ -92,7 +90,7 @@ class DigitalChaosInitializer(Initializer):
     --------
     >>> from keras_reservoir_computing.initializers import DigitalChaosInitializer
     >>> w_init = DigitalChaosInitializer(samples_per_state=5, non_zero_percentage=0.1, spectral_radius=0.9)
-    >>> w = w_init((16, 16), D=2)
+    >>> w = w_init((16, 16))
     >>> print(w)
     # A 16x16 adjacency matrix initialized using digital chaos.
 
@@ -100,19 +98,21 @@ class DigitalChaosInitializer(Initializer):
 
     def __init__(
         self,
+        D: int = 2,
         samples_per_state: int = 5,
         non_zero_percentage: float = None,
         spectral_radius: Optional[float] = None,
     ) -> None:
+        self.D = D
         self.samples_per_state = samples_per_state
         self.non_zero_percentage = non_zero_percentage
         self.spectral_radius = spectral_radius
 
-    def __call__(self, shape: tuple, D: int = None, dtype=None) -> tf.Tensor:
-        if D is None:
+    def __call__(self, shape: tuple, dtype=None) -> tf.Tensor:
+        if self.D is None:
             raise ValueError("D must be provided when calling the initializer.")
 
-        M = 2 ** (2 * D)
+        M = 2 ** (2 * self.D)
 
         if shape != (M, M):
             raise ValueError(f"Shape mismatch: expected ({M}, {M}), but got {shape}")
@@ -140,15 +140,15 @@ class DigitalChaosInitializer(Initializer):
             K = self.samples_per_state
 
         for old_state in range(M):
-            x1_old = old_state >> D
-            x2_old = old_state & ((1 << D) - 1)
+            x1_old = old_state >> self.D
+            x2_old = old_state & ((1 << self.D) - 1)
 
             for _ in range(K):
-                s = np.random.randint(0, 1 << D)
-                u = np.random.randint(0, 1 << D)
-                x1_new, x2_new = next_state_2d_digital(x1_old, x2_old, s, u, D)
-                new_state = (x1_new << D) | x2_new
-                W_recurrent[old_state, new_state] = 1
+                s = np.random.randint(0, 1 << self.D)
+                u = np.random.randint(0, 1 << self.D)
+                x1_new, x2_new = next_state_2d_digital(x1_old, x2_old, s, u, self.D)
+                new_state = (x1_new << self.D) | x2_new
+                W_recurrent[old_state, new_state] = np.random.choice([-1, 1])
 
         W_recurrent = tf.convert_to_tensor(W_recurrent, dtype=dtype)
 
