@@ -24,7 +24,6 @@ def ESNReservoir_builder(user_config: Union[str, dict]) -> ESNReservoir:
             "feedback_dim": 1,
             "input_dim": 0,
             "leak_rate": 1.0,
-            "noise_level": 0.0,
             "activation": "tanh",
             "input_initializer": {"name": "glorot_uniform", "params": {}},
             "feedback_initializer": {"name": "PseudoDiagonalInitializer", "params": {"sigma": 0.5, "binarize": False, "seed": None}},

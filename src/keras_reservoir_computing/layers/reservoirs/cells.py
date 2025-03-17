@@ -27,7 +27,6 @@ class ESNCell(BaseCell):
         leak_rate: float = 1.0,
         # These are not handed by parent class
         activation: Optional[Union[str, Callable]] = "tanh",
-        noise_level: float = 0.0,
         input_initializer: Optional[Union[str, Callable]] = "glorot_uniform",
         feedback_initializer: Optional[Union[str, Callable]] = "glorot_uniform",
         feedback_bias_initializer: Optional[Union[str, Callable]] = "glorot_uniform",
@@ -44,7 +43,6 @@ class ESNCell(BaseCell):
         )
 
         self.activation = tf.keras.activations.get(activation)
-        self.noise_level = noise_level
         self.input_initializer = tf.keras.initializers.get(input_initializer)
         self.feedback_initializer = tf.keras.initializers.get(feedback_initializer)
         self.feedback_bias_initializer = tf.keras.initializers.get(
@@ -119,11 +117,6 @@ class ESNCell(BaseCell):
         # Apply activation
         next_state = self.activation(next_state)
 
-        # Add noise TODO: This need modification, training=True only when model.fit is called, we want it to be True when model.predict is called controlled by hand.
-        next_state += tf.random.normal(
-            tf.shape(next_state), mean=0.0, stddev=self.noise_level
-        )
-
         # leaky integration
         next_state = (1 - self.leak_rate) * prev_state + self.leak_rate * next_state
 
@@ -136,7 +129,6 @@ class ESNCell(BaseCell):
         config.update(
             {
                 "activation": tf.keras.activations.serialize(self.activation),
-                "noise_level": self.noise_level,
                 "input_initializer": tf.keras.initializers.serialize(
                     self.input_initializer
                 ),

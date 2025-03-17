@@ -28,9 +28,6 @@ class ESNReservoir(BaseReservoir):
     leak_rate : float, optional
         Leaking rate of the reservoir neurons. Must be between 0 and 1.
         A smaller value creates more memory in the reservoir. Default is 1.0.
-    noise_level : float, optional
-        Standard deviation of the Gaussian noise added to the state updates.
-        Helps improve robustness. Default is 0.0.
     activation : str or callable, optional
         Activation function for the reservoir neurons. Default is "tanh".
     input_initializer : str or callable, optional
@@ -67,7 +64,6 @@ class ESNReservoir(BaseReservoir):
         feedback_dim: int = 1,
         input_dim: int = 0,
         leak_rate: float = 1.0,
-        noise_level: float = 0.0,
         activation: Optional[Union[str, Callable]] = "tanh",
         input_initializer: Optional[Union[str, Callable]] = "glorot_uniform",
         feedback_initializer: Optional[Union[str, Callable]] = "glorot_uniform",
@@ -96,7 +92,6 @@ class ESNReservoir(BaseReservoir):
         self.feedback_dim = feedback_dim
         self.input_dim = input_dim
         self.leak_rate = leak_rate
-        self.noise_level = noise_level
         self.activation = keras.activations.get(activation)
         self.input_initializer = keras.initializers.get(input_initializer)
         self.feedback_initializer = keras.initializers.get(feedback_initializer)
@@ -110,7 +105,6 @@ class ESNReservoir(BaseReservoir):
             feedback_dim=feedback_dim,
             input_dim=input_dim,
             leak_rate=leak_rate,
-            noise_level=noise_level,
             activation=activation,
             input_initializer=input_initializer,
             feedback_initializer=feedback_initializer,
@@ -126,7 +120,6 @@ class ESNReservoir(BaseReservoir):
             "feedback_dim": self.feedback_dim,
             "input_dim": self.input_dim,
             "leak_rate": self.leak_rate,
-            "noise_level": self.noise_level,
             "activation": keras.activations.serialize(self.activation),
             "input_initializer": keras.initializers.serialize(self.input_initializer),
             "feedback_initializer": keras.initializers.serialize(
