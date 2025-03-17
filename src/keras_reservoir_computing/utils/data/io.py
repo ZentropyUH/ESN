@@ -326,10 +326,9 @@ def load_data(
 
     # Trim initial transient
     data = data[:, init_transient:, :]
-    T = data.shape[1]  # Update length after trimming
 
     train_index = transient + train_length
-    if train_index > T:
+    if train_index > data.shape[1]:
         raise ValueError(
             f"Train size (transient + train_length = {train_index}) exceeds data length ({T})."
         )
@@ -357,13 +356,6 @@ def load_data(
         val_data = (val_data - mean) / std
         val_target = (val_target - mean) / std
 
-    # Convert everyone to tensor
-    transient_data = tf.convert_to_tensor(transient_data)
-    train_data = tf.convert_to_tensor(train_data)
-    train_target = tf.convert_to_tensor(train_target)
-    forecast_transient_data = tf.convert_to_tensor(forecast_transient_data)
-    val_data = tf.convert_to_tensor(val_data)
-    val_target = tf.convert_to_tensor(val_target)
 
     return (
         transient_data,
