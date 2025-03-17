@@ -87,11 +87,8 @@ class SelectiveExponentiation(keras.layers.Layer):
         """
         dim = tf.shape(inputs)[-1]
 
-        # mask = 0 for even indices, 1 for odd indices
-        mask = tf.math.mod(tf.range(dim), 2)
-
-        # If index is odd => invert the mask => exponentiate odd indices
-        mask = ((self.index + 1) % 2) - mask
+        # Mask for even/odd indices. Will be 1 where indexes have the same parity as self.index, 0 otherwise.
+        mask = tf.cast(tf.math.equal(tf.math.mod(tf.range(dim), 2), (self.index + 1) % 2), tf.float32)
 
         mask_f = tf.cast(mask, dtype=tf.float32)
 
