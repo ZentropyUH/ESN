@@ -3,7 +3,6 @@ from typing import List, Tuple, Union
 
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 import xarray as xr
 
 
