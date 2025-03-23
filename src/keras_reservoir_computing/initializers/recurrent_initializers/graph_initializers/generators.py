@@ -2,7 +2,7 @@ from typing import Union, Optional
 import numpy as np
 from networkx import DiGraph, Graph
 
-from .helpers import connected_graph, create_rng, to_tensor
+from keras_reservoir_computing.initializers.helpers import connected_graph, create_rng, to_tensor
 
 
 @to_tensor

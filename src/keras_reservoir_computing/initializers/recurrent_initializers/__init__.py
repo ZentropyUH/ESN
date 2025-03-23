@@ -1,34 +1,19 @@
-from . import input_initializers, recurrent_initializers
-from .input_initializers import (
-    ChebyshevInitializer,
-    DenseBinaryInitializer,
-    PseudoDiagonalInitializer,
-)
-from .recurrent_initializers import (
+from .digital_chaos import DigitalChaosInitializer
+from .graph_initializers import (
     BarabasiAlbertGraphInitializer,
     CompleteGraphInitializer,
-    DigitalChaosInitializer,
     ErdosRenyiGraphInitializer,
     KleinbergSmallWorldGraphInitializer,
     NewmanWattsStrogatzGraphInitializer,
     RegularGraphInitializer,
-    TernaryInitializer,
     WattsStrogatzGraphInitializer,
 )
+from .ternary import TernaryInitializer
 
-__all__ = ["input_initializers", "recurrent_initializers"]
-
-__all__ += [
-    "ChebyshevInitializer",
-    "DenseBinaryInitializer",
-    "PseudoDiagonalInitializer",
-]
-
-
-__all__ += [
+__all__ = [
+    "DigitalChaosInitializer",
     "BarabasiAlbertGraphInitializer",
     "CompleteGraphInitializer",
-    "DigitalChaosInitializer",
     "ErdosRenyiGraphInitializer",
     "KleinbergSmallWorldGraphInitializer",
     "NewmanWattsStrogatzGraphInitializer",
@@ -37,8 +22,5 @@ __all__ += [
     "WattsStrogatzGraphInitializer",
 ]
 
-
-
-
-def __dir__():
+def __dir__() -> list[str]:
     return __all__

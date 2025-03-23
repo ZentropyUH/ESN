@@ -4,7 +4,7 @@ import keras
 import tensorflow as tf
 from keras.src.initializers import Initializer
 
-from keras_reservoir_computing.initializers.generators import (
+from .generators import (
     barabasi_albert,
     complete,
     connected_erdos_renyi,
