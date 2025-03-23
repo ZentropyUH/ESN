@@ -102,11 +102,14 @@ class DigitalChaosInitializer(Initializer):
         samples_per_state: int = 5,
         non_zero_percentage: float = None,
         spectral_radius: Optional[float] = None,
+        seed: Optional[int] = None,
     ) -> None:
         self.D = D
         self.samples_per_state = samples_per_state
         self.non_zero_percentage = non_zero_percentage
         self.spectral_radius = spectral_radius
+        self.seed = seed
+        self.rng = np.random.default_rng(seed)
 
     def __call__(self, shape: tuple, dtype=None) -> tf.Tensor:
         if self.D is None:
@@ -144,11 +147,11 @@ class DigitalChaosInitializer(Initializer):
             x2_old = old_state & ((1 << self.D) - 1)
 
             for _ in range(K):
-                s = np.random.randint(0, 1 << self.D)
-                u = np.random.randint(0, 1 << self.D)
+                s = self.rng.integers(0, 1 << self.D)
+                u = self.rng.integers(0, 1 << self.D)
                 x1_new, x2_new = next_state_2d_digital(x1_old, x2_old, s, u, self.D)
                 new_state = (x1_new << self.D) | x2_new
-                W_recurrent[old_state, new_state] = np.random.choice([-1, 1])
+                W_recurrent[old_state, new_state] = self.rng.choice([-1, 1])
 
         W_recurrent = tf.convert_to_tensor(W_recurrent, dtype=dtype)
 
@@ -168,8 +171,11 @@ class DigitalChaosInitializer(Initializer):
             The configuration dictionary.
         """
         config = {
+            "D": self.D,
             "samples_per_state": self.samples_per_state,
             "non_zero_percentage": self.non_zero_percentage,
+            "spectral_radius": self.spectral_radius,
+            "seed": self.seed,
         }
         base_config = super().get_config()
         base_config.update(config)
