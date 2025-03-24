@@ -98,22 +98,23 @@ def classical_ESN(
     if isinstance(reservoir_config, str):
         reservoir_config = load_user_config(reservoir_config)
 
-    input_layer = keras.layers.Input(shape=(None, features), batch_size=batch)
+    feedback_layer = keras.layers.Input(shape=(None, features), batch_size=batch)
 
-    reservoir_config["units"] = units
-    reservoir_config["feedback_dim"] = features
-    reservoir = ESNReservoir_builder(reservoir_config)(input_layer)
+    overrides = {"units": units, "feedback_dim": features}
+    reservoir = ESNReservoir_builder(
+        reservoir_config, overrides=overrides
+    )(feedback_layer)
 
     selective_exponentiation = SelectiveExponentiation(
         index=0,
         exponent=2.0,
     )(reservoir)
 
-    concat = Concatenate()([input_layer, selective_exponentiation])
+    concat = Concatenate()([feedback_layer, selective_exponentiation])
 
     readout = ReadOut_builder(readout_config)(concat)
 
-    model = keras.Model(inputs=input_layer, outputs=readout, name=name)
+    model = keras.Model(inputs=feedback_layer, outputs=readout, name=name)
     return model
 
 

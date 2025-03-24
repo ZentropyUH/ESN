@@ -1,13 +1,19 @@
-from typing import Dict, Union
+from typing import Dict, Union, Optional
 from keras_reservoir_computing.layers import ESNReservoir
 from keras_reservoir_computing.layers.readouts.base import ReadOut
 from keras_reservoir_computing.layers.readouts.ridge import RidgeSVDReadout
 from keras_reservoir_computing.layers.readouts.moorepenrose import MoorePenroseReadout
-from keras_reservoir_computing.layers.config import get_default_params, merge_with_defaults, load_user_config
+from keras_reservoir_computing.layers.config import (
+    get_default_params,
+    merge_with_defaults,
+    load_user_config,
+)
 import keras
 
 
-def ESNReservoir_builder(user_config: Union[str, dict]) -> ESNReservoir:
+def ESNReservoir_builder(
+    user_config: Union[str, dict], overrides: Optional[Dict]=None
+) -> ESNReservoir:
     """
     Constructs an Echo State Network (ESN) reservoir layer from a user-defined configuration.
 
@@ -44,6 +50,7 @@ def ESNReservoir_builder(user_config: Union[str, dict]) -> ESNReservoir:
       - Keras built-in initializers (e.g., "glorot_uniform")
       - Custom initializers prefixed with "krc>" (e.g., "krc>PseudoDiagonalInitializer")
     - The function ensures that all initializers specified in the configuration are correctly resolved.
+    - The spectral radius is adjusted on the effective weight matrix [(1-lr) I + lr W] if the leak rate is below 1.
 
     Raises
     ------
@@ -51,15 +58,25 @@ def ESNReservoir_builder(user_config: Union[str, dict]) -> ESNReservoir:
         If an initializer is not found in either Keras built-ins or custom-registered initializers.
     """
 
-    user_config = load_user_config(user_config)
-    default_config = get_default_params(ESNReservoir)
-    final_config = merge_with_defaults(default_config, user_config)
+    user_config = load_user_config(config=user_config)
+    default_config = get_default_params(cls=ESNReservoir)
+    final_config = merge_with_defaults(
+        default_params=default_config,
+        user_params=user_config,
+        override_params=overrides,
+    )
 
-    if "spectral_radius" in final_config["kernel_initializer"]["params"]:
-        raw_sr = final_config["kernel_initializer"]["params"]["spectral_radius"]
-        leak_rate = final_config.get("leak_rate", 1.0)
-        effective_sr = raw_sr * (1 - leak_rate)/leak_rate
-        final_config["kernel_initializer"]["params"]["spectral_radius"] = effective_sr
+
+    # Adjust the spectral radius of the effective weight matrix.
+    if "params" in final_config["kernel_initializer"]:
+        if "spectral_radius" in final_config["kernel_initializer"]["params"]:
+            effective_sr = final_config["kernel_initializer"]["params"]["spectral_radius"]
+            if effective_sr is not None: # The default values is usually None
+                leak_rate = final_config.get("leak_rate", 1.0)
+                if effective_sr < 1-leak_rate:
+                    raise ValueError("The spectral radius must be greater than 1 - leak_rate.")
+                W_sr = (effective_sr - 1 + leak_rate) / leak_rate
+                final_config["kernel_initializer"]["params"]["spectral_radius"] = W_sr
 
     # Convert each initializer from {name, params} to a Keras-recognized initializer
     for key in [
@@ -74,13 +91,19 @@ def ESNReservoir_builder(user_config: Union[str, dict]) -> ESNReservoir:
             params = final_config[key].get("params", {})
             try:
                 # First attempt: standard retrieval
-                final_config[key] = keras.initializers.get({"class_name": name, "config": params})
+                final_config[key] = keras.initializers.get(
+                    {"class_name": name, "config": params}
+                )
             except ValueError:
                 try:
                     # Second attempt: Try with package prefix if it's a custom-registered initializer
-                    final_config[key] = keras.initializers.get({"class_name": f"krc>{name}", "config": params})
+                    final_config[key] = keras.initializers.get(
+                        {"class_name": f"krc>{name}", "config": params}
+                    )
                 except ValueError:
-                    raise ValueError(f"Initializer '{name}' not found, either as keras built-in nor as custom class.")
+                    raise ValueError(
+                        f"Initializer '{name}' not found, either as keras built-in nor as custom class."
+                    )
 
     # Instantiate the layer
     # units = final_config.pop("units", 100)
@@ -88,7 +111,9 @@ def ESNReservoir_builder(user_config: Union[str, dict]) -> ESNReservoir:
     return layer
 
 
-def ReadOut_builder(user_config: Union[Dict, str]) -> ReadOut:
+def ReadOut_builder(
+    user_config: Union[Dict, str], overrides: Optional[Dict]=None
+) -> ReadOut:
     """
     Constructs a readout layer for an Echo State Network (ESN) based on the specified type.
 
@@ -127,7 +152,7 @@ def ReadOut_builder(user_config: Union[Dict, str]) -> ReadOut:
         If the specified `kind` is not recognized.
     """
 
-    user_config = load_user_config(user_config)
+    user_config = load_user_config(config=user_config)
 
     kind = user_config.pop("kind", "ridge")
 
@@ -137,14 +162,19 @@ def ReadOut_builder(user_config: Union[Dict, str]) -> ReadOut:
         readout_class = MoorePenroseReadout
     else:
         raise ValueError(f"Readout kind '{kind}' not recognized.")
-    default_config = get_default_params(readout_class)
-    final_config = merge_with_defaults(default_config, user_config)
+    default_config = get_default_params(cls=readout_class)
+    final_config = merge_with_defaults(
+        default_params=default_config,
+        user_params=user_config,
+        override_params=overrides,
+    )
 
     layer = readout_class(**final_config)
     return layer
 
 
 __all__ = ["ESNReservoir_builder", "ReadOut_builder"]
+
 
 def __dir__() -> list:
     return __all__
