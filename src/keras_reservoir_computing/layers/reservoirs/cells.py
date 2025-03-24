@@ -9,14 +9,32 @@ from .base import BaseCell
 @keras.saving.register_keras_serializable(package="krc", name="ESNCell")
 class ESNCell(BaseCell):
     """
-    A custom RNN cell that splits the incoming features into:
-      - feedback portion (first feedback_dim)
-      - input portion (next input_dim)
-    Then applies a state update.
+    Echo State Network (ESN) cell implementation for reservoir computing.
 
-    states_{t} = activation(
-       feedback_t * W_fb + input_t * W_in + states_{t-1} * W_kernel
-    )
+    This cell implements the ESN architecture where input features are split into
+    feedback and input portions, then applies a state update according to:
+    states_{t} = activation(feedback_t * W_fb + input_t * W_in + states_{t-1} * W_kernel)
+
+    Parameters
+    ----------
+    units : int
+        Number of units in the reservoir cell.
+    feedback_dim : int, optional
+        Dimensionality of the feedback input, by default 1.
+    input_dim : int, optional
+        Dimensionality of the external input, by default 0.
+    leak_rate : float, optional
+        Leak rate for the leaky integration, by default 1.0.
+    activation : Optional[Union[str, Callable]], optional
+        Activation function to use, by default "tanh".
+    input_initializer : Optional[Union[str, Callable]], optional
+        Initializer for the input weights, by default "glorot_uniform".
+    feedback_initializer : Optional[Union[str, Callable]], optional
+        Initializer for the feedback weights, by default "glorot_uniform".
+    feedback_bias_initializer : Optional[Union[str, Callable]], optional
+        Initializer for the feedback bias, by default "glorot_uniform".
+    kernel_initializer : Optional[Union[str, Callable]], optional
+        Initializer for the recurrent kernel, by default "glorot_uniform".
     """
 
     def __init__(
