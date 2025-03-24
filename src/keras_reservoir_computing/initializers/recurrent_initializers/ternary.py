@@ -7,7 +7,7 @@ from keras import Initializer
 from keras_reservoir_computing.initializers.helpers import spectral_radius_hybrid
 
 
-@keras.saving.register_keras_serializable(package="krc", name="TernaInitializer")
+@keras.saving.register_keras_serializable(package="krc", name="TernaryInitializer")
 class TernaryInitializer(Initializer):
     """
     Ternary Initializer for creating weight matrices with values in {-1, 0, 1}.
