@@ -45,9 +45,9 @@ class ESNCell(BaseCell):
         leak_rate: float = 1.0,
         # These are not handed by parent class
         activation: Optional[Union[str, Callable]] = "tanh",
-        input_initializer: Optional[Union[str, Callable]] = "glorot_uniform",
+        input_initializer: Optional[Union[str, Callable]] = "zeros",
         feedback_initializer: Optional[Union[str, Callable]] = "glorot_uniform",
-        feedback_bias_initializer: Optional[Union[str, Callable]] = "glorot_uniform",
+        feedback_bias_initializer: Optional[Union[str, Callable]] = "zeros",
         kernel_initializer: Optional[Union[str, Callable]] = "glorot_uniform",
         **kwargs
     ) -> None:
