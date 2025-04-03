@@ -1,6 +1,16 @@
-from .architectures import classical_ESN, ensemble_with_mean_ESN, residual_stacked_ESN
+from .architectures import (
+    Ott_ESN,
+    classic_ESN,
+    ensemble_with_mean_ESN,
+    residual_stacked_ESN,
+)
 
-__all__ = ["classical_ESN", "ensemble_with_mean_ESN", "residual_stacked_ESN"]
+__all__ = [
+    "Ott_ESN",
+    "classic_ESN",
+    "ensemble_with_mean_ESN",
+    "residual_stacked_ESN"
+    ]
 
 
 def __dir__() -> list:

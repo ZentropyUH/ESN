@@ -1,7 +1,5 @@
-from typing import Union, List
-
-import keras
-from keras.src.layers import Concatenate
+import tensorflow as tf
+from typing import List, Union
 
 from keras_reservoir_computing.layers import (
     OutliersFilteredMean,
@@ -11,7 +9,6 @@ from keras_reservoir_computing.layers.builders import (
     ESNReservoir_builder,
     ReadOut_builder,
 )
-
 from keras_reservoir_computing.layers.config import load_user_config
 
 ESN_RESERVOIR_CONFIG = {
@@ -48,18 +45,16 @@ READOUT_CONFIG = {
     "trainable": False,
 }
 
-
-# Simple ESN With no input signal, only feedback
-def classical_ESN(
-    units,
+def classic_ESN(
+    units, 
     reservoir_config: Union[str, dict] = ESN_RESERVOIR_CONFIG,
     readout_config: Union[str, dict] = READOUT_CONFIG,
     batch=1,
     features=1,
-    name="classical_ESN",
-) -> keras.Model:
+    name="classic_ESN",
+) -> tf.keras.Model:
     """
-    Builds and returns a classical, feedback-only Echo State Network (ESN) model using Keras.
+    Builds and returns a classic Echo State Network (ESN) using Keras.
 
     Parameters
     ----------
@@ -79,7 +74,60 @@ def classical_ESN(
     Returns
     -------
     keras.Model
-        A Keras Model representing the classical ESN.
+        A Keras Model representing the classic ESN.
+
+    Notes
+    -----
+    - The model built is based on the classic ESN formulation.
+    - The architecture is the following:
+        - `Input Layer` -> `ESN Reservoir` -> `Readout Layer`
+
+    """
+
+    if isinstance(reservoir_config, str):
+        reservoir_config = load_user_config(reservoir_config)
+
+    input_layer = tf.keras.layers.Input(shape=(None, features), batch_size=batch)
+
+    overrides = {"units": units}
+    reservoir = ESNReservoir_builder(reservoir_config, overrides=overrides)(input_layer)
+
+    readout = ReadOut_builder(readout_config)(reservoir)
+
+    model = tf.keras.Model(inputs=input_layer, outputs=readout, name=name)
+    return model
+
+# Simple ESN With no input signal, only feedback
+def Ott_ESN(
+    units,
+    reservoir_config: Union[str, dict] = ESN_RESERVOIR_CONFIG,
+    readout_config: Union[str, dict] = READOUT_CONFIG,
+    batch=1,
+    features=1,
+    name="Ott_ESN",
+) -> tf.keras.Model:
+    """
+    Builds and returns Ott's proposed model with state augmentation, feedback-only Echo State Network (ESN) using Keras.
+
+    Parameters
+    ----------
+    units : int
+        Number of units in the reservoir.
+    reservoir_config : Union[str, dict], optional
+        Configuration for the reservoir. Can be a string identifier or a dictionary of parameters.
+        Default is ESN_RESERVOIR_CONFIG.
+    readout_config : Union[str, dict], optional
+        Configuration for the readout layer. Can be a string identifier or a dictionary of parameters.
+        Default is READOUT_CONFIG.
+    batch : int, optional
+        Batch size for the input layer. Default is 1.
+    features : int, optional
+        Number of features in the input data. Default is 1.
+
+    Returns
+    -------
+    keras.Model
+        A Keras Model representing Ott's ESN.
 
     Notes
     -----
@@ -98,23 +146,23 @@ def classical_ESN(
     if isinstance(reservoir_config, str):
         reservoir_config = load_user_config(reservoir_config)
 
-    feedback_layer = keras.layers.Input(shape=(None, features), batch_size=batch)
+    feedback_layer = tf.keras.layers.Input(shape=(None, features), batch_size=batch)
 
     overrides = {"units": units, "feedback_dim": features}
-    reservoir = ESNReservoir_builder(
-        reservoir_config, overrides=overrides
-    )(feedback_layer)
+    reservoir = ESNReservoir_builder(reservoir_config, overrides=overrides)(
+        feedback_layer
+    )
 
     selective_exponentiation = SelectiveExponentiation(
         index=0,
         exponent=2.0,
     )(reservoir)
 
-    concat = Concatenate()([feedback_layer, selective_exponentiation])
+    concat = tf.keras.layers.Concatenate()([feedback_layer, selective_exponentiation])
 
     readout = ReadOut_builder(readout_config)(concat)
 
-    model = keras.Model(inputs=feedback_layer, outputs=readout, name=name)
+    model = tf.keras.Model(inputs=feedback_layer, outputs=readout, name=name)
     return model
 
 
@@ -126,7 +174,7 @@ def ensemble_with_mean_ESN(
     batch=1,
     features=1,
     name="ensemble_with_mean_ESN",
-) -> keras.Model:
+) -> tf.keras.Model:
 
     if isinstance(reservoir_config, str):
         reservoir_config = load_user_config(reservoir_config)
@@ -134,7 +182,7 @@ def ensemble_with_mean_ESN(
     if isinstance(readout_config, str):
         readout_config = load_user_config(readout_config)
 
-    input_layer = keras.layers.Input(shape=(None, features), batch_size=batch)
+    input_layer = tf.keras.layers.Input(shape=(None, features), batch_size=batch)
 
     reservoir_config["units"] = units
     reservoirs = [
@@ -151,7 +199,7 @@ def ensemble_with_mean_ESN(
     ]
 
     concatenations = [
-        Concatenate()([input_layer, exponentiation])
+        tf.keras.layers.Concatenate()([input_layer, exponentiation])
         for exponentiation in exponentiations
     ]
 
@@ -166,7 +214,7 @@ def ensemble_with_mean_ESN(
 
     filtered_mean = OutliersFilteredMean()(readouts)
 
-    model = keras.Model(inputs=input_layer, outputs=filtered_mean, name=name)
+    model = tf.keras.Model(inputs=input_layer, outputs=filtered_mean, name=name)
     return model
 
 
@@ -177,7 +225,7 @@ def residual_stacked_ESN(
     batch=1,
     features=1,
     name="stacked_ESN",
-) -> keras.Model:
+) -> tf.keras.Model:
     """
     Builds and returns a stacked reservoir model using Keras.
 
@@ -250,7 +298,7 @@ def residual_stacked_ESN(
 
     # we are going to make like a residual network of the stacked reservoirs, the first reservoir will be connected to the input layer, the second reservoir will be connected to the concatenation of the input layer and the first reservoir, then from the third reservoir, it will be connected to the concatenation of the previous two reservoirs.
 
-    input_layer = keras.layers.Input(shape=(None, features), batch_size=batch)
+    input_layer = tf.keras.layers.Input(shape=(None, features), batch_size=batch)
 
     reservoirs = []
 
@@ -259,11 +307,11 @@ def residual_stacked_ESN(
             reservoir = ESNReservoir_builder(config)(input_layer)
         elif i == 1:
             reservoir = ESNReservoir_builder(config)(
-                Concatenate()([input_layer, reservoirs[-1]])
+                tf.keras.layers.Concatenate()([input_layer, reservoirs[-1]])
             )
         else:
             reservoir = ESNReservoir_builder(config)(
-                Concatenate()([reservoirs[-1], reservoirs[-2]])
+                tf.keras.layers.Concatenate()([reservoirs[-1], reservoirs[-2]])
             )
 
         reservoirs.append(reservoir)
@@ -272,5 +320,5 @@ def residual_stacked_ESN(
 
     readout = ReadOut_builder(readout_config[0])(reservoirs[-1])
 
-    model = keras.Model(inputs=input_layer, outputs=readout, name=name)
+    model = tf.keras.Model(inputs=input_layer, outputs=readout, name=name)
     return model
