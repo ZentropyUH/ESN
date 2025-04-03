@@ -270,7 +270,7 @@ def load_file(datapath: str) -> np.ndarray:
 def load_data(
     datapath: Union[str, List[str]],
     init_transient: int = 0,
-    transient: int = 1000,
+    transient_length: int = 1000,
     train_length: int = 5000,
     normalize: bool = False,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -326,17 +326,17 @@ def load_data(
     # Trim initial transient
     data = data[:, init_transient:, :]
 
-    train_index = transient + train_length
+    train_index = transient_length + train_length
     if train_index > data.shape[1]:
         raise ValueError(
             f"Train size (transient + train_length = {train_index}) exceeds data length ({T})."
         )
 
     # Define data splits
-    transient_data = data[:, :transient, :]
-    train_data = data[:, transient:train_index, :]
-    train_target = data[:, transient + 1 : train_index + 1, :]
-    forecast_transient_data = train_data[:, -transient:, :]
+    transient_data = data[:, :transient_length, :]
+    train_data = data[:, transient_length:train_index, :]
+    train_target = data[:, transient_length + 1 : train_index + 1, :]
+    forecast_transient_data = train_data[:, -transient_length:, :]
     val_data = data[:, train_index:-1, :]
     val_target = data[:, train_index + 1 :, :]
 
@@ -354,7 +354,6 @@ def load_data(
         forecast_transient_data = (forecast_transient_data - mean) / std
         val_data = (val_data - mean) / std
         val_target = (val_target - mean) / std
-
 
     return (
         transient_data,

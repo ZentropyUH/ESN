@@ -1,12 +1,11 @@
 from abc import ABC, abstractmethod
 from typing import List, Tuple, Union, Optional
 
-import keras
 import tensorflow as tf
 
 
-@keras.saving.register_keras_serializable(package="krc", name="BaseCell")
-class BaseCell(keras.Layer, ABC):
+@tf.keras.utils.register_keras_serializable(package="krc", name="BaseCell")
+class BaseCell(tf.keras.Layer, ABC):
     """
     Abstract base class for different types of reservoir cells.
     Each reservoir cell represents the one-step computation unit
@@ -129,8 +128,8 @@ class BaseCell(keras.Layer, ABC):
         return config
 
 
-@keras.saving.register_keras_serializable(package="krc", name="BaseReservoir")
-class BaseReservoir(keras.layers.RNN):
+@tf.keras.utils.register_keras_serializable(package="krc", name="BaseReservoir")
+class BaseReservoir(tf.keras.layers.RNN):
     """
     Abstract base class for different types of reservoirs.
     Each reservoir is a recurrent neural network that wraps a reservoir cell in a RNN.

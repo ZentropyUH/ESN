@@ -1,13 +1,13 @@
 from typing import Optional
 
-import keras
 import numpy as np
 import tensorflow as tf
-from keras import Initializer
 
 
-@keras.saving.register_keras_serializable(package="krc", name="DenseBinaryInitializer")
-class DenseBinaryInitializer(Initializer):
+@tf.keras.utils.register_keras_serializable(
+    package="krc", name="DenseBinaryInitializer"
+)
+class DenseBinaryInitializer(tf.keras.Initializer):
     """
     An initializer that generates a binary matrix with values in {-1, 1}.
 

@@ -1,14 +1,12 @@
 from typing import Optional
 
-import keras
 import numpy as np
 import tensorflow as tf
-from keras import Initializer
 from keras_reservoir_computing.initializers.helpers import spectral_radius_hybrid
 
 
-@keras.saving.register_keras_serializable(package="krc", name="TernaryInitializer")
-class TernaryInitializer(Initializer):
+@tf.keras.utils.register_keras_serializable(package="krc", name="TernaryInitializer")
+class TernaryInitializer(tf.keras.Initializer):
     """
     Ternary Initializer for creating weight matrices with values in {-1, 0, 1}.
 

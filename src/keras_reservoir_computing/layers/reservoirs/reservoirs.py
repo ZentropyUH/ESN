@@ -1,12 +1,12 @@
 from typing import Callable, Optional, Union
 
-import keras
+import tensorflow as tf
 
 from .base import BaseReservoir
 from .cells import ESNCell
 
 
-@keras.saving.register_keras_serializable(package="krc", name="ESNReservoir")
+@tf.keras.utils.register_keras_serializable(package="krc", name="ESNReservoir")
 class ESNReservoir(BaseReservoir):
     """
     An Echo State Network (ESN) reservoir layer implementation.
@@ -65,9 +65,9 @@ class ESNReservoir(BaseReservoir):
         input_dim: int = 0,
         leak_rate: float = 1.0,
         activation: Optional[Union[str, Callable]] = "tanh",
-        input_initializer: Optional[Union[str, Callable]] = "glorot_uniform",
+        input_initializer: Optional[Union[str, Callable]] = "zeros",
         feedback_initializer: Optional[Union[str, Callable]] = "glorot_uniform",
-        feedback_bias_initializer: Optional[Union[str, Callable]] = "glorot_uniform",
+        feedback_bias_initializer: Optional[Union[str, Callable]] = "zeros",
         kernel_initializer: Optional[Union[str, Callable]] = "glorot_uniform",
         **kwargs,
     ) -> None:
@@ -92,13 +92,13 @@ class ESNReservoir(BaseReservoir):
         self.feedback_dim = feedback_dim
         self.input_dim = input_dim
         self.leak_rate = leak_rate
-        self.activation = keras.activations.get(activation)
-        self.input_initializer = keras.initializers.get(input_initializer)
-        self.feedback_initializer = keras.initializers.get(feedback_initializer)
-        self.feedback_bias_initializer = keras.initializers.get(
+        self.activation = tf.keras.activations.get(activation)
+        self.input_initializer = tf.keras.initializers.get(input_initializer)
+        self.feedback_initializer = tf.keras.initializers.get(feedback_initializer)
+        self.feedback_bias_initializer = tf.keras.initializers.get(
             feedback_bias_initializer
         )
-        self.kernel_initializer = keras.initializers.get(kernel_initializer)
+        self.kernel_initializer = tf.keras.initializers.get(kernel_initializer)
 
         cell = ESNCell(
             units=units,
@@ -120,15 +120,15 @@ class ESNReservoir(BaseReservoir):
             "feedback_dim": self.feedback_dim,
             "input_dim": self.input_dim,
             "leak_rate": self.leak_rate,
-            "activation": keras.activations.serialize(self.activation),
-            "input_initializer": keras.initializers.serialize(self.input_initializer),
-            "feedback_initializer": keras.initializers.serialize(
+            "activation": tf.keras.activations.serialize(self.activation),
+            "input_initializer": tf.keras.initializers.serialize(self.input_initializer),
+            "feedback_initializer": tf.keras.initializers.serialize(
                 self.feedback_initializer
             ),
-            "feedback_bias_initializer": keras.initializers.serialize(
+            "feedback_bias_initializer": tf.keras.initializers.serialize(
                 self.feedback_bias_initializer
             ),
-            "kernel_initializer": keras.initializers.serialize(self.kernel_initializer),
+            "kernel_initializer": tf.keras.initializers.serialize(self.kernel_initializer),
         }
         del base_config["cell"]
         return {**base_config, **config}

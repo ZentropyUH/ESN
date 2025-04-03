@@ -1,9 +1,7 @@
 from typing import Optional, Union
 
-import keras
 import networkx as nx
 import tensorflow as tf
-from keras import Model
 
 
 def create_tf_rng(
@@ -87,7 +85,7 @@ def build_layer_graph(model: tf.keras.Model) -> nx.DiGraph:
     return graph
 
 
-def rebuild_model_with_new_batch_size(old_model: Model, new_batch_size: int) -> Model:
+def rebuild_model_with_new_batch_size(old_model: tf.keras.Model, new_batch_size: int) -> tf.keras.Model:
     """
     Rebuild the model while modifying only the batch size of the input layers.
     Ensures that all layers (including multi-input/multi-output) are correctly
@@ -117,11 +115,11 @@ def rebuild_model_with_new_batch_size(old_model: Model, new_batch_size: int) -> 
     #    Store them in `layer_outputs_map`.
     for layer_name, attrs in graph.nodes(data=True):
         layer = attrs["layer_object"]
-        if isinstance(layer, keras.layers.InputLayer):
+        if isinstance(layer, tf.keras.layers.InputLayer):
             # Build a new Input with the same shape except for batch_size
             # Typically layer.batch_shape is (old_batch_size, *rest_of_shape)
             # So we skip the first dimension in `layer.batch_shape[1:]`.
-            new_input = keras.Input(
+            new_input = tf.keras.Input(
                 shape=layer.batch_shape[1:], batch_size=new_batch_size, name=layer.name
             )
             layer_outputs_map[layer_name] = new_input
@@ -224,7 +222,7 @@ def rebuild_model_with_new_batch_size(old_model: Model, new_batch_size: int) -> 
         new_model_outputs = new_model_outputs[0]
 
     # 7) Construct the new model
-    new_model = Model(inputs=new_model_inputs, outputs=new_model_outputs)
+    new_model = tf.keras.Model(inputs=new_model_inputs, outputs=new_model_outputs)
 
     # 8) Transfer weights
     new_model.set_weights(old_model.get_weights())
@@ -233,7 +231,7 @@ def rebuild_model_with_new_batch_size(old_model: Model, new_batch_size: int) -> 
 
 
 def insert_layer(
-    model: tf.keras.Model, after_layer: str, new_layer: keras.layers.Layer
+    model: tf.keras.Model, after_layer: str, new_layer: tf.keras.layers.Layer
 ) -> tf.keras.Model:
     """
     Insert `new_layer` immediately after the layer named `after_layer` in the
@@ -298,9 +296,9 @@ def insert_layer(
     # B. Recreate Input layers first (unchanged)
     for layer_name in sorted_layer_names:
         layer_obj = graph.nodes[layer_name]["layer_object"]
-        if isinstance(layer_obj, keras.layers.InputLayer):
+        if isinstance(layer_obj, tf.keras.layers.InputLayer):
             # Create new Input
-            new_input = keras.Input(
+            new_input = tf.keras.Input(
                 shape=layer_obj.batch_shape[1:],
                 batch_size=layer_obj.batch_size,
                 name=layer_obj.name,
@@ -418,7 +416,7 @@ def insert_layer(
         new_model_outputs = new_model_outputs[0]
 
     # F. Construct the new model
-    new_model = Model(inputs=new_model_inputs, outputs=new_model_outputs)
+    new_model = tf.keras.Model(inputs=new_model_inputs, outputs=new_model_outputs)
 
     # G. Transfer weights from old model (the newly inserted layer has no old weights)
     new_model.set_weights(model.get_weights())

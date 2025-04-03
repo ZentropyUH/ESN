@@ -1,11 +1,10 @@
-from keras import Model
 from keras_reservoir_computing.layers.readouts.base import ReadOut
 from typing import Union, List
 import tensorflow as tf
 
 
 class ReservoirTrainer:
-    def __init__(self, model: Model, readout_targets: dict, log: bool = False) -> None:
+    def __init__(self, model: tf.keras.Model, readout_targets: dict, log: bool = False) -> None:
         """
         Custom trainer for Read-Out layers, ensuring correct dependency order.
 
@@ -52,7 +51,7 @@ class ReservoirTrainer:
         # Prepare intermediate models for each ReadOut layer
         self.intermediate_models = {}
         for readout_layer in self.readout_layers_list:
-            self.intermediate_models[readout_layer.name] = Model(
+            self.intermediate_models[readout_layer.name] = tf.keras.Model(
                 inputs=model.input, outputs=readout_layer.input
             )
 

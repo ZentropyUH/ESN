@@ -1,12 +1,11 @@
 from typing import Callable, List, Optional, Union
 
-import keras
 import tensorflow as tf
 
 from .base import BaseCell
 
 
-@keras.saving.register_keras_serializable(package="krc", name="ESNCell")
+@tf.keras.utils.register_keras_serializable(package="krc", name="ESNCell")
 class ESNCell(BaseCell):
     """
     Echo State Network (ESN) cell implementation for reservoir computing.
@@ -45,9 +44,9 @@ class ESNCell(BaseCell):
         leak_rate: float = 1.0,
         # These are not handed by parent class
         activation: Optional[Union[str, Callable]] = "tanh",
-        input_initializer: Optional[Union[str, Callable]] = "glorot_uniform",
+        input_initializer: Optional[Union[str, Callable]] = "zeros",
         feedback_initializer: Optional[Union[str, Callable]] = "glorot_uniform",
-        feedback_bias_initializer: Optional[Union[str, Callable]] = "glorot_uniform",
+        feedback_bias_initializer: Optional[Union[str, Callable]] = "zeros",
         kernel_initializer: Optional[Union[str, Callable]] = "glorot_uniform",
         **kwargs
     ) -> None:
