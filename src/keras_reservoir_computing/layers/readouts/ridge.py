@@ -1,12 +1,11 @@
 from typing import Dict, Union
 
-import keras
 import tensorflow as tf
 
 from .base import ReadOut
 
 
-@keras.saving.register_keras_serializable(package="krc", name="RidgeSVDReadout")
+@tf.keras.utils.register_keras_serializable(package="krc", name="RidgeSVDReadout")
 class RidgeSVDReadout(ReadOut):
     """
     A Keras-like, SVD-based Ridge Regression layer.
@@ -140,10 +139,15 @@ class RidgeSVDReadout(ReadOut):
         """
         input_dtype = inputs.dtype
 
-        # Make sure inputs are float64
-        inputs = tf.cast(inputs, tf.float64)
+        # Make sure inputs are same dtype as kernel/bias
+        # Only cast if needed, otherwise keep original dtype for better performance
+        if inputs.dtype != self.kernel.dtype:
+            inputs = tf.cast(inputs, self.kernel.dtype)
         outputs = tf.matmul(inputs, self.kernel) + self.bias
-        outputs = tf.cast(outputs, input_dtype)
+
+        # Only cast back if input was a different dtype
+        if input_dtype != self.kernel.dtype:
+            outputs = tf.cast(outputs, input_dtype)
         return outputs
 
     @tf.function()
