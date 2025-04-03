@@ -52,7 +52,9 @@ def forecast(
     batch_size = initial_feedback.shape[0]
     features = initial_feedback.shape[-1]
 
-    horizon = tf.reduce_min([horizon] + [tf.shape(ext)[1] for ext in external_inputs])
+    # Make sure horizon doesn't exceed available external data length
+    if external_inputs:
+        horizon = tf.reduce_min([horizon] + [tf.shape(ext)[1] for ext in external_inputs])
 
     external_input_count = len(input_names) - 1
     if len(external_inputs) != external_input_count:
