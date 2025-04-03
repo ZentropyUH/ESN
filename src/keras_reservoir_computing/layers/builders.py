@@ -1,3 +1,4 @@
+import tensorflow as tf
 from typing import Dict, Union, Optional
 from keras_reservoir_computing.layers import ESNReservoir
 from keras_reservoir_computing.layers.readouts.base import ReadOut
@@ -8,7 +9,6 @@ from keras_reservoir_computing.layers.config import (
     merge_with_defaults,
     load_user_config,
 )
-import keras
 
 
 def ESNReservoir_builder(
@@ -91,13 +91,13 @@ def ESNReservoir_builder(
             params = final_config[key].get("params", {})
             try:
                 # First attempt: standard retrieval
-                final_config[key] = keras.initializers.get(
+                final_config[key] = tf.keras.initializers.get(
                     {"class_name": name, "config": params}
                 )
             except ValueError:
                 try:
                     # Second attempt: Try with package prefix if it's a custom-registered initializer
-                    final_config[key] = keras.initializers.get(
+                    final_config[key] = tf.keras.initializers.get(
                         {"class_name": f"krc>{name}", "config": params}
                     )
                 except ValueError:

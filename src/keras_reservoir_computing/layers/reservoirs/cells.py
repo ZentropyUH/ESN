@@ -1,12 +1,11 @@
 from typing import Callable, List, Optional, Union
 
-import keras
 import tensorflow as tf
 
 from .base import BaseCell
 
 
-@keras.saving.register_keras_serializable(package="krc", name="ESNCell")
+@tf.keras.utils.register_keras_serializable(package="krc", name="ESNCell")
 class ESNCell(BaseCell):
     """
     Echo State Network (ESN) cell implementation for reservoir computing.
