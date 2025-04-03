@@ -7,14 +7,13 @@ The layers are used as part of the Reservoir Computing models in this package.
 
 from typing import Dict, List, Union
 
-import keras
 import tensorflow as tf
 
 
-@keras.saving.register_keras_serializable(
+@tf.keras.utils.register_keras_serializable(
     package="krc", name="SelectiveExponentiation"
 )
-class SelectiveExponentiation(keras.layers.Layer):
+class SelectiveExponentiation(tf.keras.layers.Layer):
     r"""
     A Keras layer that exponentiates either the even or odd indices of the last dimension,
     depending on the parity of a given integer index.
@@ -88,9 +87,8 @@ class SelectiveExponentiation(keras.layers.Layer):
         dim = tf.shape(inputs)[-1]
 
         # Mask for even/odd indices. Will be 1 where indexes have the same parity as self.index, 0 otherwise.
-        mask = tf.cast(tf.math.equal(tf.math.mod(tf.range(dim), 2), (self.index + 1) % 2), tf.float32)
-
-        mask_f = tf.cast(mask, dtype=tf.float32)
+        # Mask for even/odd indices. Will be 1 where indexes have the same parity as self.index, 0 otherwise.
+        mask_f = tf.cast(tf.math.equal(tf.math.mod(tf.range(dim), 2), (self.index + 1) % 2), tf.float32)
 
         # Elements to be exponentiated
         masked = inputs * mask_f
@@ -132,10 +130,10 @@ class SelectiveExponentiation(keras.layers.Layer):
         return config
 
 
-@keras.saving.register_keras_serializable(
+@tf.keras.utils.register_keras_serializable(
     package="krc", name="OutliersFilteredMean"
 )
-class OutliersFilteredMean(keras.layers.Layer):
+class OutliersFilteredMean(tf.keras.layers.Layer):
     r"""
     A Keras layer that removes outliers (along the `samples` dimension) independently at
     each (batch, timestep) location, based on a specified method (Z-score or IQR), and
@@ -248,8 +246,8 @@ class OutliersFilteredMean(keras.layers.Layer):
 
         else:  # self.method == "iqr"
             # Q1, Q3 => shape (batch, timesteps)
-            q1 = keras.ops.quantile(norms, 0.25, axis=0)
-            q3 = keras.ops.quantile(norms, 0.75, axis=0)
+            q1 = tf.keras.ops.quantile(norms, 0.25, axis=0)
+            q3 = tf.keras.ops.quantile(norms, 0.75, axis=0)
             iqr = q3 - q1
 
             # Lower/upper bounds
@@ -298,8 +296,8 @@ class OutliersFilteredMean(keras.layers.Layer):
 
 
 # For the ParallelReservoir model
-@keras.saving.register_keras_serializable(package="krc", name="FeaturePartitioner")
-class FeaturePartitioner(keras.layers.Layer):
+@tf.keras.utils.register_keras_serializable(package="krc", name="FeaturePartitioner")
+class FeaturePartitioner(tf.keras.layers.Layer):
     r"""
     A Keras layer that partitions the feature dimension into multiple overlapping slices,
     with optional circular wrapping at the boundaries.
@@ -452,8 +450,8 @@ class FeaturePartitioner(keras.layers.Layer):
         return config
 
 
-@keras.saving.register_keras_serializable(package="krc", name="SelectiveDropout")
-class SelectiveDropout(keras.layers.Layer):
+@tf.keras.utils.register_keras_serializable(package="krc", name="SelectiveDropout")
+class SelectiveDropout(tf.keras.layers.Layer):
     """
     A Keras layer that zeroes out specific features across all timesteps and batches,
     based on a fixed mask provided at initialization.
@@ -552,7 +550,14 @@ class SelectiveDropout(keras.layers.Layer):
         tf.Tensor
             The input tensor with masked features set to zero.
         """
-        return tf.where(self.mask, 0.0, inputs)
+        # Ensure inputs match expected dtype
+        try:
+            # Convert to float32 if necessary for consistent behavior
+            inputs_float = tf.cast(inputs, tf.float32)
+            # Apply selective dropout
+            return tf.where(self.mask, 0.0, inputs_float)
+        except tf.errors.InvalidArgumentError as e:
+            raise ValueError(f"Failed to apply selective dropout: {e}. Check that mask shape {self.mask.shape} matches input feature dimension {inputs.shape[-1]}.")
 
     def compute_output_shape(
         self, input_shape: tuple[int, int, int]
