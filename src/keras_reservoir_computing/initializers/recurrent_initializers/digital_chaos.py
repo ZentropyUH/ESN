@@ -1,15 +1,13 @@
 from typing import Optional
 
-import keras
 import numpy as np
 import tensorflow as tf
-from keras import Initializer
 
 from keras_reservoir_computing.initializers.helpers import spectral_radius_hybrid
 
 
-@keras.saving.register_keras_serializable(package="krc", name="DigitalChaosInitializer")
-class DigitalChaosInitializer(Initializer):
+@tf.keras.utils.register_keras_serializable(package="krc", name="DigitalChaosInitializer")
+class DigitalChaosInitializer(tf.keras.Initializer):
     r"""
     Initializes a sparse adjacency matrix based on a digital chaotic system.
 

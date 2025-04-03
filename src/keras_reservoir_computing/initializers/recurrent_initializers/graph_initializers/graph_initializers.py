@@ -1,8 +1,6 @@
 from typing import List, Optional, Tuple, Union
 
-import keras
 import tensorflow as tf
-from keras.src.initializers import Initializer
 
 from .generators import (
     barabasi_albert,
@@ -19,10 +17,10 @@ from keras_reservoir_computing.initializers.helpers import (
 from keras_reservoir_computing.utils.general import create_rng
 
 
-@keras.saving.register_keras_serializable(
+@tf.keras.utils.register_keras_serializable(
     package="krc", name="GraphInitializerBase"
 )
-class GraphInitializerBase(Initializer):
+class GraphInitializerBase(tf.keras.Initializer):
     """
     Base class for initializers generating adjacency matrices for graph-based models.
 
@@ -142,7 +140,7 @@ class GraphInitializerBase(Initializer):
         return config
 
 
-@keras.saving.register_keras_serializable(
+@tf.keras.utils.register_keras_serializable(
     package="krc", name="WattsStrogatzGraphInitializer"
 )
 class WattsStrogatzGraphInitializer(GraphInitializerBase):
@@ -243,7 +241,7 @@ class WattsStrogatzGraphInitializer(GraphInitializerBase):
         return config
 
 
-@keras.saving.register_keras_serializable(
+@tf.keras.utils.register_keras_serializable(
     package="krc", name="ErdosRenyiGraphInitializer"
 )
 class ErdosRenyiGraphInitializer(GraphInitializerBase):
@@ -338,7 +336,7 @@ class ErdosRenyiGraphInitializer(GraphInitializerBase):
         return config
 
 
-@keras.saving.register_keras_serializable(
+@tf.keras.utils.register_keras_serializable(
     package="krc", name="BarabasiAlbertGraphInitializer"
 )
 class BarabasiAlbertGraphInitializer(GraphInitializerBase):
@@ -419,7 +417,7 @@ class BarabasiAlbertGraphInitializer(GraphInitializerBase):
         return config
 
 
-@keras.saving.register_keras_serializable(
+@tf.keras.utils.register_keras_serializable(
     package="krc", name="NewmanWattsStrogatzGraphInitializer"
 )
 class NewmanWattsStrogatzGraphInitializer(GraphInitializerBase):
@@ -512,7 +510,7 @@ class NewmanWattsStrogatzGraphInitializer(GraphInitializerBase):
         return config
 
 
-@keras.saving.register_keras_serializable(
+@tf.keras.utils.register_keras_serializable(
     package="krc", name="KleinbergSmallWorldGraphInitializer"
 )
 class KleinbergSmallWorldGraphInitializer(GraphInitializerBase):
@@ -612,7 +610,7 @@ class KleinbergSmallWorldGraphInitializer(GraphInitializerBase):
         return config
 
 
-@keras.saving.register_keras_serializable(
+@tf.keras.utils.register_keras_serializable(
     package="krc", name="RegularGraphInitializer"
 )
 class RegularGraphInitializer(GraphInitializerBase):
@@ -704,7 +702,7 @@ class RegularGraphInitializer(GraphInitializerBase):
         return config
 
 
-@keras.saving.register_keras_serializable(
+@tf.keras.utils.register_keras_serializable(
     package="krc", name="CompleteGraphInitializer"
 )
 class CompleteGraphInitializer(GraphInitializerBase):

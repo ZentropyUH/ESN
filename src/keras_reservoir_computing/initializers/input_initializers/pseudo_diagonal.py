@@ -2,17 +2,15 @@
 
 from typing import Union
 
-import keras
 import tensorflow as tf
-from keras import Initializer
 
 from keras_reservoir_computing.utils.tensorflow import create_tf_rng
 
 
-@keras.saving.register_keras_serializable(
+@tf.keras.utils.register_keras_serializable(
     package="krc", name="PseudoDiagonalInitializer"
 )
-class PseudoDiagonalInitializer(Initializer):
+class PseudoDiagonalInitializer(tf.keras.Initializer):
     """
     An initializer that generates an input matrix connecting inputs to reservoir nodes.
 

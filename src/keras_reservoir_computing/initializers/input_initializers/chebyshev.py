@@ -1,13 +1,11 @@
 from typing import Optional
 
-import keras
 import numpy as np
 import tensorflow as tf
-from keras import Initializer
 
 
-@keras.saving.register_keras_serializable(package="krc", name="ChebyshevInitializer")
-class ChebyshevInitializer(Initializer):
+@tf.keras.utils.register_keras_serializable(package="krc", name="ChebyshevInitializer")
+class ChebyshevInitializer(tf.keras.Initializer):
     """
     Keras initializer using Chebyshev mapping for Echo State Networks (ESNs).
 
