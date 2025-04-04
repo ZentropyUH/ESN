@@ -1,207 +1,379 @@
-# ESN
-An Echo State Network implementation integrated with a general scheme to use broad range of other reservoirs.
+# Keras Reservoir Computing (KRC)
+
+A TensorFlow/Keras implementation of reservoir computing with a focus on Echo State Networks (ESNs). This library provides a flexible framework for creating, training, and evaluating reservoir computing models integrated with the Keras API.
 
 ## Installation
 
-### For those that use Anaconda
+### Using Conda
 
-Create a conda environment with the `environment.yml` file provided in the repository.
+Create a conda environment with the provided `environment.yml` file:
 
 ```bash
 conda env create -f environment.yml
-```
-
-After creating the environment, you should activate it.
-
-```bash
 conda activate krc
 ```
 
-### For those that use virtualenv
+### Using pip
 
-Create a virtual environment with the `requirements.txt` file provided in the repository.
+Create a virtual environment with the `requirements.txt` file:
 
 ```bash
-virtualenv krc
-source krc/bin/activate
+python -m venv krc
+source krc/bin/activate  # On Windows: krc\Scripts\activate
+pip install -r requirements.txt
 ```
-
-### For those who prefer to live on the edge
-
-Skip the environment creation and install the dependencies manually. Let Troy be with you.
-
 
 ### Install the package
 
-Then you can install the package using the `setup.py` file.
-
-```bash
-python setup.py
-```
-
-Alternatively, you can install the package using pip, standing in the root directory of the repository.
+Install the package from the repository root:
 
 ```bash
 pip install .
 ```
 
+## Keras Reservoir Computing Workflow
 
-From then on you can import the package in your code.
+This guide demonstrates how to implement, train, and use reservoir computing models with the KRC library. Reservoir computing models are particularly suitable for time series forecasting.
+
+### 1. Using Pre-built Model Architectures
+
+KRC provides several pre-built model architectures for common reservoir computing tasks:
 
 ```python
+import tensorflow as tf
+import numpy as np
 import keras_reservoir_computing as krc
-
-krc.utils # A module with utility functions
-krc.initializers # A module with custom initializers
-krc.layers # A module with custom layers
-krc.reservoirs # A module with custom reservoirs
-krc.models # A module with custom models
+from keras_reservoir_computing.models.architectures import (
+    classic_ESN,
+    Ott_ESN,
+    ensemble_with_mean_ESN,
+    residual_stacked_ESN
+)
 ```
 
-## General description
-
-The main classes are `ReservoirComputer` which is a general class to use any reservoir, and `ReservoirEnsemble`, which is a class to use several reservoir computers integrated in an ensemble mode. 
-
-The reservoirs are implemented in the `reservoirs` module.
-
-
-`BaseReservoir` and `BaseReservoirCell` are the abstract classes for the reservoirs and reservoir cells, respectively. 
-
-The `EchoStateNetwork` class is a subclass of `BaseReservoir`. The `EchoStateNetwork` class is a simple implementation of an ESN with its `ESNCell` class being the reservoir cell.
-
-
-### Initializers
-
-The custom initializers allow for a more flexible way to initialize the reservoir. 
-
-The `InputMatrix` class is used to initialize the feedback weights. The `WattsStrogatzNX` class is used to initialize the reservoir weights. 
-
-The `WattsStrogatzNX` class is a subclass of `keras.initializers.Initializer` and it is used to initialize the reservoir weights using the Watts-Strogatz model. The `WattsStrogatzNX` class uses the `networkx` library to generate the Watts-Strogatz graph.
-
-
-## Usage
-
-
-### ReservoirComputer
-
-To use the `ReservoirComputer` class we have to define the reservoir we want to use. Currently available reservoirs are:
-
-- `EchoStateNetwork` (With feedback only)
-
-#### Code example
-
-##### Define the hyperparameters if needed. Optional but recommended.
+#### Classic Echo State Network
 
 ```python
-input_scaling = 0.1 # This is the scaling of the input weights. Used to set the range of random values for the input weights
-degree = 10 # This is the degree of the Watts-Strogatz graph
-spectral_radius = 0.9 # Specially important for ESN to achieve the echo state property
-rewiring = 0.9 # This is the probability of rewiring the Watts-Strogatz graph
-units = 300 # This is the number of neurons in the reservoir. It saturates depending on the input size.
-leak_rate = 0.6 # This regulates the speed of the reservoir dynamics
-regularization = 1e-6 # Regularization for the readout layer
+# Create a basic ESN model
+model = classic_ESN(
+    units=300,            # Reservoir size
+    batch=1,              # Batch size
+    features=3            # Dimensionality of input/output data
+)
 ```
 
-##### Instantiate initializers for the reservoir cell. This is optional, but the default values are not recommended.
+#### Ott's ESN Model with State Augmentation
 
 ```python
-feedback_init = InputMatrix(sigma=input_scaling, ones=False, seed=seed)
-
-feedback_bias_init = keras.initializers.random_uniform(seed=seed, minval=-input_scaling, maxval=input_scaling)
-
-kernel_init = WattsStrogatzNX(
-    degree=degree,
-    spectral_radius=spectral_radius,
-    rewiring_p=rewiring,
-    # sigma=0.5,
-    ones=True,
-    seed=seed,
+# Create an ESN model with Edward Ott's reservoir architecture
+# This model augments the reservoir output with squared values and concatenates with input
+model = Ott_ESN(
+    units=300,
+    batch=1,
+    features=3
 )
 ```
 
-
-##### Load the data using the load_data function from utils.py
-```python
-data_file = (
-    "./src/systems/data/Lorenz/Lorenz_dt0.02_steps150000_t-end3000.0_seed667850.csv"
-    # "./src/systems/data/Lorenz/Lorenz_dt0.02_steps150000_t-end3000.0_seed28295.csv"
-)
-train_length = 20000 # Or any other value
-
-transient_data, train_data, train_target, ftransient, val_data, val_target = load_data(
-    data_file, train_length=train_length, transient=1000, normalize=True
-)
-
-features = transient_data.shape[-1]
-
-# This will yield a tuple of np.ndarrays with shapes:
-# (1, transient, 3)
-# (1, train_length, 3)
-# (1, train_length, 3)
-# (1, transient, 3)
-# (1, rest_of_timesteps, 3)
-# (1, rest_of_timesteps, 3)
-```
-
-##### Instantiate the reservoir cell and the reservoir computer
-```python
-esn_cell = ESNCell(
-    units=units,
-    leak_rate=leak_rate,
-    noise_level=0.0,
-    input_initializer=feedback_init,
-    input_bias_initializer=feedback_bias_init,
-    kernel_initializer=kernel_init)
-
-reservoir = EchoStateNetwork(
-    reservoir_cell=esn_cell
-)
-
-readout_layer = keras.layers.Dense(
-    features, activation="linear", name="readout", trainable=False
-)
-
-model = ReservoirComputer(reservoir=reservoir, readout=readout_layer, seed=seed)
-```
-
-##### Train the reservoir computer
-
-Since the training of ESN is a non-conventional training, we have a custom train method within the `ReservoirComputer` class. This will be used to train the readout layer instead of the conventional `model.fit` method.
+#### Ensemble of ESNs with Mean Aggregation
 
 ```python
-loss = model.train(
-    (transient_data, train_data), train_target, regularization=regularization
+# Create an ensemble of ESN models
+model = ensemble_with_mean_ESN(
+    units=300,
+    ensemble_size=5,     # Number of reservoir models in the ensemble
+    batch=1,
+    features=3
 )
 ```
 
-##### Predict using the reservoir computer
-
-The predictions are done using the custom method `forecast` from the `ReservoirComputer` class.
-
-This method will return the forecast, the internal states of the reservoir, the cumulative error, and the number of steps that the error was above the threshold.
-
-The `states` are returned as a 2D Tensor with shape `(1, n_timesteps, n_units)` only if internal_states is set to True.
-
-The `cumulative` error is a 1D Tensor with shape `(n_timesteps,)` and it is the sum of the errors for each timestep.
-
-The `threshold_steps` is the number of steps before the error was above the threshold. Only returned if the error_threshold is set.
-
-The `forecast` is a 2D Tensor with shape `(1, forecast_length, n_features)`.
-
+#### Residual Stacked ESN
 
 ```python
-forecast_length = 1000
-forecast, states, cumulative_error, threshold_steps = model.forecast(
-    forecast_length=forecast_length,
-    forecast_transient_data=ftransient,
-    val_data=val_data,
-    val_target=val_target,
-    error_threshold=0.5,
-    internal_states=True,
+# Create a multi-layer ESN with residual connections
+model = residual_stacked_ESN(
+    units=[300, 200, 100],  # Units per reservoir layer
+    batch=1,
+    features=3
 )
 ```
 
+### 2. Configuring Reservoirs and Readouts with JSON
 
-### ReservoirEnsemble
+KRC makes it easy to configure models using JSON/dictionary configurations:
 
-TODO
+```python
+# Custom reservoir configuration
+reservoir_config = {
+    "units": 300,
+    "feedback_dim": 3,          # Dimension of feedback
+    "input_dim": 0,             # Set to 0 for feedback-only
+    "leak_rate": 0.6,           # Controls memory of the reservoir
+    "activation": "tanh",
+    "kernel_initializer": {
+        "name": "WattsStrogatzGraphInitializer",
+        "params": {
+            "k": 10,            # Number of neighbors in small-world graph
+            "p": 0.1,           # Rewiring probability
+            "spectral_radius": 0.9,  # Controls echo state property
+            "directed": True,
+            "seed": 42
+        }
+    },
+    "feedback_initializer": {
+        "name": "PseudoDiagonalInitializer",
+        "params": {"sigma": 0.5, "binarize": False, "seed": 42}
+    }
+}
+
+# Custom readout configuration
+readout_config = {
+    "kind": "ridge",            # Use ridge regression ("ridge" or "mpenrose")
+    "units": 3,                 # Output dimension
+    "alpha": 1e-6,              # Regularization strength
+    "trainable": False          # Not trained with gradient descent
+}
+
+# Create model with custom configuration
+model = classic_ESN(
+    units=300,
+    reservoir_config=reservoir_config,
+    readout_config=readout_config,
+    batch=1,
+    features=3
+)
+```
+
+### 3. Building Custom Reservoir Models
+
+For more flexibility, you can create custom reservoir models using the builder functions:
+
+```python
+from keras_reservoir_computing.layers.builders import ESNReservoir_builder, ReadOut_builder
+
+# Create input layer
+inputs = tf.keras.layers.Input(shape=(None, 3), batch_size=1)
+
+# Build reservoir using configuration dictionary
+reservoir = ESNReservoir_builder(reservoir_config)(inputs)
+
+# Optional: Add additional processing to reservoir outputs
+processed = tf.keras.layers.Dense(50, activation='relu')(reservoir)
+
+# Build readout layer
+outputs = ReadOut_builder(readout_config)(processed)
+
+# Create model
+custom_model = tf.keras.models.Model(inputs=inputs, outputs=outputs)
+```
+
+### 4. Training Reservoir Computing Models
+
+Unlike traditional neural networks, reservoir computing models are not trained with gradient descent. KRC provides a custom trainer for readout layers:
+
+```python
+from keras_reservoir_computing.training.training import ReservoirTrainer
+
+# Prepare your data
+# X_train: shape (batch_size, timesteps, features)
+# y_train: shape (batch_size, timesteps, targets)
+
+# Create a trainer for the model
+trainer = ReservoirTrainer(
+    model=model,
+    readout_targets={"ridge_svdreadout": y_train}  # Map readout layers to targets
+)
+
+# Train the model
+# First run a warm-up phase to initialize the reservoir state
+warmup_data = X_train[:, :100, :]  # Use first 100 timesteps as warmup
+
+# Fit all readout layers in the correct order
+trainer.fit_readout_layers(
+    warmup_data=warmup_data,
+    X=X_train
+)
+```
+
+#### Key Training Implementation Details
+
+- **Reservoir State Preservation**: The warmup phase is crucial as it initializes the internal states of reservoir layers before training begins. These states are maintained throughout the training process.
+
+- **ReadOut Training Process**:
+  1. For each ReadOut layer in topological order:
+     - An intermediate model is created to extract inputs for that layer
+     - The warmup phase runs to initialize reservoir states
+     - Inputs are extracted and passed to the ReadOut layer's fit method
+  
+- **Ridge Regression with SVD**:
+  - ReadOut layers like RidgeSVDReadout use ridge regression with SVD decomposition for numerical stability
+  - The fit method automatically:
+    - Casts inputs to float64 for numerical precision
+    - Flattens 3D inputs (batch, timesteps, features) to 2D (samples, features)
+    - Centers the data before computing the SVD
+    - Applies regularization via the alpha parameter
+    - Computes weights analytically and assigns them to the layer
+
+### 5. Generating Forecasts
+
+Once trained, the model can be used for generating multi-step forecasts:
+
+```python
+from keras_reservoir_computing.forecasting.forecasting import forecast, warmup_forecast
+
+# For generative forecasting (predicting future steps beyond training data)
+forecast_horizon = 1000  # Number of steps to forecast
+
+# Option 1: Basic forecast (starting from the last training point)
+initial_feedback = X_train[:, -1:, :]  # Use last timestep as initial condition
+external_inputs = ()  # No external inputs for a feedback-only model
+
+# Generate forecast
+predictions, states = forecast(
+    model=model,
+    initial_feedback=initial_feedback,
+    horizon=forecast_horizon,
+    external_inputs=external_inputs
+)
+
+# Option 2: Warmup forecast (runs a warmup phase on actual data before forecasting)
+warmup_data = X_train[:, -200:, :]  # Use last 200 timesteps for warmup
+forecast_data = X_test  # The test data we want to forecast
+
+predictions, states = warmup_forecast(
+    model=model,
+    warmup_data=warmup_data,
+    forecast_data=forecast_data,
+    horizon=forecast_horizon
+)
+```
+
+#### Key Forecasting Implementation Details
+
+- **Auto-regressive Process**: The forecasting is auto-regressive, meaning each prediction is fed back as input for generating the next step.
+
+- **Reservoir State Tracking**: The forecasting functions maintain and track the internal states of all reservoir layers during prediction, returning these states along with the predictions.
+
+- **Warmup Importance**: The `warmup_forecast` function is generally preferred as it:
+  1. Properly initializes reservoir states by running the model on actual data
+  2. Creates a smooth transition between observed data and forecasts
+  3. Reduces initial forecast errors that can occur with randomly initialized states
+
+- **Efficient Implementation**: The forecasting functions use TensorFlow's `tf.while_loop` with shape invariants for efficient execution, making it possible to generate long forecasts without excessive memory usage.
+
+- **External Input Support**: For models that use external inputs beyond feedback, you can provide these as time series to incorporate known future information during forecasting.
+
+### 6. Integrating Reservoir Models into Larger Keras Networks
+
+You can incorporate reservoir layers into larger Keras architectures:
+
+```python
+# Create a more complex model with reservoir and standard Keras layers
+
+# Multiple inputs
+feedback_input = tf.keras.layers.Input(shape=(None, 3), name="feedback_input")
+external_input = tf.keras.layers.Input(shape=(None, 5), name="external_input")
+
+# Pre-process external inputs
+processed_inputs = tf.keras.layers.Dense(10, activation='relu')(external_input)
+
+# Combine inputs
+combined = tf.keras.layers.Concatenate()([feedback_input, processed_inputs])
+
+# Create reservoir with external inputs
+reservoir_config["input_dim"] = 10  # Match dimension of combined inputs
+reservoir = ESNReservoir_builder(reservoir_config)(combined)
+
+# Add downstream layers
+x = tf.keras.layers.Dense(50, activation='relu')(reservoir)
+outputs = ReadOut_builder(readout_config)(x)
+
+# Create hybrid model with multiple inputs
+hybrid_model = tf.keras.models.Model(
+    inputs=[feedback_input, external_input],
+    outputs=outputs
+)
+
+# Training works the same way with the ReservoirTrainer
+```
+
+## Advanced Usage
+
+### Graph-Based Reservoir Initializers
+
+The library provides several graph-based initializers for reservoir weights:
+
+```python
+from keras_reservoir_computing.initializers.recurrent_initializers.graph_initializers import (
+    WattsStrogatzGraphInitializer,    # Small-world networks
+    ErdosRenyiGraphInitializer,       # Random graphs
+    BarabasiAlbertGraphInitializer,   # Scale-free networks
+    NewmanWattsStrogatzGraphInitializer,
+    RegularGraphInitializer,
+    CompleteGraphInitializer
+)
+```
+
+Each initializer creates reservoirs with different topological properties:
+
+```python
+# Small-world topology (good for most tasks)
+small_world_init = WattsStrogatzGraphInitializer(
+    k=10,                  # Number of neighbors
+    p=0.1,                 # Rewiring probability
+    spectral_radius=0.9,   # Controls stability
+    directed=True          # Directed connections
+)
+
+# Scale-free network (higher connectivity variation)
+scale_free_init = BarabasiAlbertGraphInitializer(
+    m=3,                   # New nodes form m connections
+    spectral_radius=0.9,
+    directed=True
+)
+
+# Random graph topology
+random_init = ErdosRenyiGraphInitializer(
+    p=0.1,                 # Connection probability
+    spectral_radius=0.9,
+    directed=True
+)
+```
+
+### Readout Methods
+
+The library supports different readout training approaches:
+
+```python
+# Ridge regression with SVD (better numerical stability)
+ridge_config = {
+    "kind": "ridge",
+    "units": 3,
+    "alpha": 1e-5          # Regularization strength
+}
+
+# Moore-Penrose pseudoinverse method
+mpenrose_config = {
+    "kind": "mpenrose",
+    "units": 3
+}
+```
+
+## Saving and Loading Models
+
+Reservoir models can be saved and loaded like any Keras model:
+
+```python
+# Save the model
+model.save('my_reservoir_model')
+
+# Load the model
+loaded_model = tf.keras.models.load_model('my_reservoir_model')
+```
+
+## Examples
+
+See the `/examples` directory for complete examples of:
+- Time series forecasting with ESNs
+- Working with multiple inputs
+- Ensemble models
+- Hyperparameter tuning
