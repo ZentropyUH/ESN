@@ -8,30 +8,68 @@ import tensorflow as tf
 class BaseCell(tf.keras.Layer, ABC):
     """
     Abstract base class for different types of reservoir cells.
-    Each reservoir cell represents the one-step computation unit
-    of a reservoir (akin to an RNN cell).
-
+    
+    A reservoir cell is the fundamental computational unit of a reservoir network,
+    similar to an RNN cell. It defines how the reservoir state is updated for
+    each time step based on inputs and previous states.
+    
     Parameters
     ----------
     units : int
-        Number of units in the reservoir cell.
+        Number of units (neurons) in the reservoir cell.
     feedback_dim : int, optional
-        Dimensionality of the feedback input, by default 1.
+        Dimensionality of the feedback input. Default is 1.
     input_dim : int, optional
-        Dimensionality of the input, by default 1.
+        Dimensionality of the external input. Default is 1.
     leak_rate : float, optional
-        Leak rate of the reservoir cell, by default 1.0.
-    activation : Optional[Union[str, Callable]], optional
-        Activation function to use, by default "tanh".
+        Leaking rate for the reservoir state update, controls the speed of
+        dynamics (0 = no update, 1 = complete update). Default is 1.0.
+    state_sizes : List[int], optional
+        List of state sizes for each state tensor. If None, a single state
+        with size `units` is used. Default is None.
     **kwargs : dict
-        Additional keyword arguments for the Layer base class.
+        Additional keyword arguments passed to the parent Layer class.
 
     Attributes
     ----------
     units : int
         Number of units in the reservoir cell.
-    state_size : int
-        Size of the state (same as `units`).
+    feedback_dim : int
+        Dimensionality of the feedback input.
+    input_dim : int
+        Dimensionality of the external input.
+    state_size : List[int]
+        List of sizes for each state tensor.
+    leak_rate : float
+        Leaking rate for the reservoir state update.
+        
+    Notes
+    -----
+    - This is an abstract base class that must be subclassed
+    - Subclasses must implement `build()` and `call()` methods
+    - The state_size attribute can be a list of integers if the cell has multiple states
+    
+    Examples
+    --------
+    Subclassing example:
+    
+    >>> import tensorflow as tf
+    >>> from keras_reservoir_computing.layers.reservoirs.base import BaseCell
+    >>> 
+    >>> class SimpleReservoirCell(BaseCell):
+    ...     def build(self, input_shape):
+    ...         self.kernel = self.add_weight(
+    ...             shape=(self.feedback_dim, self.units),
+    ...             initializer="glorot_uniform",
+    ...             name="kernel"
+    ...         )
+    ...         super().build(input_shape)
+    ...         
+    ...     def call(self, inputs, states, training=False):
+    ...         prev_state = states[0]
+    ...         output = tf.matmul(inputs, self.kernel)
+    ...         new_state = (1 - self.leak_rate) * prev_state + self.leak_rate * output
+    ...         return new_state, [new_state]
     """
 
     def __init__(
@@ -44,14 +82,38 @@ class BaseCell(tf.keras.Layer, ABC):
         **kwargs,
     ) -> None:
         """
-        Initialize the BaseReservoirCell.
+        Initialize the BaseCell.
 
         Parameters
         ----------
         units : int
-            Number of units in the reservoir cell.
+            Number of units (neurons) in the reservoir cell.
+        feedback_dim : int, optional
+            Dimensionality of the feedback input. Default is 1.
+        input_dim : int, optional
+            Dimensionality of the external input. Default is 1.
+        leak_rate : float, optional
+            Leaking rate for the reservoir state update (0 = no update, 1 = complete update).
+            Default is 1.0.
+        state_sizes : List[int], optional
+            List of state sizes for each state tensor. If None, a single state with 
+            size `units` is used. Default is None.
         **kwargs : dict
-            Additional keyword arguments for the Layer base class.
+            Additional keyword arguments passed to the parent Layer class.
+            
+        Examples
+        --------
+        >>> from keras_reservoir_computing.layers.reservoirs.cells import ESNCell
+        >>> # Create a basic ESN cell with 100 units
+        >>> cell = ESNCell(units=100)
+        >>> # Create a cell with custom parameters
+        >>> cell = ESNCell(
+        ...     units=150,
+        ...     feedback_dim=10,
+        ...     input_dim=5,
+        ...     leak_rate=0.3,
+        ...     spectral_radius=0.9
+        ... )
         """
         super().__init__(**kwargs)
         self.units = units
@@ -99,6 +161,37 @@ class BaseCell(tf.keras.Layer, ABC):
         pass
 
     def get_initial_state(self, batch_size: int = None) -> List[tf.Tensor]:
+        """
+        Generate initial state tensors for the reservoir.
+        
+        Creates initial states for the reservoir with random values
+        drawn from a uniform distribution in the range [-1, 1].
+        
+        Parameters
+        ----------
+        batch_size : int, optional
+            The batch size for the generated states. Must be provided
+            to create properly shaped state tensors.
+            
+        Returns
+        -------
+        List[tf.Tensor]
+            A list of tensors representing the initial state.
+            Each tensor has shape (batch_size, state_size_i).
+            
+        Examples
+        --------
+        >>> from keras_reservoir_computing.layers.reservoirs.cells import ESNCell
+        >>> cell = ESNCell(units=10)
+        >>> states = cell.get_initial_state(batch_size=4)
+        >>> [s.shape for s in states]
+        [(4, 10)]
+        
+        Notes
+        -----
+        This method is typically called by the RNN layer that wraps the cell
+        to initialize the states at the beginning of a sequence.
+        """
         return [
             tf.random.uniform(
                 (batch_size, size), minval=-1.0, maxval=1.0, dtype=self.compute_dtype
@@ -108,12 +201,22 @@ class BaseCell(tf.keras.Layer, ABC):
 
     def get_config(self) -> dict:
         """
-        Return the configuration of the BaseReservoirCell.
+        Return the configuration dictionary of the BaseCell.
 
         Returns
         -------
         dict
-            Dictionary containing configuration parameters.
+            Dictionary containing all configuration parameters needed
+            to reconstruct the cell (units, feedback_dim, input_dim,
+            leak_rate, state_sizes).
+            
+        Examples
+        --------
+        >>> from keras_reservoir_computing.layers.reservoirs.cells import ESNCell
+        >>> cell = ESNCell(units=100, leak_rate=0.5)
+        >>> config = cell.get_config()
+        >>> # Create a new cell with the same configuration
+        >>> new_cell = ESNCell.from_config(config)
         """
         config = super().get_config()
         config.update(
@@ -131,36 +234,60 @@ class BaseCell(tf.keras.Layer, ABC):
 @tf.keras.utils.register_keras_serializable(package="krc", name="BaseReservoir")
 class BaseReservoir(tf.keras.layers.RNN):
     """
-    Abstract base class for different types of reservoirs.
-    Each reservoir is a recurrent neural network that wraps a reservoir cell in a RNN.
-    All reservoirs will be stateful and return the full sequence of outputs.
-
+    Abstract base class for reservoir layers.
+    
+    A reservoir layer wraps a reservoir cell (BaseCell) within TensorFlow's RNN
+    framework to process sequence data. This base class ensures that all reservoir
+    implementations are stateful and return the full sequence of outputs.
+    
     Parameters
     ----------
     cell : BaseCell
-        The reservoir cell to use in the reservoir.
+        The reservoir cell to use in this layer. Must be a subclass of BaseCell.
     **kwargs : dict
-        Additional keyword arguments for the RNN base class.
+        Additional keyword arguments passed to the parent RNN class.
 
     Attributes
     ----------
     cell : BaseCell
-        The reservoir cell to use in the reservoir.
-    return_sequences : bool
-        Whether to return the full sequence of outputs.
-    return_state : bool
-        Whether to return the last state of the reservoir.
-    state_size : int
-        Size of the reservoir state.
-
-    Methods
-    -------
-    get_states(self) -> List[tf.Tensor]
-        Return the states of the reservoir.
-    set_states(self, states: List[tf.Tensor]) -> None
-        Set the states of the reservoir.
-    _harvest(self, sequence: tf.Tensor) -> List[tf.Tensor]]
-        Harvest the reservoir states from the input sequence.
+        The reservoir cell used in the layer.
+    units : int
+        Number of units (neurons) in the reservoir.
+    feedback_dim : int
+        Dimensionality of the feedback input.
+    input_dim : int
+        Dimensionality of the external input.
+        
+    Notes
+    -----
+    - All reservoirs are configured as stateful by default
+    - All reservoirs return sequences by default (return_sequences=True)
+    - State management methods (get_states, set_states, reset_states) allow 
+      explicit control of the reservoir's internal state
+    - Use reset_states() to set all states to zero
+    - Use set_random_states() to randomize all states
+      
+    Examples
+    --------
+    >>> import tensorflow as tf
+    >>> from keras_reservoir_computing.layers.reservoirs.cells import ESNCell
+    >>> from keras_reservoir_computing.layers.reservoirs.reservoirs import ESNReservoir
+    >>> 
+    >>> # Create a simple ESN
+    >>> inputs = tf.keras.Input(shape=(None, 5))  # Sequential input with 5 features
+    >>> cell = ESNCell(units=100, spectral_radius=0.9, leak_rate=0.3)
+    >>> reservoir = ESNReservoir(cell=cell)(inputs)
+    >>> model = tf.keras.Model(inputs, reservoir)
+    >>> 
+    >>> # Examine the output shape
+    >>> print(f"Output shape: {model.output_shape}")
+    Output shape: (None, None, 100)  # (batch_size, timesteps, units)
+    >>> 
+    >>> # Create input data and run the model
+    >>> x = tf.random.normal((32, 10, 5))  # (batch_size=32, timesteps=10, features=5)
+    >>> output = model(x)
+    >>> print(f"Output tensor shape: {output.shape}")
+    Output tensor shape: (32, 10, 100)
     """
 
     def __init__(

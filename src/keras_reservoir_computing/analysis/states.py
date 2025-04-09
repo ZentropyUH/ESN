@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Dict, List, Tuple, Union
 
 import tensorflow as tf
 
@@ -8,17 +8,30 @@ from keras_reservoir_computing.layers.reservoirs.base import BaseReservoir
 
 def get_reservoir_states(model: tf.keras.Model) -> dict:
     """
-    Get the states of the reservoirs in the model.
+    Get the current states of all reservoir layers in the model.
 
     Parameters
     ----------
-    model : keras.Model
-        The model containing the reservoirs.
+    model : tf.keras.Model
+        The model containing the reservoir layers.
 
     Returns
     -------
     dict
-        A dictionary with keys as the names of the reservoir layers and values as the states of the reservoirs.
+        A dictionary mapping reservoir layer names to their current states.
+        Each value is a list of tensors, with shape [batch_size, state_size].
+        
+    Examples
+    --------
+    >>> import tensorflow as tf
+    >>> from keras_reservoir_computing.layers.builders import ESNReservoir_builder
+    >>> from keras_reservoir_computing.analysis.states import get_reservoir_states
+    >>> inputs = tf.keras.Input(shape=(None, 5))
+    >>> reservoir = ESNReservoir_builder({"units": 10})(inputs)
+    >>> model = tf.keras.Model(inputs, reservoir)
+    >>> states = get_reservoir_states(model)
+    >>> for layer_name, layer_states in states.items():
+    ...     print(f"Layer {layer_name} states: {[s.shape for s in layer_states]}")
     """
     states = {}
 
@@ -31,19 +44,41 @@ def get_reservoir_states(model: tf.keras.Model) -> dict:
 
 def set_reservoir_states(model: tf.keras.Model, states: dict) -> None:
     """
-    Set the states of the reservoirs in the model.
+    Set the states of all reservoir layers in the model.
 
     Parameters
     ----------
-    model : keras.Model
-        The model containing the reservoirs.
+    model : tf.keras.Model
+        The model containing the reservoir layers.
     states : dict
-        A dictionary with keys as the names of the reservoir layers and values as the states of the reservoirs.
+        A dictionary mapping reservoir layer names to their desired states.
+        Each value should be a list of tensors with shape [batch_size, state_size],
+        matching the state structure of each reservoir layer.
 
     Raises
     ------
     ValueError
         If the keys in the states dictionary do not match the names of the reservoir layers
+        in the model, or if state dimensions don't match the reservoir configuration.
+        
+    Examples
+    --------
+    >>> import tensorflow as tf
+    >>> import numpy as np
+    >>> from keras_reservoir_computing.layers.builders import ESNReservoir_builder
+    >>> from keras_reservoir_computing.analysis.states import get_reservoir_states, set_reservoir_states
+    >>> inputs = tf.keras.Input(shape=(None, 5))
+    >>> reservoir = ESNReservoir_builder({"units": 10})(inputs)
+    >>> model = tf.keras.Model(inputs, reservoir)
+    >>> # Get current states
+    >>> current_states = get_reservoir_states(model)
+    >>> # Create custom states (for batch_size=2)
+    >>> custom_states = {
+    ...     layer_name: [tf.random.uniform((2, 10)) for _ in layer_states]
+    ...     for layer_name, layer_states in current_states.items()
+    ... }
+    >>> # Set custom states
+    >>> set_reservoir_states(model, custom_states)
     """
 
     # Check if the states are valid
@@ -68,12 +103,28 @@ def set_reservoir_states(model: tf.keras.Model, states: dict) -> None:
 
 def reset_reservoir_states(model: tf.keras.Model) -> None:
     """
-    Reset the states of the reservoirs in the model.
+    Reset the states of all reservoir layers in the model to zero.
 
     Parameters
     ----------
-    model : keras.Model
-        The model containing the reservoirs.
+    model : tf.keras.Model
+        The model containing the reservoir layers.
+        
+    Returns
+    -------
+    None
+        The method updates the reservoir states in-place.
+        
+    Examples
+    --------
+    >>> import tensorflow as tf
+    >>> from keras_reservoir_computing.layers.builders import ESNReservoir_builder  
+    >>> from keras_reservoir_computing.analysis.states import reset_reservoir_states
+    >>> inputs = tf.keras.Input(shape=(None, 5))
+    >>> reservoir = ESNReservoir_builder({"units": 10})(inputs)
+    >>> model = tf.keras.Model(inputs, reservoir)
+    >>> # Reset all reservoir states to zero
+    >>> reset_reservoir_states(model)
     """
 
     for layer in model.layers:
@@ -83,12 +134,33 @@ def reset_reservoir_states(model: tf.keras.Model) -> None:
 
 def set_reservoir_random_states(model: tf.keras.Model, dist: str = "uniform") -> None:
     """
-    Set the states of the reservoirs in the model to random values.
+    Set the states of all reservoir layers in the model to random values.
 
     Parameters
     ----------
-    model : keras.Model
-        The model containing the reservoirs.
+    model : tf.keras.Model
+        The model containing the reservoir layers.
+    dist : str, optional
+        Distribution to use for random state initialization.
+        Options are "uniform" (default) or "normal".
+        
+    Returns
+    -------
+    None
+        The method updates the reservoir states in-place.
+        
+    Examples
+    --------
+    >>> import tensorflow as tf
+    >>> from keras_reservoir_computing.layers.builders import ESNReservoir_builder
+    >>> from keras_reservoir_computing.analysis.states import set_reservoir_random_states
+    >>> inputs = tf.keras.Input(shape=(None, 5))
+    >>> reservoir = ESNReservoir_builder({"units": 10})(inputs)
+    >>> model = tf.keras.Model(inputs, reservoir)
+    >>> # Set all reservoir states to random values from uniform distribution
+    >>> set_reservoir_random_states(model, dist="uniform")
+    >>> # Set all reservoir states to random values from normal distribution
+    >>> set_reservoir_random_states(model, dist="normal")
     """
 
     for layer in model.layers:
@@ -103,29 +175,62 @@ def harvest(
     external_seqs: Tuple[tf.Tensor, ...] = (),
 ) -> dict:
     """
-    Collect reservoir states while running the model with provided feedback sequence.
+    Collect reservoir states while running the model with provided sequences.
 
+    This function runs the model step by step with the given input sequences
+    and collects the internal states of all reservoir layers at each timestep.
+    
     Parameters
     ----------
     model : tf.keras.Model
-        The model containing BaseReservoir layers whose states we want to collect.
+        The model containing BaseReservoir layers whose states will be collected.
     feedback_seq : tf.Tensor
         The feedback sequence to use, shape [batch_size, timesteps, features].
-    external_seqs : Tuple[tf.Tensor, ...]
+    external_seqs : Tuple[tf.Tensor, ...], optional
         Tuple of external input sequences, each shaped [batch_size, timesteps, features].
-        Should be in the same order as the model's input layers.
+        Should be in the same order as the model's additional inputs. Default is an empty tuple.
 
     Returns
     -------
-    states_history : dict
-        Dictionary of reservoir states for each BaseReservoir layer.
-
+    dict
+        Dictionary mapping layer names to lists of state tensors.
+        Each state tensor has shape [batch_size, timesteps, state_size].
+        
     Notes
     -----
-    - The function uses a TensorFlow while loop to iterate over the feedback sequence.
-    - The function records the states of BaseReservoir layers at each step of the feedback sequence
-    and returns them in a dictionary.
-    -
+    - The function uses a TensorFlow while loop to iterate over the sequences.
+    - States are collected using TensorArrays and stacked at the end.
+    - The function is graph-mode compatible (@tf.function decorated).
+    - A ControlTrigger is used to prevent race conditions when updating states.
+    - The minimum timestep dimension from all inputs is used as the horizon.
+    
+    Examples
+    --------
+    >>> import tensorflow as tf
+    >>> import numpy as np
+    >>> from keras_reservoir_computing.layers.builders import ESNReservoir_builder
+    >>> from keras_reservoir_computing.analysis.states import harvest
+    >>> 
+    >>> # Create a simple model
+    >>> input_dim = 3
+    >>> batch_size = 2
+    >>> timesteps = 10
+    >>> units = 20
+    >>> 
+    >>> inputs = tf.keras.Input(shape=(None, input_dim))
+    >>> reservoir = ESNReservoir_builder({"units": units})(inputs)
+    >>> model = tf.keras.Model(inputs, reservoir)
+    >>> 
+    >>> # Create sample data
+    >>> feedback_seq = tf.random.normal((batch_size, timesteps, input_dim))
+    >>> 
+    >>> # Collect states
+    >>> states = harvest(model, feedback_seq)
+    >>> 
+    >>> # Check the shape of collected states
+    >>> for layer_name, layer_states in states.items():
+    ...     print(f"Layer {layer_name} states: {[s.shape for s in layer_states]}")
+    Layer esn_reservoir_1 states: [(2, 10, 20)]  # [batch_size, timesteps, units]
     """
     input_names = [_input.name for _input in model.inputs]
     if len(input_names) < 1:
@@ -204,41 +309,97 @@ def esp_index(
     model: tf.keras.Model,
     feedback_seq: tf.Tensor,
     external_seqs: Tuple[tf.Tensor, ...] = (),
-    random_dist="uniform",
+    random_dist: str = "uniform",
     history: bool = False,
     weighted: bool = False,
     iterations: int = 10,
-) -> dict:
+) -> Union[dict, Tuple[dict, dict]]:
     """
-    Compute the Echo State Property (ESP) index for the reservoirs in the model.
-
+    Compute the Echo State Property (ESP) index for reservoir layers in the model.
+    
+    The ESP index quantifies how quickly the reservoir forgets its initial state,
+    which is a critical property of Echo State Networks. The index is computed by
+    measuring how quickly trajectories from different initial states converge.
+    
     Parameters
     ----------
     model : tf.keras.Model
-        The model containing BaseReservoir layers whose ESP index we want to compute.
+        The model containing BaseReservoir layers whose ESP index will be computed.
     feedback_seq : tf.Tensor
         The feedback sequence to use, shape [batch_size, timesteps, features].
-    external_seqs : Tuple[tf.Tensor, ...]
-        Tuple of external input sequences, each shaped [batch_size, timesteps, features].
-        Should be in the same order as the model's input layers.
+    external_seqs : Tuple[tf.Tensor, ...], optional
+        Tuple of external input sequences, each with shape [batch_size, timesteps, features].
+        Should be in the same order as the model's additional inputs. Default is an empty tuple.
+    random_dist : str, optional
+        Distribution to use for random state initialization: "uniform" or "normal".
+        Default is "uniform".
     history : bool, optional
-        Whether to return the full time evolution of norm differences.
+        Whether to return the full time evolution of state difference norms.
+        Default is False.
     weighted : bool, optional
-        Whether to use weighted norms for computing the ESP index.
-    iterations : int
-        Number of iterations to use for computing the ESP index.
+        Whether to use weighted norms for computing the ESP index, with weights
+        increasing over time to emphasize convergence at later timesteps.
+        Default is False.
+    iterations : int, optional
+        Number of iterations to use for computing the ESP index. Higher values
+        give more reliable estimates. Default is 10.
 
     Returns
     -------
-    esp_indices : dict
-        Dictionary of ESP indices for each BaseReservoir layer.
-    esp_history : dict, optional
-        Dictionary of time evolution of norm differences (if history=True).
-
+    Union[dict, Tuple[dict, dict]]
+        If history=False (default):
+            dict: A dictionary mapping layer names to lists of ESP index values
+                 for each state in the layer.
+        If history=True:
+            Tuple[dict, dict]: A tuple containing:
+                - dict: The ESP indices as described above
+                - dict: The full history of state difference norms for each layer and state
+                  with shape [iterations, batch_size, timesteps]
+        
+    Notes
+    -----
+    - The ESP index calculation uses the method from Gallicchio (2019).
+    - Lower ESP index values indicate better echo state property.
+    - The computation involves multiple steps:
+        1. Reset states and run a "base orbit" from zero initial state
+        2. Run multiple "random orbits" from random initial states
+        3. Measure how quickly the random orbits converge to the base orbit
+        4. Average the convergence rates across iterations
+    - Progress is printed to show computation status.
+    
+    Examples
+    --------
+    >>> import tensorflow as tf
+    >>> from keras_reservoir_computing.layers.builders import ESNReservoir_builder
+    >>> from keras_reservoir_computing.analysis.states import esp_index
+    >>> 
+    >>> # Create a simple model
+    >>> input_dim = 3
+    >>> batch_size = 2
+    >>> timesteps = 50  # Longer sequence for reliable ESP estimation
+    >>> units = 20
+    >>> 
+    >>> inputs = tf.keras.Input(shape=(None, input_dim))
+    >>> reservoir = ESNReservoir_builder({"units": units, "spectral_radius": 0.9})(inputs)
+    >>> model = tf.keras.Model(inputs, reservoir)
+    >>> 
+    >>> # Create sample data
+    >>> feedback_seq = tf.random.normal((batch_size, timesteps, input_dim))
+    >>> 
+    >>> # Compute ESP index
+    >>> indices = esp_index(model, feedback_seq, iterations=5)
+    >>> print(f"ESP indices: {indices}")
+    >>> 
+    >>> # Compute ESP index with history
+    >>> indices, history = esp_index(model, feedback_seq, iterations=5, history=True)
+    >>> print(f"ESP indices: {indices}")
+    >>> print(f"History shapes: {[h.shape for h in history[list(history.keys())[0]]]}")
+    
     References
     ----------
-    .. C. Gallicchio, “Chasing the Echo State Property,” Sep. 24, 2019, arXiv: arXiv:1811.10892. Accessed: May 30, 2023. [Online]. Available: http://arxiv.org/abs/1811.10892
-
+    .. [1] C. Gallicchio, "Chasing the Echo State Property," Sep. 24, 2019, 
+       arXiv: arXiv:1811.10892. Accessed: May 30, 2023. [Online]. 
+       Available: http://arxiv.org/abs/1811.10892
     """
 
     # Save current states for restoring later
