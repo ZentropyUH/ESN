@@ -25,3 +25,4 @@ venv.bak/
 .qodo
 tests/
 .early.json
+pytest.ini
