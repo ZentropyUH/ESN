@@ -21,7 +21,7 @@ dependencies = [
     "networkx==3.4.2",
     "pandas==2.2.3",
     "scipy==1.14.1",
-    "tensorflow==2.19.0",
+    "tensorflow==2.18.0",
     "rich==14.0.0",
     "matplotlib==3.9.2",
     "natsort==8.4.0",
@@ -41,8 +41,3 @@ package-dir = { "" = "src" }
 # Use setuptools' find_packages(where="src") behavior
 where = ["src"]
 
-[tool.pytest.ini_options]
-markers = [
-    "happy_path: tests standard working scenarios",
-    "edge_case: tests corner-case scenarios"
-]
