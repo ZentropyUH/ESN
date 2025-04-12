@@ -24,9 +24,7 @@ class ReadOut(tf.keras.Layer, ABC):
         Number of outputs.
     """
 
-    def __init__(
-        self, units: int, trainable: bool = False, **kwargs
-    ) -> None:
+    def __init__(self, units: int, trainable: bool = False, **kwargs) -> None:
         """
         Initialize the ReadOut layer.
 
@@ -129,9 +127,7 @@ class ReadOut(tf.keras.Layer, ABC):
             Configuration of the layer.
         """
         config = super().get_config()
-        config.update(
-            {"units": self.units, "trainable": self.trainable}
-        )
+        config.update({"units": self.units, "trainable": self.trainable})
         return config
 
     def get_params(self) -> dict:

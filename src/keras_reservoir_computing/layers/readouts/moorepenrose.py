@@ -171,9 +171,7 @@ class MoorePenroseReadout(ReadOut):
             Configuration dictionary.
         """
         config = super().get_config()
-        config.update({
-            "units": self.units,
-            "alpha": self._alpha,
-            "trainable": self.trainable
-        })
+        config.update(
+            {"units": self.units, "alpha": self._alpha, "trainable": self.trainable}
+        )
         return config

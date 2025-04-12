@@ -2,6 +2,7 @@ from typing import Optional
 
 import numpy as np
 import tensorflow as tf
+
 from keras_reservoir_computing.initializers.helpers import spectral_radius_hybrid
 
 

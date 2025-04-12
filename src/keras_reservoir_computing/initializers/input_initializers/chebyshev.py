@@ -88,7 +88,7 @@ class ChebyshevInitializer(tf.keras.Initializer):
     References
     ----------
     .. M. Xie, Q. Wang, and S. Yu, “Time Series Prediction of ESN Based on Chebyshev Mapping and Strongly Connected Topology,” Neural Process Lett, vol. 56, no. 1, p. 30, Feb. 2024, doi: 10.1007/s11063-024-11474-7.
-    
+
     Examples
     --------
     >>> from keras_reservoir_computing.initializers import ChebyshevInitializer
@@ -106,6 +106,43 @@ class ChebyshevInitializer(tf.keras.Initializer):
         k: float = 3.8,
         sigma: Optional[float] = None,
     ) -> None:
+        """
+        Initialize the Chebyshev weight matrix initializer.
+
+        Parameters
+        ----------
+        p : float, optional
+            Scaling factor for the initial sinusoidal weights. Should be in range (0, 1).
+            Default is 0.3.
+        q : float, optional
+            Parameter controlling the initial sinusoidal distribution.
+            Default is 5.9.
+        k : float, optional
+            Control parameter of the Chebyshev map, must be in range (2, 4) for
+            chaotic behavior. Default is 3.8.
+        sigma : float, optional
+            Input scaling factor. If None, matrix rescaling is disabled.
+            Default is None.
+
+        Raises
+        ------
+        ValueError
+            If k is not in the valid range (2, 4).
+
+        Examples
+        --------
+        >>> from keras_reservoir_computing.initializers import ChebyshevInitializer
+        >>> # Standard initialization
+        >>> initializer = ChebyshevInitializer()
+        >>> # Custom parameters
+        >>> initializer = ChebyshevInitializer(p=0.4, q=5.0, k=3.2, sigma=0.8)
+        """
+        # Validate k is in the chaotic regime
+        if not (2.0 < k < 4.0):
+            raise ValueError(
+                f"Parameter k={k} must be in range (2, 4) for chaotic behavior"
+            )
+
         self.p = p
         self.q = q
         self.k = k
@@ -113,20 +150,47 @@ class ChebyshevInitializer(tf.keras.Initializer):
 
     def __call__(self, shape: tuple, dtype=tf.float32) -> tf.Tensor:
         """
-        Generates the weight matrix for Keras layers, applying the Chebyshev map **column-wise**
-        for correct post-multiplication behavior.
+        Generate a weight matrix using the Chebyshev map.
+
+        Creates a structured weight matrix with chaotic properties by applying the
+        Chebyshev polynomial map column-wise. The first column is initialized with
+        a sinusoidal pattern, and subsequent columns are generated through the
+        Chebyshev recurrence relation.
 
         Parameters
         ----------
         shape : tuple
-            Shape of the weight matrix (K, N).
-        dtype : dtype, optional
-            Data type of the returned tensor.
+            Shape of the weight matrix (K, N) where K is input dimension and
+            N is output dimension. For ESNs, typically this is (input_features, units).
+        dtype : tf.DType, optional
+            Data type of the returned tensor. Default is tf.float32.
 
         Returns
         -------
         tf.Tensor
-            The initialized weight matrix matching the requested shape.
+            The initialized weight matrix of shape (K, N) with deterministic
+            chaotic structure based on the Chebyshev map.
+
+        Notes
+        -----
+        - The matrix is constructed column-wise for post-multiplication (x*W).
+        - Matrix values will generally be in the range [-1, 1] before scaling.
+        - If sigma is specified, the matrix is rescaled to have a maximum
+          singular value of sigma.
+
+        Examples
+        --------
+        >>> from keras_reservoir_computing.initializers import ChebyshevInitializer
+        >>> initializer = ChebyshevInitializer(p=0.3, k=3.5, sigma=0.8)
+        >>> # Create a matrix for input features=5, output units=10
+        >>> matrix = initializer((5, 10))
+        >>> print(matrix.shape)
+        (5, 10)
+        >>> # Check the maximum singular value if sigma was specified
+        >>> import tensorflow as tf
+        >>> s = tf.linalg.svd(matrix, compute_uv=False)
+        >>> print(f"Maximum singular value: {tf.reduce_max(s):.4f}")
+        Maximum singular value: 0.8000
         """
         K, N = shape  # K = Inputs, N = Reservoir Neurons (for x * W)
 
@@ -156,7 +220,18 @@ class ChebyshevInitializer(tf.keras.Initializer):
         Returns
         -------
         dict
-            The configuration dictionary.
+            Configuration dictionary containing all parameters needed to reconstruct
+            the initializer (p, q, k, sigma).
+
+        Examples
+        --------
+        >>> from keras_reservoir_computing.initializers import ChebyshevInitializer
+        >>> initializer = ChebyshevInitializer(p=0.4, k=3.5)
+        >>> config = initializer.get_config()
+        >>> print(config)
+        {'p': 0.4, 'q': 5.9, 'k': 3.5, 'sigma': None}
+        >>> # Recreate from config
+        >>> new_initializer = ChebyshevInitializer.from_config(config)
         """
         config = {"p": self.p, "q": self.q, "k": self.k, "sigma": self.sigma}
         base_config = super().get_config()

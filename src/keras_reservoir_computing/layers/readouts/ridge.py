@@ -180,7 +180,7 @@ class RidgeSVDReadout(ReadOut):
         threshold = eps * tf.reduce_max(s)
 
         # More stable ridge regression formula
-        s_inv = s / (s ** 2 + self._alpha)
+        s_inv = s / (s**2 + self._alpha)
         s_inv = tf.where(s > threshold, s_inv, 0.0)
         s_inv = tf.reshape(s_inv, (-1, 1))
 
@@ -247,9 +247,7 @@ class RidgeSVDReadout(ReadOut):
             Configuration dictionary.
         """
         config = super().get_config()
-        config.update({
-            "units": self.units,
-            "alpha": self._alpha,
-            "trainable": self.trainable
-        })
+        config.update(
+            {"units": self.units, "alpha": self._alpha, "trainable": self.trainable}
+        )
         return config

@@ -2,9 +2,42 @@
 requires = ["setuptools>=64", "wheel"]
 build-backend = "setuptools.build_meta"
 
-
-[tool.pytest.ini_options]
-markers = [
-    "happy_path: tests standard working scenarios",
-    "edge_case: tests corner-case scenarios"
+[project]
+name = "keras_reservoir_computing"
+version = "0.1.0"
+description = "A package for training and using Echo State Networks and Reservoir Computing in general."
+authors = [
+    { name = "Daniel Estevez", email = "kemossabee@gmail.com" }
 ]
+urls = { "Homepage" = "https://github.com/ZentropyUH/ESN" }
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent"
+]
+requires-python = ">=3.12"
+dependencies = [
+    "keras==3.9.2",
+    "networkx==3.4.2",
+    "pandas==2.2.3",
+    "scipy==1.14.1",
+    "tensorflow==2.18.0",
+    "rich==14.0.0",
+    "matplotlib==3.9.2",
+    "natsort==8.4.0",
+    "numpy==2.0.2",
+    "ipykernel==6.29.5",
+    "ipywidgets==8.1.5",
+    "ipympl==0.9.4",
+    "netCDF4==1.7.2",
+    "xarray==2025.1.1"
+]
+
+[tool.setuptools]
+# Map the "empty" package name to the directory "src"
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+# Use setuptools' find_packages(where="src") behavior
+where = ["src"]
+
