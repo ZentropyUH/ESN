@@ -85,7 +85,9 @@ def build_layer_graph(model: tf.keras.Model) -> nx.DiGraph:
     return graph
 
 
-def rebuild_model_with_new_batch_size(old_model: tf.keras.Model, new_batch_size: int) -> tf.keras.Model:
+def rebuild_model_with_new_batch_size(
+    old_model: tf.keras.Model, new_batch_size: int
+) -> tf.keras.Model:
     """
     Rebuild the model while modifying only the batch size of the input layers.
     Ensures that all layers (including multi-input/multi-output) are correctly

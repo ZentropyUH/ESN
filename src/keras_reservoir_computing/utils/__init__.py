@@ -1,4 +1,10 @@
-from . import data, general, visualization, tensorflow
+"""Utility functions for Keras Reservoir Computing.
+
+This module provides utility functions for data handling, visualization,
+and general-purpose utilities.
+"""
+
+from . import general, data, visualization, tensorflow
 
 __all__ = [
     "general",
@@ -7,6 +13,5 @@ __all__ = [
     "tensorflow",
 ]
 
-
-def __dir__():
+def __dir__() -> list[str]:
     return __all__
