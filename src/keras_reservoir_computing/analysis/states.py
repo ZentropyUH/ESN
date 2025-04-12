@@ -1,4 +1,22 @@
-from typing import Dict, List, Tuple, Union
+"""
+State management utilities for reservoir layers in TensorFlow/Keras models.
+This module provides functions for inspecting, manipulating, and analyzing the internal
+states of reservoir computing layers in Keras models. It includes functionality to get 
+and set reservoir states, reset states, harvest states during sequence processing, 
+and calculate metrics like the Echo State Property index.
+Functions
+---------
+get_reservoir_states(model)
+set_reservoir_states(model, states)
+set_reservoir_random_states(model, dist='uniform')
+harvest(model, feedback_seq, external_seqs=())
+esp_index(model, feedback_seq, external_seqs=(), random_dist='uniform', 
+          history=False, weighted=False, iterations=10)
+This module is designed to work with the keras_reservoir_computing package and 
+specifically with keras models that contain layers that inherit from BaseReservoir.
+"""
+
+from typing import Tuple, Union
 
 import tensorflow as tf
 
