@@ -5,7 +5,7 @@ import tensorflow as tf
 from .base import ReadOut
 
 
-@tf.keras.utils.register_keras_serializable(package="krc", name="RidgeSVDReadout")
+@tf.keras.utils.register_keras_serializable(package="krc", name="MoorePenroseReadout")
 class MoorePenroseReadout(ReadOut):
     """
     Moore-Penrose pseudoinverse readout layer for reservoir computing.
@@ -83,10 +83,12 @@ class MoorePenroseReadout(ReadOut):
         super().build(input_shape)
 
     def call(self, inputs: tf.Tensor) -> tf.Tensor:
-        input_dtype = inputs.dtype
-        inputs = tf.cast(inputs, tf.float64)
+        # Convert to the same precision as the weights for consistent calculations
+        if inputs.dtype != self.kernel.dtype:
+            inputs = tf.cast(inputs, self.kernel.dtype)
+        
         outputs = tf.matmul(inputs, self.kernel) + self.bias
-        outputs = tf.cast(outputs, input_dtype)
+        outputs = tf.cast(outputs, inputs.dtype)
         return outputs
 
     @tf.function()
@@ -108,8 +110,12 @@ class MoorePenroseReadout(ReadOut):
         Notes
         -----
         - The Moore-Penrose pseudoinverse is computed using the singular value decomposition (SVD) of the input data.
-
+        - A threshold of 1e-15 is used for numerical stability to filter out near-zero singular values.
         """
+        # Ensure data is in correct dtype
+        X = tf.cast(X, self.kernel.dtype)
+        y = tf.cast(y, self.kernel.dtype)
+        
         # Center the data
         X_mean = tf.reduce_mean(X, axis=0, keepdims=True)
         y_mean = tf.reduce_mean(y, axis=0, keepdims=True)
@@ -120,6 +126,7 @@ class MoorePenroseReadout(ReadOut):
         s, U, V = tf.linalg.svd(X_centered, full_matrices=False)
 
         # Threshold small singular values for numerical stability
+        # This value is chosen to filter out very small values that might cause numerical instability
         threshold = 1e-15
 
         # More stable ridge regression formula
@@ -142,6 +149,10 @@ class MoorePenroseReadout(ReadOut):
 
         # Assign values
         self.kernel.assign(coef)
+        self.bias.assign(intercept)
+        
+        # Mark as fitted
+        self._fitted = True
 
     @property
     def alpha(self) -> float:
