@@ -106,9 +106,17 @@ class ConnectedRandomMatrixInitializer(tf.keras.Initializer):
         matrix = tf.convert_to_tensor(matrix, dtype=dtype)
 
         if self.spectral_radius is not None:
-            sr = spectral_radius_hybrid(matrix)
-            if sr > 0:  # Avoid division by zero
-                matrix = matrix * (self.spectral_radius / sr)
+            try:
+                sr = spectral_radius_hybrid(matrix)
+                if sr > 0:  # Avoid division by zero
+                    matrix = matrix * (self.spectral_radius / sr)
+                else:
+                    tf.debugging.assert_greater(
+                        sr, 0.0, 
+                        message="Spectral radius calculation returned zero or negative value."
+                    )
+            except Exception as e:
+                tf.print(f"Warning: Spectral radius calculation failed. Using matrix without scaling. Error: {e}")
 
         return matrix
 
