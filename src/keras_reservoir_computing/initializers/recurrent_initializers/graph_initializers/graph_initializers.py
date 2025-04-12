@@ -2,6 +2,11 @@ from typing import List, Optional, Tuple, Union
 
 import tensorflow as tf
 
+from keras_reservoir_computing.initializers.helpers import (
+    spectral_radius_hybrid,
+)
+from keras_reservoir_computing.utils.general import create_rng
+
 from .generators import (
     barabasi_albert,
     complete,
@@ -11,10 +16,6 @@ from .generators import (
     newman_watts_strogatz,
     regular,
 )
-from keras_reservoir_computing.initializers.helpers import (
-    spectral_radius_hybrid,
-)
-from keras_reservoir_computing.utils.general import create_rng
 
 
 @tf.keras.utils.register_keras_serializable(

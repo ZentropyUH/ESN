@@ -1,13 +1,15 @@
+from typing import Callable, Optional, Union
+
 import networkx as nx
 import numpy as np
 import tensorflow as tf
+
 from scipy.linalg import eigvals
 from scipy.sparse import coo_matrix
 from scipy.sparse.csgraph import connected_components
 from scipy.sparse.linalg import eigs
 
 from keras_reservoir_computing.utils.general import create_rng
-from typing import Callable, Union, Optional
 
 
 def to_tensor(graph_func: Callable) -> Callable:
