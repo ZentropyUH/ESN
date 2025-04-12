@@ -48,7 +48,7 @@ class ESNCell(BaseCell):
         feedback_initializer: Optional[Union[str, Callable]] = "glorot_uniform",
         feedback_bias_initializer: Optional[Union[str, Callable]] = "zeros",
         kernel_initializer: Optional[Union[str, Callable]] = "glorot_uniform",
-        **kwargs
+        **kwargs,
     ) -> None:
 
         super().__init__(
@@ -56,7 +56,7 @@ class ESNCell(BaseCell):
             feedback_dim=feedback_dim,
             input_dim=input_dim,
             leak_rate=leak_rate,
-            **kwargs
+            **kwargs,
         )
 
         self.activation = tf.keras.activations.get(activation)

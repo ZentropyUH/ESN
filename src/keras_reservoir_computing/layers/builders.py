@@ -1,18 +1,20 @@
+from typing import Dict, Optional, Union
+
 import tensorflow as tf
-from typing import Dict, Union, Optional
+
 from keras_reservoir_computing.layers import ESNReservoir
-from keras_reservoir_computing.layers.readouts.base import ReadOut
-from keras_reservoir_computing.layers.readouts.ridge import RidgeSVDReadout
-from keras_reservoir_computing.layers.readouts.moorepenrose import MoorePenroseReadout
 from keras_reservoir_computing.layers.config import (
     get_default_params,
-    merge_with_defaults,
     load_user_config,
+    merge_with_defaults,
 )
+from keras_reservoir_computing.layers.readouts.base import ReadOut
+from keras_reservoir_computing.layers.readouts.moorepenrose import MoorePenroseReadout
+from keras_reservoir_computing.layers.readouts.ridge import RidgeSVDReadout
 
 
 def ESNReservoir_builder(
-    user_config: Union[str, dict], overrides: Optional[Dict]=None
+    user_config: Union[str, dict], overrides: Optional[Dict] = None
 ) -> ESNReservoir:
     """
     Constructs an Echo State Network (ESN) reservoir layer from a user-defined configuration.
@@ -66,15 +68,18 @@ def ESNReservoir_builder(
         override_params=overrides,
     )
 
-
     # Adjust the spectral radius of the effective weight matrix.
     if "params" in final_config["kernel_initializer"]:
         if "spectral_radius" in final_config["kernel_initializer"]["params"]:
-            effective_sr = final_config["kernel_initializer"]["params"]["spectral_radius"]
-            if effective_sr is not None: # The default values is usually None
+            effective_sr = final_config["kernel_initializer"]["params"][
+                "spectral_radius"
+            ]
+            if effective_sr is not None:  # The default values is usually None
                 leak_rate = final_config.get("leak_rate", 1.0)
-                if effective_sr < 1-leak_rate:
-                    raise ValueError("The spectral radius must be greater than 1 - leak_rate.")
+                if effective_sr < 1 - leak_rate:
+                    raise ValueError(
+                        "The spectral radius must be greater than 1 - leak_rate."
+                    )
                 W_sr = (effective_sr - 1 + leak_rate) / leak_rate
                 final_config["kernel_initializer"]["params"]["spectral_radius"] = W_sr
 
@@ -112,7 +117,7 @@ def ESNReservoir_builder(
 
 
 def ReadOut_builder(
-    user_config: Union[Dict, str], overrides: Optional[Dict]=None
+    user_config: Union[Dict, str], overrides: Optional[Dict] = None
 ) -> ReadOut:
     """
     Constructs a readout layer for an Echo State Network (ESN) based on the specified type.

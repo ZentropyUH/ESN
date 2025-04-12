@@ -1,24 +1,38 @@
+"""Specialized layers for reservoir computing.
+
+This module contains custom layers used in reservoir computing models,
+including reservoirs, readout layers, and various utility layers.
+"""
+
 from .custom_layers import (
-    SelectiveExponentiation,
-    OutliersFilteredMean,
     FeaturePartitioner,
-    SelectiveDropout
+    OutliersFilteredMean,
+    SelectiveDropout,
+    SelectiveExponentiation,
 )
+from .readouts import (
+    MoorePenroseReadout,
+    RidgeSVDReadout,
+)
+from .reservoirs import ESNCell, ESNReservoir
 
-from .readouts import RidgeSVDReadout, MoorePenroseReadout
+__all__ = [
+    FeaturePartitioner,
+    OutliersFilteredMean,
+    SelectiveDropout,
+    SelectiveExponentiation,
+]
 
-from .reservoirs import ESNReservoir
+__all__ += [
+    ESNCell,
+    ESNReservoir,
+]
 
-from . import builders
+__all__ += [
+    MoorePenroseReadout,
+    RidgeSVDReadout,
+]
 
 
-__all__ = ["SelectiveExponentiation", "OutliersFilteredMean", "FeaturePartitioner", "SelectiveDropout"]
-
-__all__ += ["ESNReservoir"]
-
-__all__ += ["RidgeSVDReadout", "MoorePenroseReadout"]
-
-__all__ += ["builders"]
-
-def __dir__():
+def __dir__() -> list[str]:
     return __all__

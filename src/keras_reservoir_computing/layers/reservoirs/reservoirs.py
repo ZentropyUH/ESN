@@ -121,14 +121,18 @@ class ESNReservoir(BaseReservoir):
             "input_dim": self.input_dim,
             "leak_rate": self.leak_rate,
             "activation": tf.keras.activations.serialize(self.activation),
-            "input_initializer": tf.keras.initializers.serialize(self.input_initializer),
+            "input_initializer": tf.keras.initializers.serialize(
+                self.input_initializer
+            ),
             "feedback_initializer": tf.keras.initializers.serialize(
                 self.feedback_initializer
             ),
             "feedback_bias_initializer": tf.keras.initializers.serialize(
                 self.feedback_bias_initializer
             ),
-            "kernel_initializer": tf.keras.initializers.serialize(self.kernel_initializer),
+            "kernel_initializer": tf.keras.initializers.serialize(
+                self.kernel_initializer
+            ),
         }
         del base_config["cell"]
         return {**base_config, **config}
