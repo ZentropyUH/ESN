@@ -457,3 +457,30 @@ def residual_stacked_ESN(
     # Build and return model
     model = tf.keras.Model(inputs=input_layer, outputs=readout, name=name)
     return model
+
+def headless_ESN(
+    units: int,
+    reservoir_config: Union[str, Dict[str, Any]] = ESN_RESERVOIR_CONFIG,
+    batch: int = 1,
+    features: int = 1,
+    name: str = "headless_ESN",
+) -> tf.keras.Model:
+    """
+    Build an ESN model with no readout layer.
+    
+    This model can be used to study the dynamics of the reservoir by applying different transformations to the reservoir states.
+    """
+    # Load config from file if string is provided
+    if isinstance(reservoir_config, str):
+        reservoir_config = load_user_config(reservoir_config)
+
+    # Create input layer
+    input_layer = tf.keras.layers.Input(shape=(None, features), batch_size=batch)
+
+    # Build reservoir
+    overrides = {"units": units, "feedback_dim": features}
+    reservoir = ESNReservoir_builder(reservoir_config, overrides=overrides)(input_layer)
+
+    # Build and return model
+    model = tf.keras.Model(inputs=input_layer, outputs=reservoir, name=name)
+    return model

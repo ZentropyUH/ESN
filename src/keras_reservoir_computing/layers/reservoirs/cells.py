@@ -27,11 +27,11 @@ class ESNCell(BaseCell):
     activation : Optional[Union[str, Callable]], optional
         Activation function to use, by default "tanh".
     input_initializer : Optional[Union[str, Callable]], optional
-        Initializer for the input weights, by default "glorot_uniform".
+        Initializer for the input weights, by default "zeros".
     feedback_initializer : Optional[Union[str, Callable]], optional
         Initializer for the feedback weights, by default "glorot_uniform".
     feedback_bias_initializer : Optional[Union[str, Callable]], optional
-        Initializer for the feedback bias, by default "glorot_uniform".
+        Initializer for the feedback bias, by default "zeros".
     kernel_initializer : Optional[Union[str, Callable]], optional
         Initializer for the recurrent kernel, by default "glorot_uniform".
     """
@@ -42,7 +42,7 @@ class ESNCell(BaseCell):
         feedback_dim: int = 1,
         input_dim: int = 0,
         leak_rate: float = 1.0,
-        # These are not handed by parent class
+        # Additional parameters handled by this class (not by parent class)
         activation: Optional[Union[str, Callable]] = "tanh",
         input_initializer: Optional[Union[str, Callable]] = "zeros",
         feedback_initializer: Optional[Union[str, Callable]] = "glorot_uniform",
@@ -69,8 +69,15 @@ class ESNCell(BaseCell):
 
     def build(self, input_shape: tf.TensorShape):
         """
+        Build the cell's weights.
+        
         Keras will pass input_shape of the form (batch_size, timesteps, total_features)
         for RNN cells. total_features = feedback_dim + input_dim in your usage.
+        
+        Parameters
+        ----------
+        input_shape : tf.TensorShape
+            The input shape provided by Keras.
         """
 
         # We'll create three sets of weights:
@@ -106,14 +113,24 @@ class ESNCell(BaseCell):
             trainable=False,
         )
 
-        # Spurious call to super().build() to make Keras happy. Also spurious use of input_shape. TODO: see if this is a problem.
         super().build(input_shape)
 
     def call(self, inputs: tf.Tensor, states: List[tf.Tensor]):
         """
-        inputs:  shape (batch_size, total_features)
-                 total_features = feedback_dim + input_dim
-        states:  a list of one tensor [previous_state], shape (batch_size, units)
+        Process one step of the cell.
+        
+        Parameters
+        ----------
+        inputs : tf.Tensor
+            Input tensor of shape (batch_size, total_features)
+            total_features = feedback_dim + input_dim
+        states : List[tf.Tensor]
+            A list of one tensor [previous_state], shape (batch_size, units)
+            
+        Returns
+        -------
+        tuple
+            A tuple (next_state, [next_state]) containing the output and new states
         """
         prev_state = states[0]
 
@@ -123,7 +140,6 @@ class ESNCell(BaseCell):
         input_part = inputs[:, self.feedback_dim :]  # remainder
 
         # Compute new state
-
         next_state = tf.matmul(feedback_part, self.W_fb) + self.b_fb
 
         if self.input_dim > 0:

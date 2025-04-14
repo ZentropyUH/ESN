@@ -6,7 +6,8 @@ from . import input_initializers, recurrent_initializers
 
 from .input_initializers import (
     ChebyshevInitializer,
-    DenseBinaryInitializer,
+    ChessboardInitializer,
+    RandomBinaryInitializer,
     PseudoDiagonalInitializer,
 )
 from .recurrent_initializers import (
@@ -16,15 +17,22 @@ from .recurrent_initializers import (
     DigitalChaosInitializer,
     ErdosRenyiGraphInitializer,
     KleinbergSmallWorldGraphInitializer,
+    MultiCliqueGraphInitializer,
     NewmanWattsStrogatzGraphInitializer,
     RegularGraphInitializer,
+    RandomRecurrentInitializer,
     TernaryInitializer,
     WattsStrogatzGraphInitializer,
 )
 
 __all__ = ["input_initializers", "recurrent_initializers"]
 
-__all__ += ["ChebyshevInitializer", "DenseBinaryInitializer", "PseudoDiagonalInitializer"]
+__all__ += [
+    "ChebyshevInitializer",
+    "ChessboardInitializer",
+    "RandomBinaryInitializer",
+    "PseudoDiagonalInitializer",
+]
 
 __all__ += [
     "BarabasiAlbertGraphInitializer",
@@ -33,8 +41,10 @@ __all__ += [
     "DigitalChaosInitializer",
     "ErdosRenyiGraphInitializer",
     "KleinbergSmallWorldGraphInitializer",
+    "MultiCliqueGraphInitializer",
     "NewmanWattsStrogatzGraphInitializer",
     "RegularGraphInitializer",
+    "RandomRecurrentInitializer",
     "TernaryInitializer",
     "WattsStrogatzGraphInitializer",
 ]
