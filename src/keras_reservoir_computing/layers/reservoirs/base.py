@@ -451,7 +451,7 @@ class BaseReservoir(tf.keras.layers.RNN):
         if isinstance(inputs, (list, tuple)):
             if len(inputs) != 2:
                 raise ValueError(
-                    "Input must be a list of two tensors: [input_sequence, feedback_sequence]."
+                    "Input must be a list of two tensors: [feedback_sequence, input_sequence]."
                 )
 
             feedback_seq, input_seq = inputs
