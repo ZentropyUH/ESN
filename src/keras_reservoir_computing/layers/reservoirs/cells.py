@@ -43,11 +43,12 @@ class ESNCell(BaseCell):
         input_dim: int = 0,
         leak_rate: float = 1.0,
         # Additional parameters handled by this class (not by parent class)
-        activation: Optional[Union[str, Callable]] = "tanh",
-        input_initializer: Optional[Union[str, Callable]] = "zeros",
-        feedback_initializer: Optional[Union[str, Callable]] = "glorot_uniform",
-        feedback_bias_initializer: Optional[Union[str, Callable]] = "zeros",
-        kernel_initializer: Optional[Union[str, Callable]] = "glorot_uniform",
+        activation: Union[str, Callable] = "tanh",
+        input_initializer: Union[str, Callable] = "zeros",
+        feedback_initializer: Union[str, Callable] = "glorot_uniform",
+        feedback_bias_initializer: Union[str, Callable] = "zeros",
+        kernel_initializer: Union[str, Callable] = "glorot_uniform",
+        dtype: str = "float32",
         **kwargs,
     ) -> None:
 
@@ -56,6 +57,7 @@ class ESNCell(BaseCell):
             feedback_dim=feedback_dim,
             input_dim=input_dim,
             leak_rate=leak_rate,
+            dtype=dtype,
             **kwargs,
         )
 
@@ -89,6 +91,7 @@ class ESNCell(BaseCell):
             initializer=self.feedback_initializer,
             name="W_fb",
             trainable=False,
+            dtype=self.dtype,
         )
 
         if self.input_dim > 0:
@@ -97,6 +100,7 @@ class ESNCell(BaseCell):
                 initializer=self.input_initializer,
                 name="W_in",
                 trainable=False,
+                dtype=self.dtype,
             )
 
         self.W_kernel = self.add_weight(
@@ -104,6 +108,7 @@ class ESNCell(BaseCell):
             initializer=self.kernel_initializer,
             name="W_kernel",
             trainable=False,
+            dtype=self.dtype,
         )
 
         self.b_fb = self.add_weight(
@@ -111,6 +116,7 @@ class ESNCell(BaseCell):
             initializer=self.feedback_bias_initializer,
             name="b_fb",
             trainable=False,
+            dtype=self.dtype,
         )
 
         super().build(input_shape)
