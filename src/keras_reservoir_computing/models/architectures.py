@@ -128,6 +128,7 @@ def Ott_ESN(
     batch: int = 1,
     features: int = 1,
     name: str = "Ott_ESN",
+    dtype: str = "float32",
 ) -> tf.keras.Model:
     """
     Build Ott's ESN model with state augmentation.
@@ -176,10 +177,10 @@ def Ott_ESN(
         readout_config = load_user_config(readout_config)
 
     # Create input layer
-    feedback_layer = tf.keras.layers.Input(shape=(None, features), batch_size=batch)
+    feedback_layer = tf.keras.layers.Input(shape=(None, features), batch_size=batch, dtype=dtype)
 
     # Build reservoir with overridden parameters
-    overrides = {"units": units, "feedback_dim": features}
+    overrides = {"units": units, "feedback_dim": features, "dtype": dtype}
     reservoir = ESNReservoir_builder(reservoir_config, overrides=overrides)(
         feedback_layer
     )
@@ -458,12 +459,14 @@ def residual_stacked_ESN(
     model = tf.keras.Model(inputs=input_layer, outputs=readout, name=name)
     return model
 
+
 def headless_ESN(
     units: int,
     reservoir_config: Union[str, Dict[str, Any]] = ESN_RESERVOIR_CONFIG,
     batch: int = 1,
     features: int = 1,
     name: str = "headless_ESN",
+    dtype: str = "float32",
 ) -> tf.keras.Model:
     """
     Build an ESN model with no readout layer.
@@ -475,10 +478,10 @@ def headless_ESN(
         reservoir_config = load_user_config(reservoir_config)
 
     # Create input layer
-    input_layer = tf.keras.layers.Input(shape=(None, features), batch_size=batch)
+    input_layer = tf.keras.layers.Input(shape=(None, features), batch_size=batch, dtype=dtype)
 
     # Build reservoir
-    overrides = {"units": units, "feedback_dim": features}
+    overrides = {"units": units, "feedback_dim": features, "dtype": dtype}
     reservoir = ESNReservoir_builder(reservoir_config, overrides=overrides)(input_layer)
 
     # Build and return model

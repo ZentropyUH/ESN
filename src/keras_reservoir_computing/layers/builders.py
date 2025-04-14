@@ -37,6 +37,7 @@ def ESNReservoir_builder(
             "feedback_initializer": {"name": "PseudoDiagonalInitializer", "params": {"sigma": 0.5, "binarize": False, "seed": None}},
             "feedback_bias_initializer": {"name": "glorot_uniform", "params": {}},
             "kernel_initializer": {"name": "WattsStrogatzGraphInitializer", "params": {"k": 6, "p": 0.2, "directed": True, "self_loops": True, "tries": 100, "spectral_radius": 0.9, "seed": None}},
+            "dtype": "float32"
         }
 
     Returns
