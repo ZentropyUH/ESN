@@ -5,9 +5,9 @@ import tensorflow as tf
 
 
 @tf.keras.utils.register_keras_serializable(
-    package="krc", name="DenseBinaryInitializer"
+    package="krc", name="RandomBinaryInitializer"
 )
-class DenseBinaryInitializer(tf.keras.Initializer):
+class RandomBinaryInitializer(tf.keras.Initializer):
     """
     An initializer that generates a binary matrix with values in {-1, 1}.
 
@@ -23,8 +23,8 @@ class DenseBinaryInitializer(tf.keras.Initializer):
 
     Examples
     --------
-    >>> from keras_reservoir_computing.initializers import DenseBinaryInitializer
-    >>> w_init = DenseBinaryInitializer(seed=42)
+    >>> from keras_reservoir_computing.initializers import RandomBinaryInitializer
+    >>> w_init = RandomBinaryInitializer(seed=42)
     >>> w = w_init((5, 10))
     >>> print(w)
     # A 5x10 matrix with values in {-1, 1}.
