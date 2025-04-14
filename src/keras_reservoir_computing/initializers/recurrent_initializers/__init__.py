@@ -1,14 +1,16 @@
-from .connected_random_matrix import ConnectedRandomMatrixInitializer
+from .connected_random import ConnectedRandomMatrixInitializer
 from .digital_chaos import DigitalChaosInitializer
 from .graph_initializers import (
     BarabasiAlbertGraphInitializer,
     CompleteGraphInitializer,
     ErdosRenyiGraphInitializer,
     KleinbergSmallWorldGraphInitializer,
+    MultiCliqueGraphInitializer,
     NewmanWattsStrogatzGraphInitializer,
     RegularGraphInitializer,
     WattsStrogatzGraphInitializer,
 )
+from .random_recurrent import RandomRecurrentInitializer
 from .ternary import TernaryInitializer
 
 __all__ = [
@@ -18,8 +20,10 @@ __all__ = [
     "CompleteGraphInitializer",
     "ErdosRenyiGraphInitializer",
     "KleinbergSmallWorldGraphInitializer",
+    "MultiCliqueGraphInitializer",
     "NewmanWattsStrogatzGraphInitializer",
     "RegularGraphInitializer",
+    "RandomRecurrentInitializer",
     "TernaryInitializer",
     "WattsStrogatzGraphInitializer",
 ]

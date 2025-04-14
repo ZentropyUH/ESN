@@ -1,11 +1,15 @@
 from .chebyshev import ChebyshevInitializer
-from .dense_binary import DenseBinaryInitializer
+from .chessboard import ChessboardInitializer
+from .random_binary import RandomBinaryInitializer
 from .pseudo_diagonal import PseudoDiagonalInitializer
+from .random_input import RandomInputInitializer
 
 __all__ = [
     "ChebyshevInitializer",
-    "DenseBinaryInitializer",
+    "ChessboardInitializer",
+    "RandomBinaryInitializer",
     "PseudoDiagonalInitializer",
+    "RandomInputInitializer",
 ]
 
 def __dir__() -> list[str]:
