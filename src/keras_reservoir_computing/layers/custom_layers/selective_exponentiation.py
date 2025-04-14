@@ -79,10 +79,9 @@ class SelectiveExponentiation(tf.keras.layers.Layer):
         dim = tf.shape(inputs)[-1]
 
         # Mask for even/odd indices. Will be 1 where indexes have the same parity as self.index, 0 otherwise.
-        # Mask for even/odd indices. Will be 1 where indexes have the same parity as self.index, 0 otherwise.
         mask_f = tf.cast(
             tf.math.equal(tf.math.mod(tf.range(dim), 2), (self.index + 1) % 2),
-            tf.float32,
+            inputs.dtype,
         )
 
         # Elements to be exponentiated

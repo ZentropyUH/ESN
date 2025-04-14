@@ -83,7 +83,7 @@ class OutliersFilteredMean(tf.keras.layers.Layer):
 
         Parameters
         ----------
-        inputs : tf.Tensor
+        inputs : Union[tf.Tensor, List[tf.Tensor]]
             A tensor of shape ``(samples, batch, timesteps, features)``.
 
         Returns
