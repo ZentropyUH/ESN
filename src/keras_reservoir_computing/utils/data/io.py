@@ -21,7 +21,7 @@ def load_csv(datapath: str) -> np.ndarray:
     Returns
     -------
     np.ndarray
-        A float32 NumPy array of shape (1, T, D).
+        A NumPy array of shape (1, T, D).
 
     Raises
     ------
@@ -29,7 +29,6 @@ def load_csv(datapath: str) -> np.ndarray:
         If the data cannot be reshaped to (1, T, D).
     """
     data = pd.read_csv(datapath, header=None).to_numpy()
-    data = data.astype(np.float32)
 
     if data.ndim == 2:
         T, D = data.shape
@@ -56,7 +55,7 @@ def load_npz(datapath: str) -> np.ndarray:
     Returns
     -------
     np.ndarray
-        A float32 NumPy array of shape (1, T, D).
+        A NumPy array of shape (1, T, D).
 
     Raises
     ------
@@ -69,7 +68,7 @@ def load_npz(datapath: str) -> np.ndarray:
     if "data" not in data_dict:
         raise KeyError(f"Key 'data' not found in the .npz file: {datapath}.")
 
-    data = data_dict["data"].astype(np.float32)
+    data = data_dict["data"]
 
     if data.ndim == 2:
         T, D = data.shape
@@ -94,14 +93,14 @@ def load_npy(datapath: str) -> np.ndarray:
     Returns
     -------
     np.ndarray
-        A float32 NumPy array of shape (1, T, D).
+        A NumPy array of shape (1, T, D).
 
     Raises
     ------
     ValueError
         If the data cannot be reshaped to (1, T, D).
     """
-    data = np.load(datapath).astype(np.float32)
+    data = np.load(datapath)
 
     if data.ndim == 2:
         T, D = data.shape
@@ -126,14 +125,14 @@ def load_nc(datapath: str) -> np.ndarray:
     Returns
     -------
     np.ndarray
-        A float32 NumPy array of shape (1, T, D).
+        A NumPy array of shape (1, T, D).
 
     Raises
     ------
     ValueError
         If the data cannot be reshaped to (1, T, D).
     """
-    data = xr.open_dataarray(datapath).to_numpy().astype(np.float32)
+    data = xr.open_dataarray(datapath).to_numpy()
 
     if data.ndim == 2:
         T, D = data.shape

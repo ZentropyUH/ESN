@@ -1,5 +1,6 @@
 import tensorflow as tf
-
+from typing import Union, Sequence
+import numpy as np
 
 @tf.keras.utils.register_keras_serializable(package="krc", name="SelectiveDropout")
 class SelectiveDropout(tf.keras.layers.Layer):
@@ -11,7 +12,7 @@ class SelectiveDropout(tf.keras.layers.Layer):
 
     Parameters
     ----------
-    mask : array-like or tf.Tensor, shape (features,)
+    mask : array-like of bool, shape (features,)
         A 1D boolean mask where `True` indicates that the corresponding feature should always be zeroed out.
 
     Attributes
@@ -40,7 +41,7 @@ class SelectiveDropout(tf.keras.layers.Layer):
     >>> print(y.numpy())  # Features 1 and 3 should be zeroed out across all timesteps and batches
     """
 
-    def __init__(self, mask: tf.Tensor, **kwargs) -> None:
+    def __init__(self, mask: Union[Sequence[bool], np.ndarray], **kwargs) -> None:
         """
         Initializes the SelectiveDropout layer with a fixed mask.
 
@@ -51,6 +52,9 @@ class SelectiveDropout(tf.keras.layers.Layer):
         """
         super().__init__(**kwargs)
 
+        # Store original mask for serialization
+        self._mask = list(mask)
+        
         # Convert mask to tensor and ensure it's a boolean tensor
         mask = tf.convert_to_tensor(mask, dtype=tf.bool)
 
@@ -60,7 +64,7 @@ class SelectiveDropout(tf.keras.layers.Layer):
 
         self.mask = mask
 
-    def build(self, input_shape: tuple[int, int, int]) -> None:
+    def build(self, input_shape: tuple) -> None:
         """
         Ensures the mask size matches the feature dimension.
 
@@ -84,8 +88,10 @@ class SelectiveDropout(tf.keras.layers.Layer):
             raise ValueError(
                 f"Mask size {self.mask.shape[0]} does not match feature dimension {feature_dim}"
             )
+            
+        self.built = True
 
-    def call(self, inputs: tf.Tensor, training: bool = None) -> tf.Tensor:
+    def call(self, inputs: tf.Tensor) -> tf.Tensor:
         """
         Applies selective dropout using the stored mask.
 
@@ -93,24 +99,15 @@ class SelectiveDropout(tf.keras.layers.Layer):
         ----------
         inputs : tf.Tensor
             Input data of shape (batch, timesteps, features).
-        training : bool, optional
-            Training flag (not explicitly used but kept for compatibility).
 
         Returns
         -------
         tf.Tensor
             The input tensor with masked features set to zero.
         """
-        # Ensure inputs match expected dtype
-        try:
-            # Convert to float32 if necessary for consistent behavior
-            inputs_float = tf.cast(inputs, tf.float32)
-            # Apply selective dropout
-            return tf.where(self.mask, 0.0, inputs_float)
-        except tf.errors.InvalidArgumentError as e:
-            raise ValueError(
-                f"Failed to apply selective dropout: {e}. Check that mask shape {self.mask.shape} matches input feature dimension {inputs.shape[-1]}."
-            )
+        # Apply selective dropout
+        return tf.where(self.mask, 0.0, inputs)
+
 
     def compute_output_shape(
         self, input_shape: tuple[int, int, int]
@@ -140,5 +137,5 @@ class SelectiveDropout(tf.keras.layers.Layer):
             A dictionary containing the layer configuration.
         """
         config = super().get_config()
-        config.update({"mask": self.mask})
+        config.update({"mask": self._mask})
         return config

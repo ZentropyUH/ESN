@@ -3,7 +3,17 @@ from typing import Callable, List, Optional, Tuple, Union
 import matplotlib.pyplot as plt
 import numpy as np
 
-from .helpers import _timeseries_base_plot, _delay_transform, _relative_extremes, plot_2d, scatter_2d
+from .helpers import (
+    _timeseries_base_plot,
+    _delay_transform,
+    _relative_extremes,
+    _poincare_section,
+    _recurrence_plot,
+    plot_2d,
+    scatter_2d,
+    plot_3d,
+    scatter_3d,
+)
 from functools import partial
 
 
@@ -21,9 +31,7 @@ def plot_2d_timeseries(
     sharex: bool = True,
     yscale: str = "linear",
     xscale: str = "linear",
-    data_transform: Optional[
-        Callable
-    ] = None,  # For advanced transformations (e.g., time delay, maxima detection, etc.)
+    data_transform: Optional[Callable] = None,
     **kwargs,
 ) -> List[plt.Axes]:
     """
@@ -70,9 +78,7 @@ def scatter_2d_timeseries(
     sharex: bool = True,
     yscale: str = "linear",
     xscale: str = "linear",
-    data_transform: Optional[
-        Callable
-    ] = None,  # For advanced transformations (e.g., time delay, maxima detection, etc.)
+    data_transform: Optional[Callable] = None,
     **kwargs,
 ) -> List[plt.Axes]:
     """
@@ -105,7 +111,7 @@ def scatter_2d_timeseries(
     )
 
 
-def delay_2d_timeseries(
+def plot_delay_map(
     data: np.ndarray,
     delay_time: float = 1.0,
     dt: float = 1.0,
@@ -113,25 +119,24 @@ def delay_2d_timeseries(
     suptitle: Optional[str] = None,
     sample_labels: Optional[List[str]] = None,
     feature_labels: Optional[List[str]] = None,
-    xlabels: Union[str, List[str]] = "Time",
-    ylabels: Union[str, List[str]] = "Feature Value",
+    xlabels: Union[str, List[str]] = "x(t)",
+    ylabels: Union[str, List[str]] = "x(t+τ)",
     separate_axes: bool = False,
     figsize: Optional[Tuple[int, int]] = None,
     sharex: bool = True,
     yscale: str = "linear",
     xscale: str = "linear",
-    plot_func: Callable = plot_2d,
     **kwargs,
 ) -> List[plt.Axes]:
     """
-    Makes a 2D time-series plot of the input data with a delay transformation applied.
+    Makes a delay map plot of the input data.
 
-    This function is a specialized wrapper around `_timeseries_base_plot`,
-    automatically setting `data_transform=_delay_transform`.
+    This function applies a delay transformation to the data and then plots
+    the delayed values against the original values.
 
     See Also
     --------
-    :func:`_timeseries_base_plot` : The base function for time series plotting.
+    :func:`_delay_transform` : The delay transformation function.
     """
     return _timeseries_base_plot(
         data=data,
@@ -148,12 +153,12 @@ def delay_2d_timeseries(
         yscale=yscale,
         xscale=xscale,
         data_transform=partial(_delay_transform, delay_time=delay_time),
-        plot_func=plot_func,
+        plot_func=scatter_2d,
         **kwargs,
     )
 
 
-def relative_extremes_2d_timeseries(
+def plot_extremes_map(
     data: np.ndarray,
     dt: float = 1.0,
     lam: float = 1.0,
@@ -161,25 +166,24 @@ def relative_extremes_2d_timeseries(
     suptitle: Optional[str] = None,
     sample_labels: Optional[List[str]] = None,
     feature_labels: Optional[List[str]] = None,
-    xlabels: Union[str, List[str]] = "Time",
-    ylabels: Union[str, List[str]] = "Feature Value",
+    xlabels: Union[str, List[str]] = "x(n)",
+    ylabels: Union[str, List[str]] = "x(n+1)",
     separate_axes: bool = False,
     figsize: Optional[Tuple[int, int]] = None,
     sharex: bool = True,
     yscale: str = "linear",
     xscale: str = "linear",
-    plot_func: Callable = scatter_2d,
     **kwargs,
 ) -> List[plt.Axes]:
     """
-    Makes a 2D time-series plot of the input data with a relative extremes transformation applied.
+    Makes a return map plot of the relative extremes of the input data.
 
-    This function is a specialized wrapper around `_timeseries_base_plot`,
-    automatically setting `data_transform=_relative_extremes`.
+    This function applies a relative extremes transformation to the data and then
+    plots the next extreme value against the current one.
 
     See Also
     --------
-    :func:`_timeseries_base_plot` : The base function for time series plotting.
+    :func:`_relative_extremes` : The relative extremes transformation function.
     """
     return _timeseries_base_plot(
         data=data,
@@ -196,9 +200,133 @@ def relative_extremes_2d_timeseries(
         yscale=yscale,
         xscale=xscale,
         data_transform=partial(_relative_extremes, extreme_type=extreme_type),
-        plot_func=plot_func,
+        plot_func=scatter_2d,
         **kwargs,
     )
+
+
+def plot_poincare_section(
+    data: np.ndarray,
+    dt: float = 1.0,
+    lam: float = 1.0,
+    plane: str = "x=0",
+    direction: str = "positive",
+    suptitle: Optional[str] = None,
+    sample_labels: Optional[List[str]] = None,
+    feature_labels: Optional[List[str]] = None,
+    xlabels: Union[str, List[str]] = "y",
+    ylabels: Union[str, List[str]] = "z",
+    separate_axes: bool = False,
+    figsize: Optional[Tuple[int, int]] = None,
+    sharex: bool = True,
+    yscale: str = "linear",
+    xscale: str = "linear",
+    **kwargs,
+) -> List[plt.Axes]:
+    """
+    Makes a Poincaré section plot of the input data.
+
+    This function applies a Poincaré section transformation to the data and then
+    plots the resulting points.
+
+    See Also
+    --------
+    :func:`_poincare_section` : The Poincaré section transformation function.
+    """
+    return _timeseries_base_plot(
+        data=data,
+        dt=dt,
+        lam=lam,
+        suptitle=suptitle,
+        sample_labels=sample_labels,
+        feature_labels=feature_labels,
+        xlabels=xlabels,
+        ylabels=ylabels,
+        separate_axes=separate_axes,
+        figsize=figsize,
+        sharex=sharex,
+        yscale=yscale,
+        xscale=xscale,
+        data_transform=partial(_poincare_section, plane=plane, direction=direction),
+        plot_func=scatter_2d,
+        **kwargs,
+    )
+
+
+def plot_recurrence(
+    data: np.ndarray,
+    threshold: float = 0.1,
+    metric: str = "euclidean",
+    suptitle: Optional[str] = None,
+    sample_labels: Optional[List[str]] = None,
+    figsize: Optional[Tuple[int, int]] = None,
+    cmap: str = "binary",
+    **kwargs,
+) -> List[plt.Axes]:
+    """
+    Makes a recurrence plot of the input data.
+
+    This function applies a recurrence plot transformation to the data and then
+    displays the resulting matrix as an image.
+
+    Parameters
+    ----------
+    data : np.ndarray
+        The input data array of shape (N, T, D).
+    threshold : float, optional
+        The threshold for considering points as recurrent.
+    metric : str, optional
+        The distance metric to use. Options: "euclidean", "manhattan", "chebyshev".
+    suptitle : str, optional
+        The super title for the entire figure.
+    sample_labels : list of str, optional
+        Labels for each sample.
+    figsize : tuple of int, optional
+        The size of the figure.
+    cmap : str, optional
+        The colormap to use for the recurrence plot.
+    **kwargs
+        Additional keyword arguments passed to `imshow`.
+
+    Returns
+    -------
+    list of plt.Axes
+        A list of matplotlib axes objects.
+
+    See Also
+    --------
+    :func:`_recurrence_plot` : The recurrence plot transformation function.
+    """
+    # Compute recurrence plot
+    recurrence = _recurrence_plot(data, threshold=threshold, metric=metric)
+
+    # Prepare figure
+    N = recurrence.shape[0]
+    if figsize is None:
+        figsize = (6, 6 * N)
+    
+    fig, axes = plt.subplots(N, 1, figsize=figsize)
+    axes = np.atleast_1d(axes)
+    
+    if suptitle:
+        fig.suptitle(suptitle, fontsize=14)
+    
+    # Prepare default labels
+    sample_labels = sample_labels or [f"Sample {i+1}" for i in range(N)]
+    if len(sample_labels) != N:
+        raise ValueError(f"Length of sample_labels must be {N}, got {len(sample_labels)}.")
+    
+    # Plot each recurrence plot
+    for i, ax in enumerate(axes):
+        im = ax.imshow(recurrence[i], cmap=cmap, **kwargs)
+        ax.set_title(sample_labels[i])
+        ax.set_xlabel("Time")
+        ax.set_ylabel("Time")
+    
+    # Add colorbar
+    fig.colorbar(im, ax=axes.ravel().tolist())
+    
+    return list(axes)
 
 
 def plot_3d_parametric(
@@ -233,7 +361,7 @@ def plot_3d_parametric(
         If True, each trajectory is plotted on its own 3D subplot.
         Otherwise, all trajectories share the same 3D axis (default=False).
     xlabels : str or list of str, optional
-        x-axis label(s). If a single string, it’s reused for all subplots.
+        x-axis label(s). If a single string, it's reused for all subplots.
         If a list, must be length N.
     ylabels : str or list of str, optional
         y-axis label(s). Same rules as xlabels.
@@ -250,12 +378,7 @@ def plot_3d_parametric(
     Raises
     ------
     ValueError
-        If data is not (T, 3) or (N, T, 3), or if label lengths don’t match N.
-
-    Notes
-    -----
-    - If multiple 3D subplots are used, their rotation (view angle) is synchronized.
-    - Legend is only shown if `separate_axes=False`.
+        If data is not (T, 3) or (N, T, 3), or if label lengths don't match N.
     """
     # Ensure data is shape (N, T, 3)
     if data.ndim == 2:
@@ -268,9 +391,7 @@ def plot_3d_parametric(
     # Prepare default sample labels
     sample_labels = sample_labels or [f"Sample {i+1}" for i in range(N)]
     if len(sample_labels) != N:
-        raise ValueError(
-            f"Length of sample_labels ({len(sample_labels)}) must match N={N}."
-        )
+        raise ValueError(f"Length of sample_labels ({len(sample_labels)}) must match N={N}.")
 
     # Expand xlabels, ylabels, zlabels if needed
     if isinstance(xlabels, str):
@@ -423,14 +544,6 @@ def plot_heatmap(
     ------
     ValueError
         If data shape is invalid or if label lists don't match N.
-
-    Notes
-    -----
-    - Each sample is plotted in a separate subplot (vertical stack).
-    - The horizontal axis runs from 0..T*dt*lam (unless xlims is given).
-    - A single colorbar is placed to the right of all subplots.
-    - If `transpose=True`, the shape is displayed as (D, T) in the heatmap.
-      Otherwise, (T, D).
     """
     # Ensure shape (N, T, D)
     if data.ndim == 1:
@@ -525,8 +638,10 @@ def plot_heatmap(
 __all__ = [
     "plot_2d_timeseries",
     "scatter_2d_timeseries",
-    "delay_2d_timeseries",
-    "relative_extremes_2d_timeseries",
+    "plot_delay_map",
+    "plot_extremes_map",
+    "plot_poincare_section",
+    "plot_recurrence",
     "plot_3d_parametric",
     "plot_heatmap",
 ]

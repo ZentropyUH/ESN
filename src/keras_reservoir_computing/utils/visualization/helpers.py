@@ -19,10 +19,8 @@ def _timeseries_base_plot(
     sharex=True,
     yscale: str = "linear",
     xscale: str = "linear",
-    data_transform: Optional[
-        Callable
-    ] = None,  # For advanced transformations (e.g., time delay, maxima detection, etc.)
-    plot_func: Callable = plt.plot,  # Pass in your "plt.plot", "plt.scatter", or custom function
+    data_transform: Optional[Callable] = None,
+    plot_func: Callable = plt.plot,
     **kwargs,
 ) -> List[plt.Axes]:
     """
@@ -66,7 +64,6 @@ def _timeseries_base_plot(
     plot_func : Callable, optional
         The plot function to use for plotting the data. It must have the signature:
         `plot_func(ax: plt.Axes, t: np.ndarray, y: np.ndarray, label: str, **kwargs) -> None`.
-        The `ax` is the axis to plot on, `t` is the time axis (or any other data resulting from `data_transform`), `y` is the data to plot.
     **kwargs
         Additional keyword arguments passed on to `plot_func`.
 
@@ -74,17 +71,8 @@ def _timeseries_base_plot(
     -------
     list of plt.Axes
         A list of matplotlib axes objects.
-
-    Notes
-    -----
-    - If `data` has more than 3 dimensions, a ValueError is raised.
-    - If `data` has 1 or 2 dimensions, it is reshaped to have 3 dimensions.
-    - If `sample_labels` or `feature_labels` are not provided, default labels are generated.
-    - If `xlabels` or `ylabels` are provided as a single string, they are used for all features.
-    - The `data_transform` function can be used for advanced transformations such as time delay embedding or maxima detection.
     """
     # -- Step 1. Validate or reshape data into (N, T, D) --
-    # identical logic to your original function
     if data.ndim > 3:
         raise ValueError(f"Data must have ndim <= 3, got {data.ndim}.")
     if data.ndim == 1:
@@ -103,25 +91,19 @@ def _timeseries_base_plot(
     else:
         fig = plt.figure(figsize=figsize or (12, 3))
         ax_single = plt.gca()
-        # Trick: replicate the single axis so we can loop over features uniformly
         axes = [ax_single] * D
 
     if suptitle:
         fig.suptitle(suptitle, fontsize=14)
 
     # -- Step 4. Handle default sample/feature labels, xlabels, ylabels --
-    # same logic as your original function
     sample_labels = sample_labels or [f"Sample {i+1}" for i in range(N)]
     feature_labels = feature_labels or [f"Feature {j+1}" for j in range(D)]
     if len(sample_labels) != N:
-        raise ValueError(
-            f"Length of sample_labels must be {N}, got {len(sample_labels)}."
-        )
+        raise ValueError(f"Length of sample_labels must be {N}, got {len(sample_labels)}.")
     if len(feature_labels) != D:
-        raise ValueError(
-            f"Length of feature_labels must be {D}, got {len(feature_labels)}."
-        )
-    # xlabels, ylabels
+        raise ValueError(f"Length of feature_labels must be {D}, got {len(feature_labels)}.")
+    
     if isinstance(xlabels, str):
         xlabels = [xlabels] * D
     elif len(xlabels) != D:
@@ -134,34 +116,24 @@ def _timeseries_base_plot(
 
     # -- Step 5. Main loop to plot each feature across N samples --
     for feature_idx, ax in enumerate(axes):
-        # The data might have changed shape if transformed,
-        # so let's get the new shape from the data in this loop if needed
-        # or assume shape is still (N, T*, D).
         N_new, T_new, D_new = data.shape
 
         for sample_idx in range(N_new):
-            # Decide label logic
             if N_new > 1 and not separate_axes:
                 label = f"{sample_labels[sample_idx]} - {feature_labels[feature_idx]}"
             else:
-                label = (
-                    sample_labels[sample_idx]
-                    if (N_new > 1 and separate_axes)
-                    else feature_labels[feature_idx]
-                )
-            ###########################################################################
+                label = sample_labels[sample_idx] if (N_new > 1 and separate_axes) else feature_labels[feature_idx]
+
             if data_transform is not None:
                 t, y_vals = data_transform(data[sample_idx, :, feature_idx], dt)
             else:
                 y_vals = data[sample_idx, :, feature_idx]
 
             plot_func(ax, t, y_vals, label=label, **kwargs)
-            ###########################################################################
 
         if separate_axes and N > 1:
             ax.set_title(feature_labels[feature_idx])
 
-        # Axis formatting
         ax.set_yscale(yscale)
         ax.set_xscale(xscale)
         ax.set_ylabel(ylabels[feature_idx])
@@ -175,11 +147,8 @@ def _timeseries_base_plot(
     else:
         handles, legend_labels = axes[0].get_legend_handles_labels()
         if N == 1:
-            # Only one sample
             axes[0].legend(handles, legend_labels, loc="upper left", frameon=True)
         else:
-            # Multiple samples in a single plot
-            # Group legends by sample_labels
             grouped_handles = {sample: [] for sample in sample_labels}
             grouped_labels = {sample: [] for sample in sample_labels}
 
@@ -206,7 +175,6 @@ def _timeseries_base_plot(
 
 
 # Transformation functions
-# Functions with signature (data: np.ndarray, dt: float) -> Tuple[np.ndarray, np.ndarray]
 def _delay_transform(
     data: np.ndarray, dt: float, delay_time: float = 5.0
 ) -> Tuple[np.ndarray, np.ndarray]:
@@ -216,7 +184,7 @@ def _delay_transform(
     Parameters
     ----------
     data : np.ndarray
-        The input data array of shape (T,).
+        The input data array of shape (T,) or (N, T, D).
     dt : float
         The time step between data points.
     delay_time : float, optional
@@ -228,23 +196,28 @@ def _delay_transform(
         A tuple containing the delayed data and the data without delay.
     """
     delay_steps = int(delay_time / dt)
-
-    delayed_data = data[delay_steps:]
-    data_without_delay = data[:-delay_steps]
-
+    
+    if data.ndim == 1:
+        delayed_data = data[delay_steps:]
+        data_without_delay = data[:-delay_steps]
+    else:
+        # Handle 3D arrays (N, T, D)
+        delayed_data = data[:, delay_steps:, :]
+        data_without_delay = data[:, :-delay_steps, :]
+    
     return delayed_data, data_without_delay
 
 
 def _relative_extremes(
-    data: float, dt: float, extreme_type: str = "max"
+    data: np.ndarray, dt: float, extreme_type: str = "max"
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
-    Apply a relative extremes transformation to the data. Returns the relative extreme values shifted by one time step and the relative values without the shift.
+    Apply a relative extremes transformation to the data.
 
     Parameters
     ----------
     data : np.ndarray
-        The input data array of shape (T,).
+        The input data array of shape (T,) or (N, T, D).
     dt : float
         The time step between data points.
     extreme_type : str
@@ -252,67 +225,171 @@ def _relative_extremes(
 
     Returns
     -------
-    relative_extremes(x), relative_extremes(x+1)
+    Tuple[np.ndarray, np.ndarray]
+        A tuple containing the relative extreme values and their next values.
     """
-    if extreme_type == "max":
-        extrema = argrelmax(data)[0]
-    elif extreme_type == "min":
-        extrema = argrelmin(data)[0]
+    if data.ndim == 1:
+        if extreme_type == "max":
+            extrema = argrelmax(data)[0]
+        elif extreme_type == "min":
+            extrema = argrelmin(data)[0]
+        else:
+            raise ValueError("extreme_type must be either 'max' or 'min'.")
+        
+        relative_extremes = data[extrema]
+        return relative_extremes[:-1], relative_extremes[1:]
     else:
-        raise ValueError("extreme_type must be either 'max' or 'min'.")
+        # Handle 3D arrays (N, T, D)
+        results = []
+        for i in range(data.shape[0]):
+            for j in range(data.shape[2]):
+                if extreme_type == "max":
+                    extrema = argrelmax(data[i, :, j])[0]
+                else:
+                    extrema = argrelmin(data[i, :, j])[0]
+                
+                relative_extremes = data[i, extrema, j]
+                results.append((relative_extremes[:-1], relative_extremes[1:]))
+        
+        # Stack results
+        x = np.concatenate([r[0] for r in results])
+        y = np.concatenate([r[1] for r in results])
+        return x, y
 
-    relative_extremes = data[extrema]
 
-    return relative_extremes[:-1], relative_extremes[1:]
-
-
-# Plotting functions
-# Functions with signature (ax: plt.Axes, x: np.ndarray, y: np.ndarray, label: str, **kwargs) -> None
-def plot_2d(ax: plt.Axes, x: np.ndarray, y: np.ndarray, label: str, **kwargs) -> None:
+def _poincare_section(
+    data: np.ndarray, dt: float, plane: str = "x=0", direction: str = "positive"
+) -> Tuple[np.ndarray, np.ndarray]:
     """
-    Make a 2D plot on the given axis.
+    Compute Poincaré section of the data.
 
     Parameters
     ----------
-    ax : plt.Axes
-        The axis to plot on.
-    x : np.ndarray
-        The x-axis data.
-    y : np.ndarray
-        The y-axis data.
-    label : str
-        The label for the data.
-    **kwargs
-        Additional keyword arguments to pass to the plot function.
+    data : np.ndarray
+        The input data array of shape (T,) or (N, T, D).
+    dt : float
+        The time step between data points.
+    plane : str, optional
+        The plane to use for the section. Options: "x=0", "y=0", "z=0".
+    direction : str, optional
+        The direction of crossing. Options: "positive", "negative".
 
     Returns
     -------
-    None
+    Tuple[np.ndarray, np.ndarray]
+        A tuple containing the points before and after crossing the plane.
+    """
+    if data.ndim == 1:
+        raise ValueError("Poincaré section requires at least 2D data.")
+    
+    if data.ndim == 2:
+        data = data[np.newaxis, ...]
+    
+    N, T, D = data.shape
+    
+    if D < 2:
+        raise ValueError("Poincaré section requires at least 2D data.")
+    
+    # Determine which dimension to use for the section
+    if plane == "x=0":
+        dim = 0
+    elif plane == "y=0":
+        dim = 1
+    elif plane == "z=0" and D >= 3:
+        dim = 2
+    else:
+        raise ValueError(f"Invalid plane: {plane}")
+    
+    crossings = []
+    for i in range(N):
+        # Find points where the trajectory crosses the plane
+        if direction == "positive":
+            mask = (data[i, :-1, dim] <= 0) & (data[i, 1:, dim] > 0)
+        else:
+            mask = (data[i, :-1, dim] >= 0) & (data[i, 1:, dim] < 0)
+        
+        # Get the points before and after crossing
+        before = data[i, :-1][mask]
+        after = data[i, 1:][mask]
+        crossings.append((before, after))
+    
+    # Stack results
+    before_points = np.concatenate([c[0] for c in crossings])
+    after_points = np.concatenate([c[1] for c in crossings])
+    
+    return before_points, after_points
+
+
+def _recurrence_plot(
+    data: np.ndarray, threshold: float = 0.1, metric: str = "euclidean"
+) -> np.ndarray:
+    """
+    Compute a recurrence plot from the data.
+
+    Parameters
+    ----------
+    data : np.ndarray
+        The input data array of shape (T,) or (N, T, D).
+    threshold : float, optional
+        The threshold for considering points as recurrent.
+    metric : str, optional
+        The distance metric to use. Options: "euclidean", "manhattan", "chebyshev".
+
+    Returns
+    -------
+    np.ndarray
+        The recurrence plot matrix.
+    """
+    if data.ndim == 1:
+        data = data[np.newaxis, ..., np.newaxis]
+    elif data.ndim == 2:
+        data = data[np.newaxis, ...]
+    
+    N, T, D = data.shape
+    
+    # Compute distance matrix for each sample
+    recurrence_plots = []
+    for i in range(N):
+        if metric == "euclidean":
+            distances = np.sqrt(np.sum((data[i, :, np.newaxis] - data[i, np.newaxis, :])**2, axis=2))
+        elif metric == "manhattan":
+            distances = np.sum(np.abs(data[i, :, np.newaxis] - data[i, np.newaxis, :]), axis=2)
+        elif metric == "chebyshev":
+            distances = np.max(np.abs(data[i, :, np.newaxis] - data[i, np.newaxis, :]), axis=2)
+        else:
+            raise ValueError(f"Invalid metric: {metric}")
+        
+        # Create binary recurrence plot
+        recurrence = distances <= threshold
+        recurrence_plots.append(recurrence.astype(float))
+    
+    return np.stack(recurrence_plots)
+
+
+# Plotting functions
+def plot_2d(ax: plt.Axes, x: np.ndarray, y: np.ndarray, label: str, **kwargs) -> None:
+    """
+    Make a 2D plot on the given axis.
     """
     ax.plot(x, y, label=label, **kwargs)
 
 
-def scatter_2d(
-    ax: plt.Axes, x: np.ndarray, y: np.ndarray, label: str, **kwargs
-) -> None:
+def scatter_2d(ax: plt.Axes, x: np.ndarray, y: np.ndarray, label: str, **kwargs) -> None:
     """
     Make a 2D scatter plot on the given axis.
-
-    Parameters
-    ----------
-    ax : plt.Axes
-        The axis to plot on.
-    x : np.ndarray
-        The x-axis data.
-    y : np.ndarray
-        The y-axis data.
-    label : str
-        The label for the data.
-    **kwargs
-        Additional keyword arguments to pass to the scatter function.
-
-    Returns
-    -------
-    None
     """
     ax.scatter(x, y, label=label, **kwargs)
+
+
+def plot_3d(ax: plt.Axes, x: np.ndarray, y: np.ndarray, z: np.ndarray, label: str, **kwargs) -> None:
+    """
+    Make a 3D plot on the given axis.
+    """
+    ax.plot(x, y, z, label=label, **kwargs)
+
+
+def scatter_3d(ax: plt.Axes, x: np.ndarray, y: np.ndarray, z: np.ndarray, label: str, **kwargs) -> None:
+    """
+    Make a 3D scatter plot on the given axis.
+    """
+    ax.scatter(x, y, z, label=label, **kwargs)

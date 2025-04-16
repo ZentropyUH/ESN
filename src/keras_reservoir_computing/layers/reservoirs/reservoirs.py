@@ -1,4 +1,4 @@
-from typing import Callable, Optional, Union
+from typing import Callable, Union
 
 import tensorflow as tf
 
@@ -64,11 +64,12 @@ class ESNReservoir(BaseReservoir):
         feedback_dim: int = 1,
         input_dim: int = 0,
         leak_rate: float = 1.0,
-        activation: Optional[Union[str, Callable]] = "tanh",
-        input_initializer: Optional[Union[str, Callable]] = "zeros",
-        feedback_initializer: Optional[Union[str, Callable]] = "glorot_uniform",
-        feedback_bias_initializer: Optional[Union[str, Callable]] = "zeros",
-        kernel_initializer: Optional[Union[str, Callable]] = "glorot_uniform",
+        activation: Union[str, Callable] = "tanh",
+        input_initializer: Union[str, Callable] = "zeros",
+        feedback_initializer: Union[str, Callable] = "glorot_uniform",
+        feedback_bias_initializer: Union[str, Callable] = "zeros",
+        kernel_initializer: Union[str, Callable] = "glorot_uniform",
+        dtype: str = "float32",
         **kwargs,
     ) -> None:
         """
@@ -99,7 +100,7 @@ class ESNReservoir(BaseReservoir):
             feedback_bias_initializer
         )
         self.kernel_initializer = tf.keras.initializers.get(kernel_initializer)
-
+        
         cell = ESNCell(
             units=units,
             feedback_dim=feedback_dim,
@@ -110,8 +111,9 @@ class ESNReservoir(BaseReservoir):
             feedback_initializer=feedback_initializer,
             feedback_bias_initializer=feedback_bias_initializer,
             kernel_initializer=kernel_initializer,
+            dtype=dtype,
         )
-        super().__init__(cell, **kwargs)
+        super().__init__(cell=cell, dtype=dtype, **kwargs)
 
     def get_config(self):
         base_config = super().get_config()
