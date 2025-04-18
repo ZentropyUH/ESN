@@ -1,8 +1,11 @@
+import logging
 from typing import List, Union
 
 import tensorflow as tf
 
 from keras_reservoir_computing.layers.readouts.base import ReadOut
+
+logger = logging.getLogger(__name__)
 
 
 class ReservoirTrainer:
@@ -45,9 +48,13 @@ class ReservoirTrainer:
         self.model = model
         self.readout_targets = readout_targets
         self.log = log
+        
+        if log:
+            logging.basicConfig(level=logging.INFO)
 
         # Find all ReadOut layers in topological order
         # model.layers is already sorted in topological order
+        # Only include layers that are in readout_targets
         self.readout_layers_list = [
             layer
             for layer in self.model.layers
@@ -82,10 +89,17 @@ class ReservoirTrainer:
             )
         return self._intermediate_models[layer_name]
 
+    @staticmethod
+    @tf.function(jit_compile=True)
+    def _warm_forward(model, warmup, data):
+        model(warmup, training=False)  # warm-up
+        return model(data, training=False)
+
+
     def fit_readout_layers(
         self,
         warmup_data: Union[tf.Tensor, List[tf.Tensor]],
-        X: Union[tf.Tensor, List[tf.Tensor]],
+        input_data: Union[tf.Tensor, List[tf.Tensor]],
     ) -> None:
         """
         Train all ReadOut layers in the correct order using intermediate models.
@@ -98,45 +112,33 @@ class ReservoirTrainer:
         warmup_data : tf.Tensor or List[tf.Tensor]
             The input data to warm up the model before training the ReadOut layers.
 
-        X : tf.Tensor or List[tf.Tensor]
+        input_data : tf.Tensor or List[tf.Tensor]
             The input data to generate intermediate outputs.
 
         Notes
         -----
-        - The input data `X` should be compatible with the input shape of the model.
+        - The input data `input_data` should be compatible with the input shape of the model.
         - The method prints the progress of training each `ReadOut` layer.
         """
         if self.log:
-            print("\n=== Training ReadOut Layers in Topological Order ===")
+            logger.info("\n=== Training ReadOut Layers in Topological Order ===")
 
-        # Automatically determine batch size
-        if isinstance(X, tf.Tensor):
-            batch_size = X.shape[0]
-        else:
-            batch_size = X[0].shape[0]
 
         # Optimize for memory utilization by clearing intermediate results after each layer is trained
         for readout_layer in self.readout_layers_list:
             layer_name = readout_layer.name
 
             if self.log:
-                print(f"Processing {layer_name}...")
+                logger.info(f"Processing {layer_name}...")
 
             # Get intermediate model for this layer (created lazily)
             intermediate_model = self._get_intermediate_model(layer_name)
 
-            # Warm up the model
+            # Warm up and get the intermediate inputs
             if self.log:
-                print(f"  Warming up model for {layer_name}...")
-            _ = intermediate_model.predict(
-                warmup_data, batch_size=batch_size, verbose=0
-            )
-
-            # Get the intermediate output
-            if self.log:
-                print(f"  Generating inputs for {layer_name}...")
-            readout_input = intermediate_model.predict(
-                X, batch_size=batch_size, verbose=0
+                logger.info(f"  Warming up and getting intermediate inputs for model {layer_name}...")
+            readout_input = self._warm_forward(
+                intermediate_model, warmup_data, input_data
             )
 
             # Get the expected target
@@ -144,7 +146,7 @@ class ReservoirTrainer:
 
             # Train ReadOut layer
             if self.log:
-                print(f"  Fitting {layer_name}...")
+                logger.info(f"  Fitting {layer_name}...")
             readout_layer.fit(readout_input, target)
 
             # Clear the intermediate output to free memory
@@ -154,7 +156,7 @@ class ReservoirTrainer:
             del self._intermediate_models[layer_name]
 
             if self.log:
-                print(f"  {layer_name} fitted successfully.")
+                logger.info(f"  {layer_name} fitted successfully.")
 
         if self.log:
-            print("All ReadOut layers fitted successfully.")
+            logger.info("All ReadOut layers fitted successfully.")
