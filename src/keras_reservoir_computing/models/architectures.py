@@ -17,7 +17,7 @@ from keras_reservoir_computing.layers.builders import (
     ESNReservoir_builder,
     ReadOut_builder,
 )
-from keras_reservoir_computing.layers.config import load_user_config
+from keras_reservoir_computing.layers.config_layers import load_user_config
 
 # Default configurations
 ESN_RESERVOIR_CONFIG: Dict[str, Any] = {
@@ -62,6 +62,7 @@ def classic_ESN(
     batch: int = 1,
     features: int = 1,
     name: str = "classic_ESN",
+    dtype: str = "float32",
 ) -> tf.keras.Model:
     """
     Build a classic Echo State Network (ESN) model.
@@ -82,6 +83,8 @@ def classic_ESN(
         Number of features in the input data. Default is 1.
     name : str, optional
         Name for the model. Default is "classic_ESN".
+    dtype : str, optional
+        Data type for the model. Default is "float32".
 
     Returns
     -------
@@ -100,24 +103,17 @@ def classic_ESN(
         readout_config = load_user_config(readout_config)
 
     # Create the input layer
-    input_layer = tf.keras.layers.Input(shape=(None, features), batch_size=batch)
+    input_layer = tf.keras.layers.Input(shape=(None, features), batch_size=batch, dtype=dtype)
 
     # Override units parameter in reservoir config
-    overrides = {"units": units, "feedback_dim": features}
-    reservoir = ESNReservoir_builder(reservoir_config, overrides=overrides)(input_layer)
+    reservoir_overrides = {"units": units, "feedback_dim": features, "dtype": dtype}
+    reservoir = ESNReservoir_builder(user_config=reservoir_config, overrides=reservoir_overrides)(input_layer)
 
-    # Create readout layer
-    readout_config_copy = (
-        readout_config.copy() if isinstance(readout_config, dict) else readout_config
-    )
-    if isinstance(readout_config_copy, dict):
-        readout_config_copy.update(
-            {"units": features}
-        )  # Ensure output dimensionality matches input
-    readout = ReadOut_builder(readout_config_copy)(reservoir)
+    readout_overrides = {"dtype": dtype}
+    readout = ReadOut_builder(readout_config, overrides=readout_overrides)(reservoir)
 
     # Build and return model
-    model = tf.keras.Model(inputs=input_layer, outputs=readout, name=name)
+    model = tf.keras.Model(inputs=input_layer, outputs=readout, name=name, dtype=dtype)
     return model
 
 
@@ -152,7 +148,8 @@ def Ott_ESN(
         Number of features in the input data. Default is 1.
     name : str, optional
         Name for the model. Default is "Ott_ESN".
-
+    dtype : str, optional
+        Data type for the model. Default is "float32".
     Returns
     -------
     tf.keras.Model
@@ -180,8 +177,8 @@ def Ott_ESN(
     feedback_layer = tf.keras.layers.Input(shape=(None, features), batch_size=batch, dtype=dtype)
 
     # Build reservoir with overridden parameters
-    overrides = {"units": units, "feedback_dim": features, "dtype": dtype}
-    reservoir = ESNReservoir_builder(reservoir_config, overrides=overrides)(
+    reservoir_overrides = {"units": units, "feedback_dim": features, "dtype": dtype}
+    reservoir = ESNReservoir_builder(user_config=reservoir_config, overrides=reservoir_overrides)(
         feedback_layer
     )
 
@@ -189,23 +186,18 @@ def Ott_ESN(
     selective_exponentiation = SelectiveExponentiation(
         index=0,
         exponent=2.0,
+        dtype=dtype,
     )(reservoir)
 
     # Concatenate original input with augmented reservoir output
-    concat = tf.keras.layers.Concatenate()([feedback_layer, selective_exponentiation])
+    concat = tf.keras.layers.Concatenate(dtype=dtype)([feedback_layer, selective_exponentiation])
 
     # Create readout layer
-    readout_config_copy = (
-        readout_config.copy() if isinstance(readout_config, dict) else readout_config
-    )
-    if isinstance(readout_config_copy, dict):
-        readout_config_copy.update(
-            {"units": features}
-        )  # Ensure output dimensionality matches input
-    readout = ReadOut_builder(readout_config_copy)(concat)
+    readout_overrides = {"dtype": dtype}
+    readout = ReadOut_builder(readout_config, overrides=readout_overrides)(concat)
 
     # Build and return model
-    model = tf.keras.Model(inputs=feedback_layer, outputs=readout, name=name)
+    model = tf.keras.Model(inputs=feedback_layer, outputs=readout, name=name, dtype=dtype)
     return model
 
 
@@ -217,6 +209,7 @@ def ensemble_with_mean_ESN(
     batch: int = 1,
     features: int = 1,
     name: str = "ensemble_with_mean_ESN",
+    dtype: str = "float32",
 ) -> tf.keras.Model:
     """
     Build an ensemble of ESNs with outlier-filtered mean aggregation.
@@ -242,6 +235,8 @@ def ensemble_with_mean_ESN(
         Number of features in the input data. Default is 1.
     name : str, optional
         Name for the model. Default is "ensemble_with_mean_ESN".
+    dtype : str, optional
+        Data type for the model. Default is "float32".
 
     Returns
     -------
@@ -263,19 +258,10 @@ def ensemble_with_mean_ESN(
     # Create input layer
     input_layer = tf.keras.layers.Input(shape=(None, features), batch_size=batch)
 
-    # Set up reservoir configuration
-    reservoir_config_copy = (
-        reservoir_config.copy()
-        if isinstance(reservoir_config, dict)
-        else reservoir_config
-    )
-    if isinstance(reservoir_config_copy, dict):
-        reservoir_config_copy["units"] = units
-        reservoir_config_copy["feedback_dim"] = features
-
     # Create ensemble members
+    reservoir_overrides = {"dtype": dtype, "units": units, "feedback_dim": features}
     reservoirs = [
-        ESNReservoir_builder(reservoir_config_copy)(input_layer)
+        ESNReservoir_builder(user_config=reservoir_config, overrides=reservoir_overrides)(input_layer)
         for _ in range(ensemble_size)
     ]
 
@@ -309,7 +295,7 @@ def ensemble_with_mean_ESN(
     filtered_mean = OutliersFilteredMean()(readouts)
 
     # Build and return model
-    model = tf.keras.Model(inputs=input_layer, outputs=filtered_mean, name=name)
+    model = tf.keras.Model(inputs=input_layer, outputs=filtered_mean, name=name, dtype=dtype)
     return model
 
 
@@ -318,12 +304,11 @@ def residual_stacked_ESN(
     reservoir_config: Union[
         str, List[str], Dict[str, Any], List[Dict[str, Any]]
     ] = ESN_RESERVOIR_CONFIG,
-    readout_config: Union[
-        str, List[str], Dict[str, Any], List[Dict[str, Any]]
-    ] = READOUT_CONFIG,
+    readout_config: Union[str, Dict[str, Any]] = READOUT_CONFIG,
     batch: int = 1,
     features: int = 1,
     name: str = "stacked_ESN",
+    dtype: str = "float32",
 ) -> tf.keras.Model:
     """
     Build a multi-layer ESN with residual connections.
@@ -340,7 +325,7 @@ def residual_stacked_ESN(
     reservoir_config : Union[str, List[str], Dict, List[Dict]], optional
         Configuration for each reservoir layer. Can be a single config or list of configs.
         Default is ESN_RESERVOIR_CONFIG.
-    readout_config : Union[str, List[str], Dict, List[Dict]], optional
+    readout_config : Union[str, Dict[str, Any]], optional
         Configuration for readout layers. Can be a single config or list of configs.
         Default is READOUT_CONFIG.
     batch : int, optional
@@ -349,6 +334,8 @@ def residual_stacked_ESN(
         Number of features in the input data. Default is 1.
     name : str, optional
         Name for the model. Default is "stacked_ESN".
+    dtype : str, optional
+        Data type for the model. Default is "float32".
 
     Returns
     -------
@@ -383,21 +370,12 @@ def residual_stacked_ESN(
 
     # Handle readout_config
     if isinstance(readout_config, (str, dict)):
-        readout_configs = [
-            (
-                load_user_config(readout_config)
-                if isinstance(readout_config, str)
-                else readout_config.copy()
-            )
-        ]
-    else:
-        # Process list of configs
-        readout_configs = []
-        for config in readout_config:
-            if isinstance(config, str):
-                readout_configs.append(load_user_config(config))
-            else:
-                readout_configs.append(config.copy())
+        readout_config = (
+            load_user_config(readout_config)
+            if isinstance(readout_config, str)
+            else readout_config.copy()
+        )
+
 
     # Convert single units to list
     units_list = [units] if isinstance(units, int) else units
@@ -436,27 +414,26 @@ def residual_stacked_ESN(
     for i, config in enumerate(reservoir_configs):
         if i == 0:
             # First layer connects to input only
-            reservoir = ESNReservoir_builder(config)(input_layer)
+            reservoir = ESNReservoir_builder(user_config=config, overrides={"dtype": dtype})(input_layer)
         elif i == 1:
             # Second layer connects to input and first reservoir
-            reservoir = ESNReservoir_builder(config)(
+            reservoir = ESNReservoir_builder(user_config=config, overrides={"dtype": dtype})(
                 tf.keras.layers.Concatenate()([input_layer, reservoirs[-1]])
             )
         else:
             # Later layers connect to previous two reservoirs
-            reservoir = ESNReservoir_builder(config)(
+            reservoir = ESNReservoir_builder(user_config=config, overrides={"dtype": dtype})(
                 tf.keras.layers.Concatenate()([reservoirs[-1], reservoirs[-2]])
             )
 
         reservoirs.append(reservoir)
 
     # Configure and create readout layer
-    readout_configs[0]["name"] = "readout"
-    readout_configs[0]["units"] = features
-    readout = ReadOut_builder(readout_configs[0])(reservoirs[-1])
+    readout_overrides = {"dtype": dtype, "name": "readout", "units": features}
+    readout = ReadOut_builder(readout_config, overrides=readout_overrides)(reservoirs[-1])
 
     # Build and return model
-    model = tf.keras.Model(inputs=input_layer, outputs=readout, name=name)
+    model = tf.keras.Model(inputs=input_layer, outputs=readout, name=name, dtype=dtype)
     return model
 
 
@@ -481,9 +458,9 @@ def headless_ESN(
     input_layer = tf.keras.layers.Input(shape=(None, features), batch_size=batch, dtype=dtype)
 
     # Build reservoir
-    overrides = {"units": units, "feedback_dim": features, "dtype": dtype}
-    reservoir = ESNReservoir_builder(reservoir_config, overrides=overrides)(input_layer)
+    reservoir_overrides = {"units": units, "feedback_dim": features, "dtype": dtype}
+    reservoir = ESNReservoir_builder(user_config=reservoir_config, overrides=reservoir_overrides)(input_layer)
 
     # Build and return model
-    model = tf.keras.Model(inputs=input_layer, outputs=reservoir, name=name)
+    model = tf.keras.Model(inputs=input_layer, outputs=reservoir, name=name, dtype=dtype)
     return model

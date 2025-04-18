@@ -420,6 +420,8 @@ def esp_index(
        Available: http://arxiv.org/abs/1811.10892
     """
 
+    input_dtype = feedback_seq.dtype
+
     # Save current states for restoring later
     current_states = {
         name: [tf.identity(state) for state in states]
@@ -431,12 +433,12 @@ def esp_index(
     base_orbit = harvest(model, feedback_seq, external_seqs)
 
     # Initialize ESP index storage
-    esp_indices = {key: [0.0 for _ in states] for key, states in base_orbit.items()}
+    esp_indices = {key: [tf.zeros(1, dtype=input_dtype)[0] for _ in states] for key, states in base_orbit.items()}
 
     # Initialize history storage if required
     esp_history = (
         {
-            key: [tf.TensorArray(dtype=tf.float32, size=iterations) for _ in states]
+            key: [tf.TensorArray(dtype=input_dtype, size=iterations) for _ in states]
             for key, states in base_orbit.items()
         }
         if history
