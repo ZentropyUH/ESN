@@ -325,7 +325,7 @@ class BaseReservoir(tf.keras.layers.RNN):
         List[tf.Tensor]
             List containing the states of the reservoir.
         """
-        return self.states
+        return [tf.identity(state) for state in self.states]
 
     def set_states(self, states: List[tf.Tensor]) -> None:
         """
