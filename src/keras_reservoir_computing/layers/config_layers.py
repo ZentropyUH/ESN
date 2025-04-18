@@ -126,6 +126,7 @@ class ReadOutConfig(BaseModel):
     alpha: float | None = None    # only for ridge
     trainable: bool = True
     name: str | None = None
+    dtype: str = "float32"
 
     # guard the 'kind'
     @field_validator("kind")
