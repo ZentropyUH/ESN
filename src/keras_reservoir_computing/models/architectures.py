@@ -17,7 +17,7 @@ from keras_reservoir_computing.layers.builders import (
     ESNReservoir_builder,
     ReadOut_builder,
 )
-from keras_reservoir_computing.layers.config import load_user_config
+from keras_reservoir_computing.layers.config_layers import load_user_config
 
 # Default configurations
 ESN_RESERVOIR_CONFIG: Dict[str, Any] = {

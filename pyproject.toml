@@ -30,6 +30,8 @@ dependencies = [
     "ipywidgets==8.1.5",
     "ipympl==0.9.4",
     "netCDF4==1.7.2",
+    "pydantic==2.11.3",
+    "pydantic_core==2.33.1",
     "xarray==2025.1.1"
 ]
 
@@ -41,3 +43,7 @@ package-dir = { "" = "src" }
 # Use setuptools' find_packages(where="src") behavior
 where = ["src"]
 
+[project.optional-dependencies]
+hyper = ["optuna", "optuna-dashboard"]
+viz = ["plotly[notebook]", "kaleido", "ipywidgets", "ipykernel"]
+all = ["optuna", "optuna-dashboard", "plotly", "kaleido", "ipywidgets", "ipykernel"]
