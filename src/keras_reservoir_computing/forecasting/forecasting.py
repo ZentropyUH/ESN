@@ -17,6 +17,7 @@ def forecast(
     initial_feedback: tf.Tensor,
     horizon: int = 1000,
     external_inputs: Tuple[tf.Tensor, ...] = (),
+    show_progress: bool = True,
 ) -> Tuple[tf.Tensor, Dict[str, List[tf.Tensor]]]:
     """
     Generate a forecast using a trained model with auto-regressive feedback.
@@ -38,6 +39,8 @@ def forecast(
     external_inputs : Tuple[tf.Tensor, ...], optional
         External inputs for each time step, each shaped [batch_size, horizon, features].
         Must match the number of external inputs expected by the model.
+    show_progress : bool, optional
+        Whether to display progress information during forecasting. Default is True.
 
     Returns
     -------
@@ -58,6 +61,12 @@ def forecast(
     if len(input_names) < 1:
         raise ValueError("Model must have at least one input (the feedback input).")
 
+    # Validate input shapes
+    if len(initial_feedback.shape) != 3 or initial_feedback.shape[1] != 1:
+        raise ValueError(
+            f"Expected initial_feedback shape [batch_size, 1, features], but got {initial_feedback.shape}"
+        )
+
     # Extract shapes for validation and initialization
     batch_size = initial_feedback.shape[0]
     features = initial_feedback.shape[-1]
@@ -73,6 +82,20 @@ def forecast(
         raise ValueError(
             f"Expected {external_input_count} external inputs, but got {len(external_inputs)}."
         )
+
+    # Validate external input shapes
+    if external_inputs:
+        for i, ext_input in enumerate(external_inputs):
+            if len(ext_input.shape) != 3:
+                raise ValueError(
+                    f"Expected external input {i} to have shape [batch_size, horizon, features], "
+                    f"but got {ext_input.shape}"
+                )
+            if ext_input.shape[0] != batch_size:
+                raise ValueError(
+                    f"Batch size mismatch: initial_feedback has batch size {batch_size}, "
+                    f"but external input {i} has batch size {ext_input.shape[0]}"
+                )
 
     # Initialize loop variables
     t0 = tf.constant(0, dtype=tf.int32)
@@ -119,19 +142,20 @@ def forecast(
                 ):
                     states[layer.name][i] = st_ta.write(t, st)
 
-        # Report progress at sensible intervals
-        progress_interval = tf.maximum(horizon // 10, 100)
-        if tf.equal(t % progress_interval, 0) or tf.equal(t, horizon - 1):
-            tf.print(
-                "\rForecasting step:",
-                t,
-                "of",
-                horizon,
-                "[",
-                (t + 1) * 100 // horizon,
-                "%]",
-                end="\r",
-            )
+        # Report progress at sensible intervals if enabled
+        if show_progress:
+            progress_interval = tf.maximum(horizon // 10, 100)
+            if tf.equal(t % progress_interval, 0) or tf.equal(t, horizon - 1):
+                tf.print(
+                    "\rForecasting step:",
+                    t,
+                    "of",
+                    horizon,
+                    "[",
+                    (t + 1) * 100 // horizon,
+                    "%]",
+                    end="\r",
+                )
 
         return t + 1, new_feedback, outputs_ta, states
 
@@ -172,8 +196,9 @@ def forecast(
             # Store all states for this layer
             states_history[layer.name] = layer_states
 
-    # Print newline to clear the progress indicator
-    tf.print()
+    # Print newline to clear the progress indicator if progress was shown
+    if show_progress:
+        tf.print()
 
     return outputs, states_history
 
@@ -183,6 +208,7 @@ def warmup_forecast(
     warmup_data: Union[tf.Tensor, List[tf.Tensor]],
     forecast_data: Union[tf.Tensor, List[tf.Tensor]],
     horizon: int,
+    show_progress: bool = True,
 ) -> Tuple[tf.Tensor, Dict[str, List[tf.Tensor]]]:
     """
     Run a warmup phase on actual data before auto-regressive forecasting.
@@ -203,9 +229,8 @@ def warmup_forecast(
         be the primary input and the rest are external inputs for the forecast period.
     horizon : int
         Number of forecast steps to generate.
-    batch_size : Optional[int], optional
-        Batch size to use for the warmup phase. If None, automatically determined
-        from input data. Default is None.
+    show_progress : bool, optional
+        Whether to display progress information during forecasting. Default is True.
 
     Returns
     -------
@@ -239,6 +264,15 @@ def warmup_forecast(
         auto_batch_size = tf.shape(forecast_data[0])[0]
         initial_feedback = forecast_data[0][:, :1, :]
         external_inputs = tuple(forecast_data[1:])
+        
+        # Validate shape consistency across inputs
+        main_batch_size = tf.shape(forecast_data[0])[0]
+        for i, ext_input in enumerate(forecast_data[1:]):
+            if tf.shape(ext_input)[0] != main_batch_size:
+                raise ValueError(
+                    f"Batch size mismatch: main input has batch size {main_batch_size}, "
+                    f"but external input {i} has batch size {tf.shape(ext_input)[0]}"
+                )
     else:
         # Single tensor: only primary input
         auto_batch_size = tf.shape(forecast_data)[0]
@@ -246,17 +280,25 @@ def warmup_forecast(
         external_inputs = ()
 
     # Perform warmup to initialize reservoir states
-    print("Warming up model with data...")
-    _ = model.predict(warmup_data, batch_size=auto_batch_size, verbose=0)
+    if show_progress:
+        print("Warming up model with data...")
+        
+    # Simple predict call, batch size is inferred from input
+    _ = model.predict(warmup_data, batch_size=auto_batch_size, verbose=1 if show_progress else 0)
 
     # Run forecast with initialized states
-    print(f"Running forecast for {horizon} steps...")
+    if show_progress:
+        print(f"Running forecast for {horizon} steps...")
+        
     forecasted_output, states = forecast(
         model=model,
         initial_feedback=initial_feedback,
         external_inputs=external_inputs,
         horizon=horizon,
+        show_progress=show_progress,
     )
 
-    print(f"Forecast completed: output shape {forecasted_output.shape}")
+    if show_progress:
+        print(f"Forecast completed: output shape {forecasted_output.shape}")
+        
     return forecasted_output, states
