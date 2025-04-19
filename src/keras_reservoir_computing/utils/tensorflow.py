@@ -1,8 +1,30 @@
-from typing import Optional, Union
+import functools
+import inspect
+from typing import Callable, Optional, Union
 
 import networkx as nx
 import tensorflow as tf
 
+
+def tf_function(*args, **kwargs) -> Callable[[Callable], Callable]:
+    """Drop-in replacement for @tf.function that keeps the
+    original function's __name__, __doc__, __annotations__, etc.
+
+    Returns:
+        Callable[[Callable], Callable]: A decorator that can be applied to functions to
+        convert them into TensorFlow functions with the same metadata.
+    """
+    if args and inspect.isfunction(object=args[0]):
+        # Case: used as @tf_function
+        func = args[0]
+        wrapped = tf.function(func=func)
+        return functools.wraps(wrapped=func)(wrapped)
+    else:
+        # Case: used as @tf_function(...)
+        def decorator(func: Callable) -> Callable:
+            wrapped = tf.function(func=func, **kwargs)
+            return functools.wraps(wrapped=func)(wrapped)
+        return decorator
 
 def create_tf_rng(
     seed: Optional[Union[int, tf.random.Generator]] = None

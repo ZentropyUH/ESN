@@ -32,6 +32,7 @@ from typing import Dict, List, Tuple, Union
 import tensorflow as tf
 
 from keras_reservoir_computing.layers.reservoirs.base import BaseReservoir
+from keras_reservoir_computing.utils.tensorflow import tf_function
 
 __all__ = [
     "forecast",
@@ -39,7 +40,7 @@ __all__ = [
 ]
 
 
-@tf.function(reduce_retracing=True)
+@tf_function(reduce_retracing=True)
 def forecast(
     model: tf.keras.Model,
     initial_feedback: tf.Tensor,

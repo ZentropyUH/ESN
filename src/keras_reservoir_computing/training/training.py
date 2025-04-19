@@ -16,14 +16,13 @@ Example
 >>> trainer.fit_readout_layers(warmup_batch, input_batch)
 """
 
-from __future__ import annotations
-
 import logging
 from typing import Dict, List, Union
 
 import tensorflow as tf
 
 from keras_reservoir_computing.layers.readouts.base import ReadOut
+from keras_reservoir_computing.utils.tensorflow import tf_function
 
 __all__: List[str] = ["ReservoirTrainer"]
 
@@ -110,7 +109,7 @@ class ReservoirTrainer:
         return self._intermediate_models[layer_name]
 
     @staticmethod
-    @tf.function(jit_compile=True)
+    @tf_function(jit_compile=True)
     def _warm_forward(
         model: tf.keras.Model,
         warmup: Union[tf.Tensor, List[tf.Tensor]],

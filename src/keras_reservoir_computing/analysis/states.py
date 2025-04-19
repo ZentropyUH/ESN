@@ -22,6 +22,7 @@ import tensorflow as tf
 
 import keras_reservoir_computing as krc
 from keras_reservoir_computing.layers.reservoirs.base import BaseReservoir
+from keras_reservoir_computing.utils.tensorflow import tf_function
 
 
 def get_reservoir_states(model: tf.keras.Model) -> dict:
@@ -186,7 +187,7 @@ def set_reservoir_random_states(model: tf.keras.Model, dist: str = "uniform") ->
             layer.set_random_states(dist=dist)
 
 
-@tf.function
+@tf_function
 def harvest(
     model: tf.keras.Model,
     feedback_seq: tf.Tensor,

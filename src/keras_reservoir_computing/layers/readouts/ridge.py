@@ -2,6 +2,8 @@ from typing import Dict, Union
 
 import tensorflow as tf
 
+from keras_reservoir_computing.utils.tensorflow import tf_function
+
 from .base import ReadOut
 
 
@@ -150,7 +152,7 @@ class RidgeSVDReadout(ReadOut):
             outputs = tf.cast(outputs, input_dtype)
         return outputs
 
-    @tf.function()
+    @tf_function
     def _fit(self, X: tf.Tensor, y: tf.Tensor) -> None:
         """
         Compute the closed-form Ridge solution via SVD.
