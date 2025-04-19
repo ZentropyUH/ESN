@@ -183,6 +183,7 @@ class ReservoirTrainer:
             if self.log:
                 logger.info("  Fitting %s…", layer_name)
             readout_layer.fit(readout_input, target)
+            tf.keras.backend.clear_session() # drop kernels & activations
 
             # ----------------------------------------------------------------
             # House-keeping - free bulky tensors & intermediate model

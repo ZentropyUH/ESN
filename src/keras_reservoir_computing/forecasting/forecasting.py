@@ -39,7 +39,7 @@ __all__ = [
 ]
 
 
-@tf.function
+@tf.function(reduce_retracing=True)
 def forecast(
     model: tf.keras.Model,
     initial_feedback: tf.Tensor,
@@ -122,10 +122,16 @@ def forecast(
     batch_size = initial_feedback.shape[0]
     features = initial_feedback.shape[-1]
 
+    # Convert horizon to a tensor to avoid retracing
+    horizon_const = tf.convert_to_tensor(horizon, dtype=tf.int32)
+
     # If external inputs are present, constrain the horizon to their length
     if external_inputs:
-        min_ext_length = tf.reduce_min([ext.shape[1] for ext in external_inputs])
-        horizon = tf.minimum(horizon, min_ext_length)
+        ext_lengths   = [tf.shape(ext)[1] for ext in external_inputs]
+        min_ext_len   = tf.reduce_min(ext_lengths)
+        horizon_t     = tf.minimum(horizon_const, min_ext_len)
+    else:
+        horizon_t     = horizon_const
 
     external_input_count = len(input_names) - 1
     if len(external_inputs) != external_input_count:
@@ -148,20 +154,22 @@ def forecast(
 
     # TensorArrays for outputs and (optionally) states
     t0 = tf.constant(0, dtype=tf.int32)
-    outputs_ta = tf.TensorArray(dtype=model.output.dtype, size=horizon, element_shape=[batch_size, features])
+    outputs_ta = tf.TensorArray(dtype=model.output.dtype, 
+                                size=horizon_t, 
+                                element_shape=[batch_size, features])
     states: Dict[str, List[tf.TensorArray]] = {}
 
     for layer in model.layers:
         if isinstance(layer, BaseReservoir):
             states[layer.name] = [
-                tf.TensorArray(dtype=state.dtype, size=horizon, infer_shape=True)
+                tf.TensorArray(dtype=state.dtype, size=horizon_t, infer_shape=True)
                 for state in layer.get_states()
             ]
 
     loop_vars = (t0, initial_feedback, outputs_ta, states)
 
     def cond(t, *_):  # noqa: D401 - short lambda-style condition OK
-        return t < horizon
+        return t < horizon_t
 
     def body(t, feedback, outputs_ta, states):  # noqa: D401 - internal helper
         # Assemble current inputs
@@ -181,9 +189,9 @@ def forecast(
 
         # Progress indicator
         if show_progress:
-            prog_int = tf.maximum(horizon // 10, 100)
-            if tf.equal(t % prog_int, 0) or tf.equal(t, horizon - 1):
-                tf.print("\rForecasting step:", t, "of", horizon, "[", (t + 1) * 100 // horizon, "%]", end="\r")
+            prog_int = tf.maximum(horizon_t // 10, 100)
+            if tf.equal(t % prog_int, 0) or tf.equal(t, horizon_t - 1):
+                tf.print("\rForecasting step:", t, "of", horizon_t, "[", (t + 1) * 100 // horizon_t, "%]", end="\r")
 
         return t + 1, new_feedback, outputs_ta, states
 
@@ -191,7 +199,7 @@ def forecast(
         t0.shape,
         tf.TensorShape([batch_size, 1, features]),
         tf.TensorShape(None),
-        {layer.name: [tf.TensorShape(None) for _ in layer.get_states()] for layer in model.layers if isinstance(layer, BaseReservoir)},
+        {ln: [tf.TensorShape(None) for _ in lst] for ln, lst in states.items()},
     )
 
     _, _, outputs_ta, states_history = tf.while_loop(
