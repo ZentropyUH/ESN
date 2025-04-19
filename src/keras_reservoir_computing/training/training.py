@@ -1,82 +1,101 @@
+"""Reservoir *read-out* training utilities.
+
+This module exposes :class:`ReservoirTrainer`, a thin wrapper that walks
+through all :class:`keras_reservoir_computing.layers.readouts.base.ReadOut`
+instances contained in a pre-assembled Keras model and trains them **in
+correct dependency order**.
+
+The class is intentionally *minimal* - it neither touches nor re-orders model
+weights other than the Read-Out layers themselves.  Internally it constructs
+*intermediate* sub-models on-demand to supply each Read-Out with the exact
+hidden representation it consumes.
+
+Example
+-------
+>>> trainer = ReservoirTrainer(model, targets, log=True)
+>>> trainer.fit_readout_layers(warmup_batch, input_batch)
+"""
+
+from __future__ import annotations
+
 import logging
-from typing import List, Union
+from typing import Dict, List, Union
 
 import tensorflow as tf
 
 from keras_reservoir_computing.layers.readouts.base import ReadOut
 
+__all__: List[str] = ["ReservoirTrainer"]
+
 logger = logging.getLogger(__name__)
 
 
 class ReservoirTrainer:
+    """Utility that *sequentially* trains every Read-Out layer in a model.
+
+    The trainer honours the *topological* ordering of ``model.layers`` so that
+    Read-Outs that depend on earlier network components are adjusted only
+    *after* their prerequisites have converged.
+
+    Parameters
+    ----------
+    model
+        A fully-built Keras model that already contains one or more
+        :class:`ReadOut` layers.
+    readout_targets
+        Mapping ``readout_layer_name -> target_tensor`` providing the ground
+        truth for each Read-Out.
+    log
+        If *True* a concise progress report is emitted via the :pymod:`logging`
+        module.
+    """
+
+    # ---------------------------------------------------------------------
+    # Construction helpers
+    # ---------------------------------------------------------------------
     def __init__(
-        self, model: tf.keras.Model, readout_targets: dict, log: bool = False
+        self,
+        model: tf.keras.Model,
+        readout_targets: Dict[str, tf.Tensor],
+        *,
+        log: bool = False,
     ) -> None:
-        """
-        Custom trainer for Read-Out layers, ensuring correct dependency order.
+        self.model: tf.keras.Model = model
+        self.readout_targets: Dict[str, tf.Tensor] = readout_targets
+        self.log: bool = log
 
-        This class is designed to handle the training of `ReadOut` layers within a Keras model.
-        It ensures that the `ReadOut` layers are trained in the correct topological order,
-        respecting the dependencies between them.
-
-        Parameters
-        ----------
-        model : tf.keras.Model
-            The Keras model containing `ReadOut` instances.
-        readout_targets : dict
-            Mapping of `ReadOut` layer names to their corresponding target tensors.
-        log : bool, optional
-            Whether to print logging information during training.
-
-        Attributes
-        ----------
-        model : tf.keras.Model
-            The Keras model containing `ReadOut` instances.
-        readout_targets : dict
-            Mapping of `ReadOut` layer names to their corresponding target tensors.
-        readout_layers_list : list
-            List of `ReadOut` layers in the model, sorted in topological order.
-        _intermediate_models : dict
-            Lazily created dictionary mapping `ReadOut` layer names to their intermediate models.
-
-        Notes
-        -----
-        - The `ReadOut` layers must be present in the model and their names must match the keys in `readout_targets`.
-        - Intermediate models are created lazily when needed for better performance.
-        - This class assumes that the `ReadOut` layers are independent of each other, except for the order in which they are trained.
-        """
-        self.model = model
-        self.readout_targets = readout_targets
-        self.log = log
-        
         if log:
             logging.basicConfig(level=logging.INFO)
 
-        # Find all ReadOut layers in topological order
-        # model.layers is already sorted in topological order
-        # Only include layers that are in readout_targets
-        self.readout_layers_list = [
+        # `model.layers` is already in topological order - filter for ReadOuts
+        self.readout_layers_list: List[ReadOut] = [
             layer
             for layer in self.model.layers
-            if isinstance(layer, ReadOut) and layer.name in self.readout_targets.keys()
+            if isinstance(layer, ReadOut) and layer.name in self.readout_targets
         ]
 
-        # Will be populated lazily when needed
-        self._intermediate_models = {}
+        # Intermediate sub-models are spawned lazily
+        self._intermediate_models: Dict[str, tf.keras.Model] = {}
 
+    # ------------------------------------------------------------------
+    # Private helpers
+    # ------------------------------------------------------------------
     def _get_intermediate_model(self, layer_name: str) -> tf.keras.Model:
-        """
-        Lazily create and return an intermediate model for the specified layer.
+        """Return (or build) a sub-model that outputs the *input* to a Read-Out.
+
+        The sub-model shares weights with ``self.model`` and therefore incurs
+        negligible memory overhead once constructed.
 
         Parameters
         ----------
-        layer_name : str
-            The name of the ReadOut layer to create an intermediate model for.
+        layer_name
+            Name of the Read-Out whose input tensor is to be produced.
 
         Returns
         -------
         tf.keras.Model
-            The intermediate model that outputs the inputs to the specified ReadOut layer.
+            A model mapping ``self.model.input`` to the requested Read-Out
+            *input* (not its output!).
         """
         if layer_name not in self._intermediate_models:
             layer = next(
@@ -85,78 +104,94 @@ class ReservoirTrainer:
                 if layer_obj.name == layer_name
             )
             self._intermediate_models[layer_name] = tf.keras.Model(
-                inputs=self.model.input, outputs=layer.input
+                inputs=self.model.input,
+                outputs=layer.input,
             )
         return self._intermediate_models[layer_name]
 
     @staticmethod
     @tf.function(jit_compile=True)
-    def _warm_forward(model, warmup, data):
-        model(warmup, training=False)  # warm-up
-        return model(data, training=False)
+    def _warm_forward(
+        model: tf.keras.Model,
+        warmup: Union[tf.Tensor, List[tf.Tensor]],
+        data: Union[tf.Tensor, List[tf.Tensor]],
+    ) -> Union[tf.Tensor, List[tf.Tensor]]:
+        """Run a *warm-up* pass followed by an *inference* pass.
 
+        A helper that ensures recurrent states inside ``model`` settle onto a
+        realistic trajectory before the actual data pass - essentially
+        *teacher forcing* for a single batch.
 
+        Notes
+        -----
+        The function is compiled with ``jit_compile=True`` for maximal
+        performance on supported hardware.  Disable JIT by editing the
+        decorator if XLA is not available in your environment.
+        """
+        model(warmup, training=False)  # warm-up (stateful layers adapt)
+        return model(data, training=False)  # inference only - no gradients
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
     def fit_readout_layers(
         self,
         warmup_data: Union[tf.Tensor, List[tf.Tensor]],
         input_data: Union[tf.Tensor, List[tf.Tensor]],
     ) -> None:
-        """
-        Train all ReadOut layers in the correct order using intermediate models.
+        """Train each :class:`ReadOut` layer exactly once in *topological* order.
 
-        This method iterates over the `ReadOut` layers in topological order and trains each one using the
-        intermediate outputs generated by the corresponding intermediate model.
+        The routine iterates over :pyattr:`readout_layers_list`, extracts the
+        *correct* hidden representation for that layer via a lazily built
+        intermediate model, and calls :pymeth:`ReadOut.fit` with the
+        user-supplied target.
 
         Parameters
         ----------
-        warmup_data : tf.Tensor or List[tf.Tensor]
-            The input data to warm up the model before training the ReadOut layers.
-
-        input_data : tf.Tensor or List[tf.Tensor]
-            The input data to generate intermediate outputs.
+        warmup_data
+            Batch (or list of batches) used solely to *warm* the recurrent
+            dynamics before collecting Read-Out inputs.
+        input_data
+            Actual data from which the Read-Out inputs are computed.
 
         Notes
         -----
-        - The input data `input_data` should be compatible with the input shape of the model.
-        - The method prints the progress of training each `ReadOut` layer.
+        *Memory usage* - Intermediate tensors are cleared as soon as the
+        corresponding Read-Out has been trained to keep the memory footprint
+        low when many Read-Outs are present.
         """
         if self.log:
-            logger.info("\n=== Training ReadOut Layers in Topological Order ===")
+            logger.info("\n=== Training Read-Out layers in topological order ===")
 
-
-        # Optimize for memory utilization by clearing intermediate results after each layer is trained
         for readout_layer in self.readout_layers_list:
             layer_name = readout_layer.name
-
             if self.log:
-                logger.info(f"Processing {layer_name}...")
+                logger.info("Processing %s…", layer_name)
 
-            # Get intermediate model for this layer (created lazily)
+            # ----------------------------------------------------------------
+            # Build / retrieve sub-model & compute Read-Out input tensor
+            # ----------------------------------------------------------------
             intermediate_model = self._get_intermediate_model(layer_name)
-
-            # Warm up and get the intermediate inputs
             if self.log:
-                logger.info(f"  Warming up and getting intermediate inputs for model {layer_name}...")
-            readout_input = self._warm_forward(
-                intermediate_model, warmup_data, input_data
-            )
+                logger.info("  Warming up + forwarding through %s…", layer_name)
+            readout_input = self._warm_forward(intermediate_model, warmup_data, input_data)
 
-            # Get the expected target
+            # ----------------------------------------------------------------
+            # Fit Read-Out
+            # ----------------------------------------------------------------
             target = self.readout_targets[layer_name]
-
-            # Train ReadOut layer
             if self.log:
-                logger.info(f"  Fitting {layer_name}...")
+                logger.info("  Fitting %s…", layer_name)
             readout_layer.fit(readout_input, target)
+            tf.keras.backend.clear_session() # drop kernels & activations
 
-            # Clear the intermediate output to free memory
-            readout_input = None
-
-            # If this is the last layer using this intermediate model, we can remove it
+            # ----------------------------------------------------------------
+            # House-keeping - free bulky tensors & intermediate model
+            # ----------------------------------------------------------------
+            readout_input = None  # hint the GC
             del self._intermediate_models[layer_name]
-
             if self.log:
-                logger.info(f"  {layer_name} fitted successfully.")
+                logger.info("  %s fitted successfully.", layer_name)
 
         if self.log:
-            logger.info("All ReadOut layers fitted successfully.")
+            logger.info("All Read-Out layers fitted successfully.")
