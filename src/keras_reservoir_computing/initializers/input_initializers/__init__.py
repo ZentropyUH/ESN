@@ -7,8 +7,8 @@ from .random_input import RandomInputInitializer
 __all__ = [
     "ChebyshevInitializer",
     "ChessboardInitializer",
-    "RandomBinaryInitializer",
     "PseudoDiagonalInitializer",
+    "RandomBinaryInitializer",
     "RandomInputInitializer",
 ]
 

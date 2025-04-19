@@ -7,8 +7,9 @@ from . import input_initializers, recurrent_initializers
 from .input_initializers import (
     ChebyshevInitializer,
     ChessboardInitializer,
-    RandomBinaryInitializer,
     PseudoDiagonalInitializer,
+    RandomBinaryInitializer,
+    RandomInputInitializer,
 )
 from .recurrent_initializers import (
     BarabasiAlbertGraphInitializer,
@@ -30,8 +31,9 @@ __all__ = ["input_initializers", "recurrent_initializers"]
 __all__ += [
     "ChebyshevInitializer",
     "ChessboardInitializer",
-    "RandomBinaryInitializer",
     "PseudoDiagonalInitializer",
+    "RandomBinaryInitializer",
+    "RandomInputInitializer",
 ]
 
 __all__ += [
