@@ -17,7 +17,7 @@ def tf_function(*args, **kwargs) -> Callable[[Callable], Callable]:
     if args and inspect.isfunction(object=args[0]):
         # Case: used as @tf_function
         func = args[0]
-        wrapped = tf.function(func=func)
+        wrapped = tf.function(func=func, **kwargs)
         return functools.wraps(wrapped=func)(wrapped)
     else:
         # Case: used as @tf_function(...)
