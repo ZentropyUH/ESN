@@ -3,8 +3,6 @@ from typing import List, Optional, Tuple, Union
 
 import tensorflow as tf
 
-from keras_reservoir_computing.utils.tensorflow import tf_function
-
 
 @tf.keras.utils.register_keras_serializable(package="krc", name="BaseCell")
 class BaseCell(tf.keras.Layer, ABC):
@@ -351,7 +349,6 @@ class BaseReservoir(tf.keras.layers.RNN):
         for s, new_s in zip(self.states, states):
             s.assign(new_s)
 
-    @tf_function
     def set_random_states(self, dist: str = "uniform") -> None:
         """
         Set the states of the reservoir to random values.
