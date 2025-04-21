@@ -321,10 +321,13 @@ def insert_layer(
     for layer_name in sorted_layer_names:
         layer_obj = graph.nodes[layer_name]["layer_object"]
         if isinstance(layer_obj, tf.keras.layers.InputLayer):
+            
+            batch_shape = layer_obj.batch_shape
+            
             # Create new Input
             new_input = tf.keras.Input(
-                shape=layer_obj.batch_shape[1:],
-                batch_size=layer_obj.batch_size,
+                shape=batch_shape[1:],
+                batch_size=batch_shape[0],
                 name=layer_obj.name,
             )
             layer_outputs_map[layer_name] = new_input
@@ -442,8 +445,12 @@ def insert_layer(
     # F. Construct the new model
     new_model = tf.keras.Model(inputs=new_model_inputs, outputs=new_model_outputs)
 
-    # G. Transfer weights from old model (the newly inserted layer has no old weights)
-    new_model.set_weights(model.get_weights())
+    # G. Transfer weights, skipping the newly inserted layer
+    for layer in new_model.layers:
+        if layer.name == new_layer_name:     # freshly inserted layer
+            continue
+        old_layer = model.get_layer(layer.name)
+        layer.set_weights(old_layer.get_weights())
 
     return new_model
 
