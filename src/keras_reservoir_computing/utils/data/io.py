@@ -271,6 +271,7 @@ def load_data(
     init_transient: int = 0,
     transient_length: int = 1000,
     train_length: int = 5000,
+    val_length: int = None,
     normalize: bool = False,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
@@ -285,10 +286,12 @@ def load_data(
         provided, the data will be concatenated along the batch dimension.
     init_transient : int, optional
         Number of initial transient time steps to discard, by default 0.
-    transient : int, optional
+    transient_length : int, optional
         Length of the transient period for ESN/Reservoir training, by default 1000.
     train_length : int, optional
         Length of the training data (after the transient), by default 5000.
+    val_length : int, optional
+        Length of the validation data. If None, uses all remaining data after training, by default None.
     normalize : bool, optional
         Whether to normalize the data (based on mean and std of the training portion), by default False.
 
@@ -308,6 +311,7 @@ def load_data(
     ValueError
         If init_transient is >= the total time steps T.
         If the required train size (transient + train_length) exceeds the available time steps.
+        If the required train+val size exceeds the available time steps.
     """
 
     if isinstance(datapath, list):
@@ -324,20 +328,30 @@ def load_data(
 
     # Trim initial transient
     data = data[:, init_transient:, :]
+    T = data.shape[1]  # Update T after trimming initial transient
 
     train_index = transient_length + train_length
-    if train_index > data.shape[1]:
+    if train_index > T:
         raise ValueError(
             f"Train size (transient + train_length = {train_index}) exceeds data length ({T})."
+        )
+
+    # If val_length is None, use all remaining data, otherwise use specified length
+    if val_length is None:
+        val_length = T - train_index - 1  # -1 because we need targets (shifted by 1)
+    elif train_index + val_length + 1 > T:  # +1 for targets
+        raise ValueError(
+            f"Combined data requirements (train + val + targets = {train_index + val_length + 1}) "
+            f"exceed available data length ({T})."
         )
 
     # Define data splits
     transient_data = data[:, :transient_length, :]
     train_data = data[:, transient_length:train_index, :]
     train_target = data[:, transient_length + 1 : train_index + 1, :]
-    forecast_transient_data = train_data[:, -transient_length:, :]
-    val_data = data[:, train_index:-1, :]
-    val_target = data[:, train_index + 1 :, :]
+    ftransient = train_data[:, -transient_length:, :]
+    val_data = data[:, train_index:train_index + val_length, :]
+    val_target = data[:, train_index + 1:train_index + val_length + 1, :]
 
     # Optional normalization
     if normalize:
@@ -350,7 +364,7 @@ def load_data(
         transient_data = (transient_data - mean) / std
         train_data = (train_data - mean) / std
         train_target = (train_target - mean) / std
-        forecast_transient_data = (forecast_transient_data - mean) / std
+        ftransient = (ftransient - mean) / std
         val_data = (val_data - mean) / std
         val_target = (val_target - mean) / std
 
@@ -358,7 +372,7 @@ def load_data(
         transient_data,
         train_data,
         train_target,
-        forecast_transient_data,
+        ftransient,
         val_data,
         val_target,
     )
