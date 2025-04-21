@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import List, Literal, Optional, Tuple, Union
 
 import tensorflow as tf
+from keras_reservoir_computing.utils.tensorflow import create_tf_rng
 
 
 @tf.keras.utils.register_keras_serializable(package="krc", name="BaseCell")
@@ -349,7 +350,7 @@ class BaseReservoir(tf.keras.layers.RNN):
         for s, new_s in zip(self.states, states):
             s.assign(new_s)
 
-    def set_random_states(self, dist: str = "uniform") -> None:
+    def set_random_states(self, dist: str = "uniform", seed: Optional[int] = None) -> None:
         """
         Set the states of the reservoir to random values.
 
@@ -357,7 +358,12 @@ class BaseReservoir(tf.keras.layers.RNN):
         ----------
         dist : str, optional
             The distribution to sample from. Can be "uniform" or "normal".
+        seed : int, optional
+            The seed for the random number generator.
         """
+        
+        rng = create_tf_rng(seed)
+        
         if dist not in {"uniform", "normal"}:
             raise ValueError(
                 f"Invalid distribution: {dist}. Should be 'uniform' or 'normal'."
@@ -368,10 +374,10 @@ class BaseReservoir(tf.keras.layers.RNN):
         ):  # Ensures TensorFlow properly tracks assignment
             if dist == "uniform":
                 self.states[i].assign(
-                    tf.random.uniform(self.states[i].shape, -1.0, 1.0)
+                    rng.uniform(self.states[i].shape, -1.0, 1.0)
                 )
             else:  # "normal"
-                self.states[i].assign(tf.random.normal(self.states[i].shape))
+                self.states[i].assign(rng.normal(self.states[i].shape))
 
     def build(self, input_shape) -> None:
         """
