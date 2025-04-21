@@ -17,20 +17,20 @@ from .readouts import (
 from .reservoirs import ESNCell, ESNReservoir
 
 __all__ = [
-    FeaturePartitioner,
-    OutliersFilteredMean,
-    SelectiveDropout,
-    SelectiveExponentiation,
+    "FeaturePartitioner",
+    "OutliersFilteredMean",
+    "SelectiveDropout",
+    "SelectiveExponentiation",
 ]
 
 __all__ += [
-    ESNCell,
-    ESNReservoir,
+    "ESNCell",
+    "ESNReservoir",
 ]
 
 __all__ += [
-    MoorePenroseReadout,
-    RidgeSVDReadout,
+    "MoorePenroseReadout",
+    "RidgeSVDReadout",
 ]
 
 
