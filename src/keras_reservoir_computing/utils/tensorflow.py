@@ -26,6 +26,7 @@ def tf_function(*args, **kwargs) -> Callable[[Callable], Callable]:
             return functools.wraps(wrapped=func)(wrapped)
         return decorator
 
+
 def create_tf_rng(
     seed: Optional[Union[int, tf.random.Generator]] = None
 ) -> tf.random.Generator:
