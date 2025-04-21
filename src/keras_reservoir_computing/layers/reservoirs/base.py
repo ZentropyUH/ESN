@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional, Tuple, Union
+from typing import List, Literal, Optional, Tuple, Union
 
 import tensorflow as tf
 
@@ -482,6 +482,10 @@ class BaseReservoir(tf.keras.layers.RNN):
         batch_size, timesteps = input_shape[:2]
 
         return (batch_size, timesteps, self.units)
+
+    @property
+    def trainable(self) -> Literal[False]:
+        return False
 
     def get_config(self) -> dict:
         """
