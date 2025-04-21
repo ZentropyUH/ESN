@@ -16,7 +16,7 @@ This module is designed to work with the keras_reservoir_computing package and
 specifically with keras models that contain layers that inherit from BaseReservoir.
 """
 
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
 import tensorflow as tf
 
@@ -151,7 +151,7 @@ def reset_reservoir_states(model: tf.keras.Model) -> None:
             layer.reset_states()
 
 
-def set_reservoir_random_states(model: tf.keras.Model, dist: str = "uniform") -> None:
+def set_reservoir_random_states(model: tf.keras.Model, dist: str = "uniform", seed: Optional[int] = None) -> None:
     """
     Set the states of all reservoir layers in the model to random values.
 
@@ -184,7 +184,7 @@ def set_reservoir_random_states(model: tf.keras.Model, dist: str = "uniform") ->
 
     for layer in model.layers:
         if isinstance(layer, krc.layers.reservoirs.base.BaseReservoir):
-            layer.set_random_states(dist=dist)
+            layer.set_random_states(dist=dist, seed=seed)
 
 
 @tf_function
