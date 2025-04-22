@@ -3,6 +3,7 @@ from typing import Callable, Optional, Union
 import networkx as nx
 import numpy as np
 import tensorflow as tf
+import warnings
 
 from scipy.linalg import eigvals
 from scipy.sparse import coo_matrix
@@ -67,10 +68,11 @@ def connected_graph(graph_func: Callable) -> Callable:
         A wrapper function that keeps generating a graph until it is connected or
         until the maximum number of tries is reached.
 
-    Raises
-    ------
-    ValueError
+    Warnings
+    --------
+    UserWarning
         If a connected graph cannot be generated within the specified number of tries.
+        In this case, the last generated graph is returned.
 
     Notes
     -----
@@ -89,9 +91,11 @@ def connected_graph(graph_func: Callable) -> Callable:
         **kwargs,
     ) -> Union[np.ndarray, tf.Tensor]:
         rng = create_rng(seed)
-        for _ in range(tries):
+        last_graph = None
+        for attempt in range(tries):
             # Generate adjacency matrix as tf.Tensor or np.ndarray
             G = graph_func(n, *args, seed=rng, **kwargs)
+            last_graph = G  # Keep track of the last generated graph
 
             # Convert to NumPy array if necessary for connected_components
             if isinstance(G, tf.Tensor):
@@ -113,8 +117,14 @@ def connected_graph(graph_func: Callable) -> Callable:
 
             if n_components == 1:
                 return G
-
-        raise ValueError(f"Could not generate a connected graph after {tries} tries.")
+        
+        # If we're here, we couldn't find a connected graph
+        warnings.warn(
+            f"Could not generate a connected graph after {tries} tries. "
+            f"Returning the last generated graph with {n_components} components.",
+            UserWarning
+        )
+        return last_graph
 
     return wrapper
 
