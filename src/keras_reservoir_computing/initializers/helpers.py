@@ -117,7 +117,7 @@ def connected_graph(graph_func: Callable) -> Callable:
 
             if n_components == 1:
                 return G
-        
+
         # If we're here, we couldn't find a connected graph
         warnings.warn(
             f"Could not generate a connected graph after {tries} tries. "
