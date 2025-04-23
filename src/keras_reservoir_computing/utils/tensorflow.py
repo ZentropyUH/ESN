@@ -3,7 +3,8 @@ import inspect
 import logging
 import warnings
 from contextlib import contextmanager
-from typing import Callable, Optional, Union
+from functools import wraps
+from typing import Any, Callable, Generator, Optional, Union
 
 import networkx as nx
 import tensorflow as tf
@@ -31,7 +32,7 @@ def tf_function(*args, **kwargs) -> Callable[[Callable], Callable]:
 
 
 @contextmanager
-def suppress_retracing():
+def suppress_retracing() -> Generator[None, None, None]:
     """
     Suppress TensorFlow retracing warnings.
 
@@ -45,13 +46,51 @@ def suppress_retracing():
     >>>     # Your code here
     """
     prev_level = tf.get_logger().level
-    tf.get_logger().setLevel(logging.ERROR)
+    tf.get_logger().setLevel(level=logging.ERROR)
     with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
+        warnings.simplefilter(action="ignore")
         try:
             yield
         finally:
-            tf.get_logger().setLevel(prev_level)
+            tf.get_logger().setLevel(level=prev_level)
+
+
+def suppress_retracing_during_call(fn: Callable) -> Callable:
+    """
+    Decorator to suppress TensorFlow retracing warnings during function calls.
+
+    This decorator wraps the given function and ensures that TensorFlow retracing
+    warnings are suppressed when the function is called. The warnings are typically
+    caused by the dynamic nature of TensorFlow graphs, which can be problematic
+    when running hyperparameter optimization (HPO) with Optuna.
+
+    Parameters
+    ----------
+    fn : Callable
+        The function to wrap.
+
+    Returns
+    -------
+    Callable
+        A wrapped version of the input function that suppresses TensorFlow retracing
+        warnings during its execution.
+
+    Usage
+    -----
+    >>> @suppress_retracing_during_call
+    >>> def my_function(*args, **kwargs):
+    >>>     # ...
+    >>>     return ...
+
+    Notes
+    -----
+    This decorator is intender to be used with functions that trigger TensorFlow retracing warnings on their call.
+    """
+    @wraps(wrapped=fn)
+    def wrapper(*args, **kwargs) -> Any:
+        with suppress_retracing():
+            return fn(*args, **kwargs)
+    return wrapper
 
 
 def create_tf_rng(
@@ -349,9 +388,9 @@ def insert_layer(
     for layer_name in sorted_layer_names:
         layer_obj = graph.nodes[layer_name]["layer_object"]
         if isinstance(layer_obj, tf.keras.layers.InputLayer):
-            
+
             batch_shape = layer_obj.batch_shape
-            
+
             # Create new Input
             new_input = tf.keras.Input(
                 shape=batch_shape[1:],
