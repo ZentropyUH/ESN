@@ -22,7 +22,7 @@ from typing import Dict, List, Union
 import tensorflow as tf
 
 from keras_reservoir_computing.layers.readouts.base import ReadOut
-from keras_reservoir_computing.utils.tensorflow import tf_function
+from keras_reservoir_computing.utils.tensorflow import tf_function, suppress_retracing_during_call
 
 __all__: List[str] = ["ReservoirTrainer"]
 
@@ -109,6 +109,7 @@ class ReservoirTrainer:
         return self._intermediate_models[layer_name]
 
     @staticmethod
+    @suppress_retracing_during_call
     @tf_function(jit_compile=True)
     def _warm_forward(
         model: tf.keras.Model,
@@ -127,8 +128,8 @@ class ReservoirTrainer:
         performance on supported hardware.  Disable JIT by editing the
         decorator if XLA is not available in your environment.
         """
-        model(warmup, training=False)  # warm-up (stateful layers adapt)
-        return model(data, training=False)  # inference only - no gradients
+        model(warmup)  # warm-up (stateful layers adapt)
+        return model(data)  # inference only - no gradients
 
     # ------------------------------------------------------------------
     # Public API
