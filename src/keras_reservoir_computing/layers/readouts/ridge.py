@@ -1,6 +1,8 @@
-from typing import Dict, Union
+from typing import Dict, Tuple, Union
 
 import tensorflow as tf
+
+from keras_reservoir_computing.utils.tensorflow import tf_function
 
 from .base import ReadOut
 
@@ -150,8 +152,22 @@ class RidgeSVDReadout(ReadOut):
             outputs = tf.cast(outputs, input_dtype)
         return outputs
 
-    @tf.function()
-    def _fit(self, X: tf.Tensor, y: tf.Tensor) -> None:
+    def _fit(self, X: tf.Tensor, y: tf.Tensor) -> tuple[tf.Tensor, tf.Tensor]:
+        alpha = tf.constant(self._alpha, dtype=tf.float64)
+        units = tf.constant(self.units, dtype=tf.int32)
+        return self.__class__._solve_ridge_svd(X, y, alpha, units)
+
+
+    @staticmethod
+    @tf_function(
+        input_signature=[
+            tf.TensorSpec(shape=(None, None), dtype=tf.float64),
+            tf.TensorSpec(shape=(None, None), dtype=tf.float64),
+            tf.TensorSpec(shape=(), dtype=tf.float64),
+            tf.TensorSpec(shape=(), dtype=tf.int32),
+        ]
+    )
+    def _solve_ridge_svd(X: tf.Tensor, y: tf.Tensor, alpha: float, units: int) -> Tuple[tf.Tensor, tf.Tensor]:
         """
         Compute the closed-form Ridge solution via SVD.
 
@@ -180,7 +196,7 @@ class RidgeSVDReadout(ReadOut):
         threshold = eps * tf.reduce_max(s)
 
         # More stable ridge regression formula
-        s_inv = s / (s**2 + self._alpha)
+        s_inv = s / (s**2 + alpha)
         s_inv = tf.where(s > threshold, s_inv, 0.0)
         s_inv = tf.reshape(s_inv, (-1, 1))
 
@@ -195,11 +211,10 @@ class RidgeSVDReadout(ReadOut):
 
         # Intercept: shape (1, units) -> flatten to shape (units,)
         intercept = y_mean - tf.matmul(tf.reshape(X_mean, [1, -1]), coef)
-        intercept = tf.reshape(intercept, [self.units])  # Explicit reshape
+        intercept = tf.reshape(intercept, [units])  # Explicit reshape
 
         # Assign to kernel/bias
-        self.kernel.assign(coef)
-        self.bias.assign(intercept)
+        return coef, intercept
 
     @property
     def alpha(self) -> float:

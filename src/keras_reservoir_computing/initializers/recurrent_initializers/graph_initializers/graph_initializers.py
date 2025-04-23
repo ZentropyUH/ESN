@@ -84,7 +84,6 @@ class GraphInitializerBase(tf.keras.Initializer):
 
         n = shape[0]
 
-        # Here is the BANANA
         adj = self._generate_adjacency_matrix(n)
 
         if self.spectral_radius is not None:
@@ -94,7 +93,12 @@ class GraphInitializerBase(tf.keras.Initializer):
         # Return the adjacency matrix as a 2D tensor
         return tf.convert_to_tensor(adj, dtype=dtype)
 
-    def _generate_adjacency_matrix(self, n: int, *args, **kwargs) -> tf.Tensor:
+    def _generate_adjacency_matrix(
+        self,
+        n: int,
+        *args,
+        **kwargs,
+    ) -> tf.Tensor:
         """
         Abstract method for generating a graph adjacency matrix.
 
@@ -197,7 +201,9 @@ class WattsStrogatzGraphInitializer(GraphInitializerBase):
         self.tries = tries
         super().__init__(spectral_radius=spectral_radius, seed=seed)
 
-    def _generate_adjacency_matrix(self, n: int) -> tf.Tensor:
+    def _generate_adjacency_matrix(
+        self, n: int
+        ) -> tf.Tensor:
         """
         Generate the adjacency matrix for a connected Watts-Strogatz graph.
 
@@ -294,7 +300,10 @@ class ErdosRenyiGraphInitializer(GraphInitializerBase):
         self.tries = tries
         super().__init__(spectral_radius=spectral_radius, seed=seed)
 
-    def _generate_adjacency_matrix(self, n: int) -> tf.Tensor:
+    def _generate_adjacency_matrix(
+        self,
+        n: int
+    ) -> tf.Tensor:
         """
         Generate the adjacency matrix for a connected Erdos-Renyi graph.
 
@@ -379,7 +388,10 @@ class BarabasiAlbertGraphInitializer(GraphInitializerBase):
         self.directed = directed
         super().__init__(spectral_radius=spectral_radius, seed=seed)
 
-    def _generate_adjacency_matrix(self, n: int) -> tf.Tensor:
+    def _generate_adjacency_matrix(
+        self,
+        n: int
+    ) -> tf.Tensor:
         """
         Generate the adjacency matrix for a Barabasi-Albert graph.
 
@@ -468,7 +480,9 @@ class NewmanWattsStrogatzGraphInitializer(GraphInitializerBase):
         self.self_loops = self_loops
         super().__init__(spectral_radius=spectral_radius, seed=seed)
 
-    def _generate_adjacency_matrix(self, n: int) -> tf.Tensor:
+    def _generate_adjacency_matrix(
+        self, n: int
+        ) -> tf.Tensor:
         """
         Generate the adjacency matrix for a Newman-Watts-Strogatz graph.
 
@@ -566,7 +580,10 @@ class KleinbergSmallWorldGraphInitializer(GraphInitializerBase):
         self.beta = beta
         super().__init__(spectral_radius=spectral_radius, seed=seed)
 
-    def _generate_adjacency_matrix(self, n: int) -> tf.Tensor:
+    def _generate_adjacency_matrix(
+        self,
+        n: int
+    ) -> tf.Tensor:
         """
         Generate the adjacency matrix for a Kleinberg small-world graph.
 
@@ -661,7 +678,10 @@ class RegularGraphInitializer(GraphInitializerBase):
         self.random_weights = random_weights
         super().__init__(spectral_radius=spectral_radius, seed=seed)
 
-    def _generate_adjacency_matrix(self, n: int) -> tf.Tensor:
+    def _generate_adjacency_matrix(
+        self,
+        n: int
+    ) -> tf.Tensor:
         """
         Generate the adjacency matrix for a k-regular graph.
 
@@ -746,7 +766,10 @@ class CompleteGraphInitializer(GraphInitializerBase):
         self.random_weights = random_weights
         super().__init__(spectral_radius=spectral_radius, seed=seed)
 
-    def _generate_adjacency_matrix(self, n: int) -> tf.Tensor:
+    def _generate_adjacency_matrix(
+        self,
+        n: int
+    ) -> tf.Tensor:
         """
         Generate the adjacency matrix for a complete graph.
 
@@ -834,7 +857,10 @@ class MultiCliqueGraphInitializer(GraphInitializerBase):
         # apply scaled per-clique spectral control
         return tf.convert_to_tensor(adj, dtype=dtype)
 
-    def _generate_adjacency_matrix(self, n: int) -> tf.Tensor:
+    def _generate_adjacency_matrix(
+        self,
+        n: int
+    ) -> tf.Tensor:
 
         D = 1 + 8 * n
         sqrt_D = isqrt(D)
@@ -842,7 +868,7 @@ class MultiCliqueGraphInitializer(GraphInitializerBase):
             raise ValueError(f"{n} is not a triangular number (N(N+1)/2).")
 
         N = (sqrt_D - 1) // 2
-        A = np.zeros((n, n), dtype=float)
+        A = np.zeros((n, n), dtype=np.float64)
 
         offset = 0
         for k in range(1, N + 1):
@@ -850,7 +876,7 @@ class MultiCliqueGraphInitializer(GraphInitializerBase):
                 offset += 1
                 continue
 
-            A_sub = np.zeros((k, k), dtype=float)
+            A_sub = np.zeros((k, k), dtype=np.float64)
             for i in range(k):
                 gi = offset + i
                 for j in range(k):
@@ -873,7 +899,7 @@ class MultiCliqueGraphInitializer(GraphInitializerBase):
             offset += k
 
         A = np.triu(A) + np.triu(A, 1).T
-        return A.astype(np.float32)
+        return A.astype(np.float64)
 
     def get_config(self) -> dict:
         base_config = super().get_config()

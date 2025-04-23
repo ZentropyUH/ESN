@@ -1,13 +1,13 @@
+import warnings
 from typing import Callable, Optional, Union
 
 import networkx as nx
 import numpy as np
 import tensorflow as tf
-
 from scipy.linalg import eigvals
 from scipy.sparse import coo_matrix
 from scipy.sparse.csgraph import connected_components
-from scipy.sparse.linalg import eigs
+from scipy.sparse.linalg import ArpackNoConvergence, eigs
 
 from keras_reservoir_computing.utils.general import create_rng
 
@@ -26,7 +26,7 @@ def to_tensor(graph_func: Callable) -> Callable:
     -------
     callable
         A wrapper function that, when called, returns a 2D TensorFlow tensor
-        (float32 dtype) corresponding to the adjacency matrix of the graph.
+        (float64 dtype) corresponding to the adjacency matrix of the graph.
 
     Notes
     -----
@@ -36,9 +36,10 @@ def to_tensor(graph_func: Callable) -> Callable:
     """
 
     def wrapper(*args, **kwargs) -> tf.Tensor:
+        dtype = kwargs.pop("dtype", tf.float64)
         G = graph_func(*args, **kwargs)  # Generate the graph
-        adj_matrix = nx.to_numpy_array(G, nodelist=G.nodes, dtype=np.float32)
-        tensor = tf.convert_to_tensor(adj_matrix, dtype=tf.float32)
+        adj_matrix = nx.to_numpy_array(G, nodelist=G.nodes, dtype=dtype.as_numpy_dtype)
+        tensor = tf.convert_to_tensor(adj_matrix, dtype=dtype)
         return tensor
 
     return wrapper
@@ -67,10 +68,11 @@ def connected_graph(graph_func: Callable) -> Callable:
         A wrapper function that keeps generating a graph until it is connected or
         until the maximum number of tries is reached.
 
-    Raises
-    ------
-    ValueError
+    Warnings
+    --------
+    UserWarning
         If a connected graph cannot be generated within the specified number of tries.
+        In this case, the last generated graph is returned.
 
     Notes
     -----
@@ -89,9 +91,11 @@ def connected_graph(graph_func: Callable) -> Callable:
         **kwargs,
     ) -> Union[np.ndarray, tf.Tensor]:
         rng = create_rng(seed)
-        for _ in range(tries):
+        last_graph = None
+        for attempt in range(tries):
             # Generate adjacency matrix as tf.Tensor or np.ndarray
             G = graph_func(n, *args, seed=rng, **kwargs)
+            last_graph = G.numpy()  # Keep track of the last generated graph
 
             # Convert to NumPy array if necessary for connected_components
             if isinstance(G, tf.Tensor):
@@ -114,7 +118,13 @@ def connected_graph(graph_func: Callable) -> Callable:
             if n_components == 1:
                 return G
 
-        raise ValueError(f"Could not generate a connected graph after {tries} tries.")
+        # If we're here, we couldn't find a connected graph
+        warnings.warn(
+            f"Could not generate a connected graph after {tries} tries. "
+            f"Returning the last generated graph with {n_components} components.",
+            UserWarning
+        )
+        return last_graph
 
     return wrapper
 
@@ -127,58 +137,56 @@ def spectral_radius_hybrid(A: Union[tf.Tensor, np.ndarray]) -> float:
     Parameters
     ----------
     A : tf.Tensor or np.ndarray
-        The input square matrix of shape (N, N). If A is a tf.Tensor, it is converted to
-        a NumPy array internally.
+        The input square matrix of shape (N, N).
 
     Returns
     -------
     float
         The absolute value of the largest eigenvalue of A.
 
-    Notes
-    -----
-    - If the proportion of non-zero entries is below 50%, the matrix is treated
-      as sparse and uses `scipy.sparse.linalg.eigs`.
-    - Otherwise, `scipy.linalg.eigvals` is used.
-    - The function returns a Python float (not a tf.Tensor).
-
     Raises
     ------
+    TypeError
+        If `A` is not a TF tensor or NumPy array.
     ValueError
         If `A` is not 2D or not square.
     """
-    # Convert A to tf.Tensor (float32) if it isn't already
-    A = tf.convert_to_tensor(A, dtype=tf.float32)
-
-    # Check dimensions
-    if A.ndim != 2 or A.shape[0] != A.shape[1]:
-        raise ValueError(f"A must be 2D and square, got shape {A.shape}.")
-
-    # Compute sparsity
-    non_zero_count = tf.math.count_nonzero(A, dtype=tf.int32)
-    total_elements = tf.size(A)
-    sparsity_ratio = tf.cast(non_zero_count, tf.float32) / tf.cast(
-        total_elements, tf.float32
-    )
-
-    # Convert to NumPy for SciPy calls
-    A_np = A.numpy()
-
-    if sparsity_ratio < 0.5:
-        # Use sparse eigenvalue calculation
-        A_sparse = coo_matrix(A_np)
-        # k=1 -> largest eigenvalue in magnitude
-        # v0 -> initial vector for iteration
-        val = eigs(
-            A_sparse,
-            k=1,
-            which="LM",
-            return_eigenvectors=False,
-            v0=np.ones(A.shape[0], dtype=np.float32),
-        )[0]
-        s_radius = abs(val)
+    # get a NumPy view
+    if isinstance(A, tf.Tensor):
+        A_np = A.numpy()
+    elif isinstance(A, np.ndarray):
+        A_np = A
     else:
-        # Use dense eigenvalue calculation
-        s_radius = np.max(np.abs(eigvals(A_np)))
+        raise TypeError(f"A must be tf.Tensor or np.ndarray, got {type(A)}")
 
-    return float(s_radius)
+    # shape checks
+    if A_np.ndim != 2 or A_np.shape[0] != A_np.shape[1]:
+        raise ValueError(f"A must be 2D and square, got shape {A_np.shape}")
+
+    # sparsity
+    nnz = np.count_nonzero(A_np)
+    total = A_np.size
+    if nnz / total < 0.5:
+        # sparse path
+        A_sp = coo_matrix(A_np)
+        try:
+            val = eigs(
+                A_sp,
+                k=1,
+                which="LM",
+                return_eigenvectors=False,
+                v0=np.ones(A_np.shape[0], dtype=A_np.dtype),
+            )[0]
+            radius = abs(val)
+        except ArpackNoConvergence as e:
+            # use any converged values, else fallback to dense
+            ev = getattr(e, "eigenvalues", None)
+            if ev is not None and ev.size > 0:
+                radius = np.max(np.abs(ev))
+            else:
+                radius = np.max(np.abs(eigvals(A_np)))
+    else:
+        # dense path
+        radius = np.max(np.abs(eigvals(A_np)))
+
+    return float(radius)

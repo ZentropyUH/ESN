@@ -203,7 +203,6 @@ trainer.fit_readout_layers(
      - An intermediate model is created to extract inputs for that layer
      - The warmup phase runs to initialize reservoir states
      - Inputs are extracted and passed to the ReadOut layer's fit method
-  
 - **Ridge Regression with SVD**:
   - ReadOut layers like RidgeSVDReadout use ridge regression with SVD decomposition for numerical stability
   - The fit method automatically:
@@ -254,6 +253,7 @@ predictions, states = warmup_forecast(
 - **Reservoir State Tracking**: The forecasting functions maintain and track the internal states of all reservoir layers during prediction, returning these states along with the predictions.
 
 - **Warmup Importance**: The `warmup_forecast` function is generally preferred as it:
+
   1. Properly initializes reservoir states by running the model on actual data
   2. Creates a smooth transition between observed data and forecasts
   3. Reduces initial forecast errors that can occur with randomly initialized states
@@ -373,6 +373,7 @@ loaded_model = tf.keras.models.load_model('my_reservoir_model')
 ## Examples
 
 See the `/examples` directory for complete examples of:
+
 - Time series forecasting with ESNs
 - Working with multiple inputs
 - Ensemble models

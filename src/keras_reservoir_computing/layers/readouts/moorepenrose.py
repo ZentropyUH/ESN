@@ -2,6 +2,8 @@ from typing import Dict, Union
 
 import tensorflow as tf
 
+from keras_reservoir_computing.utils.tensorflow import tf_function
+
 from .base import ReadOut
 
 
@@ -91,7 +93,7 @@ class MoorePenroseReadout(ReadOut):
         outputs = tf.cast(outputs, inputs.dtype)
         return outputs
 
-    @tf.function()
+    @tf_function
     def _fit(self, X: tf.Tensor, y: tf.Tensor) -> None:
         """
         Fit the readout layer to the data using the Moore-Penrose pseudoinverse.

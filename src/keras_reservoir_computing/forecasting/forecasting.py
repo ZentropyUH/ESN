@@ -32,6 +32,7 @@ from typing import Dict, List, Tuple, Union
 import tensorflow as tf
 
 from keras_reservoir_computing.layers.reservoirs.base import BaseReservoir
+from keras_reservoir_computing.utils.tensorflow import tf_function, suppress_retracing_during_call
 
 __all__ = [
     "forecast",
@@ -39,7 +40,7 @@ __all__ = [
 ]
 
 
-@tf.function(reduce_retracing=True)
+@tf_function(reduce_retracing=True)
 def forecast(
     model: tf.keras.Model,
     initial_feedback: tf.Tensor,
@@ -154,8 +155,8 @@ def forecast(
 
     # TensorArrays for outputs and (optionally) states
     t0 = tf.constant(0, dtype=tf.int32)
-    outputs_ta = tf.TensorArray(dtype=model.output.dtype, 
-                                size=horizon_t, 
+    outputs_ta = tf.TensorArray(dtype=model.output.dtype,
+                                size=horizon_t,
                                 element_shape=[batch_size, features])
     states: Dict[str, List[tf.TensorArray]] = {}
 
@@ -226,6 +227,7 @@ def forecast(
     return outputs, states_history
 
 
+@suppress_retracing_during_call
 def warmup_forecast(
     model: tf.keras.Model,
     warmup_data: Union[tf.Tensor, List[tf.Tensor]],

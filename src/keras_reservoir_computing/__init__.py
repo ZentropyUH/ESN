@@ -4,11 +4,23 @@ A TensorFlow/Keras implementation of reservoir computing with a focus on Echo St
 This library provides a flexible framework for creating, training, and evaluating reservoir computing models
 integrated with the Keras API.
 """
-from . import analysis, forecasting, initializers, layers, models, training, utils
+from . import (
+    analysis,
+    callbacks,
+    forecasting,
+    hpo,
+    initializers,
+    layers,
+    models,
+    training,
+    utils,
+)
 
 __all__ = [
     "analysis",
+    "callbacks",
     "forecasting",
+    "hpo",
     "initializers",
     "layers",
     "models",

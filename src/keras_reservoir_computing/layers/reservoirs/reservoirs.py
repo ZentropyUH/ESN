@@ -38,6 +38,8 @@ class ESNReservoir(BaseReservoir):
         Initializer for the feedback bias. Default is "glorot_uniform".
     kernel_initializer : str or callable, optional
         Initializer for the reservoir's internal weights. Default is "glorot_uniform".
+    dtype : str, optional
+        Data type for the layer, by default "float32".
     **kwargs : dict
         Additional keyword arguments passed to the parent RNN layer.
 
@@ -72,22 +74,6 @@ class ESNReservoir(BaseReservoir):
         dtype: str = "float32",
         **kwargs,
     ) -> None:
-        """
-        Initialize the ESNReservoir.
-
-        Parameters
-        ----------
-        units : int
-            Number of units in the reservoir.
-        feedback_dim : int, optional
-            Dimensionality of the feedback input, by default 1.
-        input_dim : int, optional
-            Dimensionality of the input, by default 0.
-        activation : Optional[Union[str, Callable]], optional
-            Activation function to use, by default "tanh".
-        **kwargs : dict
-            Additional keyword arguments for the RNN base class.
-        """
 
         self.units = units
         self.feedback_dim = feedback_dim

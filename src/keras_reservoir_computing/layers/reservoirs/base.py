@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional, Tuple, Union
+from typing import List, Literal, Optional, Tuple, Union
 
 import tensorflow as tf
+from keras_reservoir_computing.utils.tensorflow import create_tf_rng
 
 
 @tf.keras.utils.register_keras_serializable(package="krc", name="BaseCell")
@@ -65,7 +66,7 @@ class BaseCell(tf.keras.Layer, ABC):
     ...         )
     ...         super().build(input_shape)
     ...
-    ...     def call(self, inputs, states, training=False):
+    ...     def call(self, inputs, states):
     ...         prev_state = states[0]
     ...         output = tf.matmul(inputs, self.kernel)
     ...         new_state = (1 - self.leak_rate) * prev_state + self.leak_rate * output
@@ -349,8 +350,7 @@ class BaseReservoir(tf.keras.layers.RNN):
         for s, new_s in zip(self.states, states):
             s.assign(new_s)
 
-    @tf.function
-    def set_random_states(self, dist: str = "uniform") -> None:
+    def set_random_states(self, dist: str = "uniform", seed: Optional[int] = None) -> None:
         """
         Set the states of the reservoir to random values.
 
@@ -358,7 +358,12 @@ class BaseReservoir(tf.keras.layers.RNN):
         ----------
         dist : str, optional
             The distribution to sample from. Can be "uniform" or "normal".
+        seed : int, optional
+            The seed for the random number generator.
         """
+        
+        rng = create_tf_rng(seed)
+        
         if dist not in {"uniform", "normal"}:
             raise ValueError(
                 f"Invalid distribution: {dist}. Should be 'uniform' or 'normal'."
@@ -369,10 +374,10 @@ class BaseReservoir(tf.keras.layers.RNN):
         ):  # Ensures TensorFlow properly tracks assignment
             if dist == "uniform":
                 self.states[i].assign(
-                    tf.random.uniform(self.states[i].shape, -1.0, 1.0)
+                    rng.uniform(self.states[i].shape, -1.0, 1.0)
                 )
             else:  # "normal"
-                self.states[i].assign(tf.random.normal(self.states[i].shape))
+                self.states[i].assign(rng.normal(self.states[i].shape))
 
     def build(self, input_shape) -> None:
         """
@@ -483,6 +488,10 @@ class BaseReservoir(tf.keras.layers.RNN):
         batch_size, timesteps = input_shape[:2]
 
         return (batch_size, timesteps, self.units)
+
+    @property
+    def trainable(self) -> Literal[False]:
+        return False
 
     def get_config(self) -> dict:
         """
