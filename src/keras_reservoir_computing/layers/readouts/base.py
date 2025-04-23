@@ -97,7 +97,9 @@ class ReadOut(tf.keras.Layer, ABC):
                 f"but got {y.shape} instead."
             )
 
-        self._fit(X, y)
+        coef, intercept = self._fit(X, y)
+        self.kernel.assign(coef)
+        self.bias.assign(intercept)
 
         self._fitted = True
 
