@@ -1,14 +1,13 @@
+import warnings
 from typing import Callable, Optional, Union
 
 import networkx as nx
 import numpy as np
 import tensorflow as tf
-import warnings
-
 from scipy.linalg import eigvals
 from scipy.sparse import coo_matrix
 from scipy.sparse.csgraph import connected_components
-from scipy.sparse.linalg import eigs, ArpackNoConvergence
+from scipy.sparse.linalg import ArpackNoConvergence, eigs
 
 from keras_reservoir_computing.utils.general import create_rng
 
@@ -27,7 +26,7 @@ def to_tensor(graph_func: Callable) -> Callable:
     -------
     callable
         A wrapper function that, when called, returns a 2D TensorFlow tensor
-        (float32 dtype) corresponding to the adjacency matrix of the graph.
+        (float64 dtype) corresponding to the adjacency matrix of the graph.
 
     Notes
     -----
@@ -37,9 +36,10 @@ def to_tensor(graph_func: Callable) -> Callable:
     """
 
     def wrapper(*args, **kwargs) -> tf.Tensor:
+        dtype = kwargs.pop("dtype", tf.float64)
         G = graph_func(*args, **kwargs)  # Generate the graph
-        adj_matrix = nx.to_numpy_array(G, nodelist=G.nodes, dtype=np.float32)
-        tensor = tf.convert_to_tensor(adj_matrix, dtype=tf.float32)
+        adj_matrix = nx.to_numpy_array(G, nodelist=G.nodes, dtype=dtype.as_numpy_dtype)
+        tensor = tf.convert_to_tensor(adj_matrix, dtype=dtype)
         return tensor
 
     return wrapper
@@ -95,7 +95,7 @@ def connected_graph(graph_func: Callable) -> Callable:
         for attempt in range(tries):
             # Generate adjacency matrix as tf.Tensor or np.ndarray
             G = graph_func(n, *args, seed=rng, **kwargs)
-            last_graph = G  # Keep track of the last generated graph
+            last_graph = G.numpy()  # Keep track of the last generated graph
 
             # Convert to NumPy array if necessary for connected_components
             if isinstance(G, tf.Tensor):
