@@ -66,7 +66,7 @@ class BaseCell(tf.keras.Layer, ABC):
     ...         )
     ...         super().build(input_shape)
     ...
-    ...     def call(self, inputs, states, training=False):
+    ...     def call(self, inputs, states):
     ...         prev_state = states[0]
     ...         output = tf.matmul(inputs, self.kernel)
     ...         new_state = (1 - self.leak_rate) * prev_state + self.leak_rate * output
