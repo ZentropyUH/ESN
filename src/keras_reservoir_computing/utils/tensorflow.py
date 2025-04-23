@@ -1,5 +1,8 @@
 import functools
 import inspect
+import logging
+import warnings
+from contextlib import contextmanager
 from typing import Callable, Optional, Union
 
 import networkx as nx
@@ -25,6 +28,30 @@ def tf_function(*args, **kwargs) -> Callable[[Callable], Callable]:
             wrapped = tf.function(func=func, **kwargs)
             return functools.wraps(wrapped=func)(wrapped)
         return decorator
+
+
+@contextmanager
+def suppress_retracing():
+    """
+    Suppress TensorFlow retracing warnings.
+
+    This context manager temporarily suppresses TensorFlow retracing warnings
+    by setting the logger level to ERROR and ignoring all warnings.
+
+    Once the context manager is exited, the logger level is restored to its original value.
+
+    Usage:
+    >>> with suppress_retracing():
+    >>>     # Your code here
+    """
+    prev_level = tf.get_logger().level
+    tf.get_logger().setLevel(logging.ERROR)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        try:
+            yield
+        finally:
+            tf.get_logger().setLevel(prev_level)
 
 
 def create_tf_rng(
