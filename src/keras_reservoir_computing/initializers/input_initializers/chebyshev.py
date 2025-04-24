@@ -6,7 +6,7 @@ import tensorflow as tf
 
 @tf.keras.utils.register_keras_serializable(package="krc", name="ChebyshevInitializer")
 class ChebyshevInitializer(tf.keras.Initializer):
-    """
+    r"""
     Keras initializer using Chebyshev mapping for Echo State Networks (ESNs).
 
     This initializer constructs a weight matrix based on the Chebyshev polynomial map, ensuring
