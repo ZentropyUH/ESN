@@ -59,5 +59,9 @@ class ChessboardInitializer(tf.keras.Initializer):
         dict
             The configuration dictionary.
         """
+        config = {
+            "input_scaling": self.input_scaling,
+        }
         base_config = super().get_config()
+        base_config.update(config)
         return base_config

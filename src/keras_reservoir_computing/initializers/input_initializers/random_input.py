@@ -83,7 +83,7 @@ class RandomInputInitializer(tf.keras.Initializer):
             The configuration dictionary.
         """
         config = {
-            "input_scale": self.input_scale,
+            "input_scaling": self.input_scaling,
             "seed": self.seed,
         }
         base_config = super().get_config()

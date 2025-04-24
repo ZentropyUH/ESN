@@ -57,7 +57,10 @@ class RandomBinaryInitializer(tf.keras.Initializer):
         dict
             The configuration dictionary.
         """
-        config = {"seed": self.seed}
+        config = {
+            "input_scaling": self.input_scaling,
+            "seed": self.seed,
+        }
         base_config = super().get_config()
         base_config.update(config)
         return base_config

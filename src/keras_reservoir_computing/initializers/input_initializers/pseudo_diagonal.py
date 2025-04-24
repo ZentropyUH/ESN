@@ -153,7 +153,11 @@ class PseudoDiagonalInitializer(tf.keras.Initializer):
         dict
             The configuration dictionary.
         """
-        config = {"sigma": self.sigma, "binarize": self.binarize, "seed": self.seed}
+        config = {
+            "input_scaling": self.input_scaling,
+            "binarize": self.binarize,
+            "seed": self.seed,
+        }
         base_config = super().get_config()
         base_config.update(config)
         return base_config
