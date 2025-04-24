@@ -27,7 +27,7 @@ class RandomInputInitializer(tf.keras.Initializer):
     Notes
     -----
     - The matrix is scaled to have the specified spectral radius if provided.
-    
+
     Examples
     --------
     >>> from keras_reservoir_computing.initializers.input_initializers import RandomInputInitializer
@@ -37,22 +37,22 @@ class RandomInputInitializer(tf.keras.Initializer):
     """
     def __init__(
         self,
-        input_scale: Optional[float] = None,
+        input_scaling: Optional[float] = None,
         seed: Optional[int] = None,
     ) -> None:
         """Initialize the initializer with specified parameters."""
-        self.input_scale = input_scale
+        self.input_scaling = input_scaling
         self.seed = seed
         self.rng = np.random.default_rng(seed)
 
     def __call__(self, shape: tuple, dtype=tf.float32) -> tf.Tensor:
         """Generate a random matrix with the specified shape.
-        
+
         Parameters
         ----------
         shape : tuple
             Shape of the matrix to create.
-        
+
         Returns
         -------
         tf.Tensor
@@ -60,21 +60,19 @@ class RandomInputInitializer(tf.keras.Initializer):
         """
         # Generate random values
         W_in = self.rng.uniform(-1, 1, shape)
-        
+
         # Translate the following to numpy
-        if self.input_scale is not None:
-            max_abs_sv = np.max(np.abs(np.linalg.svd(W_in, compute_uv=False)))
-            W_in /= max_abs_sv
-            W_in *= self.input_scale
-        
+        if self.input_scaling is not None:
+            W_in *= self.input_scaling
+
         # Convert to tf.Tensor
         W_in = tf.convert_to_tensor(W_in)
-        
+
         # Cast to dtype
         W_in = tf.cast(W_in, dtype)
-        
+
         return W_in
-    
+
     def get_config(self) -> dict:
         """
         Get the config dictionary of the initializer for serialization.
@@ -83,7 +81,7 @@ class RandomInputInitializer(tf.keras.Initializer):
         -------
         dict
             The configuration dictionary.
-        """ 
+        """
         config = {
             "input_scale": self.input_scale,
             "seed": self.seed,
