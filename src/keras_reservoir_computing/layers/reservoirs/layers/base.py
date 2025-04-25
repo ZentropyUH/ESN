@@ -134,9 +134,9 @@ class BaseReservoir(tf.keras.layers.RNN):
         seed : int, optional
             The seed for the random number generator.
         """
-        
+
         rng = create_tf_rng(seed)
-        
+
         if dist not in {"uniform", "normal"}:
             raise ValueError(
                 f"Invalid distribution: {dist}. Should be 'uniform' or 'normal'."
@@ -168,14 +168,6 @@ class BaseReservoir(tf.keras.layers.RNN):
 
         if all(isinstance(shape, (list, tuple)) for shape in input_shape):
             shape_fb, shape_in = map(tuple, input_shape)
-            # shape_fb = (batch_size, timesteps, fb_feats)
-            # shape_in = (batch_size, timesteps, in_feats)
-            # Some or all dims might be None at this stage.
-
-            # If 'input_dim' is supposed to be 0 or if the input is genuinely None,
-            # we won't know in advance. Typically you want shape_in[-1] == self.input_dim,
-            # shape_fb[-1] == self.feedback_dim.
-            # We'll define an aggregated 'features' dimension for the cell.
 
             fb_feats = shape_fb[-1]
 
@@ -184,7 +176,7 @@ class BaseReservoir(tf.keras.layers.RNN):
                     f"Feedback sequence has {fb_feats} features, expected {self.feedback_dim}"
                 )
 
-            in_feats = shape_in[-1] if shape_in is not None else self.input_dim
+            in_feats = shape_in[-1]
 
             if in_feats is not None and in_feats != self.input_dim:
                 raise ValueError(
@@ -218,7 +210,7 @@ class BaseReservoir(tf.keras.layers.RNN):
             The input to the reservoir. If a single tensor is provided, it is assumed to be only the feedback sequence.
             If a list of two tensors is provided, it must be [feedback_sequence, input_sequence], where:
             - feedback_sequence: shape (batch_size, timesteps, feedback_dim)
-            - input_sequence: shape (batch_size, timesteps, input_dim) (can be None, replaced by zeros).
+            - input_sequence: shape (batch_size, timesteps, input_dim)
 
 
         Returns
@@ -234,14 +226,7 @@ class BaseReservoir(tf.keras.layers.RNN):
 
             feedback_seq, input_seq = inputs
 
-            if input_seq is None:
-                batch_size = tf.shape(feedback_seq)[0]
-                timesteps = tf.shape(feedback_seq)[1]
-
-                # Create a zero tensor for the input sequence
-                zeros_shape = (batch_size, timesteps, self.input_dim)
-                input_seq = tf.zeros(zeros_shape)
-
+            # Concatenate feedback and input sequences along the last dimension. Cell expects (batch_size, timesteps, feedback_dim + input_dim). Will split internally
             total_seq = tf.concat([feedback_seq, input_seq], axis=-1)
 
         else:

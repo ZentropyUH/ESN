@@ -34,9 +34,9 @@ class BaseCell(tf.keras.Layer, ABC):
     units : int
         Number of units in the reservoir cell.
     feedback_dim : int
-        Dimensionality of the feedback input.
+        Dimensionality of the feedback input. Default is 1.
     input_dim : int
-        Dimensionality of the external input.
+        Dimensionality of the external input. Default is 0.
     state_size : List[int]
         List of sizes for each state tensor.
     leak_rate : float
@@ -75,7 +75,7 @@ class BaseCell(tf.keras.Layer, ABC):
         self,
         units: int,
         feedback_dim: int = 1,
-        input_dim: int = 1,
+        input_dim: int = 0,
         leak_rate: float = 1.0,
         state_sizes: Optional[List[int]] = None,
         **kwargs,
@@ -136,7 +136,7 @@ class BaseCell(tf.keras.Layer, ABC):
 
     @abstractmethod
     def call(
-        self, inputs: tf.Tensor, states: List[tf.Tensor], training: bool = False
+        self, inputs: tf.Tensor, states: List[tf.Tensor]
     ) -> Tuple[tf.Tensor, List[tf.Tensor]]:
         """
         Forward pass of one time step of the reservoir cell.
@@ -147,8 +147,6 @@ class BaseCell(tf.keras.Layer, ABC):
             The input tensor for the current time step.
         states : List[tf.Tensor]
             Previous state(s) of the reservoir.
-        training : bool, optional
-            Whether the call is in training mode, by default False
 
         Returns
         -------
