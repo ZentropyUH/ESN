@@ -20,7 +20,6 @@ from typing import Optional, Tuple, Union
 
 import tensorflow as tf
 
-import keras_reservoir_computing as krc
 from keras_reservoir_computing.layers.reservoirs.layers.base import BaseReservoir
 from keras_reservoir_computing.utils.tensorflow import tf_function
 
@@ -55,7 +54,7 @@ def get_reservoir_states(model: tf.keras.Model) -> dict:
     states = {}
 
     for layer in model.layers:
-        if isinstance(layer, krc.layers.reservoirs.base.BaseReservoir):
+        if isinstance(layer, BaseReservoir):
             states[layer.name] = layer.get_states()
 
     return states
@@ -104,7 +103,7 @@ def set_reservoir_states(model: tf.keras.Model, states: dict) -> None:
     layer_names = [
         layer.name
         for layer in model.layers
-        if isinstance(layer, krc.layers.reservoirs.base.BaseReservoir)
+        if isinstance(layer, BaseReservoir)
     ]
 
     if len(layer_names) == 0:
@@ -116,7 +115,7 @@ def set_reservoir_states(model: tf.keras.Model, states: dict) -> None:
         )
 
     for layer in model.layers:
-        if isinstance(layer, krc.layers.reservoirs.base.BaseReservoir):
+        if isinstance(layer, BaseReservoir):
             layer.set_states(states[layer.name])
 
 
@@ -147,7 +146,7 @@ def reset_reservoir_states(model: tf.keras.Model) -> None:
     """
 
     for layer in model.layers:
-        if isinstance(layer, krc.layers.reservoirs.base.BaseReservoir):
+        if isinstance(layer, BaseReservoir):
             layer.reset_states()
 
 
@@ -183,7 +182,7 @@ def set_reservoir_random_states(model: tf.keras.Model, dist: str = "uniform", se
     """
 
     for layer in model.layers:
-        if isinstance(layer, krc.layers.reservoirs.base.BaseReservoir):
+        if isinstance(layer, BaseReservoir):
             layer.set_random_states(dist=dist, seed=seed)
 
 

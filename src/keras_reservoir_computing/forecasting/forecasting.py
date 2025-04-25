@@ -13,7 +13,7 @@ Two complementary workflows are exposed:
 
 Both routines are fully graph-compatible (decorated with
 :pyfunc:`tf.function`) and can optionally record the hidden states emitted by
-any :class:`keras_reservoir_computing.layers.reservoirs.base.BaseReservoir`
+any :class:`keras_reservoir_computing.layers.reservoirs.layers.base.BaseReservoir`
 layer contained in the network.
 
 Example
