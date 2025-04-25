@@ -53,7 +53,7 @@ class BaseCell(tf.keras.Layer, ABC):
     Subclassing example:
 
     >>> import tensorflow as tf
-    >>> from keras_reservoir_computing.layers.reservoirs.base import BaseCell
+    >>> from keras_reservoir_computing.layers.reservoirs.cells.base import BaseCell
     >>>
     >>> class SimpleReservoirCell(BaseCell):
     ...     def build(self, input_shape):
