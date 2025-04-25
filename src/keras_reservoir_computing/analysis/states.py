@@ -21,7 +21,7 @@ from typing import Optional, Tuple, Union
 import tensorflow as tf
 
 import keras_reservoir_computing as krc
-from keras_reservoir_computing.layers.reservoirs.base import BaseReservoir
+from keras_reservoir_computing.layers.reservoirs.layers.base import BaseReservoir
 from keras_reservoir_computing.utils.tensorflow import tf_function
 
 

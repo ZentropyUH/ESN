@@ -2,8 +2,8 @@ from typing import Callable, Union
 
 import tensorflow as tf
 
-from .base import BaseReservoir
-from .cells import ESNCell
+from keras_reservoir_computing.layers.reservoirs.layers.base import BaseReservoir
+from keras_reservoir_computing.layers.reservoirs.cells import ESNCell
 
 
 @tf.keras.utils.register_keras_serializable(package="krc", name="ESNReservoir")
@@ -75,18 +75,6 @@ class ESNReservoir(BaseReservoir):
         **kwargs,
     ) -> None:
 
-        self.units = units
-        self.feedback_dim = feedback_dim
-        self.input_dim = input_dim
-        self.leak_rate = leak_rate
-        self.activation = tf.keras.activations.get(activation)
-        self.input_initializer = tf.keras.initializers.get(input_initializer)
-        self.feedback_initializer = tf.keras.initializers.get(feedback_initializer)
-        self.feedback_bias_initializer = tf.keras.initializers.get(
-            feedback_bias_initializer
-        )
-        self.kernel_initializer = tf.keras.initializers.get(kernel_initializer)
-        
         cell = ESNCell(
             units=units,
             feedback_dim=feedback_dim,
@@ -100,6 +88,44 @@ class ESNReservoir(BaseReservoir):
             dtype=dtype,
         )
         super().__init__(cell=cell, dtype=dtype, **kwargs)
+
+    @property
+    def units(self):
+        return self.cell.units
+
+    @property
+    def feedback_dim(self):
+        return self.cell.feedback_dim
+
+    @property
+    def input_dim(self):
+        return self.cell.input_dim
+
+    @property
+    def leak_rate(self):
+        return self.cell.leak_rate
+
+    @property
+    def activation(self):
+        return self.cell.activation
+
+    @property
+    def input_initializer(self):
+        return self.cell.input_initializer
+
+    @property
+    def feedback_initializer(self):
+        return self.cell.feedback_initializer
+
+    @property
+    def feedback_bias_initializer(self):
+        return self.cell.feedback_bias_initializer
+
+    @property
+    def kernel_initializer(self):
+        return self.cell.kernel_initializer
+
+
 
     def get_config(self):
         base_config = super().get_config()

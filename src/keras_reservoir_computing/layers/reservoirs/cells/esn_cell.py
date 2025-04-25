@@ -2,7 +2,7 @@ from typing import Callable, List, Union
 
 import tensorflow as tf
 
-from .base import BaseCell
+from keras_reservoir_computing.layers.reservoirs.cells.base import BaseCell
 
 
 @tf.keras.utils.register_keras_serializable(package="krc", name="ESNCell")

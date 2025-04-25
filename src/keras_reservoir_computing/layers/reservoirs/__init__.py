@@ -1,5 +1,5 @@
 from .cells import ESNCell
-from .reservoirs import ESNReservoir
+from .layers import ESNReservoir
 
 __all__ = [
     "ESNCell",

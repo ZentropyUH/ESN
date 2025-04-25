@@ -31,7 +31,7 @@ from typing import Dict, List, Tuple, Union
 
 import tensorflow as tf
 
-from keras_reservoir_computing.layers.reservoirs.base import BaseReservoir
+from keras_reservoir_computing.layers.reservoirs.layers.base import BaseReservoir
 from keras_reservoir_computing.utils.tensorflow import tf_function, suppress_retracing_during_call
 
 __all__ = [
