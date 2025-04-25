@@ -40,13 +40,12 @@ __all__ = [
 ]
 
 
-@tf_function(reduce_retracing=True)
+@tf_function(reduce_retracing=True, jit_compile=True)
 def forecast(
     model: tf.keras.Model,
     initial_feedback: tf.Tensor,
     horizon: int = 1000,
     external_inputs: Tuple[tf.Tensor, ...] = (),
-    show_progress: bool = True,
 ) -> Tuple[tf.Tensor, Dict[str, List[tf.Tensor]]]:
     """Auto-regressive multi-step forecast.
 
@@ -188,12 +187,6 @@ def forecast(
                 for i, (st_ta, st) in enumerate(zip(states[layer.name], layer.get_states())):
                     states[layer.name][i] = st_ta.write(t, st)
 
-        # Progress indicator
-        if show_progress:
-            prog_int = tf.maximum(horizon_t // 10, 100)
-            if tf.equal(t % prog_int, 0) or tf.equal(t, horizon_t - 1):
-                tf.print("\rForecasting step:", t, "of", horizon_t, "[", (t + 1) * 100 // horizon_t, "%]", end="\r")
-
         return t + 1, new_feedback, outputs_ta, states
 
     shape_invariants = (
@@ -220,9 +213,6 @@ def forecast(
                 state = tf.transpose(st_ta.stack(), [1, 0, 2])
                 layer_states.append(state)
             states_history[layer.name] = layer_states
-
-    if show_progress:
-        tf.print()  # newline after progress bar
 
     return outputs, states_history
 
@@ -331,7 +321,6 @@ def warmup_forecast(
         initial_feedback=initial_feedback,
         external_inputs=external_inputs,
         horizon=horizon,
-        show_progress=show_progress,
     )
 
     if show_progress:
