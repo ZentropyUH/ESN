@@ -17,12 +17,15 @@ Example
 """
 
 import logging
-from typing import Dict, List, Union
+from typing import Callable, Dict, List, Union
 
 import tensorflow as tf
 
 from keras_reservoir_computing.layers.readouts.base import ReadOut
-from keras_reservoir_computing.utils.tensorflow import tf_function, suppress_retracing_during_call
+from keras_reservoir_computing.utils.tensorflow import (
+    suppress_retracing,
+    warm_forward_factory,
+)
 
 __all__: List[str] = ["ReservoirTrainer"]
 
@@ -73,13 +76,12 @@ class ReservoirTrainer:
             if isinstance(layer, ReadOut) and layer.name in self.readout_targets
         ]
 
-        # Intermediate sub-models are spawned lazily
-        self._intermediate_models: Dict[str, tf.keras.Model] = {}
-
+        # Intermediate warm-forwarding functions
+        self._warm_forward_functions: Dict[str, Callable] = {}
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
-    def _get_intermediate_model(self, layer_name: str) -> tf.keras.Model:
+    def _get_warm_forward_function(self, layer_name: str) -> Callable:
         """Return (or build) a sub-model that outputs the *input* to a Read-Out.
 
         The sub-model shares weights with ``self.model`` and therefore incurs
@@ -96,40 +98,20 @@ class ReservoirTrainer:
             A model mapping ``self.model.input`` to the requested Read-Out
             *input* (not its output!).
         """
-        if layer_name not in self._intermediate_models:
+        if layer_name not in self._warm_forward_functions:
             layer = next(
                 layer_obj
                 for layer_obj in self.readout_layers_list
                 if layer_obj.name == layer_name
             )
-            self._intermediate_models[layer_name] = tf.keras.Model(
+            submodel = tf.keras.Model(
                 inputs=self.model.input,
                 outputs=layer.input,
             )
-        return self._intermediate_models[layer_name]
+            with suppress_retracing():
+                self._warm_forward_functions[layer_name] = warm_forward_factory(submodel)
+        return self._warm_forward_functions[layer_name]
 
-    @staticmethod
-    @suppress_retracing_during_call
-    @tf_function(jit_compile=True)
-    def _warm_forward(
-        model: tf.keras.Model,
-        warmup: Union[tf.Tensor, List[tf.Tensor]],
-        data: Union[tf.Tensor, List[tf.Tensor]],
-    ) -> Union[tf.Tensor, List[tf.Tensor]]:
-        """Run a *warm-up* pass followed by an *inference* pass.
-
-        A helper that ensures recurrent states inside ``model`` settle onto a
-        realistic trajectory before the actual data pass - essentially
-        *teacher forcing* for a single batch.
-
-        Notes
-        -----
-        The function is compiled with ``jit_compile=True`` for maximal
-        performance on supported hardware.  Disable JIT by editing the
-        decorator if XLA is not available in your environment.
-        """
-        model(warmup)  # warm-up (stateful layers adapt)
-        return model(data)  # inference only - no gradients
 
     # ------------------------------------------------------------------
     # Public API
@@ -171,10 +153,11 @@ class ReservoirTrainer:
             # ----------------------------------------------------------------
             # Build / retrieve sub-model & compute Read-Out input tensor
             # ----------------------------------------------------------------
-            intermediate_model = self._get_intermediate_model(layer_name)
+            warm_forward = self._get_warm_forward_function(layer_name)
             if self.log:
                 logger.info("  Warming up + forwarding through %s…", layer_name)
-            readout_input = self._warm_forward(intermediate_model, warmup_data, input_data)
+
+            readout_input = warm_forward(warmup_data, input_data)
 
             # ----------------------------------------------------------------
             # Fit Read-Out
@@ -189,7 +172,7 @@ class ReservoirTrainer:
             # House-keeping - free bulky tensors & intermediate model
             # ----------------------------------------------------------------
             readout_input = None  # hint the GC
-            del self._intermediate_models[layer_name]
+            # del self._warm_forward_functions[layer_name]
             if self.log:
                 logger.info("  %s fitted successfully.", layer_name)
 

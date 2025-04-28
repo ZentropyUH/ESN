@@ -10,6 +10,85 @@ import networkx as nx
 import tensorflow as tf
 
 
+def predict_factory(model: tf.keras.Model) -> Callable:
+    """Create a factory function for predicting with the model.
+
+    This function creates a factory function that can be used to predict with the model.
+    The factory function is a wrapper around the model's predict method that sets the
+    model's training parameter to False.
+
+    Notes
+    -----
+    - The predict function is compiled with ``jit_compile=True`` for maximal
+    performance on supported hardware.  Disable JIT by editing the
+    decorator if XLA is not available in your environment.
+    - The factory has a cache to avoid recompiling the function for the same model. This cache is of size 1 only to avoid memory issues.
+    """
+    if not hasattr(predict_factory, "_cache"):
+        predict_factory._cache = {}
+
+    model_id = id(model)
+    if model_id in predict_factory._cache:
+        return predict_factory._cache[model_id]
+
+    @tf_function(reduce_retracing=True, jit_compile=True)
+    def predict(data: tf.Tensor) -> tf.Tensor:
+        """Predict the output of the model.
+
+        Args:
+            data: The input data to the model.
+
+        Returns:
+            The output of the model.
+        """
+        return model(data, training=False)
+
+    # Delete the factory function to free memory
+    predict_factory._cache.clear()
+    predict_factory._cache[model_id] = predict
+
+    return predict
+
+
+def warm_forward_factory(model: tf.keras.Model) -> Callable:
+    """
+    Create a factory function for warm-forwarding through the model.
+
+    This function creates a factory function that can be used to warm-forward
+    through the model. The factory function is a wrapper around the model's
+    predict method that sets the model's training parameter to False.
+
+    Notes
+    -----
+    - The warm_forward function is compiled with ``jit_compile=True`` for maximal
+    performance on supported hardware.  Disable JIT by editing the
+    decorator if XLA is not available in your environment.
+    - The factory has a cache to avoid recompiling the function for the same model. This cache is of size 1 only to avoid memory issues.
+    """
+    if not hasattr(warm_forward_factory, "_cache"):
+        warm_forward_factory._cache = {}
+
+    model_id = id(model)
+    if model_id in warm_forward_factory._cache:
+        return warm_forward_factory._cache[model_id]
+
+    @tf_function(reduce_retracing=True, jit_compile=True)
+    def warm_forward(warmup: tf.Tensor, data: tf.Tensor) -> tf.Tensor:
+        """Warm-forward the model through the data.
+
+        This function is a wrapper around the model's predict method that sets the
+        model's training parameter to False.
+        """
+        model(warmup)  # warm-up (stateful layers adapt)
+        return model(data)  # inference only - no gradients
+
+    # Delete the factory function to free memory
+    warm_forward_factory._cache.clear()
+    warm_forward_factory._cache[model_id] = warm_forward
+
+    return warm_forward
+
+
 def tf_function(*args, **kwargs) -> Callable[[Callable], Callable]:
     """Drop-in replacement for @tf.function that keeps the
     original function's __name__, __doc__, __annotations__, etc.
@@ -523,10 +602,15 @@ def insert_layer(
 
 
 __all__ = [
-    "create_tf_rng",
     "build_layer_graph",
-    "rebuild_model_with_new_batch_size",
+    "create_tf_rng",
     "insert_layer",
+    "predict_factory",
+    "rebuild_model_with_new_batch_size",
+    "suppress_retracing",
+    "suppress_retracing_during_call",
+    "tf_function",
+    "warm_forward_factory",
 ]
 
 
