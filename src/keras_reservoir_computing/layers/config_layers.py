@@ -50,10 +50,7 @@ class InitializerConfig(BaseModel):
     def _validate_and_warn(self):
         name, params = self.name, self.params
 
-        # 1. Ensure the initializer exists (custom or builtin)
-        _resolve_initializer(name, params)
-
-        # 2. Make sure the user didn't supply garbage kwargs
+        # Make sure the user didn't supply garbage kwargs
         try:
             # grab the class object (works for custom too)
             inst = _resolve_initializer(name, {})  # instantiate with defaults
@@ -87,7 +84,7 @@ class ESNConfig(BaseModel):
     feedback_initializer: InitializerConfig = Field(
         default_factory=lambda: InitializerConfig(
             name="PseudoDiagonalInitializer",
-            params={"sigma": 0.5, "binarize": False, "seed": None},
+            params={"input_scaling": 0.5, "binarize": False, "seed": None},
         )
     )
     feedback_bias_initializer: InitializerConfig = Field(
