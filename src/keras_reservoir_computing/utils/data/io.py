@@ -30,12 +30,15 @@ def load_csv(datapath: str) -> np.ndarray:
     """
     data = pd.read_csv(datapath, header=None).to_numpy()
 
-    if data.ndim == 2:
+    if data.ndim == 1:
+        T = data.shape[0]
+        data = data.reshape(1, T, 1)
+    elif data.ndim == 2:
         T, D = data.shape
         data = data.reshape(1, T, D)
     elif data.ndim != 3:
         raise ValueError(
-            f"CSV data has an unsupported shape {data.shape}. Expected 2D or 3D."
+            f"CSV data has an unsupported shape {data.shape}. Expected 1D, 2D or 3D."
         )
 
     return data
@@ -70,12 +73,15 @@ def load_npz(datapath: str) -> np.ndarray:
 
     data = data_dict["data"]
 
-    if data.ndim == 2:
+    if data.ndim == 1:
+        T = data.shape[0]
+        data = data.reshape(1, T, 1)
+    elif data.ndim == 2:
         T, D = data.shape
         data = data.reshape(1, T, D)
     elif data.ndim != 3:
         raise ValueError(
-            f"NPZ data has an unsupported shape {data.shape}. Expected 2D or 3D."
+            f"CSV data has an unsupported shape {data.shape}. Expected 1D, 2D or 3D."
         )
 
     return data
@@ -102,12 +108,15 @@ def load_npy(datapath: str) -> np.ndarray:
     """
     data = np.load(datapath)
 
-    if data.ndim == 2:
+    if data.ndim == 1:
+        T = data.shape[0]
+        data = data.reshape(1, T, 1)
+    elif data.ndim == 2:
         T, D = data.shape
         data = data.reshape(1, T, D)
     elif data.ndim != 3:
         raise ValueError(
-            f"NPY data has an unsupported shape {data.shape}. Expected 2D or 3D."
+            f"CSV data has an unsupported shape {data.shape}. Expected 1D, 2D or 3D."
         )
 
     return data
@@ -134,12 +143,15 @@ def load_nc(datapath: str) -> np.ndarray:
     """
     data = xr.open_dataarray(datapath).to_numpy()
 
-    if data.ndim == 2:
+    if data.ndim == 1:
+        T = data.shape[0]
+        data = data.reshape(1, T, 1)
+    elif data.ndim == 2:
         T, D = data.shape
         data = data.reshape(1, T, D)
     elif data.ndim != 3:
         raise ValueError(
-            f"NetCDF data has an unsupported shape {data.shape}. Expected 2D or 3D."
+            f"CSV data has an unsupported shape {data.shape}. Expected 1D, 2D or 3D."
         )
 
     return data
