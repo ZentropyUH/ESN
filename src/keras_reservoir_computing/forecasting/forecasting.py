@@ -13,7 +13,7 @@ Two complementary workflows are exposed:
 
 Both routines are fully graph-compatible (decorated with
 :pyfunc:`tf.function`) and can optionally record the hidden states emitted by
-any :class:`keras_reservoir_computing.layers.reservoirs.base.BaseReservoir`
+any :class:`keras_reservoir_computing.layers.reservoirs.layers.base.BaseReservoir`
 layer contained in the network.
 
 Example
@@ -27,205 +27,209 @@ TensorShape([batch, 500, output_features])
 TensorShape([batch, 500, output_features])
 """
 
-from typing import Dict, List, Tuple, Union
+from typing import Callable, Dict, List, Tuple, Union
 
 import tensorflow as tf
 
-from keras_reservoir_computing.layers.reservoirs.base import BaseReservoir
-from keras_reservoir_computing.utils.tensorflow import tf_function, suppress_retracing_during_call
+from keras_reservoir_computing.layers.reservoirs.layers.base import BaseReservoir
+from keras_reservoir_computing.utils.tensorflow import (
+    predict_factory,
+    suppress_retracing_during_call,
+    tf_function,
+)
 
 __all__ = [
-    "forecast",
     "warmup_forecast",
 ]
 
+def forecast_factory(model: tf.keras.Model) -> Callable:
 
-@tf_function(reduce_retracing=True)
-def forecast(
-    model: tf.keras.Model,
-    initial_feedback: tf.Tensor,
-    horizon: int = 1000,
-    external_inputs: Tuple[tf.Tensor, ...] = (),
-    show_progress: bool = True,
-) -> Tuple[tf.Tensor, Dict[str, List[tf.Tensor]]]:
-    """Auto-regressive multi-step forecast.
+    if not hasattr(forecast_factory, "_cache"):
+        forecast_factory._cache = {}
 
-    Starting from an *initial* feedback vector, the function repeatedly calls
-    ``model`` for ``horizon`` steps.  At every step the freshly predicted
-    output is **fed back** as first input for the next call - standard
-    auto-regressive inference.  Optional *exogenous* inputs can be supplied
-    in lock-step with the forecast horizon.
+    model_id = id(model)
+    if model_id in forecast_factory._cache:
+        return forecast_factory._cache[model_id]
 
-    The routine is decorated with :pyfunc:`tf.function`, hence it runs as a
-    compiled TensorFlow graph while still returning ordinary :class:`tf.Tensor`
-    objects.
+    @tf_function(reduce_retracing=True, jit_compile=True)
+    def forecast(
+        initial_feedback: tf.Tensor,
+        horizon: int = 1000,
+        external_inputs: Tuple[tf.Tensor, ...] = (),
+    ) -> Tuple[tf.Tensor, Dict[str, List[tf.Tensor]]]:
+        """Auto-regressive multi-step forecast.
 
-    Parameters
-    ----------
-    model
-        A *trained* Keras model whose **first** input represents the feedback
-        channel and whose additional inputs (if any) represent exogenous
-        variables fed at every time step.
-    initial_feedback
-        Tensor of shape ``[batch, 1, feedback_features]`` that seeds the first
-        forecast step.
-    horizon
-        Number of forecast steps to generate (default: ``1000``).
-    external_inputs
-        Tuple containing one tensor *per external input* expected by
-        ``model``.  Each tensor must have shape
-        ``[batch, horizon, ext_features]``.  Pass an empty tuple (default) if
-        no external inputs are required.
-    show_progress
-        If *True* (default) a coarse progress indicator is printed to stdout -
-        useful for long horizons.
+        Starting from an *initial* feedback vector, the function repeatedly calls
+        ``model`` for ``horizon`` steps.  At every step the freshly predicted
+        output is **fed back** as first input for the next call - standard
+        auto-regressive inference.  Optional *exogenous* inputs can be supplied
+        in lock-step with the forecast horizon.
 
-    Returns
-    -------
-    outputs
-        Tensor with shape ``[batch, horizon, output_features]`` holding the
-        forecast.
-    states_history
-        Mapping ``layer_name -> list[state_tensor]`` where each
-        ``state_tensor`` has shape ``[batch, horizon, state_dim]``.  Only
-        layers that subclass :class:`BaseReservoir` are tracked.
+        The routine is decorated with :pyfunc:`tf.function`, hence it runs as a
+        compiled TensorFlow graph while still returning ordinary :class:`tf.Tensor`
+        objects.
 
-    Raises
-    ------
-    ValueError
-        If input shapes are inconsistent or ``external_inputs`` does not match
-        the model signature.
+        Parameters
+        ----------
+        model
+            A *trained* Keras model whose **first** input represents the feedback
+            channel and whose additional inputs (if any) represent exogenous
+            variables fed at every time step.
+        initial_feedback
+            Tensor of shape ``[batch, 1, feedback_features]`` that seeds the first
+            forecast step.
+        horizon
+            Number of forecast steps to generate (default: ``1000``).
+        external_inputs
+            Tuple containing one tensor *per external input* expected by
+            ``model``.  Each tensor must have shape
+            ``[batch, horizon, ext_features]``.  Pass an empty tuple (default) if
+            no external inputs are required.
+        show_progress
+            If *True* (default) a coarse progress indicator is printed to stdout -
+            useful for long horizons.
 
-    Notes
-    -----
-    *Parallelism* - ``parallel_iterations`` is set to ``1`` inside the
-    ``tf.while_loop`` to preserve sequential semantics and consistent hidden
-    state tracking.  This sacrifices some graph-level parallelism in exchange
-    for correctness.
+        Returns
+        -------
+        outputs
+            Tensor with shape ``[batch, horizon, output_features]`` holding the
+            forecast.
+        states_history
+            Mapping ``layer_name -> list[state_tensor]`` where each
+            ``state_tensor`` has shape ``[batch, horizon, state_dim]``.  Only
+            layers that subclass :class:`BaseReservoir` are tracked.
 
-    Examples
-    --------
-    >>> outputs, states = forecast(model, init_fb, horizon=200)
-    >>> outputs.shape  # doctest: +ELLIPSIS
-    TensorShape([..., 200, output_features])
-    """
-    # Validate inputs
-    input_names = [_input.name for _input in model.inputs]
-    if len(input_names) < 1:
-        raise ValueError("Model must have at least one input (the feedback input).")
+        Raises
+        ------
+        ValueError
+            If input shapes are inconsistent or ``external_inputs`` does not match
+            the model signature.
 
-    if len(initial_feedback.shape) != 3 or initial_feedback.shape[1] != 1:
-        raise ValueError(
-            "Expected initial_feedback shape [batch_size, 1, features], but got "
-            f"{initial_feedback.shape}"
-        )
+        Notes
+        -----
+        *Parallelism* - ``parallel_iterations`` is set to ``1`` inside the
+        ``tf.while_loop`` to preserve sequential semantics and consistent hidden
+        state tracking.  This sacrifices some graph-level parallelism in exchange
+        for correctness.
 
-    batch_size = initial_feedback.shape[0]
-    features = initial_feedback.shape[-1]
+        Examples
+        --------
+        >>> outputs, states = forecast(model, init_fb, horizon=200)
+        >>> outputs.shape  # doctest: +ELLIPSIS
+        TensorShape([..., 200, output_features])
+        """
+        # Validate inputs
+        input_names = [_input.name for _input in model.inputs]
+        if len(input_names) < 1:
+            raise ValueError("Model must have at least one input (the feedback input).")
 
-    # Convert horizon to a tensor to avoid retracing
-    horizon_const = tf.convert_to_tensor(horizon, dtype=tf.int32)
-
-    # If external inputs are present, constrain the horizon to their length
-    if external_inputs:
-        ext_lengths   = [tf.shape(ext)[1] for ext in external_inputs]
-        min_ext_len   = tf.reduce_min(ext_lengths)
-        horizon_t     = tf.minimum(horizon_const, min_ext_len)
-    else:
-        horizon_t     = horizon_const
-
-    external_input_count = len(input_names) - 1
-    if len(external_inputs) != external_input_count:
-        raise ValueError(
-            f"Expected {external_input_count} external inputs, but got {len(external_inputs)}."
-        )
-
-    # Shape consistency for external inputs
-    for i, ext_input in enumerate(external_inputs):
-        if len(ext_input.shape) != 3:
+        if len(initial_feedback.shape) != 3 or initial_feedback.shape[1] != 1:
             raise ValueError(
-                f"Expected external input {i} to have shape [batch_size, horizon, features], "
-                f"but got {ext_input.shape}"
-            )
-        if ext_input.shape[0] != batch_size:
-            raise ValueError(
-                f"Batch size mismatch: initial_feedback has batch size {batch_size}, "
-                f"but external input {i} has batch size {ext_input.shape[0]}"
+                "Expected initial_feedback shape [batch_size, 1, features], but got "
+                f"{initial_feedback.shape}"
             )
 
-    # TensorArrays for outputs and (optionally) states
-    t0 = tf.constant(0, dtype=tf.int32)
-    outputs_ta = tf.TensorArray(dtype=model.output.dtype,
-                                size=horizon_t,
-                                element_shape=[batch_size, features])
-    states: Dict[str, List[tf.TensorArray]] = {}
+        batch_size = initial_feedback.shape[0]
+        features = initial_feedback.shape[-1]
 
-    for layer in model.layers:
-        if isinstance(layer, BaseReservoir):
-            states[layer.name] = [
-                tf.TensorArray(dtype=state.dtype, size=horizon_t, infer_shape=True)
-                for state in layer.get_states()
-            ]
+        # Convert horizon to a tensor to avoid retracing
+        horizon_const = tf.convert_to_tensor(horizon, dtype=tf.int32)
 
-    loop_vars = (t0, initial_feedback, outputs_ta, states)
+        # If external inputs are present, constrain the horizon to their length
+        if external_inputs:
+            ext_lengths   = [tf.shape(ext)[1] for ext in external_inputs]
+            min_ext_len   = tf.reduce_min(ext_lengths)
+            horizon_t     = tf.minimum(horizon_const, min_ext_len)
+        else:
+            horizon_t     = horizon_const
 
-    def cond(t, *_):  # noqa: D401 - short lambda-style condition OK
-        return t < horizon_t
+        external_input_count = len(input_names) - 1
+        if len(external_inputs) != external_input_count:
+            raise ValueError(
+                f"Expected {external_input_count} external inputs, but got {len(external_inputs)}."
+            )
 
-    def body(t, feedback, outputs_ta, states):  # noqa: D401 - internal helper
-        # Assemble current inputs
-        model_inputs = feedback if not external_inputs else [feedback] + [
-            tf.expand_dims(ext[:, t, :], axis=1) for ext in external_inputs
-        ]
+        # Shape consistency for external inputs
+        for i, ext_input in enumerate(external_inputs):
+            if len(ext_input.shape) != 3:
+                raise ValueError(
+                    f"Expected external input {i} to have shape [batch_size, horizon, features], "
+                    f"but got {ext_input.shape}"
+                )
+            if ext_input.shape[0] != batch_size:
+                raise ValueError(
+                    f"Batch size mismatch: initial_feedback has batch size {batch_size}, "
+                    f"but external input {i} has batch size {ext_input.shape[0]}"
+                )
 
-        out_t = model(model_inputs)
-        new_feedback = tf.reshape(out_t, [batch_size, 1, features])
-        outputs_ta = outputs_ta.write(t, tf.squeeze(out_t, axis=1))
+        # TensorArrays for outputs and (optionally) states
+        t0 = tf.constant(0, dtype=tf.int32)
+        outputs_ta = tf.TensorArray(dtype=model.output.dtype,
+                                    size=horizon_t,
+                                    element_shape=[batch_size, features])
+        states: Dict[str, List[tf.TensorArray]] = {}
 
-        # Track reservoir states
         for layer in model.layers:
             if isinstance(layer, BaseReservoir):
-                for i, (st_ta, st) in enumerate(zip(states[layer.name], layer.get_states())):
-                    states[layer.name][i] = st_ta.write(t, st)
+                states[layer.name] = [
+                    tf.TensorArray(dtype=state.dtype, size=horizon_t, infer_shape=True)
+                    for state in layer.get_states()
+                ]
 
-        # Progress indicator
-        if show_progress:
-            prog_int = tf.maximum(horizon_t // 10, 100)
-            if tf.equal(t % prog_int, 0) or tf.equal(t, horizon_t - 1):
-                tf.print("\rForecasting step:", t, "of", horizon_t, "[", (t + 1) * 100 // horizon_t, "%]", end="\r")
+        loop_vars = (t0, initial_feedback, outputs_ta, states)
 
-        return t + 1, new_feedback, outputs_ta, states
+        def cond(t, *_):  # noqa: D401 - short lambda-style condition OK
+            return t < horizon_t
 
-    shape_invariants = (
-        t0.shape,
-        tf.TensorShape([batch_size, 1, features]),
-        tf.TensorShape(None),
-        {ln: [tf.TensorShape(None) for _ in lst] for ln, lst in states.items()},
-    )
+        def body(t, feedback, outputs_ta, states):  # noqa: D401 - internal helper
+            # Assemble current inputs
+            model_inputs = feedback if not external_inputs else [feedback] + [
+                tf.expand_dims(ext[:, t, :], axis=1) for ext in external_inputs
+            ]
 
-    _, _, outputs_ta, states_history = tf.while_loop(
-        cond=cond,
-        body=body,
-        loop_vars=loop_vars,
-        shape_invariants=shape_invariants,
-        parallel_iterations=1,
-    )
+            out_t = model(model_inputs)
+            new_feedback = tf.reshape(out_t, [batch_size, 1, features])
+            outputs_ta = outputs_ta.write(t, tf.squeeze(out_t, axis=1))
 
-    outputs = tf.transpose(outputs_ta.stack(), [1, 0, 2])  # [batch, time, features]
+            # Track reservoir states
+            for layer in model.layers:
+                if isinstance(layer, BaseReservoir):
+                    for i, (st_ta, st) in enumerate(zip(states[layer.name], layer.get_states())):
+                        states[layer.name][i] = st_ta.write(t, st)
 
-    for layer in model.layers:
-        if isinstance(layer, BaseReservoir):
-            layer_states = []
-            for st_ta in states_history[layer.name]:
-                state = tf.transpose(st_ta.stack(), [1, 0, 2])
-                layer_states.append(state)
-            states_history[layer.name] = layer_states
+            return t + 1, new_feedback, outputs_ta, states
 
-    if show_progress:
-        tf.print()  # newline after progress bar
+        shape_invariants = (
+            t0.shape,
+            tf.TensorShape([batch_size, 1, features]),
+            tf.TensorShape(None),
+            {ln: [tf.TensorShape(None) for _ in lst] for ln, lst in states.items()},
+        )
 
-    return outputs, states_history
+        _, _, outputs_ta, states_history = tf.while_loop(
+            cond=cond,
+            body=body,
+            loop_vars=loop_vars,
+            shape_invariants=shape_invariants,
+            parallel_iterations=1,
+        )
 
+        outputs = tf.transpose(outputs_ta.stack(), [1, 0, 2])  # [batch, time, features]
+
+        for layer in model.layers:
+            if isinstance(layer, BaseReservoir):
+                layer_states = []
+                for st_ta in states_history[layer.name]:
+                    state = tf.transpose(st_ta.stack(), [1, 0, 2])
+                    layer_states.append(state)
+                states_history[layer.name] = layer_states
+
+        return outputs, states_history
+
+    forecast_factory._cache.clear()
+    forecast_factory._cache[model_id] = forecast
+
+    return forecast
 
 @suppress_retracing_during_call
 def warmup_forecast(
@@ -319,20 +323,25 @@ def warmup_forecast(
     # ----------------------------------------------------------------------
     if show_progress:
         print("Warming up model with teacher-forced data…")
-    _ = model.predict(warmup_data, batch_size=batch_size, verbose=1 if show_progress else 0)
+    # _ = model.predict(warmup_data, batch_size=batch_size, verbose=1 if show_progress else 0)
+    predict_fn = predict_factory(model)
+    _ = predict_fn(warmup_data)
 
     # ----------------------------------------------------------------------
     # Phase 2 - auto-regressive forecast
     # ----------------------------------------------------------------------
     if show_progress:
         print(f"Running auto-regressive forecast for {horizon} steps…")
-    forecasted_output, states = forecast(
-        model=model,
+
+    forecast_fn = forecast_factory(model)
+    forecasted_output, states = forecast_fn(
         initial_feedback=initial_feedback,
         external_inputs=external_inputs,
         horizon=horizon,
-        show_progress=show_progress,
     )
+
+    # Delete the factory function to free memory
+    del forecast_fn
 
     if show_progress:
         print(f"Forecast completed - output shape {forecasted_output.shape}")

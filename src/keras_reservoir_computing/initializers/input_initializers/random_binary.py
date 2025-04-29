@@ -13,6 +13,8 @@ class RandomBinaryInitializer(tf.keras.Initializer):
 
     Parameters
     ----------
+    input_scaling : float, optional
+        Scaling factor for the input matrix.
     seed : int, optional
         Random seed for reproducibility.
 
@@ -30,14 +32,20 @@ class RandomBinaryInitializer(tf.keras.Initializer):
     # A 5x10 matrix with values in {-1, 1}.
     """
 
-    def __init__(self, seed: Optional[int] = None) -> None:
+    def __init__(
+        self,
+        input_scaling: Optional[float] = None,
+        seed: Optional[int] = None,
+    ) -> None:
         """Initialize the initializer."""
         self.seed = seed
         self.rng = np.random.default_rng(seed)
-
+        self.input_scaling = input_scaling
     def __call__(self, shape: tuple, dtype=None) -> tf.Tensor:
         W = self.rng.choice([-1.0, 1.0], size=shape)
         W = tf.convert_to_tensor(W, dtype=dtype)
+        if self.input_scaling is not None:
+            W *= self.input_scaling
         return W
 
     def get_config(self) -> dict:
@@ -49,7 +57,10 @@ class RandomBinaryInitializer(tf.keras.Initializer):
         dict
             The configuration dictionary.
         """
-        config = {"seed": self.seed}
+        config = {
+            "input_scaling": self.input_scaling,
+            "seed": self.seed,
+        }
         base_config = super().get_config()
         base_config.update(config)
         return base_config

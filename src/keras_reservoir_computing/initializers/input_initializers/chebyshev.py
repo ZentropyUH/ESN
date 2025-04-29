@@ -6,7 +6,7 @@ import tensorflow as tf
 
 @tf.keras.utils.register_keras_serializable(package="krc", name="ChebyshevInitializer")
 class ChebyshevInitializer(tf.keras.Initializer):
-    """
+    r"""
     Keras initializer using Chebyshev mapping for Echo State Networks (ESNs).
 
     This initializer constructs a weight matrix based on the Chebyshev polynomial map, ensuring
@@ -104,7 +104,7 @@ class ChebyshevInitializer(tf.keras.Initializer):
         p: float = 0.3,
         q: float = 5.9,
         k: float = 3.8,
-        sigma: Optional[float] = None,
+        input_scaling: Optional[float] = None,
     ) -> None:
         """
         Initialize the Chebyshev weight matrix initializer.
@@ -146,7 +146,7 @@ class ChebyshevInitializer(tf.keras.Initializer):
         self.p = p
         self.q = q
         self.k = k
-        self.sigma = sigma
+        self.input_scaling = input_scaling
 
     def __call__(self, shape: tuple, dtype=tf.float32) -> tf.Tensor:
         """
@@ -206,10 +206,8 @@ class ChebyshevInitializer(tf.keras.Initializer):
             W[:, j] = np.cos(self.k * np.arccos(np.clip(W[:, j - 1], -1.0, 1.0)))
 
         # Rescale the matrix if requested
-        if self.sigma is not None:
-            max_abs_sv = np.max(np.abs(np.linalg.svd(W, compute_uv=False)))
-            W /= max_abs_sv
-            W *= self.sigma
+        if self.input_scaling is not None:
+            W *= self.input_scaling
 
         return tf.convert_to_tensor(W, dtype=dtype)
 
@@ -229,11 +227,16 @@ class ChebyshevInitializer(tf.keras.Initializer):
         >>> initializer = ChebyshevInitializer(p=0.4, k=3.5)
         >>> config = initializer.get_config()
         >>> print(config)
-        {'p': 0.4, 'q': 5.9, 'k': 3.5, 'sigma': None}
+        {'p': 0.4, 'q': 5.9, 'k': 3.5, 'input_scaling': None}
         >>> # Recreate from config
         >>> new_initializer = ChebyshevInitializer.from_config(config)
         """
-        config = {"p": self.p, "q": self.q, "k": self.k, "sigma": self.sigma}
+        config = {
+            "p": self.p,
+            "q": self.q,
+            "k": self.k,
+            "input_scaling": self.input_scaling,
+        }
         base_config = super().get_config()
         base_config.update(config)
         return base_config

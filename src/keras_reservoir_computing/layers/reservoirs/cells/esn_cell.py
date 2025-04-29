@@ -2,7 +2,7 @@ from typing import Callable, List, Union
 
 import tensorflow as tf
 
-from .base import BaseCell
+from keras_reservoir_computing.layers.reservoirs.cells.base import BaseCell
 
 
 @tf.keras.utils.register_keras_serializable(package="krc", name="ESNCell")
@@ -64,26 +64,33 @@ class ESNCell(BaseCell):
         self.activation = tf.keras.activations.get(activation)
         self.input_initializer = tf.keras.initializers.get(input_initializer)
         self.feedback_initializer = tf.keras.initializers.get(feedback_initializer)
-        self.feedback_bias_initializer = tf.keras.initializers.get(
-            feedback_bias_initializer
-        )
+        self.feedback_bias_initializer = tf.keras.initializers.get(feedback_bias_initializer)
         self.kernel_initializer = tf.keras.initializers.get(kernel_initializer)
 
-    def build(self, input_shape: tf.TensorShape):
+    def build(self, input_shape: tuple):
         """
         Build the cell's weights.
-        
+
         Keras will pass input_shape of the form (batch_size, timesteps, total_features)
         for RNN cells. total_features = feedback_dim + input_dim in your usage.
-        
+
         Parameters
         ----------
-        input_shape : tf.TensorShape
+        input_shape : tuple
             The input shape provided by Keras.
         """
 
-        # We'll create three sets of weights:
+        feedback_and_input_features = input_shape[-1]
+
+        # Check if the input shape has the correct number of features
+        if feedback_and_input_features != self.feedback_dim + self.input_dim:
+            raise ValueError(
+                f"Input shape {input_shape} has {feedback_and_input_features} features, expected {self.feedback_dim + self.input_dim}"
+            )
+
+        # We'll create four sets of weights:
         #   W_fb: (feedback_dim, units)
+        #   b_fb: (units,)
         #   W_in: (input_dim, units)
         #   W_kernel: (units, units)  -- the "recurrent" part
         self.W_fb = self.add_weight(
@@ -124,7 +131,7 @@ class ESNCell(BaseCell):
     def call(self, inputs: tf.Tensor, states: List[tf.Tensor]):
         """
         Process one step of the cell.
-        
+
         Parameters
         ----------
         inputs : tf.Tensor
@@ -132,7 +139,7 @@ class ESNCell(BaseCell):
             total_features = feedback_dim + input_dim
         states : List[tf.Tensor]
             A list of one tensor [previous_state], shape (batch_size, units)
-            
+
         Returns
         -------
         tuple

@@ -1,6 +1,6 @@
 """Custom Initializers."""
 
-from typing import Union
+from typing import Optional, Union
 
 import tensorflow as tf
 
@@ -44,13 +44,13 @@ class PseudoDiagonalInitializer(tf.keras.Initializer):
 
     def __init__(
         self,
-        sigma: float = None,
+        input_scaling: Optional[float] = None,
         binarize: bool = False,
         seed: Union[int, tf.random.Generator, None] = None,
     ) -> None:
         """Initialize the initializer."""
 
-        self.sigma = sigma
+        self.input_scaling = input_scaling
         self.binarize = binarize
         self.seed = seed
 
@@ -139,10 +139,8 @@ class PseudoDiagonalInitializer(tf.keras.Initializer):
         w_in = tf.sparse.reorder(w_in)
         w_in = tf.sparse.to_dense(w_in)
 
-        if self.sigma is not None:
-            max_abs_sv = tf.reduce_max(tf.abs(tf.linalg.svd(w_in, compute_uv=False)))
-            w_in /= max_abs_sv
-            w_in *= self.sigma
+        if self.input_scaling is not None:
+            w_in *= self.input_scaling
 
         return w_in
 
@@ -155,7 +153,11 @@ class PseudoDiagonalInitializer(tf.keras.Initializer):
         dict
             The configuration dictionary.
         """
-        config = {"sigma": self.sigma, "binarize": self.binarize, "seed": self.seed}
+        config = {
+            "input_scaling": self.input_scaling,
+            "binarize": self.binarize,
+            "seed": self.seed,
+        }
         base_config = super().get_config()
         base_config.update(config)
         return base_config
