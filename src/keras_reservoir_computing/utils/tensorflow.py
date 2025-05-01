@@ -31,6 +31,11 @@ def predict_factory(model: tf.keras.Model) -> Callable:
     if model_id in predict_factory._cache:
         return predict_factory._cache[model_id]
 
+    # Clean up any existing cached items to prevent memory leaks
+    # Only keep at most 1 item in the cache
+    if len(predict_factory._cache) > 0:
+        predict_factory._cache.clear()
+
     @tf_function(reduce_retracing=True, jit_compile=True)
     def predict(data: tf.Tensor) -> tf.Tensor:
         """Predict the output of the model.
@@ -43,10 +48,7 @@ def predict_factory(model: tf.keras.Model) -> Callable:
         """
         return model(data, training=False)
 
-    # Delete the factory function to free memory
-    predict_factory._cache.clear()
     predict_factory._cache[model_id] = predict
-
     return predict
 
 
@@ -72,6 +74,11 @@ def warm_forward_factory(model: tf.keras.Model) -> Callable:
     if model_id in warm_forward_factory._cache:
         return warm_forward_factory._cache[model_id]
 
+    # Clean up any existing cached items to prevent memory leaks
+    # Only keep at most 1 item in the cache
+    if len(warm_forward_factory._cache) > 0:
+        warm_forward_factory._cache.clear()
+
     @tf_function(reduce_retracing=True, jit_compile=True)
     def warm_forward(warmup: tf.Tensor, data: tf.Tensor) -> tf.Tensor:
         """Warm-forward the model through the data.
@@ -82,10 +89,7 @@ def warm_forward_factory(model: tf.keras.Model) -> Callable:
         model(warmup)  # warm-up (stateful layers adapt)
         return model(data)  # inference only - no gradients
 
-    # Delete the factory function to free memory
-    warm_forward_factory._cache.clear()
     warm_forward_factory._cache[model_id] = warm_forward
-
     return warm_forward
 
 
