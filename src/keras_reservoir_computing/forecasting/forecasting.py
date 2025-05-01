@@ -51,6 +51,11 @@ def forecast_factory(model: tf.keras.Model) -> Callable:
     if model_id in forecast_factory._cache:
         return forecast_factory._cache[model_id]
 
+    # Clean up any existing cached items to prevent memory leaks
+    # Only keep at most 1 item in the cache
+    if len(forecast_factory._cache) > 0:
+        forecast_factory._cache.clear()
+
     @tf_function(reduce_retracing=True, jit_compile=True)
     def forecast(
         initial_feedback: tf.Tensor,
@@ -226,9 +231,7 @@ def forecast_factory(model: tf.keras.Model) -> Callable:
 
         return outputs, states_history
 
-    forecast_factory._cache.clear()
     forecast_factory._cache[model_id] = forecast
-
     return forecast
 
 @suppress_retracing_during_call
@@ -340,8 +343,10 @@ def warmup_forecast(
         horizon=horizon,
     )
 
-    # Delete the factory function to free memory
+    # Delete reference to potentially large objects
     del forecast_fn
+    # Clear TensorFlow's memory
+    tf.keras.backend.clear_session()
 
     if show_progress:
         print(f"Forecast completed - output shape {forecasted_output.shape}")
