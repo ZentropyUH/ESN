@@ -69,7 +69,7 @@ def build_objective(
         # ----------------------------------------------------------
         # Load data once per trial - user provides the splits
         # ----------------------------------------------------------
-        data = data_loader()
+        data = data_loader(trial)
 
         if trainer == "custom":
             return _run_custom_trainer(model, data, loss_fn)
