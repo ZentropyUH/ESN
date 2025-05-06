@@ -5,9 +5,9 @@ from .graph_initializers import (
     CompleteGraphInitializer,
     ErdosRenyiGraphInitializer,
     KleinbergSmallWorldGraphInitializer,
-    MultiCliqueGraphInitializer,
     NewmanWattsStrogatzGraphInitializer,
     RegularGraphInitializer,
+    SpectralCascadeGraphInitializer,
     WattsStrogatzGraphInitializer,
 )
 from .random_recurrent import RandomRecurrentInitializer
@@ -20,9 +20,9 @@ __all__ = [
     "CompleteGraphInitializer",
     "ErdosRenyiGraphInitializer",
     "KleinbergSmallWorldGraphInitializer",
-    "MultiCliqueGraphInitializer",
     "NewmanWattsStrogatzGraphInitializer",
     "RegularGraphInitializer",
+    "SpectralCascadeGraphInitializer",
     "RandomRecurrentInitializer",
     "TernaryInitializer",
     "WattsStrogatzGraphInitializer",

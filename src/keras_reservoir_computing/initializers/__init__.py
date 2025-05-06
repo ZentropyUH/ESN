@@ -3,7 +3,6 @@
 This module provides specialized initializers for input layers and reservoirs in ESN models.
 """
 from . import input_initializers, recurrent_initializers
-
 from .input_initializers import (
     ChebyshevInitializer,
     ChessboardInitializer,
@@ -18,10 +17,10 @@ from .recurrent_initializers import (
     DigitalChaosInitializer,
     ErdosRenyiGraphInitializer,
     KleinbergSmallWorldGraphInitializer,
-    MultiCliqueGraphInitializer,
     NewmanWattsStrogatzGraphInitializer,
-    RegularGraphInitializer,
     RandomRecurrentInitializer,
+    RegularGraphInitializer,
+    SpectralCascadeGraphInitializer,
     TernaryInitializer,
     WattsStrogatzGraphInitializer,
 )
@@ -43,9 +42,9 @@ __all__ += [
     "DigitalChaosInitializer",
     "ErdosRenyiGraphInitializer",
     "KleinbergSmallWorldGraphInitializer",
-    "MultiCliqueGraphInitializer",
     "NewmanWattsStrogatzGraphInitializer",
     "RegularGraphInitializer",
+    "SpectralCascadeGraphInitializer",
     "RandomRecurrentInitializer",
     "TernaryInitializer",
     "WattsStrogatzGraphInitializer",

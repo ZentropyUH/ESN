@@ -9,8 +9,9 @@ A TensorFlow/Keras implementation of reservoir computing with a focus on Echo St
 Create a conda environment with the provided `environment.yml` file:
 
 ```bash
-conda env create -f environment.yml
+conda create --name krc python=3.12
 conda activate krc
+pip install . # Being in the root directory
 ```
 
 ### Using pip
@@ -20,7 +21,7 @@ Create a virtual environment with the `requirements.txt` file:
 ```bash
 python -m venv krc
 source krc/bin/activate  # On Windows: krc\Scripts\activate
-pip install -r requirements.txt
+pip install . # Being in the root directory
 ```
 
 ### Install the package

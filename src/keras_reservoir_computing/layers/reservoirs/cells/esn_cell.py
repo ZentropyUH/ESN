@@ -145,6 +145,7 @@ class ESNCell(BaseCell):
         tuple
             A tuple (next_state, [next_state]) containing the output and new states
         """
+        # Get previous state x_{t}
         prev_state = states[0]
 
         # Split out the feedback portion vs. external input portion
@@ -152,18 +153,24 @@ class ESNCell(BaseCell):
 
         input_part = inputs[:, self.feedback_dim :]  # remainder
 
-        # Compute new state
+        # Compute new state y_{t} * W_{fb} + b_{fb}
         next_state = tf.matmul(feedback_part, self.W_fb) + self.b_fb
 
         if self.input_dim > 0:
+            # Compute input part 
+            # u_{t} * W_{in} + y_{t} * W_{fb} + b_{fb}
             next_state += tf.matmul(input_part, self.W_in)
 
+        # Compute recurrent part 
+        # x_{t} * W_{kernel} + u_{t} * W_{in} + y_{t} * W_{fb} + b_{fb}
         next_state += tf.matmul(prev_state, self.W_kernel)
 
-        # Apply activation
+        # Apply activation 
+        # f(x_{t} * W_{kernel} + u_{t} * W_{in} + y_{t} * W_{fb} + b_{fb})
         next_state = self.activation(next_state)
 
         # leaky integration
+        # x_{t+1} = (1 - \alpha) * x_{t} + \alpha * f(x_{t} * W_{kernel} + u_{t} * W_{in} + y_{t} * W_{fb} + b_{fb})
         next_state = (1 - self.leak_rate) * prev_state + self.leak_rate * next_state
 
         # Return (output, new_state). For a basic RNN, the "output" is usually

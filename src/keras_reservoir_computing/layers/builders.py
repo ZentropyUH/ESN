@@ -55,7 +55,7 @@ def ESNReservoir_builder(
 
     # 2. overrides have highest priority
     if overrides:
-        raw_cfg |= overrides                        # Python ≥3.9 dict merge
+        raw_cfg |= overrides           # Python ≥3.9 dict merge
 
     # 3. validate & fill with defaults -----------------------------------------
     cfg = ESNConfig(**raw_cfg)
