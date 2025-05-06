@@ -75,6 +75,7 @@ class ESNConfig(BaseModel):
     input_dim: int = 0
     leak_rate: float = Field(1.0, ge=0.0, le=1.0)
     activation: str = "tanh"
+    name: str = "esn_reservoir"
     dtype: str = "float32"
 
     # ---- initializers -----------------------------------------------------------
