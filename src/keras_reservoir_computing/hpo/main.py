@@ -36,14 +36,15 @@ def run_hpo(
         It *must* accept the hyper-parameters returned by ``search_space`` as
         keyword arguments.
     search_space
-        Callable that registers trial parameters via ``trial.suggest_*`` and
-        returns **exactly** the mapping later forwarded to ``model_creator``.
+        Callable that accepts a ``trial`` object and registers trial parameters
+        via ``trial.suggest_*`` and returns **exactly** the mapping later
+        forwarded to ``model_creator``.
     n_trials
         Number of trials to run.
     data_loader
-        Zero-arg callable returning a mapping with the keys required by the
-        chosen trainer (e.g. ``train_data``, ``train_target``…).  Put your own
-        dataset splits in here.
+        Callable that accepts a ``trial`` object and returns a mapping with the
+        keys required by the chosen trainer (e.g. ``train_data``, ``train_target``…).
+        Put your own dataset splits in here.
     trainer
         ``"custom"`` → use :class:`krc.training.ReservoirTrainer`.
         ``"fit"``    → use ``model.fit`` with a Keras-compatible loss.
@@ -82,7 +83,7 @@ def run_hpo(
     # ------------------------------------------------------------------
     if sampler is None:
         # The warn_independent_sampling=False is for spectral radius being > 1- leak_rate
-        sampler = TPESampler(multivariate=True, warn_independent_sampling=False, seed=seed) 
+        sampler = TPESampler(multivariate=True, warn_independent_sampling=False, seed=seed)
 
     if study_name is None:
         study_name = make_study_name(
@@ -110,10 +111,19 @@ def run_hpo(
         data_loader=data_loader,
     )
 
-    study.optimize(
-        objective,
-        n_trials=n_trials,
-        show_progress_bar=True,
-    )
+    completed_trials = len(study.get_trials())
+    remaining_trials = max(0, n_trials - completed_trials)
+    print("Remaining trials:", remaining_trials)
+
+    if remaining_trials > 0:
+        study.optimize(
+            objective,
+            n_trials=remaining_trials,
+            catch=(Exception,),
+            show_progress_bar=True,
+        )
+    else:
+        print("All trials completed")
+
     return study
 
