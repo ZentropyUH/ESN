@@ -33,8 +33,6 @@ class LossProtocol(Protocol):
 # ------------------------------------------------------------------
 # Concrete loss implementations
 # ------------------------------------------------------------------
-EPS = np.finfo(float).eps
-
 
 def _compute_errors(y_true: np.ndarray, y_pred: np.ndarray, metric: str = "rmse") -> np.ndarray:  # noqa: D401,E501
     """
