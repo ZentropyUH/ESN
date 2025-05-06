@@ -1,8 +1,8 @@
 """
-Pydantic models and validation logic for every user‑supplied configuration.
+Pydantic models and validation logic for every user-supplied configuration.
 
 Adding a new initializer later?  ➜  just register it with Keras (or with the
-`krc>` prefix) and it will be accepted automatically – no code changes needed.
+`krc>` prefix) and it will be accepted automatically - no code changes needed.
 """
 
 import inspect
