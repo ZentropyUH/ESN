@@ -196,7 +196,7 @@ def soft_horizon_loss(
     y_true: np.ndarray,
     y_pred: np.ndarray,
     *,
-    metric: str = "nrmse",
+    metric: str = "rmse",
     threshold: float = 0.2,
     softness: float = 0.02,               # ~ 10 % of threshold is a good default
 ) -> float:
