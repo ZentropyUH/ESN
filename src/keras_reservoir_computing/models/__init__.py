@@ -6,10 +6,8 @@ This module provides ready-to-use model architectures for common reservoir compu
 from .architectures import (
     Ott_ESN,
     classic_ESN,
-    ensemble_with_mean_ESN,
     headless_ESN,
-    residual_stacked_ESN,
 )
 
-__all__ = ["Ott_ESN", "classic_ESN", "ensemble_with_mean_ESN", "residual_stacked_ESN", "headless_ESN"]
+__all__ = ["Ott_ESN", "classic_ESN", "headless_ESN"]
 
