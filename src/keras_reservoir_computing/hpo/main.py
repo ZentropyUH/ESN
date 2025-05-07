@@ -25,6 +25,7 @@ def run_hpo(
     storage: str | None = None,
     sampler: optuna.samplers.BaseSampler | None = None,
     seed: int | None = None,
+    penalty_value: float = 1e10,
     optuna_kwargs: Mapping[str, Any] | None = None,
 ) -> optuna.Study:
     """Run an Optuna study for reservoir-based models.
@@ -61,6 +62,13 @@ def run_hpo(
         Optuna storage URL.  Use SQLite if omitted.
     sampler, seed, optuna_kwargs
         Passed straight through to :func:`optuna.create_study`.
+    seed
+        Seed for the random number generator.
+    penalty_value
+        Value to return if the model creation fails. Suitable for cases where there are constraints on the search space.
+        Default is 1e10.
+    optuna_kwargs
+        Additional keyword arguments to pass to :func:`optuna.create_study`.
 
     Returns
     -------
@@ -109,6 +117,7 @@ def run_hpo(
         trainer=trainer,
         loss_fn=resolved_loss,
         data_loader=data_loader,
+        penalty_value=penalty_value,
     )
 
     completed_trials = len(study.get_trials())
