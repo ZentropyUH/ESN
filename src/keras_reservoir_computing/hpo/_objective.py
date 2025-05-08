@@ -68,7 +68,6 @@ def build_objective(
         try:
             model = model_creator(**params)
         except Exception:
-            logger.exception("Model creation failed:")
             return penalty_value
 
         # ----------------------------------------------------------
