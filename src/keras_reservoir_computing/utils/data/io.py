@@ -285,6 +285,7 @@ def load_data(
     train_length: int = 5000,
     val_length: int = None,
     normalize: bool = False,
+    normalization_method: str = "standard",
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Load and prepare time-series data for neural network (e.g., ESN/Reservoir) training.
@@ -306,6 +307,9 @@ def load_data(
         Length of the validation data. If None, uses all remaining data after training, by default None.
     normalize : bool, optional
         Whether to normalize the data (based on mean and std of the training portion), by default False.
+    normalization_method : str, optional
+        The method to use for normalization. Options: "standard", "minmax".
+        By default "standard".
 
     Returns
     -------
@@ -367,18 +371,41 @@ def load_data(
 
     # Optional normalization
     if normalize:
-        mean = np.mean(train_data, axis=1, keepdims=True)
-        std = np.std(train_data, axis=1, keepdims=True)
+        if normalization_method == "standard":
+            # Normalize to zero mean and unit variance
+            mean = np.mean(train_data, axis=1, keepdims=True)
+            std = np.std(train_data, axis=1, keepdims=True)
 
-        # Prevent division by zero
-        std = np.where(std == 0, 1, std)
+            # Prevent division by zero
+            std = np.where(std == 0, 1, std)
 
-        transient_data = (transient_data - mean) / std
-        train_data = (train_data - mean) / std
-        train_target = (train_target - mean) / std
-        ftransient = (ftransient - mean) / std
-        val_data = (val_data - mean) / std
-        val_target = (val_target - mean) / std
+            transient_data = (transient_data - mean) / std
+            train_data = (train_data - mean) / std
+            train_target = (train_target - mean) / std
+            ftransient = (ftransient - mean) / std
+            val_data = (val_data - mean) / std
+            val_target = (val_target - mean) / std
+        elif normalization_method == "minmax":
+            # Normalize to [-1, 1]
+            _min = np.min(train_data, axis=1, keepdims=True)
+            _max = np.max(train_data, axis=1, keepdims=True)
+
+            # Prevent division by zero
+            div = _max - _min
+            div = np.where(div == 0, 1, div)
+
+            transient_data = 2 * (transient_data - _min) / div - 1
+            train_data = 2 * (train_data - _min) / div - 1
+            train_target = 2 * (train_target - _min) / div - 1
+            ftransient = 2 * (ftransient - _min) / div - 1
+            val_data = 2 * (val_data - _min) / div - 1
+            val_target = 2 * (val_target - _min) / div - 1
+
+        else:
+            raise ValueError(
+                f"Unknown normalization method: {normalization_method}. "
+                "Supported methods are 'standard' and 'minmax'."
+            )
 
     return (
         transient_data,
