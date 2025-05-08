@@ -1,6 +1,6 @@
 """Pre-built architectures for reservoir computing models.
 
-This module provides complete model architectures for different types of 
+This module provides complete model architectures for different types of
 Echo State Networks and other reservoir computing approaches.
 """
 
@@ -102,8 +102,11 @@ def classic_ESN(
     reservoir_overrides = {"units": units, "feedback_dim": features, "dtype": dtype}
     reservoir = ESNReservoir_builder(user_config=reservoir_config, overrides=reservoir_overrides)(input_layer)
 
+    # Concatenate input with reservoir
+    concatenation = tf.keras.layers.Concatenate(dtype=dtype)([input_layer, reservoir])
+
     readout_overrides = {"dtype": dtype}
-    readout = ReadOut_builder(readout_config, overrides=readout_overrides)(reservoir)
+    readout = ReadOut_builder(readout_config, overrides=readout_overrides)(concatenation)
 
     # Build and return model
     model = tf.keras.Model(inputs=input_layer, outputs=readout, name=name, dtype=dtype)
@@ -204,7 +207,7 @@ def headless_ESN(
 ) -> tf.keras.Model:
     """
     Build an ESN model with no readout layer.
-    
+
     This model can be used to study the dynamics of the reservoir by applying different transformations to the reservoir states.
     """
     # Load config from file if string is provided
