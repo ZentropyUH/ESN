@@ -5,7 +5,13 @@ from .analytics import (
     get_all_targets,
     mean_ensemble_prediction,
 )
-from .io import list_files_only, load_data, load_file, save_data
+from .io import (
+    list_files_only,
+    load_data,
+    load_file,
+    save_data,
+    load_data_dual,
+)
 
 __all__ = [
     "compute_normalized_error",
@@ -17,6 +23,7 @@ __all__ = [
     "load_data",
     "load_file",
     "save_data",
+    "load_data_dual",
 ]
 
 def __dir__():

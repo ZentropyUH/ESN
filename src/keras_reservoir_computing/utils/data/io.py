@@ -283,7 +283,7 @@ def load_data(
     init_transient: int = 0,
     transient_length: int = 1000,
     train_length: int = 5000,
-    val_length: int = None,
+    val_length: int = 5000,
     normalize: bool = False,
     normalization_method: str = "standard",
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -415,6 +415,116 @@ def load_data(
         val_data,
         val_target,
     )
+
+
+def load_data_dual(
+    train_path: Union[str, List[str]],
+    val_path: Union[str, List[str]],
+    init_transient: int = 0,
+    transient_length: int = 1000,
+    train_length: int = 5000,
+    val_length: int = 5000,
+    normalize: bool = False,
+    normalization_method: str = "standard",
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Load training and validation data from two distinct sources (files or lists of files),
+    handling initial transient trimming and normalization. Returns properly aligned
+    transient/train/val datasets for ESN workflows.
+
+    Parameters
+    ----------
+    train_path : str or List[str]
+        Path(s) to training data file(s).
+    val_path : str or List[str]
+        Path(s) to validation data file(s).
+    init_transient : int
+        Number of initial time steps to discard in all files.
+    transient_length : int
+        Length of the transient data used before training.
+    train_length : int
+        Length of the training sequence.
+    val_length : int
+        Length of the validation sequence.
+    normalize : bool
+        Whether to normalize the data based on training stats.
+    normalization_method : str
+        Normalization method: "standard" or "minmax".
+
+    Returns
+    -------
+    Tuple of 6 arrays:
+        transient_data, train_data, train_target,
+        ftransient_data, val_data, val_target
+    """
+    if isinstance(train_path, list) and isinstance(val_path, list):
+        if len(train_path) != len(val_path):
+            raise ValueError("Train and validation file lists must have the same length.")
+        train_batches = [load_file(p) for p in train_path]
+        val_batches = [load_file(p) for p in val_path]
+        train_data_all = np.concatenate(train_batches, axis=0)
+        val_data_all = np.concatenate(val_batches, axis=0)
+    elif isinstance(train_path, str) and isinstance(val_path, str):
+        train_data_all = load_file(train_path)
+        val_data_all = load_file(val_path)
+    else:
+        raise TypeError("train_path and val_path must both be str or both be List[str]")
+
+    # Discard system-level initial transient
+    train_data_all = train_data_all[:, init_transient:, :]
+    val_data_all = val_data_all[:, init_transient:, :]
+
+    T_train = train_data_all.shape[1]
+    T_val = val_data_all.shape[1]
+
+    if transient_length + train_length + 1 > T_train:
+        raise ValueError("Train file(s) too short for requested transient + train + target.")
+    if transient_length + val_length + 1 > T_val:
+        raise ValueError("Val file(s) too short for requested transient + val + target.")
+
+    # TRAIN SPLITS
+    transient_data = train_data_all[:, :transient_length, :]
+    train_data = train_data_all[:, transient_length:transient_length + train_length, :]
+    train_target = train_data_all[:, transient_length + 1:transient_length + train_length + 1, :]
+
+    # VAL SPLITS
+    ftransient_data = val_data_all[:, :transient_length, :]
+    val_data = val_data_all[:, transient_length:transient_length + val_length, :]
+    val_target = val_data_all[:, transient_length + 1:transient_length + val_length + 1, :]
+
+    if normalize:
+        if normalization_method == "standard":
+            mean = np.mean(train_data, axis=1, keepdims=True)
+            std = np.std(train_data, axis=1, keepdims=True)
+            std = np.where(std == 0, 1, std)
+            transient_data = (transient_data - mean) / std
+            train_data = (train_data - mean) / std
+            train_target = (train_target - mean) / std
+            ftransient_data = (ftransient_data - mean) / std
+            val_data = (val_data - mean) / std
+            val_target = (val_target - mean) / std
+        elif normalization_method == "minmax":
+            _min = np.min(train_data, axis=1, keepdims=True)
+            _max = np.max(train_data, axis=1, keepdims=True)
+            div = np.where(_max - _min == 0, 1, _max - _min)
+            transient_data = 2 * (transient_data - _min) / div - 1
+            train_data = 2 * (train_data - _min) / div - 1
+            train_target = 2 * (train_target - _min) / div - 1
+            ftransient_data = 2 * (ftransient_data - _min) / div - 1
+            val_data = 2 * (val_data - _min) / div - 1
+            val_target = 2 * (val_target - _min) / div - 1
+        else:
+            raise ValueError(f"Unknown normalization method: {normalization_method}")
+
+    return (
+        transient_data,
+        train_data,
+        train_target,
+        ftransient_data,
+        val_data,
+        val_target,
+    )
+
 
 
 def save_data(
