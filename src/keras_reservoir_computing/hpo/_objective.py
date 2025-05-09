@@ -40,6 +40,7 @@ def build_objective(
     trainer: str,
     loss_fn: LossProtocol,
     data_loader: Callable[[], Mapping[str, Any]],
+    penalty_value: float = 1e10,
 ) -> Callable[[optuna.trial.Trial], float]:
     """Return an Optuna objective function (closure)."""
 
@@ -64,12 +65,15 @@ def build_objective(
             logger.exception("Search space callable failed.")
             raise optuna.TrialPruned() from exc
 
-        model = model_creator(**params)
+        try:
+            model = model_creator(**params)
+        except Exception:
+            return penalty_value
 
         # ----------------------------------------------------------
         # Load data once per trial - user provides the splits
         # ----------------------------------------------------------
-        data = data_loader()
+        data = data_loader(trial)
 
         if trainer == "custom":
             return _run_custom_trainer(model, data, loss_fn)

@@ -18,7 +18,7 @@ from keras_reservoir_computing.layers.readouts.base import ReadOut
 from keras_reservoir_computing.layers.readouts.moorepenrose import (
     MoorePenroseReadout,
 )
-from keras_reservoir_computing.layers.readouts.ridge import RidgeSVDReadout
+from keras_reservoir_computing.layers.readouts.ridge import RidgeReadout
 
 
 # ------------------------------------------------------------------------------
@@ -100,7 +100,7 @@ def ReadOut_builder(
         return MoorePenroseReadout(**cfg_dict)
 
     if cfg.kind == "ridge":
-        return RidgeSVDReadout(**cfg_dict)
+        return RidgeReadout(**cfg_dict)
 
     raise ValueError(f"Invalid read-out kind: {cfg.kind}")
 

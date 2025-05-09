@@ -25,6 +25,7 @@ def run_hpo(
     storage: str | None = None,
     sampler: optuna.samplers.BaseSampler | None = None,
     seed: int | None = None,
+    penalty_value: float = 1e10,
     optuna_kwargs: Mapping[str, Any] | None = None,
 ) -> optuna.Study:
     """Run an Optuna study for reservoir-based models.
@@ -36,14 +37,15 @@ def run_hpo(
         It *must* accept the hyper-parameters returned by ``search_space`` as
         keyword arguments.
     search_space
-        Callable that registers trial parameters via ``trial.suggest_*`` and
-        returns **exactly** the mapping later forwarded to ``model_creator``.
+        Callable that accepts a ``trial`` object and registers trial parameters
+        via ``trial.suggest_*`` and returns **exactly** the mapping later
+        forwarded to ``model_creator``.
     n_trials
         Number of trials to run.
     data_loader
-        Zero-arg callable returning a mapping with the keys required by the
-        chosen trainer (e.g. ``train_data``, ``train_target``…).  Put your own
-        dataset splits in here.
+        Callable that accepts a ``trial`` object and returns a mapping with the
+        keys required by the chosen trainer (e.g. ``train_data``, ``train_target``…).
+        Put your own dataset splits in here.
     trainer
         ``"custom"`` → use :class:`krc.training.ReservoirTrainer`.
         ``"fit"``    → use ``model.fit`` with a Keras-compatible loss.
@@ -60,6 +62,13 @@ def run_hpo(
         Optuna storage URL.  Use SQLite if omitted.
     sampler, seed, optuna_kwargs
         Passed straight through to :func:`optuna.create_study`.
+    seed
+        Seed for the random number generator.
+    penalty_value
+        Value to return if the model creation fails. Suitable for cases where there are constraints on the search space.
+        Default is 1e10.
+    optuna_kwargs
+        Additional keyword arguments to pass to :func:`optuna.create_study`.
 
     Returns
     -------
@@ -82,7 +91,7 @@ def run_hpo(
     # ------------------------------------------------------------------
     if sampler is None:
         # The warn_independent_sampling=False is for spectral radius being > 1- leak_rate
-        sampler = TPESampler(multivariate=True, warn_independent_sampling=False, seed=seed) 
+        sampler = TPESampler(multivariate=True, warn_independent_sampling=False, seed=seed)
 
     if study_name is None:
         study_name = make_study_name(
@@ -108,12 +117,22 @@ def run_hpo(
         trainer=trainer,
         loss_fn=resolved_loss,
         data_loader=data_loader,
+        penalty_value=penalty_value,
     )
 
-    study.optimize(
-        objective,
-        n_trials=n_trials,
-        show_progress_bar=True,
-    )
+    completed_trials = len(study.get_trials())
+    remaining_trials = max(0, n_trials - completed_trials)
+    print("Remaining trials:", remaining_trials)
+
+    if remaining_trials > 0:
+        study.optimize(
+            objective,
+            n_trials=remaining_trials,
+            catch=(Exception,),
+            show_progress_bar=True,
+        )
+    else:
+        print("All trials completed")
+
     return study
 

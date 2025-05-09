@@ -204,8 +204,8 @@ trainer.fit_readout_layers(
      - An intermediate model is created to extract inputs for that layer
      - The warmup phase runs to initialize reservoir states
      - Inputs are extracted and passed to the ReadOut layer's fit method
-- **Ridge Regression with SVD**:
-  - ReadOut layers like RidgeSVDReadout use ridge regression with SVD decomposition for numerical stability
+- **Ridge Regression with Conjugate Gradient**:
+  - ReadOut layers like RidgeReadout use conjugate gradient for numerical stability
   - The fit method automatically:
     - Casts inputs to float64 for numerical precision
     - Flattens 3D inputs (batch, timesteps, features) to 2D (samples, features)

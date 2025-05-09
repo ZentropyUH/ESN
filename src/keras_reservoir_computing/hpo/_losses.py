@@ -33,8 +33,6 @@ class LossProtocol(Protocol):
 # ------------------------------------------------------------------
 # Concrete loss implementations
 # ------------------------------------------------------------------
-EPS = np.finfo(float).eps
-
 
 def _compute_errors(y_true: np.ndarray, y_pred: np.ndarray, metric: str = "rmse") -> np.ndarray:  # noqa: D401,E501
     """
@@ -198,7 +196,7 @@ def soft_horizon_loss(
     y_true: np.ndarray,
     y_pred: np.ndarray,
     *,
-    metric: str = "nrmse",
+    metric: str = "rmse",
     threshold: float = 0.2,
     softness: float = 0.02,               # ~ 10 % of threshold is a good default
 ) -> float:

@@ -1,4 +1,4 @@
-from typing import Dict, Tuple, Union
+from typing import Dict, Tuple, Union, Optional
 
 import tensorflow as tf
 
@@ -7,10 +7,10 @@ from keras_reservoir_computing.utils.tensorflow import tf_function
 from .base import ReadOut
 
 
-@tf.keras.utils.register_keras_serializable(package="krc", name="RidgeSVDReadout")
-class RidgeSVDReadout(ReadOut):
+@tf.keras.utils.register_keras_serializable(package="krc", name="RidgeReadout")
+class RidgeReadout(ReadOut):
     """
-    A Keras-like, SVD-based Ridge Regression layer.
+    A Keras-like, Conjugate Gradient-based Ridge Regression layer.
 
     This layer behaves much like a Dense layer, except that
     the actual weights are determined by a closed-form solution.
@@ -21,6 +21,10 @@ class RidgeSVDReadout(ReadOut):
         Number of outputs (a.k.a. the dimension of y).
     alpha : float, optional
         L2 regularization strength. Must be non-negative. Default is 1.0.
+    max_iter : int, optional
+        Maximum number of iterations for the conjugate gradient solver. Default is 1000.
+    tol : float, optional
+        Tolerance for the solution of the conjugate gradient solver. Default is 1e-6.
     trainable : bool, optional
         Whether to allow gradient-based updates on the weights
         after they are fit with the closed-form solver. Default is False.
@@ -69,24 +73,25 @@ class RidgeSVDReadout(ReadOut):
         self,
         units: int,
         alpha: float = 1.0,
+        max_iter: Optional[int] = None,
+        tol: float = 1e-6,
         trainable: bool = False,
         **kwargs,
     ):
-        """
-        Parameters
-        ----------
-        units : int
-            Number of outputs (a.k.a. the dimension of y).
-        alpha : float
-            L2 regularization strength. Must be non-negative.
-        trainable : bool
-            Whether to allow gradient-based updates on the weights
-            after they are fit with the closed-form solver.
-        """
+
         if alpha < 0:
             raise ValueError("Regularization strength `alpha` must be non-negative.")
+        if max_iter is None:
+            self._max_iter = max(1000, units * 10)
+        elif max_iter <= 0:
+            raise ValueError("`max_iter` must be positive.")
+        else:
+            self._max_iter = max_iter
 
+        if tol <= 0:
+            raise ValueError("`tol` must be positive.")
         self._alpha = alpha
+        self._tol = tol
 
         # Will be created in build() with known shapes.
         self.kernel = None  # shape: (input_dim, units)
@@ -155,24 +160,57 @@ class RidgeSVDReadout(ReadOut):
     def _fit(self, X: tf.Tensor, y: tf.Tensor) -> tuple[tf.Tensor, tf.Tensor]:
         alpha = tf.constant(self._alpha, dtype=tf.float64)
         units = tf.constant(self.units, dtype=tf.int32)
-        return self.__class__._solve_ridge_svd(X, y, alpha, units)
+        max_iter = tf.constant(self._max_iter, dtype=tf.int32)
+        tol = tf.constant(self._tol, dtype=tf.float64)
+        return self.__class__._solve_ridge_cg(X, y, alpha, units, max_iter, tol)
 
 
     @staticmethod
     @tf_function(
         input_signature=[
-            tf.TensorSpec(shape=(None, None), dtype=tf.float64),
-            tf.TensorSpec(shape=(None, None), dtype=tf.float64),
-            tf.TensorSpec(shape=(), dtype=tf.float64),
-            tf.TensorSpec(shape=(), dtype=tf.int32),
-        ]
-    )
-    def _solve_ridge_svd(X: tf.Tensor, y: tf.Tensor, alpha: float, units: int) -> Tuple[tf.Tensor, tf.Tensor]:
+            tf.TensorSpec(shape=(None, None), dtype=tf.float64),  # X
+            tf.TensorSpec(shape=(None, None), dtype=tf.float64),  # y
+            tf.TensorSpec(shape=(), dtype=tf.float64),            # alpha
+            tf.TensorSpec(shape=(), dtype=tf.int32),              # units
+            tf.TensorSpec(shape=(), dtype=tf.int32),              # max_iter
+            tf.TensorSpec(shape=(), dtype=tf.float64),            # tol
+            ]
+        )
+    def _solve_ridge_cg(
+        X: tf.Tensor, 
+        y: tf.Tensor, 
+        alpha: float, 
+        units: int,
+        max_iter: int,
+        tol: float,
+        ) -> Tuple[tf.Tensor, tf.Tensor]:
         """
-        Compute the closed-form Ridge solution via SVD.
+        Solve Ridge Regression using Conjugate Gradient for multiple outputs.
 
-        This is a private method that is called by `fit()`.
-        It assumes that the input tensors are already cast to float64.
+        This method solves the regularized least squares problem:
+
+            (X.T @ X + alpha * I) @ W = X.T @ Y
+
+        where:
+        - X is the input matrix of shape (n_samples, n_features),
+        - Y is the target matrix of shape (n_samples, units),
+        - W is the solution matrix of shape (n_features, units).
+
+        Each output dimension is solved independently using a vectorized
+        implementation of the Conjugate Gradient (CG) method. Scalar updates
+        (alpha, beta) are computed per output column using broadcasting, allowing
+        the solver to run without explicit Python loops and remain compatible
+        with TensorFlow's graph execution and GPU acceleration.
+
+        This function also centers the data and returns the corresponding bias term.
+
+        Notes
+        -----
+        - Works with float64 precision only (for numerical stability).
+        - Fully compatible with @tf.function and Autograph tracing.
+        - Efficient for high-dimensional regression with many outputs.
+        - This is a mathematically correct but non-standard batched CG trick;
+        do not refactor it without understanding how the scalar updates are applied.
 
         Parameters
         ----------
@@ -180,41 +218,58 @@ class RidgeSVDReadout(ReadOut):
             Input tensor of shape (n_samples, n_features).
         y : tf.Tensor
             Target tensor of shape (n_samples, units).
-        """
+        alpha : float
+            L2 regularization strength. Must be non-negative.
+        units : int
+            Number of output units (columns in `y`).
 
-        # Center the data
+        Returns
+        -------
+        coefs : tf.Tensor
+            Solution weight matrix of shape (n_features, units).
+        intercept : tf.Tensor
+            Bias term of shape (units,).
+
+        Raises
+        ------
+        ValueError
+            If `alpha` is negative.
+        """
         X_mean = tf.reduce_mean(X, axis=0, keepdims=True)
         y_mean = tf.reduce_mean(y, axis=0, keepdims=True)
-        X_centered = X - X_mean
-        y_centered = y - y_mean
+        Xc = X - X_mean
+        yc = y - y_mean
 
-        # SVD of centered X
-        s, U, V = tf.linalg.svd(X_centered, full_matrices=False)
+        def matvec(w):
+            # w: (n_features, n_units)
+            Xw = tf.matmul(Xc, w)  # (n_samples, n_units)
+            XtXw = tf.matmul(Xc, Xw, transpose_a=True)  # (n_features, n_units)
+            return XtXw + alpha * w
 
-        # Safeguard: threshold small singular values for numerical stability
-        eps = tf.keras.backend.epsilon()
-        threshold = eps * tf.reduce_max(s)
+        def cg(A, B, max_iter=max_iter, tol=tol):
+            X = tf.zeros_like(B)
+            R = B - A(X)
+            P = R
+            Rs_old = tf.reduce_sum(R * R, axis=0, keepdims=True)
 
-        # More stable ridge regression formula
-        s_inv = s / (s**2 + alpha)
-        s_inv = tf.where(s > threshold, s_inv, 0.0)
-        s_inv = tf.reshape(s_inv, (-1, 1))
+            for _ in tf.range(max_iter):
+                AP = A(P)
+                alpha_cg = Rs_old / tf.reduce_sum(P * AP, axis=0, keepdims=True)
+                X = X + P * alpha_cg
+                R = R - AP * alpha_cg
+                Rs_new = tf.reduce_sum(R * R, axis=0, keepdims=True)
+                if tf.reduce_all(Rs_new < tol**2):
+                    break
+                beta = Rs_new / Rs_old
+                P = R + P * beta
+                Rs_old = Rs_new
+            return X
 
-        # U^T y_centered
-        UTy = tf.matmul(U, y_centered, transpose_a=True)
+        rhs = tf.matmul(Xc, yc, transpose_a=True)  # (n_features, units)
+        coefs = cg(matvec, rhs)
 
-        # Coefficients: shape (n_features, units)
-        d_UT_y = s_inv * UTy
-
-        # Compute final Ridge regression coefficients
-        coef = tf.matmul(V, d_UT_y)
-
-        # Intercept: shape (1, units) -> flatten to shape (units,)
-        intercept = y_mean - tf.matmul(tf.reshape(X_mean, [1, -1]), coef)
-        intercept = tf.reshape(intercept, [units])  # Explicit reshape
-
-        # Assign to kernel/bias
-        return coef, intercept
+        intercept = tf.reshape(y_mean - tf.matmul(X_mean, coefs), [units])
+        return coefs, intercept
 
     @property
     def alpha(self) -> float:
@@ -263,6 +318,6 @@ class RidgeSVDReadout(ReadOut):
         """
         config = super().get_config()
         config.update(
-            {"units": self.units, "alpha": self._alpha, "trainable": self.trainable}
+            {"units": self.units, "alpha": self._alpha, "trainable": self.trainable, "max_iter": self._max_iter, "tol": self._tol}
         )
         return config
