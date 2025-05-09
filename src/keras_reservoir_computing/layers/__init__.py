@@ -12,7 +12,7 @@ from .custom_layers import (
 )
 from .readouts import (
     MoorePenroseReadout,
-    RidgeSVDReadout,
+    RidgeReadout,
 )
 from .reservoirs import ESNCell, ESNReservoir
 
@@ -30,7 +30,7 @@ __all__ += [
 
 __all__ += [
     "MoorePenroseReadout",
-    "RidgeSVDReadout",
+    "RidgeReadout",
 ]
 
 
