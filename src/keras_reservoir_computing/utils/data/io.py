@@ -514,7 +514,9 @@ def load_data_dual(
             val_data = 2 * (val_data - _min) / div - 1
             val_target = 2 * (val_target - _min) / div - 1
         else:
-            raise ValueError(f"Unknown normalization method: {normalization_method}")
+            raise ValueError(
+                f"Unknown normalization method: {normalization_method}. Supported methods are 'standard' and 'minmax'."
+            )
 
     return (
         transient_data,
