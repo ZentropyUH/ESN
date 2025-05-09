@@ -81,15 +81,15 @@ class RidgeReadout(ReadOut):
 
         if alpha < 0:
             raise ValueError("Regularization strength `alpha` must be non-negative.")
-        if max_iter <= 0:
-            raise ValueError("`max_iter` must be positive.")
-        if tol <= 0:
-            raise ValueError("`tol` must be positive.")
-
         if max_iter is None:
             self._max_iter = max(1000, units * 10)
+        elif max_iter <= 0:
+            raise ValueError("`max_iter` must be positive.")
         else:
             self._max_iter = max_iter
+
+        if tol <= 0:
+            raise ValueError("`tol` must be positive.")
         self._alpha = alpha
         self._tol = tol
 
