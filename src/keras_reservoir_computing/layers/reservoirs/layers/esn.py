@@ -31,11 +31,11 @@ class ESNReservoir(BaseReservoir):
     activation : str or callable, optional
         Activation function for the reservoir neurons. Default is "tanh".
     input_initializer : str or callable, optional
-        Initializer for the input weights. Default is "glorot_uniform".
+        Initializer for the input weights. Default is "zeros".
     feedback_initializer : str or callable, optional
         Initializer for the feedback weights. Default is "glorot_uniform".
     feedback_bias_initializer : str or callable, optional
-        Initializer for the feedback bias. Default is "glorot_uniform".
+        Initializer for the feedback bias. Default is "zeros".
     kernel_initializer : str or callable, optional
         Initializer for the reservoir's internal weights. Default is "glorot_uniform".
     dtype : str, optional
