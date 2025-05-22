@@ -192,7 +192,7 @@ def standard_loss(
     return np.mean(geom_mean)
 
 
-def soft_horizon_loss(
+def expected_forecast_horizon(
     y_true: np.ndarray,
     y_pred: np.ndarray,
     *,
@@ -246,7 +246,7 @@ LOSSES: dict[str, LossProtocol] = {
     "lyap": lyapunov_weighted_loss,
     "multi_step": multi_step_loss,
     "standard": standard_loss,
-    "soft_horizon": soft_horizon_loss,
+    "efh": expected_forecast_horizon,
 }
 
 
