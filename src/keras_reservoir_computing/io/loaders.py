@@ -34,8 +34,13 @@ def _load_config(source: Union[str, Dict]) -> Dict:
         text = source
     try:
         return yaml.safe_load(text)
-    except yaml.YAMLError:
-        return json.loads(text)
+    except yaml.YAMLError as yaml_err:
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError as json_err:
+            raise ValueError(
+                f"Failed to parse config as YAML (error: {yaml_err}) and as JSON (error: {json_err})."
+            ) from json_err
 
 
 def _is_instance_of(value, annotation) -> bool:
