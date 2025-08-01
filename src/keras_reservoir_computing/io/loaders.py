@@ -12,37 +12,6 @@ from keras.src.saving import deserialize_keras_object as keras_deserialize
 # ---------------------------------------------------------------------
 # 1. Utilities
 # ---------------------------------------------------------------------
-def _load_config(source: Union[str, Dict]) -> Dict:
-    """Load YAML/JSON file or dict into a Python dict.
-
-    Parameters
-    ----------
-    source : Union[str, Dict]
-        Path to a YAML/JSON file or a dictionary.
-
-    Returns
-    -------
-    Dict
-        The loaded configuration.
-    """
-    if isinstance(source, dict):
-        return source
-    path = Path(source)
-    if isinstance(source, str) and path.is_file():
-        text = path.read_text()
-    else:
-        text = source
-    try:
-        return yaml.safe_load(text)
-    except yaml.YAMLError as yaml_err:
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError as json_err:
-            raise ValueError(
-                f"Failed to parse config as YAML (error: {yaml_err}) and as JSON (error: {json_err})."
-            ) from json_err
-
-
 def _is_instance_of(value, annotation) -> bool:
     """Check if a value is an instance of a given annotation.
 
@@ -125,6 +94,38 @@ def load_default_config(name: str) -> dict:
     with resources.files("keras_reservoir_computing.io.defaults").joinpath(f"{name}.yaml").open("r") as f:
         return yaml.safe_load(f)
 
+
+def load_config(source: Union[str, Dict]) -> Dict:
+    """Load YAML/JSON file or dict into a Python dict.
+
+    Parameters
+    ----------
+    source : Union[str, Dict]
+        Path to a YAML/JSON file or a dictionary.
+
+    Returns
+    -------
+    Dict
+        The loaded configuration.
+    """
+    if isinstance(source, dict):
+        return source
+    path = Path(source)
+    if isinstance(source, str) and path.is_file():
+        text = path.read_text()
+    else:
+        text = source
+    try:
+        return yaml.safe_load(text)
+    except yaml.YAMLError as yaml_err:
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError as json_err:
+            raise ValueError(
+                f"Failed to parse config as YAML (error: {yaml_err}) and as JSON (error: {json_err})."
+            ) from json_err
+
+
 # ---------------------------------------------------------------------
 # 2. Unified loader
 # ---------------------------------------------------------------------
@@ -143,7 +144,7 @@ def load_object(config_or_path: Union[str, Dict], strict: bool = True) -> Any:
     Any
         The instantiated Keras object.
     """
-    config = _load_config(config_or_path)
+    config = load_config(config_or_path)
 
     # Early sanity check for class_name
     if "class_name" not in config:
