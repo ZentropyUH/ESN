@@ -42,11 +42,14 @@ def get_reservoir_states(model: tf.keras.Model) -> dict:
     Examples
     --------
     >>> import tensorflow as tf
-    >>> from keras_reservoir_computing.layers.builders import ESNReservoir_builder
+    >>> from keras_reservoir_computing.io.loaders import load_object, load_default_config
     >>> from keras_reservoir_computing.analysis.states import get_reservoir_states
-    >>> inputs = tf.keras.Input(shape=(None, 5))
-    >>> reservoir = ESNReservoir_builder({"units": 10})(inputs)
+    >>>
+    >>> inputs = tf.keras.Input(shape=(None, 5), batch_size=2)
+    >>> reservoir_cfg = load_default_config("reservoir")
+    >>> reservoir = load_object(reservoir_cfg)(inputs)
     >>> model = tf.keras.Model(inputs, reservoir)
+    >>>
     >>> states = get_reservoir_states(model)
     >>> for layer_name, layer_states in states.items():
     ...     print(f"Layer {layer_name} states: {[s.shape for s in layer_states]}")
@@ -82,20 +85,19 @@ def set_reservoir_states(model: tf.keras.Model, states: dict) -> None:
     Examples
     --------
     >>> import tensorflow as tf
-    >>> import numpy as np
-    >>> from keras_reservoir_computing.layers.builders import ESNReservoir_builder
+    >>> from keras_reservoir_computing.io.loaders import load_object, load_default_config
     >>> from keras_reservoir_computing.analysis.states import get_reservoir_states, set_reservoir_states
-    >>> inputs = tf.keras.Input(shape=(None, 5))
-    >>> reservoir = ESNReservoir_builder({"units": 10})(inputs)
+    >>>
+    >>> inputs = tf.keras.Input(shape=(None, 5), batch_size=2)
+    >>> reservoir_cfg = load_default_config("reservoir")
+    >>> reservoir = load_object(reservoir_cfg)(inputs)
     >>> model = tf.keras.Model(inputs, reservoir)
-    >>> # Get current states
+    >>>
     >>> current_states = get_reservoir_states(model)
-    >>> # Create custom states (for batch_size=2)
     >>> custom_states = {
-    ...     layer_name: [tf.random.uniform((2, 10)) for _ in layer_states]
-    ...     for layer_name, layer_states in current_states.items()
+    ...     name: [tf.random.uniform(tf.shape(s)) for s in states]
+    ...     for name, states in current_states.items()
     ... }
-    >>> # Set custom states
     >>> set_reservoir_states(model, custom_states)
     """
 
@@ -136,12 +138,14 @@ def reset_reservoir_states(model: tf.keras.Model) -> None:
     Examples
     --------
     >>> import tensorflow as tf
-    >>> from keras_reservoir_computing.layers.builders import ESNReservoir_builder
+    >>> from keras_reservoir_computing.io.loaders import load_object, load_default_config
     >>> from keras_reservoir_computing.analysis.states import reset_reservoir_states
-    >>> inputs = tf.keras.Input(shape=(None, 5))
-    >>> reservoir = ESNReservoir_builder({"units": 10})(inputs)
+    >>>
+    >>> inputs = tf.keras.Input(shape=(None, 5), batch_size=2)
+    >>> reservoir_cfg = load_default_config("reservoir")
+    >>> reservoir = load_object(reservoir_cfg)(inputs)
     >>> model = tf.keras.Model(inputs, reservoir)
-    >>> # Reset all reservoir states to zero
+    >>>
     >>> reset_reservoir_states(model)
     """
 
@@ -172,14 +176,15 @@ def set_reservoir_random_states(model: tf.keras.Model, dist: str = "uniform", se
     Examples
     --------
     >>> import tensorflow as tf
-    >>> from keras_reservoir_computing.layers.builders import ESNReservoir_builder
+    >>> from keras_reservoir_computing.io.loaders import load_object, load_default_config
     >>> from keras_reservoir_computing.analysis.states import set_reservoir_random_states
-    >>> inputs = tf.keras.Input(shape=(None, 5))
-    >>> reservoir = ESNReservoir_builder({"units": 10})(inputs)
+    >>>
+    >>> inputs = tf.keras.Input(shape=(None, 5), batch_size=2)
+    >>> reservoir_cfg = load_default_config("reservoir")
+    >>> reservoir = load_object(reservoir_cfg)(inputs)
     >>> model = tf.keras.Model(inputs, reservoir)
-    >>> # Set all reservoir states to random values from uniform distribution
+    >>>
     >>> set_reservoir_random_states(model, dist="uniform")
-    >>> # Set all reservoir states to random values from normal distribution
     >>> set_reservoir_random_states(model, dist="normal")
     """
     # Create a single random generator to avoid creating many separate generators
@@ -230,30 +235,19 @@ def harvest(
     Examples
     --------
     >>> import tensorflow as tf
-    >>> import numpy as np
-    >>> from keras_reservoir_computing.layers.builders import ESNReservoir_builder
+    >>> from keras_reservoir_computing.io.loaders import load_object, load_default_config
     >>> from keras_reservoir_computing.analysis.states import harvest
     >>>
-    >>> # Create a simple model
-    >>> input_dim = 3
-    >>> batch_size = 2
-    >>> timesteps = 10
-    >>> units = 20
-    >>>
-    >>> inputs = tf.keras.Input(shape=(None, input_dim))
-    >>> reservoir = ESNReservoir_builder({"units": units})(inputs)
+    >>> inputs = tf.keras.Input(shape=(None, 1), batch_size=2)
+    >>> reservoir_cfg = load_default_config("reservoir")
+    >>> reservoir = load_object(reservoir_cfg)(inputs)
     >>> model = tf.keras.Model(inputs, reservoir)
     >>>
-    >>> # Create sample data
-    >>> feedback_seq = tf.random.normal((batch_size, timesteps, input_dim))
-    >>>
-    >>> # Collect states
+    >>> feedback_seq = tf.random.normal((2, 10, 1))
     >>> states = harvest(model, feedback_seq)
-    >>>
-    >>> # Check the shape of collected states
     >>> for layer_name, layer_states in states.items():
     ...     print(f"Layer {layer_name} states: {[s.shape for s in layer_states]}")
-    Layer esn_reservoir_1 states: [(2, 10, 20)]  # [batch_size, timesteps, units]
+    Layer esn_reservoir_1 states: [(2, 10, 100)]  # [batch_size, timesteps, units]
     """
     input_names = [_input.name for _input in model.inputs]
     if len(input_names) < 1:
@@ -393,29 +387,18 @@ def esp_index(
     Examples
     --------
     >>> import tensorflow as tf
-    >>> from keras_reservoir_computing.layers.builders import ESNReservoir_builder
+    >>> from keras_reservoir_computing.io.loaders import load_object, load_default_config
     >>> from keras_reservoir_computing.analysis.states import esp_index
     >>>
-    >>> # Create a simple model
-    >>> input_dim = 3
-    >>> batch_size = 2
-    >>> timesteps = 50  # Longer sequence for reliable ESP estimation
-    >>> units = 20
-    >>>
-    >>> inputs = tf.keras.Input(shape=(None, input_dim))
-    >>> reservoir = ESNReservoir_builder({"units": units, "spectral_radius": 0.9})(inputs)
+    >>> inputs = tf.keras.Input(shape=(None, 1), batch_size=2)
+    >>> reservoir_cfg = load_default_config("reservoir")
+    >>> reservoir = load_object(reservoir_cfg)(inputs)
     >>> model = tf.keras.Model(inputs, reservoir)
     >>>
-    >>> # Create sample data
-    >>> feedback_seq = tf.random.normal((batch_size, timesteps, input_dim))
-    >>>
-    >>> # Compute ESP index
+    >>> feedback_seq = tf.random.normal((2, 50, 1))
     >>> indices = esp_index(model, feedback_seq, iterations=5)
     >>> print(f"ESP indices: {indices}")
-    >>>
-    >>> # Compute ESP index with history
     >>> indices, history = esp_index(model, feedback_seq, iterations=5, history=True)
-    >>> print(f"ESP indices: {indices}")
     >>> print(f"History shapes: {[h.shape for h in history[list(history.keys())[0]]]}")
 
     References
@@ -477,6 +460,7 @@ def esp_index(
                     esp_history[key][i] = esp_history[key][i].write(
                         iter_idx, norms_over_time
                     )
+    print()
 
     # Average ESP indices over iterations
     for key in esp_indices:
