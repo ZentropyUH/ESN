@@ -8,33 +8,51 @@ KRC models can be built from configuration dictionaries (or JSON files). The `cl
 
 ```python
 reservoir_config = {
-    "units": 300,
-    "feedback_dim": 3,
-    "input_dim": 0,
-    "leak_rate": 0.6,
-    "activation": "tanh",
-    "kernel_initializer": {
-        "name": "WattsStrogatzGraphInitializer",
-        "params": {
-            "k": 10,
-            "p": 0.1,
-            "spectral_radius": 0.9,
-            "directed": True,
-            "seed": 42,
-        },
-    },
-    "feedback_initializer": {
-        "name": "PseudoDiagonalInitializer",
-        "params": {"sigma": 0.5, "binarize": False, "seed": 42},
-    },
-}
+                "class_name": "krc>ESNReservoir",
+                "config": {
+                    "units": 100,
+                    "feedback_dim": 1,
+                    "input_dim": 0,
+                    "leak_rate": 1.0,
+                    "activation": "tanh",
+                    "input_initializer": {
+                    "class_name": "zeros",
+                    "config": {}
+                    },
+                    "feedback_initializer": {
+                    "class_name": "krc>RandomInputInitializer",
+                    "config": {
+                        "input_scaling": 1,
+                        "seed": 42
+                    }
+                    },
+                    "feedback_bias_initializer": {
+                    "class_name": "zeros",
+                    "config": {}
+                    },
+                    "kernel_initializer": {
+                    "class_name": "krc>RandomRecurrentInitializer",
+                    "config": {
+                        "density": 0.01,
+                        "spectral_radius": 0.9,
+                        "seed": 42
+                    }
+                    },
+                    "dtype": "float32"
+                }
+            }
 
 readout_config = {
-    "kind": "ridge",
-    "units": 3,
-    "alpha": 1e-6,
-    "trainable": False,
-}
+                "class_name": "krc>RidgeReadout",
+                "config": {
+                    "units": 1,
+                    "alpha": 0.1,
+                    "max_iter": 1000,
+                    "tol": 0.000001,
+                    "trainable": False,
+                    "dtype": "float64"
+                }
+            }
 
 model = classic_ESN(
     units=300,
@@ -50,16 +68,32 @@ model = classic_ESN(
 For full flexibility you can assemble models manually using the provided builders:
 
 ```python
-from keras_reservoir_computing.layers.builders import ESNReservoir_builder, ReadOut_builder
+from keras_reservoir_computing.io.loaders import load_object
 import tensorflow as tf
 
 inputs = tf.keras.layers.Input(shape=(None, 3), batch_size=1)
-reservoir = ESNReservoir_builder(reservoir_config)(inputs)
+reservoir = load_object(reservoir_config)(inputs)
 processed = tf.keras.layers.Dense(50, activation="relu")(reservoir)
-outputs = ReadOut_builder(readout_config)(processed)
+outputs = load_object(readout_config)(processed)
 
 custom_model = tf.keras.models.Model(inputs=inputs, outputs=outputs)
 ```
+
+Reservoir and readout configs can also be loaded from a file:
+
+```python
+reservoir_config = load_config("path/to/reservoir.json")
+readout_config = load_config("path/to/readout.json")
+```
+
+or from a default config:
+
+```python
+reservoir_config = load_default_config("reservoir")
+readout_config = load_default_config("readout")
+```
+
+Reservoir and readout default configs are stored in `keras_reservoir_computing/io/defaults/`.
 
 ## Integrating Reservoirs into Larger Networks
 
@@ -71,15 +105,21 @@ external_input = tf.keras.layers.Input(shape=(None, 5), name="external_input")
 processed_inputs = tf.keras.layers.Dense(10, activation="relu")(external_input)
 combined = tf.keras.layers.Concatenate()([feedback_input, processed_inputs])
 reservoir_config["input_dim"] = 10
-reservoir = ESNReservoir_builder(reservoir_config)(combined)
+reservoir = load_object(reservoir_config)(combined)
 x = tf.keras.layers.Dense(50, activation="relu")(reservoir)
-outputs = ReadOut_builder(readout_config)(x)
+outputs = load_object(readout_config)(x)
 
 hybrid_model = tf.keras.models.Model(
     inputs=[feedback_input, external_input],
     outputs=outputs,
 )
 ```
+
+Here the feedback and external inputs are only semantically different, but they are simply two different inputs to the same model. The difference is that in the generative forecast, the feedback is the generative model's output, while the external input is provided by the user.
+
+See this as an input-driven dynamical system.
+
+
 
 ## Graph-Based Reservoir Initializers
 
@@ -105,8 +145,8 @@ random_graph = ErdosRenyiGraphInitializer(p=0.1, spectral_radius=0.9, directed=T
 Reservoir models can be saved and later loaded like any Keras model:
 
 ```python
-model.save("my_reservoir_model")
-loaded_model = tf.keras.models.load_model("my_reservoir_model")
+model.save("path/to/my_reservoir_model.keras")
+loaded_model = tf.keras.models.load_model("path/to/my_reservoir_model.keras")
 ```
 
 ## Examples

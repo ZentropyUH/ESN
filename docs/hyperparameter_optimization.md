@@ -19,7 +19,7 @@ def model_creator(leak_rate: float, input_scaling: float, spectral_radius: float
     reservoir_conf = {
         "class_name": "krc>ESNReservoir",
         "config": {
-            "units": 100,
+            "units": 200,
             "feedback_dim": 1,
             "input_dim": 0,
             "leak_rate": leak_rate,

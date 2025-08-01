@@ -36,15 +36,77 @@ model = classic_ESN(
 )
 ```
 
-Models can also be assembled using the Keras Functional API and the provided builders:
+Models can also be assembled using the Keras Functional API:
 
 ```python
 import tensorflow as tf
-from keras_reservoir_computing.layers.builders import ESNReservoir_builder, ReadOut_builder
+import keras_reservoir_computing as krc
 
 inputs = tf.keras.layers.Input(shape=(None, 1), batch_size=1)
-reservoir = ESNReservoir_builder({"units": 200})(inputs)
-outputs = ReadOut_builder({"kind": "ridge", "units": 1})(reservoir)
+reservoir = krc.layers.ESNReservoir(units=200)(inputs)
+outputs = krc.layers.RidgeReadout(units=1)(reservoir)
+model = tf.keras.Model(inputs, outputs)
+```
+
+We can also use the provided builders to instantiate layers using a config dictionary:
+
+```python
+import keras_reservoir_computing as krc
+from keras_reservoir_computing.io.loaders import load_config, load_object
+
+reservoir_config = {
+                "class_name": "krc>ESNReservoir",
+                "config": {
+                    "units": 100,
+                    "feedback_dim": 1,
+                    "input_dim": 0,
+                    "leak_rate": 1.0,
+                    "activation": "tanh",
+                    "input_initializer": {
+                    "class_name": "zeros",
+                    "config": {}
+                    },
+                    "feedback_initializer": {
+                    "class_name": "krc>RandomInputInitializer",
+                    "config": {
+                        "input_scaling": 1,
+                        "seed": 42
+                    }
+                    },
+                    "feedback_bias_initializer": {
+                    "class_name": "zeros",
+                    "config": {}
+                    },
+                    "kernel_initializer": {
+                    "class_name": "krc>RandomRecurrentInitializer",
+                    "config": {
+                        "density": 0.01,
+                        "spectral_radius": 0.9,
+                        "seed": 42
+                    }
+                    },
+                    "dtype": "float32"
+                }
+            }
+
+readout_config = {
+                "class_name": "krc>RidgeReadout",
+                "config": {
+                    "units": 1,
+                    "alpha": 0.1,
+                    "max_iter": 1000,
+                    "tol": 0.000001,
+                    "trainable": False,
+                    "dtype": "float64"
+                }
+            }
+
+
+reservoir_config = load_config(reservoir_config)
+readout_config = load_config(readout_config)
+
+reservoir = load_object(reservoir_config)(inputs)
+outputs = load_object(readout_config)(reservoir)
 model = tf.keras.Model(inputs, outputs)
 ```
 

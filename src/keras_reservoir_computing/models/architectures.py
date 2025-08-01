@@ -10,7 +10,7 @@ import tensorflow as tf
 
 # Import only what's needed to avoid circular imports
 from keras_reservoir_computing.io.loaders import (
-    _load_config,
+    load_config,
     load_default_config,
     load_object,
 )
@@ -59,16 +59,16 @@ def classic_ESN(
                                        -------------->
     """
     # Load config from file if string is provided
-    reservoir_config = _load_config(reservoir_config) if reservoir_config else load_default_config("reservoir")
+    reservoir_config = load_config(reservoir_config) if reservoir_config else load_default_config("reservoir")
 
-    readout_config = _load_config(readout_config) if readout_config else load_default_config("readout")
+    readout_config = load_config(readout_config) if readout_config else load_default_config("readout")
 
     reservoir_config.setdefault("config", {})
     readout_config.setdefault("config", {})
 
     reservoir_config["config"] |= {"units": units, "feedback_dim": features, "dtype": dtype}
     readout_config["config"]   |= {"dtype": dtype}
-    
+
     # Create the input layer
     input_layer = tf.keras.layers.Input(shape=(None, features), batch_size=batch, dtype=dtype)
 
@@ -135,8 +135,8 @@ def Ott_ESN(
     """
 
     # Load config from file if string is provided
-    reservoir_config = _load_config(reservoir_config) if reservoir_config else load_default_config("reservoir")
-    readout_config = _load_config(readout_config) if readout_config else load_default_config("readout")
+    reservoir_config = load_config(reservoir_config) if reservoir_config else load_default_config("reservoir")
+    readout_config = load_config(readout_config) if readout_config else load_default_config("readout")
 
     # Create input layer
     feedback_layer = tf.keras.layers.Input(shape=(None, features), batch_size=batch, dtype=dtype)
@@ -207,7 +207,7 @@ def headless_ESN(
     """
     # Load config from file if string is provided
 
-    reservoir_config = _load_config(reservoir_config) if reservoir_config else load_default_config("reservoir")
+    reservoir_config = load_config(reservoir_config) if reservoir_config else load_default_config("reservoir")
 
     # Create input layer
     input_layer = tf.keras.layers.Input(shape=(None, features), batch_size=batch, dtype=dtype)
