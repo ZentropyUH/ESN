@@ -1,0 +1,8 @@
+class_name: krc>RidgeReadout
+config:
+  units: 1
+  alpha: 0.1
+  max_iter: 1000
+  tol: 0.000001
+  trainable: false
+  dtype: float64
