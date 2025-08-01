@@ -292,7 +292,7 @@ def forecast_no_states_factory(model: tf.keras.Model) -> Callable:
             min_ext_len   = tf.reduce_min(ext_lengths)
             horizon_t     = tf.minimum(horizon_const, min_ext_len)
         else:
-            horizon_t     = horizon_const
+            horizon_t = horizon_const
 
 
         external_input_count = len(input_names) - 1
