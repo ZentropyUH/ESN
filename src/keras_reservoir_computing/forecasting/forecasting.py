@@ -288,7 +288,7 @@ def forecast_no_states_factory(model: tf.keras.Model) -> Callable:
 
         # If external inputs are present, constrain the horizon to their length
         if external_inputs:
-            ext_lengths   = [tf.shape(ext)[1] for ext in external_inputs]
+            ext_lengths = [tf.shape(ext)[1] for ext in external_inputs]
             min_ext_len   = tf.reduce_min(ext_lengths)
             horizon_t     = tf.minimum(horizon_const, min_ext_len)
         else:
