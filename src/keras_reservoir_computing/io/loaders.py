@@ -28,7 +28,10 @@ def _load_config(source: Union[str, Dict]) -> Dict:
     if isinstance(source, dict):
         return source
     path = Path(source)
-    text = path.read_text() if path.exists() else source
+    if isinstance(source, str) and path.is_file():
+        text = path.read_text()
+    else:
+        text = source
     try:
         return yaml.safe_load(text)
     except yaml.YAMLError:
