@@ -1,0 +1,34 @@
+{
+  "class_name": "krc>ESNReservoir",
+  "config": {
+    "units": 100,
+    "feedback_dim": 1,
+    "input_dim": 0,
+    "leak_rate": 1.0,
+    "activation": "tanh",
+    "input_initializer": {
+      "class_name": "zeros",
+      "config": {}
+    },
+    "feedback_initializer": {
+      "class_name": "krc>RandomInputInitializer",
+      "config": {
+        "input_scaling": null,
+        "seed": null
+      }
+    },
+    "feedback_bias_initializer": {
+      "class_name": "zeros",
+      "config": {}
+    },
+    "kernel_initializer": {
+      "class_name": "krc>RandomRecurrentInitializer",
+      "config": {
+        "density": 0.01,
+        "spectral_radius": 0.9,
+        "seed": null
+      }
+    },
+    "dtype": "float32"
+  }
+}
