@@ -285,7 +285,7 @@ def load_data(
     train_length: int = 5000,
     val_length: int = 5000,
     normalize: bool = False,
-    normalization_method: str = "standard",
+    normalization_method: str = "minmax",
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Load and prepare time-series data for neural network (e.g., ESN/Reservoir) training.
