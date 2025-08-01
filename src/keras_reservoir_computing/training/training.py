@@ -16,6 +16,7 @@ Example
 >>> trainer.fit_readout_layers(warmup_batch, input_batch)
 """
 
+import weakref
 import logging
 from typing import Callable, Dict, List, Union
 
@@ -24,12 +25,47 @@ import tensorflow as tf
 from keras_reservoir_computing.layers.readouts.base import ReadOut
 from keras_reservoir_computing.utils.tensorflow import (
     suppress_retracing,
-    warm_forward_factory,
-)
+    tf_function
+    )
 
 __all__: List[str] = ["ReservoirTrainer"]
 
 logger = logging.getLogger(__name__)
+
+def warm_forward_factory(model: tf.keras.Model) -> Callable:
+    """
+    Create a factory function for warm-forwarding through the model.
+
+    This function creates a factory function that can be used to warm-forward
+    through the model. The factory function is a wrapper around the model's
+    predict method that sets the model's training parameter to False.
+
+    Notes
+    -----
+    - The warm_forward function is compiled with ``jit_compile=True`` for maximal
+    performance on supported hardware.  Disable JIT by editing the
+    decorator if XLA is not available in your environment.
+    - The factory has a cache to avoid recompiling the function for the same model. This cache is of size 1 only to avoid memory issues.
+    """
+    if not hasattr(warm_forward_factory, "_cache"):
+        warm_forward_factory._cache = weakref.WeakKeyDictionary()
+
+    if model in warm_forward_factory._cache:
+        return warm_forward_factory._cache[model]
+
+    @tf_function(reduce_retracing=True, jit_compile=True)
+    def warm_forward(warmup: tf.Tensor, data: tf.Tensor) -> tf.Tensor:
+        """Warm-forward the model through the data.
+
+        This function is a wrapper around the model's predict method that sets the
+        model's training parameter to False.
+        """
+        model(warmup)  # warm-up (stateful layers adapt)
+        return model(data)  # inference only - no gradients
+
+    warm_forward_factory._cache[model] = warm_forward
+    return warm_forward
+
 
 
 class ReservoirTrainer:
