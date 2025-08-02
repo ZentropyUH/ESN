@@ -7,7 +7,8 @@ from .architectures import (
     Ott_ESN,
     classic_ESN,
     headless_ESN,
+    linear_ESN,
 )
 
-__all__ = ["Ott_ESN", "classic_ESN", "headless_ESN"]
+__all__ = ["Ott_ESN", "classic_ESN", "headless_ESN", "linear_ESN"]
 
