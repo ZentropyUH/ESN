@@ -328,8 +328,8 @@ def esp_index(
     external_seqs: Tuple[tf.Tensor, ...] = (),
     random_dist: str = "uniform",
     history: bool = False,
-    weighted: bool = False,
     iterations: int = 10,
+    transient: int = 0,
 ) -> Union[dict, Tuple[dict, dict]]:
     """
     Compute the Echo State Property (ESP) index for reservoir layers in the model.
@@ -353,14 +353,12 @@ def esp_index(
     history : bool, optional
         Whether to return the full time evolution of state difference norms.
         Default is False.
-    weighted : bool, optional
-        Whether to use weighted norms for computing the ESP index, with weights
-        increasing over time to emphasize convergence at later timesteps.
-        Default is False.
     iterations : int, optional
         Number of iterations to use for computing the ESP index. Higher values
         give more reliable estimates. Default is 10.
-
+    transient: int, optional
+        Number of timesteps to discard from the beginning of the sequence.
+        Default is 0.
     Returns
     -------
     Union[dict, Tuple[dict, dict]]
@@ -421,7 +419,8 @@ def esp_index(
     base_orbit = harvest(model, feedback_seq, external_seqs)
 
     # Initialize ESP index storage
-    esp_indices = {key: [tf.zeros(1, dtype=input_dtype)[0] for _ in states] for key, states in base_orbit.items()}
+    esp_indices = {key: [tf.constant(0, dtype=input_dtype) for _ in states] 
+               for key, states in base_orbit.items()}
 
     # Initialize history storage if required
     esp_history = (
@@ -443,22 +442,21 @@ def esp_index(
             for i, (base_state, random_state) in enumerate(
                 zip(base_states, random_orbit[key])
             ):
-                diff = base_state - random_state
-                norms_over_time = tf.norm(diff, axis=-1)
+                # Compute Euclidean distances over time
+                norms_over_time = tf.norm(base_state - random_state, axis=-1)
 
-                if weighted:
-                    weights = tf.linspace(
-                        0.1, 1.0, num=tf.shape(base_state)[1]
-                    )  # Increasing weights
-                else:
-                    weights = tf.ones_like(norms_over_time)
+                # Discard the first T steps as transient
+                if transient > 0:
+                    norms_over_time = norms_over_time[:, transient:]
 
-                weighted_norm = tf.reduce_mean(weights * norms_over_time)
-                esp_indices[key][i] += weighted_norm
+                # Average over timesteps (Algorithm 1: Δi = (1/(L-T)) Σ δi(j))
+                delta = tf.reduce_mean(norms_over_time, axis=1)  # per batch
+                delta = tf.reduce_mean(delta)  # average over batch
 
+                esp_indices[key][i] += tf.cast(delta, input_dtype)
                 if history:
                     esp_history[key][i] = esp_history[key][i].write(
-                        iter_idx, norms_over_time
+                        iter_idx, tf.cast(norms_over_time, input_dtype)
                     )
     print()
 

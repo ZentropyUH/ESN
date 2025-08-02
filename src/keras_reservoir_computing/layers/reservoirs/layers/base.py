@@ -90,6 +90,20 @@ class BaseReservoir(tf.keras.layers.RNN):
         self.feedback_dim = cell.feedback_dim
         self.input_dim = cell.input_dim
 
+        # State collection flag and buffer
+        self._collect_states = False
+        self._full_states = None
+
+    def enable_state_collection(self, flag: bool = True) -> None:
+        """Enable or disable collection of full state trajectories."""
+        self._collect_states = flag
+        if not flag:
+            self._full_states = None
+
+    def get_full_states(self) -> Optional[tf.Tensor]:
+        """Return collected full states [batch, timesteps, units], or None if disabled."""
+        return self._full_states
+
     def get_states(self) -> List[tf.Tensor]:
         """
         Return the states of the reservoir.
@@ -233,7 +247,14 @@ class BaseReservoir(tf.keras.layers.RNN):
             total_seq = inputs
 
         # Concatenated input and feedback sequences. Cell expects (batch_size, timesteps, feedback_dim + input_dim)
-        return super().call(total_seq)
+        outputs = super().call(total_seq)
+
+        if self._collect_states:
+            self._full_states = outputs  # already [batch, timesteps, units]
+        else:
+            self._full_states = None
+
+        return outputs
 
     def compute_output_shape(self, input_shape) -> Tuple[int, ...]:
         """
