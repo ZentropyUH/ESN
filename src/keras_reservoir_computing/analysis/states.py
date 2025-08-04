@@ -406,70 +406,86 @@ def esp_index(
        Available: http://arxiv.org/abs/1811.10892
     """
 
+
     input_dtype = feedback_seq.dtype
 
-    # Save current states for restoring later
+    # --- Save current states for restoring later ---
     current_states = {
         name: [tf.identity(state) for state in states]
         for name, states in get_reservoir_states(model).items()
     }
 
-    # Set zero states for the reservoirs to establish the base state orbit
+    # --- Base orbit from zero states ---
     reset_reservoir_states(model)
     base_orbit = harvest(model, feedback_seq, external_seqs)
 
-    # Initialize ESP index storage
-    esp_indices = {key: [tf.constant(0, dtype=input_dtype) for _ in states] 
-               for key, states in base_orbit.items()}
+    # --- Initialize storage for ESP indices ---
+    esp_indices = {
+        layer_name: [tf.constant(0, dtype=input_dtype) for _ in states]
+        for layer_name, states in base_orbit.items()
+    }
 
-    # Initialize history storage if required
-    esp_history = (
-        {
-            key: [tf.TensorArray(dtype=input_dtype, size=iterations) for _ in states]
-            for key, states in base_orbit.items()
+    # --- Initialize storage for history if requested ---
+    esp_history = None
+    if history:
+        esp_history = {
+            layer_name: [
+                tf.TensorArray(dtype=input_dtype, size=iterations)
+                for _ in states
+            ]
+            for layer_name, states in base_orbit.items()
         }
-        if history
-        else None
-    )
 
+    # --- Main loop over iterations ---
     for iter_idx in range(iterations):
         print(f"\rIteration {iter_idx + 1}/{iterations}", end="", flush=True)
 
+        # Generate random initial states and compute orbit
         set_reservoir_random_states(model, dist=random_dist)
         random_orbit = harvest(model, feedback_seq, external_seqs)
 
-        for key, base_states in base_orbit.items():
-            for i, (base_state, random_state) in enumerate(
-                zip(base_states, random_orbit[key])
+        # Compare base and random orbits layer by layer
+        for layer_name, base_states in base_orbit.items():
+            for state_idx, (base_state, random_state) in enumerate(
+                zip(base_states, random_orbit[layer_name])
             ):
-                # Compute Euclidean distances over time
+                # Compute Euclidean distance over time
                 norms_over_time = tf.norm(base_state - random_state, axis=-1)
 
-                # Discard the first T steps as transient
+                # Remove transient steps if specified
                 if transient > 0:
                     norms_over_time = norms_over_time[:, transient:]
 
-                # Average over timesteps (Algorithm 1: Δi = (1/(L-T)) Σ δi(j))
-                delta = tf.reduce_mean(norms_over_time, axis=1)  # per batch
-                delta = tf.reduce_mean(delta)  # average over batch
+                # Δi = average distance over timesteps and batch
+                delta = tf.reduce_mean(norms_over_time, axis=1)  # average per batch
+                delta = tf.reduce_mean(delta)                    # average over batches
 
-                esp_indices[key][i] += tf.cast(delta, input_dtype)
+                # Accumulate for ESP index
+                esp_indices[layer_name][state_idx] += tf.cast(delta, input_dtype)
+
+                # Save history if requested
                 if history:
-                    esp_history[key][i] = esp_history[key][i].write(
-                        iter_idx, tf.cast(norms_over_time, input_dtype)
+                    esp_history[layer_name][state_idx] = (
+                        esp_history[layer_name][state_idx]
+                        .write(iter_idx, tf.cast(norms_over_time, input_dtype))
                     )
-    print()
+    print()  # newline after progress
 
-    # Average ESP indices over iterations
-    for key in esp_indices:
-        esp_indices[key] = [esp / iterations for esp in esp_indices[key]]
+    # --- Finalize indices by averaging over iterations ---
+    for layer_name in esp_indices:
+        esp_indices[layer_name] = [
+            esp / iterations for esp in esp_indices[layer_name]
+        ]
 
-    set_reservoir_states(model, current_states)  # Restore original states
+    # --- Restore original states ---
+    set_reservoir_states(model, current_states)
 
+    # --- Finalize history if requested ---
     if history:
-        for key in esp_history:
-            esp_history[key] = [
-                tf.transpose(ta.stack(), perm=[0, 2, 1]) for ta in esp_history[key]
-            ]  # Fix time axis
+        for layer_name in esp_history:
+            esp_history[layer_name] = [
+                tf.transpose(ta.stack(), perm=[0, 2, 1]) for ta in esp_history[layer_name]
+            ]
 
     return (esp_indices, esp_history) if history else esp_indices
+
