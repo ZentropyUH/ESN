@@ -330,6 +330,7 @@ def esp_index(
     history: bool = False,
     iterations: int = 10,
     transient: int = 0,
+    verbose: bool = True,
 ) -> Union[dict, Tuple[dict, dict]]:
     """
     Compute the Echo State Property (ESP) index for reservoir layers in the model.
@@ -359,6 +360,8 @@ def esp_index(
     transient: int, optional
         Number of timesteps to discard from the beginning of the sequence.
         Default is 0.
+    verbose: bool, optional
+        Whether to print progress. Default is True.
     Returns
     -------
     Union[dict, Tuple[dict, dict]]
@@ -380,7 +383,7 @@ def esp_index(
         2. Run multiple "random orbits" from random initial states
         3. Measure how quickly the random orbits converge to the base orbit
         4. Average the convergence rates across iterations
-    - Progress is printed to show computation status.
+    - Progress is printed to show computation status if verbose is True.
 
     Examples
     --------
@@ -438,7 +441,9 @@ def esp_index(
 
     # --- Main loop over iterations ---
     for iter_idx in range(iterations):
-        print(f"\rIteration {iter_idx + 1}/{iterations}", end="", flush=True)
+
+        if verbose:
+            print(f"\rIteration {iter_idx + 1}/{iterations}", end="", flush=True)
 
         # Generate random initial states and compute orbit
         set_reservoir_random_states(model, dist=random_dist)
@@ -469,7 +474,8 @@ def esp_index(
                         esp_history[layer_name][state_idx]
                         .write(iter_idx, tf.cast(norms_over_time, input_dtype))
                     )
-    print()  # newline after progress
+    if verbose:
+        print()  # newline after progress
 
     # --- Finalize indices by averaging over iterations ---
     for layer_name in esp_indices:
