@@ -157,7 +157,12 @@ class BaseCell(tf.keras.Layer, ABC):
         """
         pass
 
-    def get_initial_state(self, batch_size: int = None) -> List[tf.Tensor]:
+    def get_initial_state(
+        self,
+        inputs: tf.Tensor | None = None,
+        batch_size: int | None = None,
+        dtype: tf.dtypes.DType | None = None,
+    ) -> List[tf.Tensor]:
         """
         Generate initial state tensors for the reservoir.
 
@@ -189,10 +194,17 @@ class BaseCell(tf.keras.Layer, ABC):
         This method is typically called by the RNN layer that wraps the cell
         to initialize the states at the beginning of a sequence.
         """
+        if batch_size is None and inputs is not None:
+            batch_size = tf.shape(inputs)[0]
+        if dtype is None:
+            dtype = self.compute_dtype
+
+        if batch_size is None:
+            # Fallback to empty batch if neither batch_size nor inputs are provided
+            return [tf.zeros((0, size), dtype=dtype) for size in self.state_size]
+
         return [
-            tf.random.uniform(
-                (batch_size, size), minval=-1.0, maxval=1.0, dtype=self.compute_dtype
-            )
+            tf.random.uniform((batch_size, size), minval=-1.0, maxval=1.0, dtype=dtype)
             for size in self.state_size
         ]
 
