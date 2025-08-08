@@ -1,5 +1,5 @@
 import tensorflow as tf
-from typing import List, Literal, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 from keras_reservoir_computing.utils.tensorflow import create_tf_rng
 from keras_reservoir_computing.layers.reservoirs.cells import BaseCell
@@ -84,11 +84,26 @@ class BaseReservoir(tf.keras.layers.RNN):
             stateful=True,
             return_sequences=True,
             return_state=False,
+            trainable=False,
             **kwargs,
         )
         self.units = cell.units
         self.feedback_dim = cell.feedback_dim
         self.input_dim = cell.input_dim
+
+        # State collection flag and buffer
+        self._collect_states = False
+        self._full_states = None
+
+    def enable_state_collection(self, flag: bool = True) -> None:
+        """Enable or disable collection of full state trajectories."""
+        self._collect_states = flag
+        if not flag:
+            self._full_states = None
+
+    def get_full_states(self) -> Optional[tf.Tensor]:
+        """Return collected full states [batch, timesteps, units], or None if disabled."""
+        return self._full_states
 
     def get_states(self) -> List[tf.Tensor]:
         """
@@ -183,7 +198,8 @@ class BaseReservoir(tf.keras.layers.RNN):
                     f"Input sequence has {in_feats} features, expected {self.input_dim}"
                 )
 
-            combined_features = fb_feats + in_feats
+            # If in_feats is unknown at build time, fall back to configured input_dim
+            combined_features = fb_feats + (in_feats if in_feats is not None else self.input_dim)
             # Now define a synthetic shape to pass to super().build(...).
             # We only really need (batch_size, timesteps, combined_features).
             # The batch_size or timesteps might be None, but that’s fine.
@@ -233,7 +249,14 @@ class BaseReservoir(tf.keras.layers.RNN):
             total_seq = inputs
 
         # Concatenated input and feedback sequences. Cell expects (batch_size, timesteps, feedback_dim + input_dim)
-        return super().call(total_seq)
+        outputs = super().call(total_seq)
+
+        if self._collect_states:
+            self._full_states = outputs  # already [batch, timesteps, units]
+        else:
+            self._full_states = None
+
+        return outputs
 
     def compute_output_shape(self, input_shape) -> Tuple[int, ...]:
         """
@@ -247,9 +270,7 @@ class BaseReservoir(tf.keras.layers.RNN):
 
         return (batch_size, timesteps, self.units)
 
-    @property
-    def trainable(self) -> Literal[False]:
-        return False
+    # Intentionally non-trainable (weights in the wrapped cell are also non-trainable)
 
     def get_config(self) -> dict:
         """

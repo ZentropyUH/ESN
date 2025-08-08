@@ -104,7 +104,7 @@ class ReadOut(tf.keras.Layer, ABC):
         self._fitted = True
 
     @abstractmethod
-    def _fit(self, X: tf.Tensor, y: tf.Tensor) -> None:
+    def _fit(self, X: tf.Tensor, y: tf.Tensor) -> tuple[tf.Tensor, tf.Tensor]:
         """
         Fit the readout layer to the data.
 
@@ -116,8 +116,12 @@ class ReadOut(tf.keras.Layer, ABC):
             Input data of shape (n_samples, n_features).
         y : tf.Tensor
             Target data of shape (n_samples, units).
+        Returns
+        -------
+        tuple[tf.Tensor, tf.Tensor]
+            Coefficients (kernel) and intercept (bias).
         """
-        pass
+        raise NotImplementedError
 
     def get_config(self) -> dict:
         """

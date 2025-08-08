@@ -94,7 +94,7 @@ class MoorePenroseReadout(ReadOut):
         return outputs
 
     @tf_function
-    def _fit(self, X: tf.Tensor, y: tf.Tensor) -> None:
+    def _fit(self, X: tf.Tensor, y: tf.Tensor) -> tuple[tf.Tensor, tf.Tensor]:
         """
         Fit the readout layer to the data using the Moore-Penrose pseudoinverse.
 
@@ -107,7 +107,8 @@ class MoorePenroseReadout(ReadOut):
 
         Returns
         -------
-        None
+        tuple[tf.Tensor, tf.Tensor]
+            (coef, intercept) tensors for assignment by the base class.
 
         Notes
         -----
@@ -149,12 +150,7 @@ class MoorePenroseReadout(ReadOut):
         intercept = y_mean - tf.matmul(X_mean, coef)
         intercept = tf.reshape(intercept, [self.units])
 
-        # Assign values
-        self.kernel.assign(coef)
-        self.bias.assign(intercept)
-        
-        # Mark as fitted
-        self._fitted = True
+        return coef, tf.reshape(intercept, [self.units])
 
     @property
     def alpha(self) -> float:

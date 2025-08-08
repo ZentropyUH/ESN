@@ -24,10 +24,10 @@ pip install .
 
 ### Instantiating a Model
 
-Pre‑built architectures are available from `keras_reservoir_computing.models.architectures`:
+Pre‑built architectures are available from `keras_reservoir_computing.models`:
 
 ```python
-from keras_reservoir_computing.models.architectures import classic_ESN
+from keras_reservoir_computing.models import classic_ESN
 
 model = classic_ESN(
     units=200,
@@ -166,4 +166,3 @@ study = run_hpo(
 ---
 
 For advanced configuration options and additional examples see [docs/advanced_usage.md](docs/advanced_usage.md).
-

@@ -21,7 +21,7 @@ from typing import Optional, Tuple, Union
 import tensorflow as tf
 
 from keras_reservoir_computing.layers.reservoirs.layers.base import BaseReservoir
-from keras_reservoir_computing.utils.tensorflow import tf_function, create_tf_rng
+from keras_reservoir_computing.utils.tensorflow import tf_function, create_tf_rng, suppress_retracing
 
 
 def get_reservoir_states(model: tf.keras.Model) -> dict:
@@ -322,14 +322,44 @@ def harvest(
     return states_history
 
 
+def build_reservoir_harvester(model: tf.keras.Model) -> tf.keras.Model:
+    """
+    Create a headless model that outputs only the outputs
+    of all BaseReservoir layers in `model`.
+
+    This is useful for harvesting the states of reservoir layers when such layers have only one state vector. For more complex layers with hidden states, use the `harvest` function.
+
+    Parameters
+    ----------
+    model : tf.keras.Model
+        Original model containing BaseReservoir layers.
+
+    Returns
+    -------
+    tf.keras.Model
+        New model with the same inputs as `model`, outputs are the
+        outputs of all BaseReservoir layers.
+    """
+    reservoirs = [layer for layer in model.layers if isinstance(layer, BaseReservoir)]
+    if not reservoirs:
+        raise ValueError("No BaseReservoir layers found in the model.")
+
+    outputs = [layer.output for layer in reservoirs]
+    inputs = model.inputs[0] if len(model.inputs) == 1 else model.inputs
+
+    return tf.keras.Model(inputs=inputs, outputs=outputs)
+
+
 def esp_index(
     model: tf.keras.Model,
     feedback_seq: tf.Tensor,
     external_seqs: Tuple[tf.Tensor, ...] = (),
     random_dist: str = "uniform",
     history: bool = False,
-    weighted: bool = False,
     iterations: int = 10,
+    transient: int = 0,
+    harvester: str = "full",
+    verbose: bool = True,
 ) -> Union[dict, Tuple[dict, dict]]:
     """
     Compute the Echo State Property (ESP) index for reservoir layers in the model.
@@ -353,14 +383,14 @@ def esp_index(
     history : bool, optional
         Whether to return the full time evolution of state difference norms.
         Default is False.
-    weighted : bool, optional
-        Whether to use weighted norms for computing the ESP index, with weights
-        increasing over time to emphasize convergence at later timesteps.
-        Default is False.
     iterations : int, optional
         Number of iterations to use for computing the ESP index. Higher values
         give more reliable estimates. Default is 10.
-
+    transient: int, optional
+        Number of timesteps to discard from the beginning of the sequence.
+        Default is 0.
+    verbose: bool, optional
+        Whether to print progress. Default is True.
     Returns
     -------
     Union[dict, Tuple[dict, dict]]
@@ -382,7 +412,7 @@ def esp_index(
         2. Run multiple "random orbits" from random initial states
         3. Measure how quickly the random orbits converge to the base orbit
         4. Average the convergence rates across iterations
-    - Progress is printed to show computation status.
+    - Progress is printed to show computation status if verbose is True.
 
     Examples
     --------
@@ -408,70 +438,118 @@ def esp_index(
        Available: http://arxiv.org/abs/1811.10892
     """
 
+
     input_dtype = feedback_seq.dtype
 
-    # Save current states for restoring later
+    # --- Prepare harvesting function ---
+    if harvester not in {"full", "fast"}:
+        raise ValueError(f"Invalid harvester: {harvester}. Must be 'full' or 'fast'.")
+
+    # --- Save current states for restoring later ---
     current_states = {
         name: [tf.identity(state) for state in states]
         for name, states in get_reservoir_states(model).items()
     }
 
-    # Set zero states for the reservoirs to establish the base state orbit
+    # --- Choose harvester ---
+    if harvester == "fast":
+        harvester_model = build_reservoir_harvester(model)
+        monitored_layers = [layer for layer in model.layers if isinstance(layer, BaseReservoir)]
+
+        def collect_states():
+
+            inputs = [feedback_seq] + list(external_seqs) if len(external_seqs) > 0 else feedback_seq
+
+            with suppress_retracing():
+                out = harvester_model.predict(
+                    inputs, verbose=0
+                )
+            if len(monitored_layers) == 1:
+                out = [out]  # ensure list for consistency
+            return {
+                layer.name: [out[i]] for i, layer in enumerate(monitored_layers)
+            }
+
+    else:  # "full"
+        def collect_states():
+            return harvest(model, feedback_seq, external_seqs)
+
+    # --- Save current states for restoring later ---
+
+    # --- Base orbit from zero states ---
     reset_reservoir_states(model)
-    base_orbit = harvest(model, feedback_seq, external_seqs)
+    base_orbit = collect_states()
 
-    # Initialize ESP index storage
-    esp_indices = {key: [tf.zeros(1, dtype=input_dtype)[0] for _ in states] for key, states in base_orbit.items()}
+    # --- Initialize storage for ESP indices ---
+    esp_indices = {
+        layer_name: [tf.constant(0, dtype=input_dtype) for _ in states]
+        for layer_name, states in base_orbit.items()
+    }
 
-    # Initialize history storage if required
-    esp_history = (
-        {
-            key: [tf.TensorArray(dtype=input_dtype, size=iterations) for _ in states]
-            for key, states in base_orbit.items()
-        }
-        if history
-        else None
-    )
-
-    for iter_idx in range(iterations):
-        print(f"\rIteration {iter_idx + 1}/{iterations}", end="", flush=True)
-
-        set_reservoir_random_states(model, dist=random_dist)
-        random_orbit = harvest(model, feedback_seq, external_seqs)
-
-        for key, base_states in base_orbit.items():
-            for i, (base_state, random_state) in enumerate(
-                zip(base_states, random_orbit[key])
-            ):
-                diff = base_state - random_state
-                norms_over_time = tf.norm(diff, axis=-1)
-
-                if weighted:
-                    weights = tf.linspace(
-                        0.1, 1.0, num=tf.shape(base_state)[1]
-                    )  # Increasing weights
-                else:
-                    weights = tf.ones_like(norms_over_time)
-
-                weighted_norm = tf.reduce_mean(weights * norms_over_time)
-                esp_indices[key][i] += weighted_norm
-
-                if history:
-                    esp_history[key][i] = esp_history[key][i].write(
-                        iter_idx, norms_over_time
-                    )
-    print()
-
-    # Average ESP indices over iterations
-    for key in esp_indices:
-        esp_indices[key] = [esp / iterations for esp in esp_indices[key]]
-
-    set_reservoir_states(model, current_states)  # Restore original states
-
+    # --- Initialize storage for history if requested ---
+    esp_history = None
     if history:
-        for key in esp_history:
-            esp_history[key] = [
-                tf.transpose(ta.stack(), perm=[0, 2, 1]) for ta in esp_history[key]
-            ]  # Fix time axis
+        esp_history = {
+            layer_name: [
+                tf.TensorArray(dtype=input_dtype, size=iterations)
+                for _ in states
+            ]
+            for layer_name, states in base_orbit.items()
+        }
+
+    # --- Main loop over iterations ---
+    for iter_idx in range(iterations):
+
+        if verbose:
+            print(f"\rIteration {iter_idx + 1}/{iterations}", end="", flush=True)
+
+        # Generate random initial states and compute orbit
+        set_reservoir_random_states(model, dist=random_dist)
+        random_orbit = collect_states()
+
+        # Compare base and random orbits layer by layer
+        for layer_name, base_states in base_orbit.items():
+            for state_idx, (base_state, random_state) in enumerate(
+                zip(base_states, random_orbit[layer_name])
+            ):
+                # Compute Euclidean distance over time
+                norms_over_time = tf.norm(base_state - random_state, axis=-1)
+
+                # Remove transient steps if specified
+                if transient > 0:
+                    norms_over_time = norms_over_time[:, transient:]
+
+                # Δi = average distance over timesteps and batch
+                delta = tf.reduce_mean(norms_over_time, axis=1)  # average per batch
+                delta = tf.reduce_mean(delta)                    # average over batches
+
+                # Accumulate for ESP index
+                esp_indices[layer_name][state_idx] += tf.cast(delta, input_dtype)
+
+                # Save history if requested
+                if history:
+                    esp_history[layer_name][state_idx] = (
+                        esp_history[layer_name][state_idx]
+                        .write(iter_idx, tf.cast(norms_over_time, input_dtype))
+                    )
+    if verbose:
+        print()  # newline after progress
+
+    # --- Finalize indices by averaging over iterations ---
+    for layer_name in esp_indices:
+        esp_indices[layer_name] = [
+            esp / iterations for esp in esp_indices[layer_name]
+        ]
+
+    # --- Restore original states ---
+    set_reservoir_states(model, current_states)
+
+    # --- Finalize history if requested ---
+    if history:
+        for layer_name in esp_history:
+            esp_history[layer_name] = [
+                tf.transpose(ta.stack(), perm=[0, 2, 1]) for ta in esp_history[layer_name]
+            ]
 
     return (esp_indices, esp_history) if history else esp_indices
+

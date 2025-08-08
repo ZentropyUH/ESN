@@ -16,17 +16,15 @@ Example
 >>> trainer.fit_readout_layers(warmup_batch, input_batch)
 """
 
-import weakref
+import gc
 import logging
+import weakref
 from typing import Callable, Dict, List, Union
 
 import tensorflow as tf
 
 from keras_reservoir_computing.layers.readouts.base import ReadOut
-from keras_reservoir_computing.utils.tensorflow import (
-    suppress_retracing,
-    tf_function
-    )
+from keras_reservoir_computing.utils.tensorflow import suppress_retracing, tf_function
 
 __all__: List[str] = ["ReservoirTrainer"]
 
@@ -113,7 +111,7 @@ class ReservoirTrainer:
         ]
 
         # Intermediate warm-forwarding functions
-        self._warm_forward_functions: Dict[str, Callable] = {}
+        self._warm_forward_functions = weakref.WeakValueDictionary()
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
@@ -202,12 +200,12 @@ class ReservoirTrainer:
             if self.log:
                 logger.info("  Fitting %s…", layer_name)
             readout_layer.fit(readout_input, target)
-            tf.keras.backend.clear_session() # drop kernels & activations
 
             # ----------------------------------------------------------------
             # House-keeping - free bulky tensors & intermediate model
             # ----------------------------------------------------------------
             readout_input = None  # hint the GC
+            gc.collect()
             # del self._warm_forward_functions[layer_name]
             if self.log:
                 logger.info("  %s fitted successfully.", layer_name)

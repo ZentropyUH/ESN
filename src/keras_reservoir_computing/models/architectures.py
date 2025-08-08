@@ -221,3 +221,59 @@ def headless_ESN(
     # Build and return model
     model = tf.keras.Model(inputs=input_layer, outputs=reservoir, name=name, dtype=dtype)
     return model
+
+
+def linear_ESN(
+    units: int,
+    reservoir_config: Optional[Union[str, Dict[str, Any]]] = None,
+    batch: int = 1,
+    features: int = 1,
+    name: str = "headless_ESN",
+    dtype: str = "float32",
+) -> tf.keras.Model:
+    """
+    Build an ESN model with no readout layer and a linear activation function.
+
+    This model can be used to study the dynamics of the reservoir by applying different transformations to the reservoir states.
+
+    Parameters
+    ----------
+    units : int
+        Number of units in the reservoir.
+    reservoir_config : Union[str, dict], optional
+        Configuration for the reservoir. Can be a path to a JSON file or a dictionary. If None, a default reservoir will be used.
+    batch : int, optional
+        Batch size for the input layer. Default is 1.
+    features : int, optional
+        Number of features in the input data. Default is 1.
+    name : str, optional
+        Name for the model. Default is "headless_ESN".
+    dtype : str, optional
+        Data type for the model. Default is "float32".
+
+    Returns
+    -------
+    tf.keras.Model
+        A Keras Model representing the headless ESN.
+
+    Notes
+    -----
+    - The architecture is: Input Layer -> Reservoir
+    - The reservoir is not connected to a readout layer.
+    """
+    # Load config from file if string is provided
+
+    reservoir_config = load_config(reservoir_config) if reservoir_config else load_default_config("reservoir")
+
+    # Create input layer
+    input_layer = tf.keras.layers.Input(shape=(None, features), batch_size=batch, dtype=dtype)
+
+    # Build reservoir
+    reservoir_config.setdefault("config", {})
+    reservoir_config["config"] |= {"activation": "linear", "units": units, "feedback_dim": features, "dtype": dtype}
+
+    reservoir = load_object(reservoir_config)(input_layer)
+
+    # Build and return model
+    model = tf.keras.Model(inputs=input_layer, outputs=reservoir, name=name, dtype=dtype)
+    return model
