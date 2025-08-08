@@ -122,7 +122,8 @@ def run_hpo(
 
     completed_trials = len(study.get_trials())
     remaining_trials = max(0, n_trials - completed_trials)
-    print("Remaining trials:", remaining_trials)
+    if remaining_trials > 0:
+        print("Remaining trials:", remaining_trials)
 
     if remaining_trials > 0:
         study.optimize(
