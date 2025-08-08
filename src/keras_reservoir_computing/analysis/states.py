@@ -475,10 +475,6 @@ def esp_index(
             return harvest(model, feedback_seq, external_seqs)
 
     # --- Save current states for restoring later ---
-    current_states = {
-        name: [tf.identity(state) for state in states]
-        for name, states in get_reservoir_states(model).items()
-    }
 
     # --- Base orbit from zero states ---
     reset_reservoir_states(model)
