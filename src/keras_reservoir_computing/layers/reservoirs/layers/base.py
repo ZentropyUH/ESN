@@ -1,5 +1,5 @@
 import tensorflow as tf
-from typing import List, Literal, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 from keras_reservoir_computing.utils.tensorflow import create_tf_rng
 from keras_reservoir_computing.layers.reservoirs.cells import BaseCell
@@ -84,6 +84,7 @@ class BaseReservoir(tf.keras.layers.RNN):
             stateful=True,
             return_sequences=True,
             return_state=False,
+            trainable=False,
             **kwargs,
         )
         self.units = cell.units
@@ -197,7 +198,8 @@ class BaseReservoir(tf.keras.layers.RNN):
                     f"Input sequence has {in_feats} features, expected {self.input_dim}"
                 )
 
-            combined_features = fb_feats + in_feats
+            # If in_feats is unknown at build time, fall back to configured input_dim
+            combined_features = fb_feats + (in_feats if in_feats is not None else self.input_dim)
             # Now define a synthetic shape to pass to super().build(...).
             # We only really need (batch_size, timesteps, combined_features).
             # The batch_size or timesteps might be None, but that’s fine.
@@ -268,9 +270,7 @@ class BaseReservoir(tf.keras.layers.RNN):
 
         return (batch_size, timesteps, self.units)
 
-    @property
-    def trainable(self) -> Literal[False]:
-        return False
+    # Intentionally non-trainable (weights in the wrapped cell are also non-trainable)
 
     def get_config(self) -> dict:
         """
