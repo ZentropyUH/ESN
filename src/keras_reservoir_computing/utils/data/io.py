@@ -81,7 +81,7 @@ def load_npz(datapath: str) -> np.ndarray:
         data = data.reshape(1, T, D)
     elif data.ndim != 3:
         raise ValueError(
-            f"CSV data has an unsupported shape {data.shape}. Expected 1D, 2D or 3D."
+            f"NPZ data has an unsupported shape {data.shape}. Expected 1D, 2D or 3D."
         )
 
     return data
@@ -116,7 +116,7 @@ def load_npy(datapath: str) -> np.ndarray:
         data = data.reshape(1, T, D)
     elif data.ndim != 3:
         raise ValueError(
-            f"CSV data has an unsupported shape {data.shape}. Expected 1D, 2D or 3D."
+            f"NPY data has an unsupported shape {data.shape}. Expected 1D, 2D or 3D."
         )
 
     return data
