@@ -21,7 +21,7 @@ from typing import Optional, Tuple, Union
 import tensorflow as tf
 
 from keras_reservoir_computing.layers.reservoirs.layers.base import BaseReservoir
-from keras_reservoir_computing.utils.tensorflow import tf_function, create_tf_rng
+from keras_reservoir_computing.utils.tensorflow import tf_function, create_tf_rng, suppress_retracing
 
 
 def get_reservoir_states(model: tf.keras.Model) -> dict:
@@ -322,6 +322,34 @@ def harvest(
     return states_history
 
 
+def build_reservoir_harvester(model: tf.keras.Model) -> tf.keras.Model:
+    """
+    Create a headless model that outputs only the outputs
+    of all BaseReservoir layers in `model`.
+
+    This is useful for harvesting the states of reservoir layers when such layers have only one state vector. For more complex layers with hidden states, use the `harvest` function.
+
+    Parameters
+    ----------
+    model : tf.keras.Model
+        Original model containing BaseReservoir layers.
+
+    Returns
+    -------
+    tf.keras.Model
+        New model with the same inputs as `model`, outputs are the
+        outputs of all BaseReservoir layers.
+    """
+    reservoirs = [layer for layer in model.layers if isinstance(layer, BaseReservoir)]
+    if not reservoirs:
+        raise ValueError("No BaseReservoir layers found in the model.")
+
+    outputs = [layer.output for layer in reservoirs]
+    inputs = model.inputs[0] if len(model.inputs) == 1 else model.inputs
+
+    return tf.keras.Model(inputs=inputs, outputs=outputs)
+
+
 def esp_index(
     model: tf.keras.Model,
     feedback_seq: tf.Tensor,
@@ -330,6 +358,7 @@ def esp_index(
     history: bool = False,
     iterations: int = 10,
     transient: int = 0,
+    harvester: str = "full",
     verbose: bool = True,
 ) -> Union[dict, Tuple[dict, dict]]:
     """
@@ -412,6 +441,39 @@ def esp_index(
 
     input_dtype = feedback_seq.dtype
 
+    # --- Prepare harvesting function ---
+    if harvester not in {"full", "fast"}:
+        raise ValueError(f"Invalid harvester: {harvester}. Must be 'full' or 'fast'.")
+
+    # --- Save current states for restoring later ---
+    current_states = {
+        name: [tf.identity(state) for state in states]
+        for name, states in get_reservoir_states(model).items()
+    }
+
+    # --- Choose harvester ---
+    if harvester == "fast":
+        harvester_model = build_reservoir_harvester(model)
+        monitored_layers = [layer for layer in model.layers if isinstance(layer, BaseReservoir)]
+
+        def collect_states():
+
+            inputs = [feedback_seq] + list(external_seqs) if len(external_seqs) > 0 else feedback_seq
+
+            with suppress_retracing():
+                out = harvester_model.predict(
+                    inputs, verbose=0
+                )
+            if len(monitored_layers) == 1:
+                out = [out]  # ensure list for consistency
+            return {
+                layer.name: [out[i]] for i, layer in enumerate(monitored_layers)
+            }
+
+    else:  # "full"
+        def collect_states():
+            return harvest(model, feedback_seq, external_seqs)
+
     # --- Save current states for restoring later ---
     current_states = {
         name: [tf.identity(state) for state in states]
@@ -420,7 +482,7 @@ def esp_index(
 
     # --- Base orbit from zero states ---
     reset_reservoir_states(model)
-    base_orbit = harvest(model, feedback_seq, external_seqs)
+    base_orbit = collect_states()
 
     # --- Initialize storage for ESP indices ---
     esp_indices = {
@@ -447,7 +509,7 @@ def esp_index(
 
         # Generate random initial states and compute orbit
         set_reservoir_random_states(model, dist=random_dist)
-        random_orbit = harvest(model, feedback_seq, external_seqs)
+        random_orbit = collect_states()
 
         # Compare base and random orbits layer by layer
         for layer_name, base_states in base_orbit.items():
