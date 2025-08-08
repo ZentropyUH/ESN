@@ -2,7 +2,6 @@ import functools
 import inspect
 import logging
 import warnings
-import weakref
 from contextlib import contextmanager
 from functools import wraps
 from typing import Any, Callable, Generator, Optional, Union
@@ -557,12 +556,10 @@ __all__ = [
     "build_layer_graph",
     "create_tf_rng",
     "insert_layer",
-    "predict_factory",
     "rebuild_model_with_new_batch_size",
     "suppress_retracing",
     "suppress_retracing_during_call",
     "tf_function",
-    "warm_forward_factory"
 ]
 
 
