@@ -33,15 +33,25 @@ dependencies = [
     "xarray==2025.1.1"
 ]
 
-[tool.setuptools]
 # Map the "empty" package name to the directory "src"
+[tool.setuptools]
 package-dir = { "" = "src" }
 
-[tool.setuptools.packages.find]
 # Use setuptools' find_packages(where="src") behavior
+[tool.setuptools.packages.find]
 where = ["src"]
+
+# Include the default configurations of the io module
+[tool.setuptools.package-data]
+"keras_reservoir_computing.io.defaults" = ["*.json", "*.yaml"]
 
 [project.optional-dependencies]
 hyper = ["optuna", "optuna-dashboard"]
 viz = ["plotly[notebook]", "kaleido", "ipywidgets", "ipykernel"]
 all = ["optuna", "optuna-dashboard", "plotly", "kaleido", "ipywidgets", "ipykernel"]
+
+[tool.pydocstyle]
+convention = "numpy"
+add-ignore = ["D105", "D107"]
+match = '.*\.py'
+match-dir = '^src/'
