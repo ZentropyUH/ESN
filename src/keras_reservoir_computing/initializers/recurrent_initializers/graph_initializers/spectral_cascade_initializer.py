@@ -19,9 +19,9 @@ class SpectralCascadeGraphInitializer(GraphInitializerBase):
 
     Each clique has size 1 to N (with total nodes n = N(N+1)/2), and is fully connected
     with deterministic weights in {+1, -1}, scaled so that:
-        - Clique of size 1 has spectral radius 0
-        - Clique of size 2 has spectral radius = `spectral_radius`
-        - Larger cliques decay linearly in spectral radius down to sr / N
+    - Clique of size 1 has spectral radius 0
+    - Clique of size 2 has spectral radius = `spectral_radius`
+    - Larger cliques decay linearly in spectral radius down to sr / N
 
     Parameters
     ----------
