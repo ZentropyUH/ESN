@@ -21,10 +21,13 @@ class DigitalChaosInitializer(tf.keras.Initializer):
         x_1(n) = [ x_1(n-1) \wedge s(n) ] \vee [ \overline{x_1(n-1)} \wedge \overline{x_2(n-1)} \wedge s(n) ]
 
     .. math::
-        x_2(n) = [ x_2(n-1) \wedge u(n) ] \vee \left\{ \left( x_1(n-1) \vee (x_1(n-1) \wedge x_2(n-1)) \right)
-        \wedge \overline{ \left( x_1(n-1) \vee (x_1(n-1) \wedge x_2(n-1)) \right) } \wedge u(n) \right\}
+        x_2(n) = [ x_2(n-1) \wedge u(n) ] \vee \left\{
+                 \left( x_1(n-1) \vee (x_1(n-1) \wedge x_2(n-1)) \right)
+                 \wedge \overline{ \left( x_1(n-1) \vee (x_1(n-1) \wedge x_2(n-1)) \right) }
+                 \wedge u(n)
+             \right\}
 
-    where:
+    The terms are defined as:
 
     - \( x_1, x_2 \) represent the system state variables (each a \( D \)-bit integer).
     - \( s(n), u(n) \) are independent \( D \)-bit random sequences drawn at each time step.
@@ -45,6 +48,7 @@ class DigitalChaosInitializer(tf.keras.Initializer):
     - `non_zero_percentage`: Sets \( K \) dynamically as a fraction of \( M \).
 
     **Caveats:**
+
     - The adjacency matrix is **strictly constrained** to size \( 2^{2D} \times 2^{2D} \), meaning
       small \( D \) leads to limited expressivity, while large \( D \) is computationally expensive.
     - Using a **dense representation** for \( A \) is **not feasible** for \( D \geq 10 \)
@@ -82,7 +86,9 @@ class DigitalChaosInitializer(tf.keras.Initializer):
 
     References
     ----------
-    .. M. Xie, Q. Wang, and S. Yu, “Time Series Prediction of ESN Based on Chebyshev Mapping and Strongly Connected Topology,” Neural Process Lett, vol. 56, no. 1, p. 30, Feb. 2024, doi: 10.1007/s11063-024-11474-7.
+    M. Xie, Q. Wang, and S. Yu, “Time Series Prediction of ESN Based on Chebyshev Mapping and
+    Strongly Connected Topology,” Neural Process Lett, vol. 56, no. 1, p. 30, Feb. 2024,
+    doi: 10.1007/s11063-024-11474-7.
 
     Examples
     --------
@@ -91,7 +97,6 @@ class DigitalChaosInitializer(tf.keras.Initializer):
     >>> w = w_init((16, 16))
     >>> print(w)
     # A 16x16 adjacency matrix initialized using digital chaos.
-
     """
 
     def __init__(
