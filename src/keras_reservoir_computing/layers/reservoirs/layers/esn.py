@@ -11,55 +11,63 @@ class ESNReservoir(BaseReservoir):
     """
     An Echo State Network (ESN) reservoir layer implementation.
 
-    This layer implements the reservoir component of an Echo State Network, which is a type of
-    recurrent neural network where the internal weights (reservoir) remain fixed after
-    initialization. The reservoir provides a rich, nonlinear transformation of the inputs
-    through its recurrent connections.
+    This layer implements the reservoir component of an Echo State Network,
+    a type of recurrent neural network where the internal weights (reservoir)
+    remain fixed after initialization. The reservoir provides a rich, nonlinear
+    transformation of the inputs through its recurrent connections.
 
     Parameters
     ----------
     units : int
         Number of units (neurons) in the reservoir.
     feedback_dim : int, optional
-        Dimensionality of the feedback input. Default is 1.
+        Dimensionality of the feedback input. Default is ``1``.
     input_dim : int, optional
-        Dimensionality of the external input. If 0, the reservoir only receives feedback.
-        Default is 0.
+        Dimensionality of the external input. If ``0``, the reservoir only
+        receives feedback. Default is ``0``.
     leak_rate : float, optional
-        Leaking rate of the reservoir neurons. Must be between 0 and 1.
-        A smaller value creates more memory in the reservoir. Default is 1.0.
+        Leaking rate of the reservoir neurons. Must be between ``0`` and ``1``.
+        A smaller value creates more memory in the reservoir. Default is ``1.0``.
     activation : str or callable, optional
-        Activation function for the reservoir neurons. Default is "tanh".
+        Activation function for the reservoir neurons. Default is ``"tanh"``.
     input_initializer : str or callable, optional
-        Initializer for the input weights. Default is "zeros".
+        Initializer for the input weights. Default is ``"zeros"``.
     feedback_initializer : str or callable, optional
-        Initializer for the feedback weights. Default is "glorot_uniform".
+        Initializer for the feedback weights. Default is ``"glorot_uniform"``.
     feedback_bias_initializer : str or callable, optional
-        Initializer for the feedback bias. Default is "zeros".
+        Initializer for the feedback bias. Default is ``"zeros"``.
     kernel_initializer : str or callable, optional
-        Initializer for the reservoir's internal weights. Default is "glorot_uniform".
+        Initializer for the reservoir's internal weights.
+        Default is ``"glorot_uniform"``.
     dtype : str, optional
-        Data type for the layer, by default "float32".
+        Data type for the layer. Default is ``"float32"``.
     **kwargs : dict
         Additional keyword arguments passed to the parent RNN layer.
 
     Notes
     -----
-    - The reservoir can receive two types of inputs: external inputs and feedback inputs.
-      Hence can be used in two modes:
-        1. Feedback only: The reservoir receives only the feedback input.
-        2. [Feedback, input]: The reservoir receives both feedback and external inputs. Pretty much like a Concatenate layer. If two inputs are provided, the feedback input must be the first one and both have the first two dimensions (batch_size, timesteps) equal.
-    - The `feedback_dim` and `input_dim` parameters are crucial for differentiating
-      between the two internally in the cell implementation.
+    - The reservoir can receive two types of inputs: external inputs and
+      feedback inputs. It can be used in two modes:
+
+        1. **Feedback only**: The reservoir receives only the feedback input.
+        
+        2. **Feedback + input**: The reservoir receives both feedback and
+           external inputs, similar to a ``Concatenate`` layer.
+
+    - If two inputs are provided, the feedback input must be the first one, 
+      and both must share the first two dimensions ``(batch_size, timesteps)``.
+
+    - The ``feedback_dim`` and ``input_dim`` parameters are crucial for
+      differentiating between the two in the cell implementation.
+
     - The layer always outputs the full sequence of reservoir states.
 
     References
     ----------
-    .. [1] Jaeger, H. (2001). The "echo state" approach to analysing and training
-           recurrent neural networks. German National Research Center for Information
-           Technology GMD Technical Report, 148(34), 13.
+    Jaeger, H. (2001). The "echo state" approach to analysing and training
+    recurrent neural networks. German National Research Center for Information
+    Technology GMD Technical Report, 148(34), 13.
     """
-
     def __init__(
         self,
         units: int,
@@ -151,6 +159,3 @@ class ESNReservoir(BaseReservoir):
         del base_config["cell"]
         return {**base_config, **config}
 
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)

@@ -288,3 +288,20 @@ class BaseReservoir(tf.keras.layers.RNN):
             base_config.pop(param, None)  # Remove only if present
 
         return base_config
+
+    @classmethod
+    def from_config(cls, config) -> "BaseReservoir":
+        """
+        Create an ``BaseReservoir`` from a configuration dictionary.
+
+        Parameters
+        ----------
+        config : dict
+            Configuration produced by ``get_config()``.
+
+        Returns
+        -------
+        BaseReservoir
+            A new layer instance.
+        """
+        return cls(**config)
