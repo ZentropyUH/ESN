@@ -10,18 +10,19 @@ Empower Keras with state-of-the-art Reservoir Computing. Build, train and deploy
 :class: tip
 - Built on TensorFlow/Keras – easy integration with existing workflows
 - First-class ESN components – reservoirs, readouts, initializers
-- Fast readout training – custom trainer honors graph dependencies
+- Fast readout training – custom trainer that respects model topology
 - Robust forecasting utilities – warm-up + auto-regressive helpers
-- Batteries included – HPO, visualization, data helpers
+- Batteries included – HPO, data helpers
 ```
 
 ## Get started
 
 We recommend reading the quickstart below. You can also follow the Tutorials for step-by-step guides.
 
-```{include} ../README.md
-:relative-docs: docs/
+```{include} README.md
+:relative-docs: .
 :relative-images:
+:start-after: "# Keras Reservoir Computing"
 ```
 
 ## What’s inside
@@ -58,8 +59,3 @@ hyperparameter_optimization
 api/index
 ```
 
-```{toctree}
-:hidden:
-
-README (from root) <../README>
-```
