@@ -54,13 +54,11 @@ def connected_graph(graph_func: Callable) -> Callable:
     ----------
     graph_func : callable
         A function that generates a graph adjacency matrix (either as a tf.Tensor or np.ndarray).
-        The function signature is expected to be:
-            (n: int, *args, seed=None, tries=100, **kwargs)
-        where:
-            - n is the number of nodes,
-            - seed is the random seed or RNG,
-            - tries is the maximum number of attempts to generate a connected graph,
-            - *args and **kwargs are other parameters.
+        Expected signature: ``(n: int, *args, seed=None, tries=100, **kwargs)``
+        - ``n``: number of nodes
+        - ``seed``: random seed
+        - ``tries``: max attempts
+        - ``*args``, ``**kwargs``: other params
 
     Returns
     -------
