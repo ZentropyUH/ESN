@@ -72,7 +72,7 @@ callable. Built-ins:
 - ``"standard"`` → :func:`standard_loss`: Mean of geometric-mean
   error across time.
 
-- ``"efh"`` → :func:`expected_forecast_horizon`:Smooth, differentiable
+- ``"efh"`` → :func:`expected_forecast_horizon`: Smooth, differentiable
   proxy for the forecast horizon
   (more negative ⇒ longer expected horizon). Accepts ``threshold`` and ``softness``. Used by default and recommended.
 
