@@ -14,6 +14,7 @@ from . import (
     models,
     training,
     utils,
+    io,
 )
 
 __all__ = [
@@ -26,6 +27,7 @@ __all__ = [
     "models",
     "training",
     "utils",
+    "io",
 ]
 
 def __dir__() -> list[str]:

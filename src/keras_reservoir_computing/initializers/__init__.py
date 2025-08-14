@@ -1,6 +1,41 @@
-"""Initializers for reservoir computing.
+"""
+Initializers for reservoir computing layers.
 
-This module provides specialized initializers for input layers and reservoirs in ESN models.
+This module consolidates all available initializer classes for use in the
+library's Keras-based reservoir layers. It provides two distinct categories
+of initializers:
+
+Input initializers
+------------------
+Define the connection weights from the input/feedback layers to the reservoir, controlling how external/feedback signals enter the network.
+
+Recurrent initializers
+----------------------
+Define the internal recurrent connection weights of the reservoir, determining the network's internal dynamics.
+
+
+Available input initializers
+----------------------------
+- :class:`ChebyshevInitializer`
+- :class:`ChessboardInitializer`
+- :class:`PseudoDiagonalInitializer`
+- :class:`RandomBinaryInitializer`
+- :class:`RandomInputInitializer`
+
+Available recurrent initializers
+--------------------------------
+- :class:`BarabasiAlbertGraphInitializer`
+- :class:`CompleteGraphInitializer`
+- :class:`ConnectedRandomMatrixInitializer`
+- :class:`DigitalChaosInitializer`
+- :class:`ErdosRenyiGraphInitializer`
+- :class:`KleinbergSmallWorldGraphInitializer`
+- :class:`NewmanWattsStrogatzGraphInitializer`
+- :class:`RegularGraphInitializer`
+- :class:`SpectralCascadeGraphInitializer`
+- :class:`RandomRecurrentInitializer`
+- :class:`TernaryInitializer`
+- :class:`WattsStrogatzGraphInitializer`
 """
 from . import input_initializers, recurrent_initializers
 from .input_initializers import (
