@@ -1,57 +1,85 @@
 [build-system]
-requires = ["setuptools>=64", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling>=1.25", "hatch-vcs>=0.4"]   # hatch-vcs optional but recommended
+build-backend = "hatchling.build"
 
 [project]
 name = "keras_reservoir_computing"
-version = "0.1.0"
+version = "0.1.0"                                   # or make dynamic via hatch-vcs (below)
 description = "A package for training and using Echo State Networks and Reservoir Computing in general."
-authors = [
-    { name = "Daniel Estevez", email = "kemossabee@gmail.com" }
-]
-urls = { "Homepage" = "https://github.com/ZentropyUH/ESN" }
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "Daniel Estevez", email = "kemossabee@gmail.com" }]
+urls = { Homepage = "https://github.com/ZentropyUH/ESN" }
 classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent"
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent"
 ]
-requires-python = ">=3.10"
+
 dependencies = [
-    "keras==3.9.2",
-    "networkx==3.5",
-    "pandas==2.2.3",
-    "scipy==1.14.1",
-    "tensorflow==2.18.0",
-    "rich==14.0.0",
-    "matplotlib==3.9.2",
-    "natsort==8.4.0",
-    "numpy==2.0.2",
-    "ipykernel==6.29.5",
-    "ipywidgets==8.1.5",
-    "ipympl==0.9.4",
-    "netCDF4==1.7.2",
-    "xarray==2025.1.1"
+  "keras>=3.9,<4.0",
+  "tensorflow>=2.18,<2.19",
+  "numpy>=2.0,<3.0",
+  "scipy>=1.14,<2.0",
+  "pandas>=2.2,<3.0",
+  "matplotlib>=3.9,<4.0",
+  "networkx>=3.5,<4.0",
+  "natsort>=8.4,<9.0",
+  "rich>=14.0,<15.0",
+  "netCDF4>=1.7,<2.0",
+  "xarray>=2025.1.1,<2026.0.0"
 ]
-
-# Map the "empty" package name to the directory "src"
-[tool.setuptools]
-package-dir = { "" = "src" }
-
-# Use setuptools' find_packages(where="src") behavior
-[tool.setuptools.packages.find]
-where = ["src"]
-
-# Include the default configurations of the io module
-[tool.setuptools.package-data]
-"keras_reservoir_computing.io.defaults" = ["*.json", "*.yaml"]
 
 [project.optional-dependencies]
-hyper = ["optuna", "optuna-dashboard"]
-viz = ["plotly[notebook]", "kaleido", "ipywidgets", "ipykernel"]
-all = ["optuna", "optuna-dashboard", "plotly", "kaleido", "ipywidgets", "ipykernel"]
+hyper = ["optuna>=3.6", "optuna-dashboard>=0.16"]
+viz = ["plotly>=5.24", "kaleido>=0.2", "ipywidgets>=8.1", "ipykernel>=6.29", "ipympl>=0.9"]
+all = ["keras_reservoir_computing[hyper,viz]"]
 
+# ---- uv-specific groups (dev tooling) ----
+[dependency-groups]
+dev = [
+  "pytest>=8.2",
+  "pytest-cov>=5.0",
+  "ruff>=0.6",
+  "black>=24.8",
+  "mypy>=1.11",
+  "pydocstyle>=6.3",
+]
+docs = [
+  "sphinx>=7.3",
+  "myst-parser>=3.0",
+  "sphinx-autodoc-typehints>=2.2",
+  "furo>=2024.8.6",
+]
+
+# ---------------- Hatch config ----------------
+[tool.hatch.build]
+include = [
+  "src/keras_reservoir_computing/**",
+  "README.md",
+  "LICENSE*",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/keras_reservoir_computing"]
+only-include = ["src/keras_reservoir_computing"]
+
+# Derive version from Git tags
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/keras_reservoir_computing/_version.py"
+
+# ---------------- Linters / style ----------------
 [tool.pydocstyle]
 convention = "numpy"
 add-ignore = ["D105", "D107"]
-match = '.*\.py'
+match = '.*\\.py'
 match-dir = '^src/'
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
