@@ -1,9 +1,10 @@
+from functools import partial
 from typing import Any, Callable, Mapping, MutableMapping
 
 import optuna
 import tensorflow as tf
 from optuna.samplers import TPESampler
-from functools import partial
+
 from keras_reservoir_computing.utils.tensorflow import suppress_retracing_during_call
 
 from ._losses import LossProtocol, get_loss
@@ -18,7 +19,6 @@ def run_hpo(
     *,
     n_trials: int,
     data_loader: Callable[[], Mapping[str, Any]],
-    trainer: str = "custom",
     loss: LossProtocol | str = "lyap",
     loss_params: dict[str, Any] = {},
     study_name: str | None = None,
@@ -46,9 +46,6 @@ def run_hpo(
         Callable that accepts a ``trial`` object and returns a mapping with the
         keys required by the chosen trainer (e.g. ``train_data``, ``train_target``…).
         Put your own dataset splits in here.
-    trainer
-        ``"custom"`` → use :class:`krc.training.ReservoirTrainer`.
-        ``"fit"``    → use ``model.fit`` with a Keras-compatible loss.
     loss
         Either a string key from :data:`LOSSES` or a callable following the
         :class:`LossProtocol` signature.  *Only* Keras-compatible callables are
@@ -81,10 +78,6 @@ def run_hpo(
     # ------------------------------------------------------------------
     base_loss = get_loss(loss)
     resolved_loss = partial(base_loss, **loss_params) if loss_params else base_loss
-    if trainer == "fit" and not isinstance(resolved_loss, tf.keras.losses.Loss):
-        raise ValueError(
-            "When trainer='fit' the loss must be a Keras-compatible loss instance."
-        )
 
     # ------------------------------------------------------------------
     # Prepare Optuna study
@@ -96,7 +89,6 @@ def run_hpo(
     if study_name is None:
         study_name = make_study_name(
             model_creator=model_creator,
-            trainer=trainer,
         )
 
     study = optuna.create_study(
@@ -114,7 +106,6 @@ def run_hpo(
     objective = build_objective(
         model_creator=model_creator,
         search_space=search_space,
-        trainer=trainer,
         loss_fn=resolved_loss,
         data_loader=data_loader,
         penalty_value=penalty_value,

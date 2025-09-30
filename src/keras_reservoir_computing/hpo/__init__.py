@@ -24,14 +24,11 @@ your callbacks, and executes the optimisation. You provide three callables:
 2. ``search_space(trial)``: registers parameters via ``trial.suggest_*``
   and returns the mapping passed to ``model_creator``.
 
-3. ``data_loader(trial)``: returns the arrays required by the chosen
-  trainer (see "Trainer modes" below).
+3. ``data_loader(trial)``: returns the arrays required by the trainer.
 
-Trainer modes
+Trainer
 -------------
-Two training paths are supported via ``trainer``:
-
-1. ``"custom"``: topological readout fitting using :class:`ReservoirTrainer`,
+Topological readout fitting using :class:`ReservoirTrainer`,
   then a generative forecast with :func:`warmup_forecast`.
   The ``data_loader`` must return the keys:
 
@@ -49,10 +46,6 @@ Two training paths are supported via ``trainer``:
 
   Optionally, provide ``"readout_targets"`` mapping when multiple :class:`ReadOut` layers are present.
 
-2. ``"fit"``: standard ``model.compile`` + ``model.fit`` with a Keras loss,
-  followed by the same warm-up generative forecast. Requires the same keys as
-  above; additionally honors optional ``"epochs"``, ``"batch_size"``,
-  ``"learning_rate"``, and ``"weight_decay"``. This is WIP
 
 Losses
 ------
@@ -100,7 +93,7 @@ Choose either:
 Study naming
 ------------
 If ``study_name`` is not provided, a default is generated via
-:func:`make_study_name` as ``<file>:<func>_<trainer>``.
+:func:`make_study_name` as ``<file>:<func>``.
 
 Example
 -------
@@ -122,7 +115,7 @@ Example
 >>> study = run_hpo(
 ...     model_creator, search_space,
 ...     n_trials=50, data_loader=data_loader,
-...     trainer="custom", loss="lyap", loss_params={"lle": 1.2, "dt": 1.0},
+...     loss="lyap", loss_params={"lle": 1.2, "dt": 1.0},
 ... )
 
 Notes
@@ -141,9 +134,8 @@ See Also
 :class:`ReservoirTrainer`,
 :func:`warmup_forecast`.
 """
-from .main import run_hpo
 from ._losses import LOSSES
-
+from .main import run_hpo
 
 __all__ = ["run_hpo", "LOSSES"]
 
