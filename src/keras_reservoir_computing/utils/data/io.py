@@ -309,7 +309,7 @@ def load_data(
         Whether to normalize the data (based on mean and std of the training portion), by default False.
     normalization_method : str, optional
         The method to use for normalization. Options: "standard", "minmax".
-        By default "standard".
+        By default "minmax".
 
     Returns
     -------
