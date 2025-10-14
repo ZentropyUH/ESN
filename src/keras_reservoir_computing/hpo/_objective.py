@@ -261,7 +261,7 @@ def _train_and_evaluate(
     # ----------------------------------------------------------
     # 1. Validate required data keys
     # ----------------------------------------------------------
-    required_keys = ["transient", "train", "train_target", "ftransient", "val", "external_inputs"]
+    required_keys = ["transient", "train", "train_target", "ftransient", "val"]
     _validate_data_dict(data, required_keys)
 
     # ----------------------------------------------------------
@@ -272,7 +272,7 @@ def _train_and_evaluate(
     train_target = data["train_target"]
     ftransient = data["ftransient"]
     val_data = data["val"]
-    external_inputs = data["external_inputs"]
+    external_inputs = data["external_inputs"] if "external_inputs" in data else ()
 
     # ----------------------------------------------------------
     # 3. Determine readout targets
