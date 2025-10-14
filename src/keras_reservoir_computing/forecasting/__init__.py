@@ -5,9 +5,10 @@ This module provides functions for generating forecasts with trained reservoir m
 
 from .forecasting import (
     warmup_forecast,
+    window_forecast,
 )
 
-__all__ = ["warmup_forecast"]
+__all__ = ["warmup_forecast", "window_forecast"]
 
 
 def __dir__() -> list[str]:
