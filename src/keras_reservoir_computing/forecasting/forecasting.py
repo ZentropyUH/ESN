@@ -274,9 +274,15 @@ def warmup_forecast(
             raise ValueError(
                 f"Expected {input_count} inputs for warmup_data, got {len(warmup_data)}"
             )
-        trimmed_warmup_data = [data[:, :-1, :] for data in warmup_data] # for the predict_fn
+        # Trim the last timestep from warmup_data before passing to predict_fn.
+        # The last timestep is extracted as initial_feedback for forecasting,
+        # so trimming prevents it from being used twice (once in warmup, once as feedback).
+        trimmed_warmup_data = [data[:, :-1, :] for data in warmup_data]
         initial_feedback = warmup_data[0][:, -1:, :]
     else:
+        # Trim the last timestep from warmup_data before passing to predict_fn.
+        # The last timestep is extracted as initial_feedback for forecasting,
+        # so trimming prevents it from being used twice (once in warmup, once as feedback).
         trimmed_warmup_data = warmup_data[:, :-1, :]
         initial_feedback = warmup_data[:, -1:, :]
 
