@@ -286,7 +286,7 @@ def load_data(
     val_length: int = 5000,
     normalize: bool = False,
     normalization_method: str = "minmax",
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Load and prepare time-series data for neural network (e.g., ESN/Reservoir) training.
 
@@ -309,18 +309,17 @@ def load_data(
         Whether to normalize the data (based on mean and std of the training portion), by default False.
     normalization_method : str, optional
         The method to use for normalization. Options: "standard", "minmax".
-        By default "standard".
+        By default "minmax".
 
     Returns
     -------
-    Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]
+    Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]
         A tuple containing:
         - transient_data (np.ndarray):  The initial portion (transient length) of the training data.
         - train_data (np.ndarray):      The training data sequence.
         - train_target (np.ndarray):    The training target, time-shifted by one step relative to train_data.
         - forecast_transient_data (np.ndarray): The last 'transient' steps of the training data for forecast initialization.
         - val_data (np.ndarray):        The validation data sequence following the training portion.
-        - val_target (np.ndarray):      The validation target, time-shifted by one step relative to val_data.
 
     Raises
     ------
@@ -364,10 +363,9 @@ def load_data(
     # Define data splits
     transient_data = data[:, :transient_length, :]
     train_data = data[:, transient_length:train_index, :]
-    train_target = data[:, transient_length + 1 : train_index + 1, :]
+    train_target = data[:, transient_length + 1:train_index + 1, :]
     ftransient = train_data[:, -transient_length:, :]
     val_data = data[:, train_index:train_index + val_length, :]
-    val_target = data[:, train_index + 1:train_index + val_length + 1, :]
 
     # Optional normalization
     if normalize:
@@ -384,7 +382,6 @@ def load_data(
             train_target = (train_target - mean) / std
             ftransient = (ftransient - mean) / std
             val_data = (val_data - mean) / std
-            val_target = (val_target - mean) / std
         elif normalization_method == "minmax":
             # Normalize to [-1, 1]
             _min = np.min(train_data, axis=1, keepdims=True)
@@ -399,7 +396,6 @@ def load_data(
             train_target = 2 * (train_target - _min) / div - 1
             ftransient = 2 * (ftransient - _min) / div - 1
             val_data = 2 * (val_data - _min) / div - 1
-            val_target = 2 * (val_target - _min) / div - 1
 
         else:
             raise ValueError(
@@ -413,7 +409,6 @@ def load_data(
         train_target,
         ftransient,
         val_data,
-        val_target,
     )
 
 
@@ -453,9 +448,22 @@ def load_data_dual(
 
     Returns
     -------
-    Tuple of 6 arrays:
-        transient_data, train_data, train_target,
-        ftransient_data, val_data, val_target
+    Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]
+        A tuple containing:
+        - transient_data (np.ndarray):  The initial portion (transient length) of the training data.
+        - train_data (np.ndarray):      The training data sequence.
+        - train_target (np.ndarray):    The training target, time-shifted by one step relative to train_data.
+        - forecast_transient_data (np.ndarray): The last 'transient' steps of the training data for forecast initialization.
+        - val_data (np.ndarray):        The validation data sequence following the training portion.
+
+    Raises
+    ------
+    ValueError
+        If init_transient is >= the total time steps T.
+        If the required train size (transient + train_length) exceeds the available time steps.
+        If the required train+val size exceeds the available time steps.
+    TypeError
+        If train_path and val_path are not both str or both List[str].
     """
     if isinstance(train_path, list) and isinstance(val_path, list):
         if len(train_path) != len(val_path):
@@ -490,7 +498,6 @@ def load_data_dual(
     # VAL SPLITS
     ftransient_data = val_data_all[:, :transient_length, :]
     val_data = val_data_all[:, transient_length:transient_length + val_length, :]
-    val_target = val_data_all[:, transient_length + 1:transient_length + val_length + 1, :]
 
     if normalize:
         if normalization_method == "standard":
@@ -502,7 +509,6 @@ def load_data_dual(
             train_target = (train_target - mean) / std
             ftransient_data = (ftransient_data - mean) / std
             val_data = (val_data - mean) / std
-            val_target = (val_target - mean) / std
         elif normalization_method == "minmax":
             _min = np.min(train_data, axis=1, keepdims=True)
             _max = np.max(train_data, axis=1, keepdims=True)
@@ -512,7 +518,6 @@ def load_data_dual(
             train_target = 2 * (train_target - _min) / div - 1
             ftransient_data = 2 * (ftransient_data - _min) / div - 1
             val_data = 2 * (val_data - _min) / div - 1
-            val_target = 2 * (val_target - _min) / div - 1
         else:
             raise ValueError(
                 f"Unknown normalization method: {normalization_method}. Supported methods are 'standard' and 'minmax'."
@@ -524,7 +529,6 @@ def load_data_dual(
         train_target,
         ftransient_data,
         val_data,
-        val_target,
     )
 
 

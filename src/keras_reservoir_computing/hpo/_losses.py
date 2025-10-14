@@ -9,8 +9,9 @@ Any new built-in loss **must** be added to :data:`LOSSES`.
 from typing import Protocol, runtime_checkable
 
 import numpy as np
-from scipy.stats import gmean
 from scipy.special import expit
+from scipy.stats import gmean
+
 __all__ = [
     "LossProtocol",
     "LOSSES",

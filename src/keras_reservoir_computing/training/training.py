@@ -18,7 +18,6 @@ Example
 
 import gc
 import logging
-import weakref
 from typing import Callable, Dict, List, Union
 
 import tensorflow as tf
@@ -43,26 +42,27 @@ def warm_forward_factory(model: tf.keras.Model) -> Callable:
     - The warm_forward function is compiled with ``jit_compile=True`` for maximal
     performance on supported hardware.  Disable JIT by editing the
     decorator if XLA is not available in your environment.
-    - The factory has a cache to avoid recompiling the function for the same model. This cache is of size 1 only to avoid memory issues.
     """
-    if not hasattr(warm_forward_factory, "_cache"):
-        warm_forward_factory._cache = weakref.WeakKeyDictionary()
-
-    if model in warm_forward_factory._cache:
-        return warm_forward_factory._cache[model]
-
     @tf_function(reduce_retracing=True, jit_compile=True)
-    def warm_forward(warmup: tf.Tensor, data: tf.Tensor) -> tf.Tensor:
-        """Warm-forward the model through the data.
-
-        This function is a wrapper around the model's predict method that sets the
-        model's training parameter to False.
+    def _warm_forward(warmup: tf.Tensor, data: tf.Tensor) -> tf.Tensor:
         """
-        model(warmup)  # warm-up (stateful layers adapt)
-        return model(data)  # inference only - no gradients
+        Warm-forward the model through the data.
 
-    warm_forward_factory._cache[model] = warm_forward
-    return warm_forward
+        Parameters
+        ----------
+        warmup : tf.Tensor
+            Warm-up batch to initialize recurrent or stateful layers.
+        data : tf.Tensor
+            Actual data for forward pass.
+
+        Returns
+        -------
+        tf.Tensor
+            Model output after warm-up.
+        """
+        model(warmup)  # state adaptation
+        return model(data, training=False)
+    return _warm_forward
 
 
 
@@ -111,7 +111,8 @@ class ReservoirTrainer:
         ]
 
         # Intermediate warm-forwarding functions
-        self._warm_forward_functions = weakref.WeakValueDictionary()
+        self._warm_forward_functions: Dict[str, Callable] = {}
+
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
@@ -132,19 +133,26 @@ class ReservoirTrainer:
             A model mapping ``self.model.input`` to the requested Read-Out
             *input* (not its output!).
         """
-        if layer_name not in self._warm_forward_functions:
-            layer = next(
-                layer_obj
-                for layer_obj in self.readout_layers_list
-                if layer_obj.name == layer_name
-            )
-            submodel = tf.keras.Model(
-                inputs=self.model.input,
-                outputs=layer.input,
-            )
-            with suppress_retracing():
-                self._warm_forward_functions[layer_name] = warm_forward_factory(submodel)
+        if layer_name in self._warm_forward_functions:
+            print("Using cached warm-forward function")
+            return self._warm_forward_functions[layer_name]
+
+        layer = next(
+            layer_obj
+            for layer_obj in self.readout_layers_list
+            if layer_obj.name == layer_name
+        )
+        submodel = tf.keras.Model(
+            inputs=self.model.input,
+            outputs=layer.input,
+        )
+        with suppress_retracing():
+            self._warm_forward_functions[layer_name] = warm_forward_factory(submodel)
         return self._warm_forward_functions[layer_name]
+
+    def clear_cache(self):
+        self._warm_forward_functions.clear()
+        gc.collect()
 
 
     # ------------------------------------------------------------------

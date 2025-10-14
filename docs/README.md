@@ -153,7 +153,6 @@ study = run_hpo(
     search_space=search_space,
     data_loader=data_loader,
     n_trials=50,
-    trainer="custom",
     loss="efh",
     loss_params={"metric": "rmse", "threshold": 0.2, "softness": 0.02},
     study_name="hpo_example",

@@ -1,137 +1,306 @@
-from typing import Any, Callable, Mapping, MutableMapping
+from functools import partial
+from typing import Any, Callable, Mapping, MutableMapping, Optional
+import logging
 
 import optuna
 import tensorflow as tf
 from optuna.samplers import TPESampler
-from functools import partial
+
 from keras_reservoir_computing.utils.tensorflow import suppress_retracing_during_call
 
 from ._losses import LossProtocol, get_loss
 from ._objective import build_objective
 from ._utils import make_study_name
 
+__all__ = ["run_hpo"]
+
+logger = logging.getLogger(__name__)
+
 
 @suppress_retracing_during_call
 def run_hpo(
-    model_creator: Callable[..., "tf.keras.Model"],
-    search_space: Callable[[optuna.trial.Trial], MutableMapping[str, Any]],
     *,
+    model_creator: Callable[..., tf.keras.Model],
+    search_space: Callable[[optuna.trial.Trial], MutableMapping[str, Any]],
+    data_loader: Callable[[optuna.trial.Trial], Mapping[str, Any]],
     n_trials: int,
-    data_loader: Callable[[], Mapping[str, Any]],
-    trainer: str = "custom",
-    loss: LossProtocol | str = "lyap",
-    loss_params: dict[str, Any] = {},
-    study_name: str | None = None,
-    storage: str | None = None,
-    sampler: optuna.samplers.BaseSampler | None = None,
-    seed: int | None = None,
-    penalty_value: float = 1e10,
-    optuna_kwargs: Mapping[str, Any] | None = None,
+    loss: LossProtocol | str = "efh",
+    loss_params: Optional[dict[str, Any]] = None,
+    study_name: Optional[str] = None,
+    storage: Optional[str] = None,
+    sampler: Optional[optuna.samplers.BaseSampler] = None,
+    seed: Optional[int] = None,
+    validate_shapes: bool = True,
+    optuna_kwargs: Optional[Mapping[str, Any]] = None,
+    verbosity: int = 1,
 ) -> optuna.Study:
-    """Run an Optuna study for reservoir-based models.
+    """Run an Optuna hyperparameter optimization study for reservoir models.
+
+    This function provides a complete, production-ready HPO pipeline that handles:
+    - Model creation and validation
+    - Data loading and validation
+    - Training with automatic readout fitting
+    - Multi-step forecasting evaluation
+    - Robust error handling and memory management
+    - Progress tracking and logging
+
+    The optimization process uses the ReservoirTrainer for fitting readout layers
+    and warmup_forecast for evaluation, with configurable loss functions optimized
+    for reservoir computing tasks.
 
     Parameters
     ----------
-    model_creator
-        Callable building a **fresh** un-compiled Keras model for every trial.
-        It *must* accept the hyper-parameters returned by ``search_space`` as
-        keyword arguments.
-    search_space
-        Callable that accepts a ``trial`` object and registers trial parameters
-        via ``trial.suggest_*`` and returns **exactly** the mapping later
-        forwarded to ``model_creator``.
-    n_trials
-        Number of trials to run.
-    data_loader
-        Callable that accepts a ``trial`` object and returns a mapping with the
-        keys required by the chosen trainer (e.g. ``train_data``, ``train_target``…).
-        Put your own dataset splits in here.
-    trainer
-        ``"custom"`` → use :class:`krc.training.ReservoirTrainer`.
-        ``"fit"``    → use ``model.fit`` with a Keras-compatible loss.
-    loss
-        Either a string key from :data:`LOSSES` or a callable following the
-        :class:`LossProtocol` signature.  *Only* Keras-compatible callables are
-        accepted when ``trainer == "fit"``.
-    loss_params
-        Additional keyword arguments to pass to the loss function.
-    study_name
-        Optional explicit study name.  Defaults to
-        ``f"{model_creator.__name__}_{trainer}"``.
-    storage
-        Optuna storage URL.  Use SQLite if omitted.
-    sampler, seed, optuna_kwargs
-        Passed straight through to :func:`optuna.create_study`.
-    seed
-        Seed for the random number generator.
-    penalty_value
-        Value to return if the model creation fails. Suitable for cases where there are constraints on the search space.
-        Default is 1e10.
-    optuna_kwargs
-        Additional keyword arguments to pass to :func:`optuna.create_study`.
+    model_creator : Callable[..., tf.keras.Model]
+        Function that creates a fresh, uncompiled Keras model for each trial.
+        Must accept all hyperparameters from ``search_space`` as keyword arguments.
+        Should return a model with at least one ReadOut layer.
+    search_space : Callable[[optuna.trial.Trial], MutableMapping[str, Any]]
+        Function that defines the hyperparameter search space. Accepts an Optuna
+        trial object and returns a dictionary of hyperparameters that will be
+        passed to ``model_creator``. Use ``trial.suggest_*`` methods to define
+        parameters.
+    data_loader : Callable[[optuna.trial.Trial], Mapping[str, Any]]
+        Function that loads and returns training/validation data. Must return a
+        dictionary with the following keys:
+
+        - ``"transient"``: Warmup data for training phase
+        - ``"train"``: Training input data
+        - ``"train_target"``: Training targets
+        - ``"ftransient"``: Warmup data for forecast phase
+        - ``"val"``: Validation input data
+        - ``"val_target"``: Validation targets
+
+        Optionally include ``"readout_targets"`` for multi-readout models.
+    n_trials : int
+        Total number of trials to run. If resuming a study, only the remaining
+        trials will be executed.
+    loss : LossProtocol | str, default="efh"
+        Loss function to optimize. Can be:
+
+        - A string key from :data:`LOSSES`: ``"efh"`` (default, recommended),
+          ``"horizon"``, ``"lyap"``, ``"multi_step"``, ``"standard"``
+        - A custom callable following :class:`LossProtocol`
+
+        The default ``"efh"`` (expected forecast horizon) is optimized for
+        chaotic systems and provides smooth, differentiable optimization.
+    loss_params : Optional[dict[str, Any]], default=None
+        Additional keyword arguments passed to the loss function. For example:
+        ``{"threshold": 0.2, "softness": 0.02}`` for ``"efh"``.
+    study_name : Optional[str], default=None
+        Name for the Optuna study. If None, auto-generated as
+        ``<filename>:<function_name>``.
+    storage : Optional[str], default=None
+        Optuna storage URL (e.g., ``"sqlite:///study.db"``). If None, uses
+        in-memory storage.
+    sampler : Optional[optuna.samplers.BaseSampler], default=None
+        Optuna sampler for hyperparameter selection. If None, uses TPESampler
+        with multivariate optimization enabled.
+    seed : Optional[int], default=None
+        Random seed for reproducibility.
+    validate_shapes : bool, default=True
+        Whether to validate data tensor shapes for consistency. Disable if
+        using dynamic shapes or batching strategies.
+    optuna_kwargs : Optional[Mapping[str, Any]], default=None
+        Additional keyword arguments passed to :func:`optuna.create_study`.
+    verbosity : int, default=1
+        Logging verbosity level:
+
+        - 0: Silent (errors only)
+        - 1: Normal (info and warnings)
+        - 2: Verbose (debug information)
 
     Returns
     -------
     optuna.Study
-        The finished study object.
+        The completed Optuna study object containing all trial results,
+        best parameters, and optimization history.
+
+    Raises
+    ------
+    ValueError
+        If arguments are invalid or incompatible.
+    TypeError
+        If callbacks have incorrect signatures.
+
+    Examples
+    --------
+    Basic usage with default EFH loss:
+
+    >>> def model_creator(units, spectral_radius):
+    ...     # Build reservoir model
+    ...     return model
+    >>>
+    >>> def search_space(trial):
+    ...     return {
+    ...         "units": trial.suggest_int("units", 100, 1000, step=100),
+    ...         "spectral_radius": trial.suggest_float("spectral_radius", 0.5, 1.5),
+    ...     }
+    >>>
+    >>> def data_loader(trial):
+    ...     return {
+    ...         "transient": X_trans, "train": X_train, "train_target": y_train,
+    ...         "ftransient": X_ftrans, "val": X_val, "val_target": y_val,
+    ...     }
+    >>>
+    >>> study = run_hpo(
+    ...     model_creator, search_space,
+    ...     n_trials=100, data_loader=data_loader,
+    ... )
+    >>> print(f"Best params: {study.best_params}")
+    >>> print(f"Best value: {study.best_value}")
+
+    Using Lyapunov-weighted loss for chaotic systems:
+
+    >>> study = run_hpo(
+    ...     model_creator, search_space,
+    ...     n_trials=100, data_loader=data_loader,
+    ...     loss="lyap", loss_params={"lle": 1.2, "dt": 0.1},
+    ...     storage="sqlite:///study.db",
+    ... )
+
+    Notes
+    -----
+    - Models should be fresh and uncompiled for each trial
+    - The function automatically handles memory cleanup between trials
+    - Failed trials return ``penalty_value`` instead of raising exceptions
+    - Studies can be resumed by using the same ``study_name`` and ``storage``
+    - For best results with chaotic systems, use ``loss="efh"`` or ``loss="lyap"``
+
+    See Also
+    --------
+    :class:`ReservoirTrainer` : For manual readout training
+    :func:`warmup_forecast` : For manual forecasting
+    :mod:`keras_reservoir_computing.hpo._losses` : Available loss functions
     """
+    # ------------------------------------------------------------------
+    # Configure logging
+    # ------------------------------------------------------------------
+    if verbosity == 0:
+        logging.basicConfig(level=logging.ERROR)
+        optuna.logging.set_verbosity(optuna.logging.ERROR)
+    elif verbosity == 1:
+        logging.basicConfig(level=logging.INFO)
+        optuna.logging.set_verbosity(optuna.logging.INFO)
+    elif verbosity >= 2:
+        logging.basicConfig(level=logging.DEBUG)
+        optuna.logging.set_verbosity(optuna.logging.DEBUG)
 
     # ------------------------------------------------------------------
-    # Resolve & validate loss
+    # Validate inputs
     # ------------------------------------------------------------------
-    base_loss = get_loss(loss)
-    resolved_loss = partial(base_loss, **loss_params) if loss_params else base_loss
-    if trainer == "fit" and not isinstance(resolved_loss, tf.keras.losses.Loss):
-        raise ValueError(
-            "When trainer='fit' the loss must be a Keras-compatible loss instance."
-        )
+    if n_trials <= 0:
+        raise ValueError(f"n_trials must be positive, got {n_trials}")
+
+    if not callable(model_creator):
+        raise TypeError("model_creator must be callable")
+
+    if not callable(search_space):
+        raise TypeError("search_space must be callable")
+
+    if not callable(data_loader):
+        raise TypeError("data_loader must be callable")
 
     # ------------------------------------------------------------------
-    # Prepare Optuna study
+    # Resolve & validate loss function
+    # ------------------------------------------------------------------
+    if loss_params is None:
+        loss_params = {}
+
+    try:
+        base_loss = get_loss(loss)
+        resolved_loss = partial(base_loss, **loss_params) if loss_params else base_loss
+        logger.info(f"Using loss function: {loss}")
+        if loss_params:
+            logger.info(f"Loss parameters: {loss_params}")
+    except Exception as exc:
+        raise ValueError(f"Failed to resolve loss function '{loss}': {exc}") from exc
+
+    # ------------------------------------------------------------------
+    # Configure sampler
     # ------------------------------------------------------------------
     if sampler is None:
-        # The warn_independent_sampling=False is for spectral radius being > 1- leak_rate
-        sampler = TPESampler(multivariate=True, warn_independent_sampling=False, seed=seed)
+        # TPE with multivariate sampling works well for reservoir hyperparameters
+        # warn_independent_sampling=False prevents warnings for conditional parameters
+        # (e.g., spectral_radius dependent on leak_rate)
+        sampler = TPESampler(
+            multivariate=True,
+            warn_independent_sampling=False,
+            seed=seed,
+        )
+        logger.info("Using TPESampler with multivariate optimization")
 
+    # ------------------------------------------------------------------
+    # Generate study name if not provided
+    # ------------------------------------------------------------------
     if study_name is None:
-        study_name = make_study_name(
+        study_name = make_study_name(model_creator=model_creator)
+        logger.info(f"Auto-generated study name: {study_name}")
+
+    # ------------------------------------------------------------------
+    # Create or load Optuna study
+    # ------------------------------------------------------------------
+    try:
+        study = optuna.create_study(
+            direction="minimize",
+            study_name=study_name,
+            storage=storage,
+            load_if_exists=True,
+            sampler=sampler,
+            **(optuna_kwargs or {}),
+        )
+
+        # Log study information
+        completed_trials = len([t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE])
+        if completed_trials > 0:
+            logger.info(f"Loaded existing study with {completed_trials} completed trials")
+            logger.info(f"Best value so far: {study.best_value:.6f}")
+
+    except Exception as exc:
+        raise RuntimeError(f"Failed to create Optuna study: {exc}") from exc
+
+    # ------------------------------------------------------------------
+    # Build objective function
+    # ------------------------------------------------------------------
+    try:
+        objective = build_objective(
             model_creator=model_creator,
-            trainer=trainer,
+            search_space=search_space,
+            loss_fn=resolved_loss,
+            data_loader=data_loader,
+            validate_shapes=validate_shapes,
         )
-
-    study = optuna.create_study(
-        direction="minimize",
-        study_name=study_name,
-        storage=storage,
-        load_if_exists=True,
-        sampler=sampler,
-        **(optuna_kwargs or {}),
-    )
+    except Exception as exc:
+        raise RuntimeError(f"Failed to build objective function: {exc}") from exc
 
     # ------------------------------------------------------------------
-    # Build & register objective
+    # Run optimization
     # ------------------------------------------------------------------
-    objective = build_objective(
-        model_creator=model_creator,
-        search_space=search_space,
-        trainer=trainer,
-        loss_fn=resolved_loss,
-        data_loader=data_loader,
-        penalty_value=penalty_value,
-    )
-
-    completed_trials = len(study.get_trials())
+    completed_trials = len([t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE])
     remaining_trials = max(0, n_trials - completed_trials)
+
     if remaining_trials > 0:
-        print("Remaining trials:", remaining_trials)
-        study.optimize(
-            objective,
-            n_trials=remaining_trials,
-            catch=(Exception,),
-            show_progress_bar=True,
-        )
+        logger.info(f"Starting optimization: {remaining_trials} trials remaining")
+
+        try:
+            study.optimize(
+                objective,
+                n_trials=remaining_trials,
+                catch=(Exception,),  # Catch exceptions to allow study to continue
+                show_progress_bar=(verbosity > 0),
+            )
+        except KeyboardInterrupt:
+            logger.warning("Optimization interrupted by user")
+        except Exception as exc:
+            logger.error(f"Optimization failed: {exc}")
+            raise
+
+        # Report final results
+        logger.info(f"Optimization completed: {len(study.trials)} total trials")
+        if len([t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE]) > 0:
+            logger.info(f"Best value: {study.best_value:.6f}")
+            logger.info(f"Best parameters: {study.best_params}")
     else:
-        print("All trials completed")
+        logger.info(f"All {n_trials} trials already completed")
 
     return study
 

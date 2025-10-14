@@ -4,6 +4,7 @@ This module provides complete model architectures for different types of
 Echo State Networks and other reservoir computing approaches.
 """
 
+import os
 from typing import Any, Dict, Optional, Union
 
 import tensorflow as tf
@@ -15,6 +16,7 @@ from keras_reservoir_computing.io.loaders import (
     load_object,
 )
 from keras_reservoir_computing.layers import (
+    OutliersFilteredMean,
     SelectiveExponentiation,
 )
 
@@ -277,3 +279,75 @@ def linear_ESN(
     # Build and return model
     model = tf.keras.Model(inputs=input_layer, outputs=reservoir, name=name, dtype=dtype)
     return model
+
+
+def ensemble_model(models_dir: str, n_models: int | None = None) -> tf.keras.Model:
+    """
+    Build a parallel-ensemble from .keras files in a directory.
+    Shared input -> list of model outputs -> OutliersFilteredMean -> final output.
+
+    Parameters
+    ----------
+    models_dir : str
+        Directory containing `.keras` model files.
+    n_models : int | None
+        If provided, use only the first n models (sorted by filename). If None, use all.
+
+    Returns
+    -------
+    tf.keras.Model
+        The assembled ensemble model.
+
+    Raises
+    ------
+    ValueError
+        If no models found, shapes mismatch, or outputs are incompatible.
+    """
+    # 1) Collect model files
+    files = [f for f in os.listdir(models_dir) if f.endswith(".keras")]
+    files.sort()
+    if not files:
+        raise ValueError(f"No .keras models found in: {models_dir}")
+
+    if n_models is not None:
+        if n_models <= 0:
+            raise ValueError("n_models must be positive if provided.")
+        files = files[:n_models]
+
+    # 2) Load and freeze models
+    models = []
+    for fname in files:
+        path = os.path.join(models_dir, fname)
+        m = tf.keras.models.load_model(path, compile=False)
+        models.append(m)
+
+    # 3) Validate shapes (all inputs/outputs identical)
+    def _io_shapes(m: tf.keras.Model):
+        if len(m.inputs) != 1 or len(m.outputs) != 1:
+            raise ValueError(f"Model {m.name} must have exactly one input and one output.")
+        in_shape = tuple(m.inputs[0].shape.as_list())[1:]   # drop batch dim
+        out_shape = tuple(m.outputs[0].shape.as_list())[1:] # drop batch dim
+        return in_shape, out_shape
+
+    in0, out0 = _io_shapes(models[0])
+    for m in models[1:]:
+        ini, outi = _io_shapes(m)
+        if ini != in0:
+            raise ValueError(f"Input shape mismatch: {ini} != {in0}")
+        if outi != out0:
+            raise ValueError(f"Output shape mismatch: {outi} != {out0}")
+
+    # OutliersFilteredMean expects per-branch outputs shaped (batch, timesteps, features)
+    if len(out0) != 3:
+        raise ValueError(
+            f"OutliersFilteredMean expects 3D outputs (batch,timesteps,features); got {out0}"
+        )
+
+    # 4) Build graph: shared Input -> parallel models -> list -> OutliersFilteredMean
+    inputs = tf.keras.Input(shape=in0, name="shared_input")
+    branch_outputs = [m(inputs) for m in models]  # list of (B,T,F)
+    aggregated = OutliersFilteredMean()(branch_outputs)  # (B,T,F)
+
+    # 5) Compose final model
+    ensemble = tf.keras.Model(inputs=inputs, outputs=aggregated, name="parallel_ensemble_outlier_mean")
+    return ensemble
