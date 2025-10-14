@@ -237,7 +237,7 @@ def warmup_forecast(
     model: tf.keras.Model,
     warmup_data: Union[tf.Tensor, List[tf.Tensor]],
     horizon: int,
-    external_inputs: Union[tf.Tensor, List[tf.Tensor]]=(),
+    external_inputs: Union[tf.Tensor, List[tf.Tensor]] = (),
     show_progress: bool = True,
     states: bool = False,
 ) -> Tuple[tf.Tensor, Dict[str, List[tf.Tensor]]]:
