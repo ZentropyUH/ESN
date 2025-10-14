@@ -18,6 +18,8 @@ import optuna
 import tensorflow as tf
 from keras import backend as K
 
+from optuna import TrialPruned
+
 from keras_reservoir_computing.forecasting import warmup_forecast
 from keras_reservoir_computing.layers.readouts.base import ReadOut
 from keras_reservoir_computing.training import ReservoirTrainer
@@ -147,7 +149,7 @@ def build_objective(
         try:
             params = search_space(trial)
             logger.debug(f"Trial {trial.number}: Generated parameters {params}")
-        except optuna.TrialPruned:
+        except TrialPruned:
             logger.debug(f"Trial {trial.number}: Pruned during search space generation")
             raise  # Bubble up pruned trials
         except Exception as exc:
@@ -155,7 +157,7 @@ def build_objective(
                 f"Trial {trial.number}: Search space generation failed: {exc}\n"
                 f"{traceback.format_exc()}"
             )
-            raise optuna.TrialFail(f"Search space generation failed: {exc}")
+            raise TrialPruned(f"Search space generation failed: {exc}")
 
         # ----------------------------------------------------------
         # 2. Create model
@@ -167,7 +169,7 @@ def build_objective(
             logger.warning(
                 f"Trial {trial.number}: Model creation failed with parameters {params}: {exc}"
             )
-            raise optuna.TrialFail(f"Model creation failed: {exc}")
+            raise TrialPruned(f"Model creation failed: {exc}")
 
         # ----------------------------------------------------------
         # 3. Load data
@@ -185,7 +187,7 @@ def build_objective(
                 f"Trial {trial.number}: Data loading failed: {exc}\n"
                 f"{traceback.format_exc()}"
             )
-            raise optuna.TrialFail(f"Data loading failed: {exc}")
+            raise TrialPruned(f"Data loading failed: {exc}")
 
         # ----------------------------------------------------------
         # 4. Train and evaluate
@@ -199,7 +201,7 @@ def build_objective(
                     f"Trial {trial.number}: Non-finite loss value {loss_value}, "
                     f"returning penalty"
                 )
-                raise optuna.TrialPruned(f"Non-finite loss encountered: {loss_value}")
+                raise TrialPruned(f"Non-finite loss encountered: {loss_value}")
 
             logger.debug(f"Trial {trial.number}: Loss = {loss_value:.6f}")
             return loss_value
@@ -209,7 +211,7 @@ def build_objective(
                 f"Trial {trial.number}: Training/evaluation failed: {exc}\n"
                 f"{traceback.format_exc()}"
             )
-            raise optuna.TrialFail(f"Training or evaluation failed: {exc}")
+            raise TrialPruned(f"Training or evaluation failed: {exc}")
 
     return objective
 
@@ -259,7 +261,7 @@ def _train_and_evaluate(
     # ----------------------------------------------------------
     # 1. Validate required data keys
     # ----------------------------------------------------------
-    required_keys = ["transient", "train", "train_target", "ftransient", "val", "val_target"]
+    required_keys = ["transient", "train", "train_target", "ftransient", "val", "external_inputs"]
     _validate_data_dict(data, required_keys)
 
     # ----------------------------------------------------------
@@ -270,7 +272,7 @@ def _train_and_evaluate(
     train_target = data["train_target"]
     ftransient = data["ftransient"]
     val_data = data["val"]
-    val_target = data["val_target"]
+    external_inputs = data["external_inputs"]
 
     # ----------------------------------------------------------
     # 3. Determine readout targets
@@ -300,8 +302,8 @@ def _train_and_evaluate(
     preds, _ = warmup_forecast(
         model=model,
         warmup_data=ftransient,
-        forecast_data=val_data,
-        horizon=val_target.shape[1],
+        horizon=val_data.shape[1],
+        external_inputs=external_inputs,
         show_progress=False,
         states=False,  # Don't track states for efficiency
     )
@@ -310,7 +312,7 @@ def _train_and_evaluate(
     # 6. Evaluate loss
     # ----------------------------------------------------------
     # Align lengths in case of minor shape mismatches
-    T = min(preds.shape[1], val_target.shape[1])
+    T = min(preds.shape[1], val_data.shape[1])
 
     # Convert to numpy if needed
     if hasattr(preds, 'numpy'):
@@ -318,12 +320,12 @@ def _train_and_evaluate(
     else:
         preds_np = preds[:, :T, :]
 
-    if hasattr(val_target, 'numpy'):
-        val_target_np = val_target[:, :T, :].numpy()
+    if hasattr(val_data, 'numpy'):
+        val_data_np = val_data[:, :T, :].numpy()
     else:
-        val_target_np = val_target[:, :T, :]
+        val_data_np = val_data[:, :T, :]
 
-    loss_value = loss_fn(val_target_np, preds_np)
+    loss_value = loss_fn(val_data_np, preds_np)
 
     return float(loss_value)
 
