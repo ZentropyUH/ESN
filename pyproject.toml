@@ -4,7 +4,6 @@ build-backend = "hatchling.build"
 
 [project]
 name = "keras_reservoir_computing"
-version = "0.1.0"                                   # or make dynamic via hatch-vcs (below)
 description = "A package for training and using Echo State Networks and Reservoir Computing in general."
 readme = "README.md"
 requires-python = ">=3.12"
