@@ -233,7 +233,11 @@ def expected_forecast_horizon(
     good_t = expit((threshold - e_t) / softness)          # ∈ (0, 1)
 
     # 3) probability that all steps up to t are good (soft horizon survival)
-    surv_t = np.exp(np.cumsum(np.log(good_t)))              # (T,)
+    # surv_t = np.exp(np.cumsum(np.log(good_t)))              # (T,)
+
+    log_g = np.log(np.clip(good_t, 1e-12, 1.0))
+    surv_t = np.exp(np.cumsum(log_g))
+
 
     # 4) expected horizon length
     H = np.sum(surv_t)
