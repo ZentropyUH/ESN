@@ -18,6 +18,7 @@ Available input initializers
 ----------------------------
 - :class:`ChebyshevInitializer`
 - :class:`ChessboardInitializer`
+- :class:`DendrocycleInputInitializer`
 - :class:`PseudoDiagonalInitializer`
 - :class:`RandomBinaryInitializer`
 - :class:`RandomInputInitializer`
@@ -27,6 +28,7 @@ Available recurrent initializers
 - :class:`BarabasiAlbertGraphInitializer`
 - :class:`CompleteGraphInitializer`
 - :class:`ConnectedRandomMatrixInitializer`
+- :class:`DendrocycleGraphInitializer`
 - :class:`DigitalChaosInitializer`
 - :class:`ErdosRenyiGraphInitializer`
 - :class:`KleinbergSmallWorldGraphInitializer`
@@ -41,6 +43,7 @@ from . import input_initializers, recurrent_initializers
 from .input_initializers import (
     ChebyshevInitializer,
     ChessboardInitializer,
+    DendrocycleInputInitializer,
     PseudoDiagonalInitializer,
     RandomBinaryInitializer,
     RandomInputInitializer,
@@ -49,6 +52,7 @@ from .recurrent_initializers import (
     BarabasiAlbertGraphInitializer,
     CompleteGraphInitializer,
     ConnectedRandomMatrixInitializer,
+    DendrocycleGraphInitializer,
     DigitalChaosInitializer,
     ErdosRenyiGraphInitializer,
     KleinbergSmallWorldGraphInitializer,
@@ -65,6 +69,7 @@ __all__ = ["input_initializers", "recurrent_initializers"]
 __all__ += [
     "ChebyshevInitializer",
     "ChessboardInitializer",
+    "DendrocycleInputInitializer",
     "PseudoDiagonalInitializer",
     "RandomBinaryInitializer",
     "RandomInputInitializer",
@@ -74,6 +79,7 @@ __all__ += [
     "BarabasiAlbertGraphInitializer",
     "CompleteGraphInitializer",
     "ConnectedRandomMatrixInitializer",
+    "DendrocycleGraphInitializer",
     "DigitalChaosInitializer",
     "ErdosRenyiGraphInitializer",
     "KleinbergSmallWorldGraphInitializer",

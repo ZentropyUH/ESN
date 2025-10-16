@@ -1,5 +1,6 @@
 from .chebyshev import ChebyshevInitializer
 from .chessboard import ChessboardInitializer
+from .dendrocycle_input import DendrocycleInputInitializer
 from .random_binary import RandomBinaryInitializer
 from .pseudo_diagonal import PseudoDiagonalInitializer
 from .random_input import RandomInputInitializer
@@ -7,6 +8,7 @@ from .random_input import RandomInputInitializer
 __all__ = [
     "ChebyshevInitializer",
     "ChessboardInitializer",
+    "DendrocycleInputInitializer",
     "PseudoDiagonalInitializer",
     "RandomBinaryInitializer",
     "RandomInputInitializer",

@@ -3,6 +3,7 @@ from .digital_chaos import DigitalChaosInitializer
 from .graph_initializers import (
     BarabasiAlbertGraphInitializer,
     CompleteGraphInitializer,
+    DendrocycleGraphInitializer,
     ErdosRenyiGraphInitializer,
     KleinbergSmallWorldGraphInitializer,
     NewmanWattsStrogatzGraphInitializer,
@@ -18,6 +19,7 @@ __all__ = [
     "DigitalChaosInitializer",
     "BarabasiAlbertGraphInitializer",
     "CompleteGraphInitializer",
+    "DendrocycleGraphInitializer",
     "ErdosRenyiGraphInitializer",
     "KleinbergSmallWorldGraphInitializer",
     "NewmanWattsStrogatzGraphInitializer",
