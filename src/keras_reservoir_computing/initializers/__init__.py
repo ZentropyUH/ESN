@@ -16,6 +16,7 @@ Define the internal recurrent connection weights of the reservoir, determining t
 
 Available input initializers
 ----------------------------
+- :class:`BinaryBalancedInitializer`
 - :class:`ChebyshevInitializer`
 - :class:`ChessboardInitializer`
 - :class:`DendrocycleInputInitializer`
@@ -32,6 +33,7 @@ Available recurrent initializers
 - :class:`DigitalChaosInitializer`
 - :class:`ErdosRenyiGraphInitializer`
 - :class:`KleinbergSmallWorldGraphInitializer`
+- :class:`MultiCycleGraphInitializer`
 - :class:`NewmanWattsStrogatzGraphInitializer`
 - :class:`RegularGraphInitializer`
 - :class:`SpectralCascadeGraphInitializer`
@@ -41,6 +43,7 @@ Available recurrent initializers
 """
 from . import input_initializers, recurrent_initializers
 from .input_initializers import (
+    BinaryBalancedInitializer,
     ChebyshevInitializer,
     ChessboardInitializer,
     DendrocycleInputInitializer,
@@ -68,6 +71,7 @@ from .recurrent_initializers import (
 __all__ = ["input_initializers", "recurrent_initializers"]
 
 __all__ += [
+    "BinaryBalancedInitializer",
     "ChebyshevInitializer",
     "ChessboardInitializer",
     "DendrocycleInputInitializer",
