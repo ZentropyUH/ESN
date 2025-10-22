@@ -7,6 +7,7 @@ from .connected_watts_strogatz import connected_watts_strogatz
 from .dendrocycle import dendrocycle
 from .erdos_renyi import erdos_renyi
 from .kleinberg_small_world import kleinberg_small_world
+from .multi_cycle import multi_cycle
 from .newman_watts_strogatz import newman_watts_strogatz
 from .regular import regular
 from .spectral_cascade import spectral_cascade
@@ -20,6 +21,7 @@ __all__ = [
     "dendrocycle",
     "erdos_renyi",
     "kleinberg_small_world",
+    "multi_cycle",
     "newman_watts_strogatz",
     "regular",
     "spectral_cascade",

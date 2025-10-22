@@ -4,6 +4,7 @@ from .complete_initializer import CompleteGraphInitializer
 from .dendrocycle_initializer import DendrocycleGraphInitializer
 from .erdos_renyi_initializer import ErdosRenyiGraphInitializer
 from .kleinberg_small_world_initializer import KleinbergSmallWorldGraphInitializer
+from .multi_cycle_initializer import MultiCycleGraphInitializer
 from .newman_watts_strogatz_initializer import NewmanWattsStrogatzGraphInitializer
 from .regular_initializer import RegularGraphInitializer
 from .spectral_cascade_initializer import SpectralCascadeGraphInitializer
@@ -15,6 +16,7 @@ __all__ = [
     "DendrocycleGraphInitializer",
     "ErdosRenyiGraphInitializer",
     "KleinbergSmallWorldGraphInitializer",
+    "MultiCycleGraphInitializer",
     "NewmanWattsStrogatzGraphInitializer",
     "RegularGraphInitializer",
     "SpectralCascadeGraphInitializer",
