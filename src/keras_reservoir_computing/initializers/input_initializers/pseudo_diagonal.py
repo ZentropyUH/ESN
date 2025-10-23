@@ -77,7 +77,16 @@ class PseudoDiagonalInitializer(tf.keras.Initializer):
             The block-diagonal style matrix.
         """
 
-        rows, cols = shape
+        dims = tf.TensorShape(shape).as_list()  # -> list[int|None]
+
+        if dims is None:
+            raise ValueError("Rank of shape unknown at initialization time.")
+        if len(dims) == 1:
+            rows, cols = int(dims[0]), 1
+        elif len(dims) == 2:
+            rows, cols = map(int, dims)
+        else:
+            raise ValueError(f"Shape must be 1D or 2D, got {shape}")
         # We will build up indices and values for a tf.SparseTensor
 
         if rows == 0 or cols == 0:

@@ -192,7 +192,17 @@ class ChebyshevInitializer(tf.keras.Initializer):
         >>> print(f"Maximum singular value: {tf.reduce_max(s):.4f}")
         Maximum singular value: 0.8000
         """
-        K, N = shape  # K = Inputs, N = Reservoir Neurons (for x * W)
+        dims = tf.TensorShape(shape).as_list()  # -> list[int|None]
+
+        if dims is None:
+            raise ValueError("Rank of shape unknown at initialization time.")
+        if len(dims) == 1:
+            rows, cols = int(dims[0]), 1
+        elif len(dims) == 2:
+            rows, cols = map(int, dims)
+        else:
+            raise ValueError(f"Shape must be 1D or 2D, got {shape}")
+        K, N = rows, cols  # K = Inputs, N = Reservoir Neurons (for x * W)
 
         # Initialize first column with sinusoidal mapping
         row_indices = np.arange(1, K + 1, dtype=np.float32)  # Correct indexing

@@ -56,10 +56,18 @@ class DendrocycleInputInitializer(tf.keras.Initializer):
         """
         Build the input weight matrix given the target shape.
         """
-        if len(shape) != 2:
-            raise ValueError("DendrocycleInputInitializer expects a 2D shape (N, M).")
+        dims = tf.TensorShape(shape).as_list()  # -> list[int|None]
 
-        N, M = shape
+        if dims is None:
+            raise ValueError("Rank of shape unknown at initialization time.")
+        if len(dims) == 1:
+            rows, cols = int(dims[0]), 1
+        elif len(dims) == 2:
+            rows, cols = map(int, dims)
+        else:
+            raise ValueError(f"Shape must be 1D or 2D, got {shape}")
+
+        N, M = rows, cols
         C = self.C
         if C is None:
             if not (0 < self.c <= 1):

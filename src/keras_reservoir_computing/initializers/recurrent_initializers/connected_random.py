@@ -88,17 +88,24 @@ class ConnectedRandomMatrixInitializer(tf.keras.Initializer):
         ValueError
             If shape is not 2D or not square, or if density is too low for connectivity.
         """
-        if len(shape) != 2 or shape[0] != shape[1]:
-            raise ValueError(f"Shape must be (N, N), got {shape}")
+        dims = tf.TensorShape(shape).as_list()  # -> list[int|None]
 
-        n = shape[0]
+        if dims is None:
+            raise ValueError("Rank of shape unknown at initialization time.")
+        if len(dims) == 1:
+            rows = cols = int(dims[0])
+        elif len(dims) == 2:
+            rows, cols = map(int, dims)
+        else:
+            raise ValueError(f"Shape must be 1D or 2D, got {shape}")
+
         # Use float32 as the default dtype if not specified
         if dtype is None:
             dtype = tf.float32
 
         # Generate the matrix
         matrix = self._random_connected_matrix(
-            n, self.max_value, self.density, self.directed
+            rows, self.max_value, self.density, self.directed
         )
 
         # Explicitly convert to float32 before tensor conversion

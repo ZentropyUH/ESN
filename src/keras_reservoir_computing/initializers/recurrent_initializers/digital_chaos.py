@@ -115,13 +115,24 @@ class DigitalChaosInitializer(tf.keras.Initializer):
         self.rng = np.random.default_rng(seed)
 
     def __call__(self, shape: tuple, dtype=None) -> tf.Tensor:
+        dims = tf.TensorShape(shape).as_list()  # -> list[int|None]
+
+        if dims is None:
+            raise ValueError("Rank of shape unknown at initialization time.")
+        if len(dims) == 1:
+            rows = cols = int(dims[0])
+        elif len(dims) == 2:
+            rows, cols = map(int, dims)
+        else:
+            raise ValueError(f"Shape must be 1D or 2D, got {shape}")
+
         if self.D is None:
             raise ValueError("D must be provided when calling the initializer.")
 
         M = 2 ** (2 * self.D)
 
-        if shape != (M, M):
-            raise ValueError(f"Shape mismatch: expected ({M}, {M}), but got {shape}")
+        if rows != cols:
+            raise ValueError(f"Shape mismatch: expected ({M}x{M}), but got {rows}x{cols}")
 
         def bitwise_not_dbits(x, D):
             mask = (1 << D) - 1

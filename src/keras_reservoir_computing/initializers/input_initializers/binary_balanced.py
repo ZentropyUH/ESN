@@ -6,7 +6,7 @@ import tensorflow as tf
 
 
 @tf.keras.utils.register_keras_serializable(
-    package="krc", name="DeterministicBinaryBalancedInitializer"
+    package="krc", name="BinaryBalancedInitializer"
 )
 class BinaryBalancedInitializer(tf.keras.Initializer):
     r"""
@@ -185,10 +185,16 @@ class BinaryBalancedInitializer(tf.keras.Initializer):
         tf.Tensor
             Dense matrix with entries in ``{-1, +1}`` (scaled if `input_scaling` is set).
         """
-        if isinstance(shape, int):
-            rows, cols = shape, shape
+        dims = tf.TensorShape(shape).as_list()  # -> list[int|None]
+
+        if dims is None:
+            raise ValueError("Rank of shape unknown at initialization time.")
+        if len(dims) == 1:
+            rows, cols = int(dims[0]), 1
+        elif len(dims) == 2:
+            rows, cols = map(int, dims)
         else:
-            rows, cols = shape
+            raise ValueError(f"Shape must be 1D or 2D, got {shape}.")
 
         if rows == 0 or cols == 0:
             return tf.zeros((rows, cols), dtype=dtype)

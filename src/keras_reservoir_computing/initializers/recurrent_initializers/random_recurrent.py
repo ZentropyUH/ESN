@@ -67,17 +67,28 @@ class RandomRecurrentInitializer(tf.keras.Initializer):
         tf.Tensor
             Random matrix with the specified shape.
         """
-        if len(shape) == 2 and shape[0] != shape[1]:
+        dims = tf.TensorShape(shape).as_list()  # -> list[int|None]
+
+        if dims is None:
+            raise ValueError("Rank of shape unknown at initialization time.")
+        if len(dims) == 1:
+            rows = cols = int(dims[0])
+        elif len(dims) == 2:
+            rows, cols = map(int, dims)
+        else:
+            raise ValueError(f"Shape must be 1D or 2D, got {shape}")
+
+        if rows != cols:
             raise ValueError("RandomRecurrentInitializer only supports square matrices.")
         # Generate random values
-        values = self.rng.uniform(-1, 1, shape)
+        values = self.rng.uniform(-1, 1, (rows, cols))
 
         # Generate mask to control density
-        num_nonzeros = int(np.round(self.density * np.prod(shape)))
-        indices = self.rng.choice(np.prod(shape), size=num_nonzeros, replace=False)
-        mask = np.zeros(np.prod(shape), dtype=bool)
+        num_nonzeros = int(np.round(self.density * rows * cols))
+        indices = self.rng.choice(rows * cols, size=num_nonzeros, replace=False)
+        mask = np.zeros(rows * cols, dtype=bool)
         mask[indices] = True
-        mask = mask.reshape(shape)
+        mask = mask.reshape((rows, cols))
 
         # Apply mask to control density
         W_r = values * mask

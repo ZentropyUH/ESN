@@ -42,7 +42,17 @@ class RandomBinaryInitializer(tf.keras.Initializer):
         self.rng = np.random.default_rng(seed)
         self.input_scaling = input_scaling
     def __call__(self, shape: tuple, dtype=None) -> tf.Tensor:
-        W = self.rng.choice([-1.0, 1.0], size=shape)
+        dims = tf.TensorShape(shape).as_list()  # -> list[int|None]
+
+        if dims is None:
+            raise ValueError("Rank of shape unknown at initialization time.")
+        if len(dims) == 1:
+            rows, cols = int(dims[0]), 1
+        elif len(dims) == 2:
+            rows, cols = map(int, dims)
+        else:
+            raise ValueError(f"Shape must be 1D or 2D, got {shape}")
+        W = self.rng.choice([-1.0, 1.0], size=(rows, cols))
         W = tf.convert_to_tensor(W, dtype=dtype)
         if self.input_scaling is not None:
             W *= self.input_scaling

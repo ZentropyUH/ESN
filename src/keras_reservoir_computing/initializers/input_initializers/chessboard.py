@@ -36,11 +36,22 @@ class ChessboardInitializer(tf.keras.Initializer):
         super().__init__()
 
     def __call__(self, shape: tuple, dtype: Optional[tf.DType] = None) -> tf.Tensor:
-        i = np.arange(shape[0])[:, None]
-        j = np.arange(shape[1])[None, :]
+        dims = tf.TensorShape(shape).as_list()  # -> list[int|None]
+
+        if dims is None:
+            raise ValueError("Rank of shape unknown at initialization time.")
+        if len(dims) == 1:
+            rows, cols = int(dims[0]), 1
+        elif len(dims) == 2:
+            rows, cols = map(int, dims)
+        else:
+            raise ValueError(f"Shape must be 1D or 2D, got {shape}")
+
+        i = np.arange(rows)[:, None]
+        j = np.arange(cols)[None, :]
         W = (-1) ** (i + j)
-        diag_indices = np.diag_indices(min(shape))
-        W[diag_indices] = (-1) ** np.arange(min(shape))
+        diag_indices = np.diag_indices(min(rows, cols))
+        W[diag_indices] = (-1) ** np.arange(min(rows, cols))
 
         if self.input_scaling is not None:
             W *= self.input_scaling
