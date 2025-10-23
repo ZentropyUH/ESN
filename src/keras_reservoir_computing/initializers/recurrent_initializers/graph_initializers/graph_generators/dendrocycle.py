@@ -39,9 +39,9 @@ def dendrocycle(
           - optional disconnected quiescent DAG nodes
         Each edge has a "weight" attribute ~ U[-1, 1].
     """
-    if not (0 < c < 1):
+    if not (0 < c <= 1):
         raise ValueError("c must be in (0, 1)")
-    if not (0 <= d < 1) or c + d > 1:
+    if not (0 <= d <= 1) or c + d > 1:
         raise ValueError("d must satisfy 0 <= d and c + d <= 1")
 
     rng = create_rng(seed)
