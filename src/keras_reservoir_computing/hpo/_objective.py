@@ -198,8 +198,7 @@ def build_objective(
             # Validate loss value
             if not np.isfinite(loss_value):
                 logger.warning(
-                    f"Trial {trial.number}: Non-finite loss value {loss_value}, "
-                    f"returning penalty"
+                    f"Trial {trial.number}: Non-finite loss value {loss_value}"
                 )
                 raise TrialPruned(f"Non-finite loss encountered: {loss_value}")
 
