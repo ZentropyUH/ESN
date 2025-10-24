@@ -10,6 +10,7 @@ from .kleinberg_small_world import kleinberg_small_world
 from .multi_cycle import multi_cycle
 from .newman_watts_strogatz import newman_watts_strogatz
 from .regular import regular
+from .simple_cycle_jumps import simple_cycle_jumps
 from .spectral_cascade import spectral_cascade
 from .watts_strogatz import watts_strogatz
 
@@ -24,6 +25,7 @@ __all__ = [
     "multi_cycle",
     "newman_watts_strogatz",
     "regular",
+    "simple_cycle_jumps",
     "spectral_cascade",
     "watts_strogatz",
 ]

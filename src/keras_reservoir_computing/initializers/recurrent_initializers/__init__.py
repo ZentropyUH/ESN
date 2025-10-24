@@ -9,6 +9,7 @@ from .graph_initializers import (
     MultiCycleGraphInitializer,
     NewmanWattsStrogatzGraphInitializer,
     RegularGraphInitializer,
+    SimpleCycleJumpsGraphInitializer,
     SpectralCascadeGraphInitializer,
     WattsStrogatzGraphInitializer,
 )
@@ -26,6 +27,7 @@ __all__ = [
     "MultiCycleGraphInitializer",
     "NewmanWattsStrogatzGraphInitializer",
     "RegularGraphInitializer",
+    "SimpleCycleJumpsGraphInitializer",
     "SpectralCascadeGraphInitializer",
     "RandomRecurrentInitializer",
     "TernaryInitializer",

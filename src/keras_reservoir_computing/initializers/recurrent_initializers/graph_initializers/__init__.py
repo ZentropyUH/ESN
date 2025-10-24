@@ -7,6 +7,7 @@ from .kleinberg_small_world_initializer import KleinbergSmallWorldGraphInitializ
 from .multi_cycle_initializer import MultiCycleGraphInitializer
 from .newman_watts_strogatz_initializer import NewmanWattsStrogatzGraphInitializer
 from .regular_initializer import RegularGraphInitializer
+from .simple_cycle_jumps_initializer import SimpleCycleJumpsGraphInitializer
 from .spectral_cascade_initializer import SpectralCascadeGraphInitializer
 from .watts_strogatz_initializer import WattsStrogatzGraphInitializer
 
@@ -19,6 +20,7 @@ __all__ = [
     "MultiCycleGraphInitializer",
     "NewmanWattsStrogatzGraphInitializer",
     "RegularGraphInitializer",
+    "SimpleCycleJumpsGraphInitializer",
     "SpectralCascadeGraphInitializer",
     "WattsStrogatzGraphInitializer",
 ]
