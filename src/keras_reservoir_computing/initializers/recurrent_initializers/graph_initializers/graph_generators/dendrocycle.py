@@ -14,6 +14,9 @@ def dendrocycle(
     n: int,
     c: float,
     d: float,
+    core_weight: float = 1.0,
+    dendritic_weight: float = 1.0,
+    quiescent_weight: float = 1.0,
     seed: Optional[int] = None,
 ) -> DiGraph:
     """
@@ -27,6 +30,12 @@ def dendrocycle(
         Fraction of nodes in the core cycle (0 < c < 1).
     d : float
         Fraction of nodes in dendrites (0 <= d < 1, c + d <= 1).
+    core_weight: float
+        Single weight for all core edges.
+    dendritic_weight: float
+        Single weight for all dendritic edges.
+    quiescent_weight: float
+        Single weight for all quiescent edges.
     seed : int, optional
         Random seed for reproducibility.
 
@@ -58,7 +67,7 @@ def dendrocycle(
 
     for i in range(C):
         G.add_edge(core_nodes[i], core_nodes[(i + 1) % C],
-                   weight=rng.uniform(-1, 1))
+                   weight=core_weight)
 
     # --- 3. Dendrites (uniformly distributed around the ring)
     dend_nodes = list(range(C, C + D))
@@ -79,7 +88,7 @@ def dendrocycle(
             prev = anchor_node
             for j in range(L):
                 node = dend_nodes[start_idx + j]
-                G.add_edge(prev, node, weight=rng.uniform(-1, 1))
+                G.add_edge(prev, node, weight=dendritic_weight)
                 prev = node
             start_idx += L
 
@@ -95,7 +104,7 @@ def dendrocycle(
                 if rng.random() < 0.1:
                     G.add_edge(
                         topo[i], topo[j],
-                        weight=rng.uniform(-1, 1)
+                        weight=quiescent_weight
                     )
     return G
 
