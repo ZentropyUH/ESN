@@ -1,26 +1,31 @@
-from functools import partial
-from typing import Any, Callable, Mapping, MutableMapping, Optional
+from __future__ import annotations
+
 import logging
+from functools import partial
+from typing import TYPE_CHECKING, Any, Callable, Mapping, MutableMapping, Optional, Sequence
+
+# Don’t import TF at runtime here; only for typing.
+if TYPE_CHECKING:
+    import tensorflow as tf
 
 import optuna
-import tensorflow as tf
+from optuna.pruners import MedianPruner
 from optuna.samplers import TPESampler
 
 from keras_reservoir_computing.utils.tensorflow import suppress_retracing_during_call
 
 from ._losses import LossProtocol, get_loss
 from ._objective import build_objective
-from ._utils import make_study_name
+from ._utils import make_study_name, monitor_name
 
 __all__ = ["run_hpo"]
-
 logger = logging.getLogger(__name__)
 
 
 @suppress_retracing_during_call
 def run_hpo(
     *,
-    model_creator: Callable[..., tf.keras.Model],
+    model_creator: Callable[..., "tf.keras.Model"],
     search_space: Callable[[optuna.trial.Trial], MutableMapping[str, Any]],
     data_loader: Callable[[optuna.trial.Trial], Mapping[str, Any]],
     n_trials: int,
@@ -30,9 +35,13 @@ def run_hpo(
     storage: Optional[str] = None,
     sampler: Optional[optuna.samplers.BaseSampler] = None,
     seed: Optional[int] = None,
-    validate_shapes: bool = True,
+    validate_shapes: bool = False,
     optuna_kwargs: Optional[Mapping[str, Any]] = None,
     verbosity: int = 1,
+    monitor_losses: Optional[Sequence[str | LossProtocol]] = None,
+    monitor_params: Optional[Mapping[str, Mapping[str, Any]]] = None,
+    clip_value: Optional[float] = None,
+    prune_on_clip: bool = False,
 ) -> optuna.Study:
     """Run an Optuna hyperparameter optimization study for reservoir models.
 
@@ -97,7 +106,7 @@ def run_hpo(
         with multivariate optimization enabled.
     seed : Optional[int], default=None
         Random seed for reproducibility.
-    validate_shapes : bool, default=True
+    validate_shapes : bool, default=False
         Whether to validate data tensor shapes for consistency. Disable if
         using dynamic shapes or batching strategies.
     optuna_kwargs : Optional[Mapping[str, Any]], default=None
@@ -108,6 +117,17 @@ def run_hpo(
         - 0: Silent (errors only)
         - 1: Normal (info and warnings)
         - 2: Verbose (debug information)
+
+    monitor_losses : Optional[Sequence[str | LossProtocol]], default=None
+        Loss functions to monitor during optimization. If None, no monitoring is done.
+        Example: ["efh", "horizon"]
+    monitor_params : Optional[Mapping[str, Mapping[str, Any]]], default=None
+        Additional keyword arguments passed to the monitor loss functions. If None, no additional parameters are passed.
+        Example: {"efh": {"threshold": 0.2, "softness": 0.02}, "horizon": {"threshold": 0.2}}
+    clip_value : Optional[float], default=None
+        Value to clip the monitor losses to. If None, no clipping is done.
+    prune_on_clip : bool, default=False
+        Whether to prune trials where any monitor loss is clipped. Otherwise, the trial is penalized by the clipped value.
 
     Returns
     -------
@@ -154,7 +174,7 @@ def run_hpo(
     >>> study = run_hpo(
     ...     model_creator, search_space,
     ...     n_trials=100, data_loader=data_loader,
-    ...     loss="lyap", loss_params={"lle": 1.2, "dt": 0.1},
+    ...     loss="lyap_weighted", loss_params={"lle": 1.2, "dt": 0.1},
     ...     storage="sqlite:///study.db",
     ... )
 
@@ -172,120 +192,91 @@ def run_hpo(
     :func:`warmup_forecast` : For manual forecasting
     :mod:`keras_reservoir_computing.hpo._losses` : Available loss functions
     """
-    # ------------------------------------------------------------------
-    # Configure logging
-    # ------------------------------------------------------------------
+    # Logging
     if verbosity == 0:
         logging.basicConfig(level=logging.ERROR)
         optuna.logging.set_verbosity(optuna.logging.ERROR)
     elif verbosity == 1:
         logging.basicConfig(level=logging.INFO)
         optuna.logging.set_verbosity(optuna.logging.INFO)
-    elif verbosity >= 2:
+    else:
         logging.basicConfig(level=logging.DEBUG)
         optuna.logging.set_verbosity(optuna.logging.DEBUG)
 
-    # ------------------------------------------------------------------
-    # Validate inputs
-    # ------------------------------------------------------------------
+    # Validate
     if n_trials <= 0:
         raise ValueError(f"n_trials must be positive, got {n_trials}")
-
     if not callable(model_creator):
         raise TypeError("model_creator must be callable")
-
     if not callable(search_space):
         raise TypeError("search_space must be callable")
-
     if not callable(data_loader):
         raise TypeError("data_loader must be callable")
 
-    # ------------------------------------------------------------------
-    # Resolve & validate loss function
-    # ------------------------------------------------------------------
-    if loss_params is None:
-        loss_params = {}
+    # Loss
+    loss_params = loss_params or {}
+    base_loss = get_loss(loss)
+    resolved_loss = partial(base_loss, **loss_params) if loss_params else base_loss
+    logger.info(f"Using loss function: {loss}")
+    if loss_params:
+        logger.info(f"Loss parameters: {loss_params}")
 
-    try:
-        base_loss = get_loss(loss)
-        resolved_loss = partial(base_loss, **loss_params) if loss_params else base_loss
-        logger.info(f"Using loss function: {loss}")
-        if loss_params:
-            logger.info(f"Loss parameters: {loss_params}")
-    except Exception as exc:
-        raise ValueError(f"Failed to resolve loss function '{loss}': {exc}") from exc
+    # Monitors
+    monitor_specs_resolved: list[tuple[str, LossProtocol]] = []
+    if monitor_losses:
+        for spec in monitor_losses:
+            base = get_loss(spec)
+            name = monitor_name(spec, base)
+            params = (monitor_params or {}).get(name, {})
+            mon = partial(base, **params) if params else base
+            monitor_specs_resolved.append((name, mon))
 
-    # ------------------------------------------------------------------
-    # Configure sampler
-    # ------------------------------------------------------------------
+    # Sampler
     if sampler is None:
-        # TPE with multivariate sampling works well for reservoir hyperparameters
-        # warn_independent_sampling=False prevents warnings for conditional parameters
-        # (e.g., spectral_radius dependent on leak_rate)
-        sampler = TPESampler(
-            multivariate=True,
-            warn_independent_sampling=False,
-            seed=seed,
-        )
+        sampler = TPESampler(multivariate=True, warn_independent_sampling=False, seed=seed)
         logger.info("Using TPESampler with multivariate optimization")
 
-    # ------------------------------------------------------------------
-    # Generate study name if not provided
-    # ------------------------------------------------------------------
+    # Study name
     if study_name is None:
         study_name = make_study_name(model_creator=model_creator)
         logger.info(f"Auto-generated study name: {study_name}")
 
-    # ------------------------------------------------------------------
-    # Create or load Optuna study
-    # ------------------------------------------------------------------
-    try:
-        study = optuna.create_study(
-            direction="minimize",
-            study_name=study_name,
-            storage=storage,
-            load_if_exists=True,
-            sampler=sampler,
-            **(optuna_kwargs or {}),
-        )
-
-        # Log study information
-        completed_trials = len([t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE])
-        if completed_trials > 0:
-            logger.info(f"Loaded existing study with {completed_trials} completed trials")
-            logger.info(f"Best value so far: {study.best_value:.6f}")
-
-    except Exception as exc:
-        raise RuntimeError(f"Failed to create Optuna study: {exc}") from exc
-
-    # ------------------------------------------------------------------
-    # Build objective function
-    # ------------------------------------------------------------------
-    try:
-        objective = build_objective(
-            model_creator=model_creator,
-            search_space=search_space,
-            loss_fn=resolved_loss,
-            data_loader=data_loader,
-            validate_shapes=validate_shapes,
-        )
-    except Exception as exc:
-        raise RuntimeError(f"Failed to build objective function: {exc}") from exc
-
-    # ------------------------------------------------------------------
-    # Run optimization
-    # ------------------------------------------------------------------
+    # Study
+    study = optuna.create_study(
+        direction="minimize",
+        study_name=study_name,
+        storage=storage,
+        load_if_exists=True,
+        sampler=sampler,
+        pruner=MedianPruner(n_startup_trials=20, n_warmup_steps=64, interval_steps=64),
+        **(optuna_kwargs or {}),
+    )
     completed_trials = len([t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE])
-    remaining_trials = max(0, n_trials - completed_trials)
+    if completed_trials > 0:
+        logger.info(f"Loaded existing study with {completed_trials} completed trials")
+        logger.info(f"Best value so far: {study.best_value:.6f}")
 
-    if remaining_trials > 0:
-        logger.info(f"Starting optimization: {remaining_trials} trials remaining")
+    # Objective
+    objective = build_objective(
+        model_creator=model_creator,
+        search_space=search_space,
+        loss_fn=resolved_loss,
+        data_loader=data_loader,
+        validate_shapes=validate_shapes,
+        monitor_specs=monitor_specs_resolved,
+        clip_value=clip_value,
+        prune_on_clip=prune_on_clip,
+    )
 
+    # Optimize
+    remaining = max(0, n_trials - completed_trials)
+    if remaining > 0:
+        logger.info(f"Starting optimization: {remaining} trials remaining")
         try:
             study.optimize(
                 objective,
-                n_trials=remaining_trials,
-                catch=(Exception,),  # Catch exceptions to allow study to continue
+                n_trials=remaining,
+                catch=(Exception,),
                 show_progress_bar=(verbosity > 0),
             )
         except KeyboardInterrupt:
@@ -294,13 +285,12 @@ def run_hpo(
             logger.error(f"Optimization failed: {exc}")
             raise
 
-        # Report final results
         logger.info(f"Optimization completed: {len(study.trials)} total trials")
-        if len([t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE]) > 0:
+        done = len([t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE])
+        if done > 0:
             logger.info(f"Best value: {study.best_value:.6f}")
             logger.info(f"Best parameters: {study.best_params}")
     else:
         logger.info(f"All {n_trials} trials already completed")
 
     return study
-

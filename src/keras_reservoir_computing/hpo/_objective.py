@@ -8,89 +8,30 @@ This module provides the core machinery for transforming user-defined callbacks
 objective that can be optimized. It handles model creation, training, forecasting,
 and evaluation with robust error handling and memory management.
 """
-import gc
-import logging
-import traceback
-from typing import Any, Callable, List, Mapping, MutableMapping, Optional
+from __future__ import annotations
 
+import logging
+import multiprocessing as mp
+import os
+from typing import TYPE_CHECKING, Any, Callable, List, Mapping, MutableMapping, Optional
+
+# Silence TF/absl logs in parent *and* child before any TF import happens.
+os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
+
+import cloudpickle as cp
 import numpy as np
 import optuna
-import tensorflow as tf
-from keras import backend as K
-
 from optuna import TrialPruned
 
-from keras_reservoir_computing.forecasting import warmup_forecast
-from keras_reservoir_computing.layers.readouts.base import ReadOut
-from keras_reservoir_computing.training import ReservoirTrainer
-
 from ._losses import LossProtocol
+from .validators import _validate_tensor_shapes
+from .worker import _child_worker
+
+if TYPE_CHECKING:
+    import tensorflow as tf
 
 __all__ = ["build_objective"]
-
 logger = logging.getLogger(__name__)
-
-
-# ------------------------------------------------------------------
-# Validation utilities
-# ------------------------------------------------------------------
-
-def _validate_data_dict(data: Mapping[str, Any], required_keys: List[str]) -> None:
-    """Validate that all required keys are present in the data dictionary.
-
-    Parameters
-    ----------
-    data : Mapping[str, Any]
-        The data dictionary to validate.
-    required_keys : List[str]
-        List of required keys that must be present.
-
-    Raises
-    ------
-    KeyError
-        If any required keys are missing.
-    """
-    missing_keys = [key for key in required_keys if key not in data]
-    if missing_keys:
-        raise KeyError(
-            f"Missing required keys in data dictionary: {', '.join(missing_keys)}. "
-            f"Required keys: {', '.join(required_keys)}"
-        )
-
-
-def _validate_tensor_shapes(
-    data: Mapping[str, Any],
-    trial: Optional[optuna.trial.Trial] = None
-) -> None:
-    """Validate that data tensors have consistent shapes.
-
-    Parameters
-    ----------
-    data : Mapping[str, Any]
-        The data dictionary containing tensors.
-    trial : Optional[optuna.trial.Trial]
-        The current trial (for logging purposes).
-
-    Raises
-    ------
-    ValueError
-        If tensor shapes are inconsistent.
-    """
-    # Check batch dimensions are consistent
-    batch_keys = ["transient", "train", "train_target", "ftransient", "val", "val_target"]
-    batch_sizes = {}
-
-    for key in batch_keys:
-        if key in data:
-            tensor = data[key]
-            if hasattr(tensor, 'shape') and len(tensor.shape) > 0:
-                batch_sizes[key] = tensor.shape[0]
-
-    if len(set(batch_sizes.values())) > 1:
-        logger.warning(
-            f"Inconsistent batch sizes detected: {batch_sizes}. "
-            "This may cause issues during training."
-        )
 
 
 # ------------------------------------------------------------------
@@ -99,11 +40,14 @@ def _validate_tensor_shapes(
 
 def build_objective(
     *,
-    model_creator: Callable[..., tf.keras.Model],
+    model_creator: Callable[..., "tf.keras.Model"],
     search_space: Callable[[optuna.trial.Trial], MutableMapping[str, Any]],
     loss_fn: LossProtocol,
     data_loader: Callable[[optuna.trial.Trial], Mapping[str, Any]],
     validate_shapes: bool = True,
+    monitor_specs: Optional[List[tuple[str, LossProtocol]]] = None,
+    clip_value: Optional[float] = None,
+    prune_on_clip: bool = False,
 ) -> Callable[[optuna.trial.Trial], float]:
     """Build an Optuna objective function from user-defined callbacks.
 
@@ -123,94 +67,50 @@ def build_objective(
         Function that loads and returns the training/validation data.
     validate_shapes : bool, optional
         Whether to validate tensor shapes (default: True).
+    monitor_specs : Optional[List[tuple[str, LossProtocol]]], default=None
+        Monitor loss functions to evaluate during optimization. If None, no monitoring is done.
+    clip_value : Optional[float], default=None
+        Value to clip the monitor losses to. If None, no clipping is done.
+    prune_on_clip : bool, default=False
+        Whether to prune trials where any monitor loss is clipped. Otherwise, the trial is penalized by the clipped value.
 
     Returns
     -------
     Callable[[optuna.trial.Trial], float]
         The objective function for Optuna to optimize.
     """
-
     def objective(trial: optuna.trial.Trial) -> float:
-        """Objective function for a single trial.
+        # 1) Hyperparameters
+        params = search_space(trial)
 
-        Parameters
-        ----------
-        trial : optuna.trial.Trial
-            The current Optuna trial.
+        # 2) Data
+        data = data_loader(trial)
+        if validate_shapes:
+            _validate_tensor_shapes(data)
 
-        Returns
-        -------
-        float
-            The loss value (lower is better).
-        """
-        # ----------------------------------------------------------
-        # 1. Generate hyperparameters
-        # ----------------------------------------------------------
-        try:
-            params = search_space(trial)
-            logger.debug(f"Trial {trial.number}: Generated parameters {params}")
-        except TrialPruned:
-            logger.debug(f"Trial {trial.number}: Pruned during search space generation")
-            raise  # Bubble up pruned trials
-        except Exception as exc:
-            logger.error(
-                f"Trial {trial.number}: Search space generation failed: {exc}\n"
-                f"{traceback.format_exc()}"
-            )
-            raise TrialPruned(f"Search space generation failed: {exc}")
+        # 3) Run in a fresh process (TF isolated)
+        value, attrs, status, msg = _run_in_fresh_process(
+            model_creator=model_creator,
+            params=params,
+            data=data,
+            loss_fn=loss_fn,
+            monitor_specs=monitor_specs,
+            clip_value=clip_value,
+            prune_on_clip=prune_on_clip,
+        )
+        if attrs:
+            for k, v in attrs.items():
+                trial.set_user_attr(k, v)
 
-        # ----------------------------------------------------------
-        # 2. Create model
-        # ----------------------------------------------------------
-        try:
-            model = model_creator(**params)
-            logger.debug(f"Trial {trial.number}: Model created successfully")
-        except Exception as exc:
-            logger.warning(
-                f"Trial {trial.number}: Model creation failed with parameters {params}: {exc}"
-            )
-            raise TrialPruned(f"Model creation failed: {exc}")
+        if status == "ok":
+            if not np.isfinite(value):
+                raise RuntimeError(f"Non-finite loss encountered: {value}")
+            return float(value)
+        if status == "pruned":
+            raise TrialPruned(msg or "Pruned in child process")
 
-        # ----------------------------------------------------------
-        # 3. Load data
-        # ----------------------------------------------------------
-        try:
-            data = data_loader(trial)
-            logger.debug(f"Trial {trial.number}: Data loaded successfully")
-
-            # Validate shapes if requested
-            if validate_shapes:
-                _validate_tensor_shapes(data, trial)
-
-        except Exception as exc:
-            logger.error(
-                f"Trial {trial.number}: Data loading failed: {exc}\n"
-                f"{traceback.format_exc()}"
-            )
-            raise TrialPruned(f"Data loading failed: {exc}")
-
-        # ----------------------------------------------------------
-        # 4. Train and evaluate
-        # ----------------------------------------------------------
-        try:
-            loss_value = _train_and_evaluate(model, data, loss_fn, trial)
-
-            # Validate loss value
-            if not np.isfinite(loss_value):
-                logger.warning(
-                    f"Trial {trial.number}: Non-finite loss value {loss_value}"
-                )
-                raise TrialPruned(f"Non-finite loss encountered: {loss_value}")
-
-            logger.debug(f"Trial {trial.number}: Loss = {loss_value:.6f}")
-            return loss_value
-
-        except Exception as exc:
-            logger.error(
-                f"Trial {trial.number}: Training/evaluation failed: {exc}\n"
-                f"{traceback.format_exc()}"
-            )
-            raise TrialPruned(f"Training or evaluation failed: {exc}")
+        logger.error(f"Trial {trial.number}: child error: {msg}")
+        raise RuntimeError(msg or "Training or evaluation failed in child")
 
     return objective
 
@@ -219,204 +119,63 @@ def build_objective(
 # Training and evaluation
 # ------------------------------------------------------------------
 
-def _train_and_evaluate(
-    model: tf.keras.Model,
+
+def _run_in_fresh_process(
+    *,
+    model_creator: Callable[..., "tf.keras.Model"],
+    params: Mapping[str, Any],
     data: Mapping[str, Any],
     loss_fn: LossProtocol,
-    trial: Optional[optuna.trial.Trial] = None,
-) -> float:
-    """Train the model and evaluate it on validation data.
-
-    This function performs the complete training and evaluation pipeline:
-    1. Validates data dictionary
-    2. Extracts readout targets
-    3. Trains readout layers using ReservoirTrainer
-    4. Generates forecasts using warmup_forecast
-    5. Evaluates using the loss function
+    monitor_specs: Optional[List[tuple[str, LossProtocol]]],
+    clip_value: Optional[float],
+    prune_on_clip: bool,
+) -> tuple[float, dict | None, str, Optional[str]]:
+    """
+    Run model creation + training + evaluation in a clean Python process.
 
     Parameters
     ----------
-    model : tf.keras.Model
-        The model to train and evaluate.
+    model_creator : Callable[..., tf.keras.Model]
+        Function that creates a fresh model given hyperparameters.
+    params : Mapping[str, Any]
+        Dictionary containing the hyperparameters.
     data : Mapping[str, Any]
         Dictionary containing all required data splits.
     loss_fn : LossProtocol
         Loss function to evaluate predictions.
-    trial : Optional[optuna.trial.Trial]
-        The current trial (for logging purposes).
+    monitor_specs : Optional[List[tuple[str, LossProtocol]]], default=None
+        Monitor loss functions to evaluate during optimization. If None, no monitoring is done.
+    clip_value : Optional[float], default=None
+        Value to clip the monitor losses to. If None, no clipping is done.
+    prune_on_clip : bool, default=False
+        Whether to prune trials where any monitor loss is clipped. Otherwise, the trial is penalized by the clipped value.
 
     Returns
     -------
-    float
-        The computed loss value.
-
-    Raises
-    ------
-    KeyError
-        If required data keys are missing.
-    ValueError
-        If model structure is invalid or data shapes are incompatible.
+    (value, attrs, status, message)
+    - value : float
+    - attrs : dict | None   (user attrs collected in child)
+    - status: "ok" | "pruned" | "error"
+    - message: Optional[str]
     """
-    # ----------------------------------------------------------
-    # 1. Validate required data keys
-    # ----------------------------------------------------------
-    required_keys = ["transient", "train", "train_target", "ftransient", "val"]
-    _validate_data_dict(data, required_keys)
+    ctx = mp.get_context("spawn")
+    q: mp.Queue = ctx.Queue()
 
-    # ----------------------------------------------------------
-    # 2. Extract data
-    # ----------------------------------------------------------
-    transient_data = data["transient"]
-    train_data = data["train"]
-    train_target = data["train_target"]
-    ftransient = data["ftransient"]
-    val_data = data["val"]
-    external_inputs = data["external_inputs"] if "external_inputs" in data else ()
+    # Always serialize with cloudpickle (no dotted-path fallback).
+    mc_blob: bytes = cp.dumps(model_creator)
 
-    # ----------------------------------------------------------
-    # 3. Determine readout targets
-    # ----------------------------------------------------------
-    if "readout_targets" in data:
-        readout_targets = data["readout_targets"]
-    else:
-        readout_targets = _infer_readout_targets(model, train_target)
-
-    # ----------------------------------------------------------
-    # 4. Train readout layers
-    # ----------------------------------------------------------
-    trainer = ReservoirTrainer(
-        model=model,
-        readout_targets=readout_targets,
-        log=False,  # Keep quiet during HPO
-        )
-
-    trainer.fit_readout_layers(
-        warmup_data=transient_data,
-        input_data=train_data,
-        )
-
-    # ----------------------------------------------------------
-    # 5. Generate forecasts
-    # ----------------------------------------------------------
-    preds, _ = warmup_forecast(
-        model=model,
-        warmup_data=ftransient,
-        horizon=val_data.shape[1],
-        external_inputs=external_inputs,
-        show_progress=False,
-        states=False,  # Don't track states for efficiency
+    p = ctx.Process(
+        target=_child_worker,
+        args=(q, mc_blob, params, data, loss_fn, monitor_specs, clip_value, prune_on_clip),
+        daemon=False,
     )
+    p.start()
+    p.join()
 
-    # ----------------------------------------------------------
-    # 6. Evaluate loss
-    # ----------------------------------------------------------
-    # Align lengths in case of minor shape mismatches
-    T = min(preds.shape[1], val_data.shape[1])
+    if q.empty():
+        return (float("inf"), None, "error", f"Child exited with code {p.exitcode}")
 
-    # Convert to numpy if needed
-    if hasattr(preds, 'numpy'):
-        preds_np = preds[:, :T, :].numpy()
-    else:
-        preds_np = preds[:, :T, :]
-
-    if hasattr(val_data, 'numpy'):
-        val_data_np = val_data[:, :T, :].numpy()
-    else:
-        val_data_np = val_data[:, :T, :]
-
-    loss_value = loss_fn(val_data_np, preds_np)
-
-    return float(loss_value)
-
-
-def _infer_readout_targets(
-    model: tf.keras.Model,
-    train_target: tf.Tensor,
-) -> Mapping[str, tf.Tensor]:
-    """Infer readout targets from model structure.
-
-    Automatically detects ReadOut layers in the model and assigns
-    training targets to them. For single ReadOut models, uses the
-    provided train_target. For multiple ReadOuts, raises an error
-    requesting explicit specification.
-
-    Parameters
-    ----------
-    model : tf.keras.Model
-        The model containing ReadOut layers.
-    train_target : tf.Tensor
-        The training target tensor.
-
-    Returns
-    -------
-    Mapping[str, tf.Tensor]
-        Dictionary mapping ReadOut layer names to target tensors.
-
-    Raises
-    ------
-    ValueError
-        If no ReadOut layers are found or if multiple ReadOuts exist
-        without explicit target specification.
-    """
-    readout_layers = [
-        layer for layer in model.layers
-        if isinstance(layer, ReadOut)
-    ]
-
-    if len(readout_layers) == 0:
-        raise ValueError(
-            "No ReadOut layers found in the model. "
-            "Ensure your model contains at least one ReadOut layer."
-        )
-    elif len(readout_layers) == 1:
-        # Single readout - use the provided target
-        return {readout_layers[0].name: train_target}
-    else:
-        # Multiple readouts - require explicit specification
-        raise ValueError(
-            f"Multiple ReadOut layers found: {[layer.name for layer in readout_layers]}. "
-            "Please provide a 'readout_targets' mapping in the data dictionary "
-            "that maps each ReadOut layer name to its corresponding target."
-        )
-
-
-# ------------------------------------------------------------------
-# Memory management
-# ------------------------------------------------------------------
-
-def _cleanup() -> None:
-    """Clean up memory after trial completion.
-
-    Performs garbage collection and clears Keras session to minimize
-    memory leaks between trials. This is especially important for
-    GPU memory management.
-    """
-    gc.collect()
-    K.clear_session()
-
-
-def _with_cleanup(fn: Callable) -> Callable:
-    """Decorator that ensures cleanup runs after function execution.
-
-    Parameters
-    ----------
-    fn : Callable
-        The function to wrap with cleanup.
-
-    Returns
-    -------
-    Callable
-        Wrapped function that cleans up after execution.
-    """
-    def wrapper(*args, **kwargs):
-        try:
-            return fn(*args, **kwargs)
-        finally:
-            _cleanup()
-    return wrapper
-
-
-# Wrap the training function with cleanup
-_train_and_evaluate = _with_cleanup(_train_and_evaluate)
+    status, value, attrs, msg = q.get()
+    return (value, attrs, status, msg)
 
 
