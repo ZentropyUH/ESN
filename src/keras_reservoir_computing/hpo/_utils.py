@@ -27,7 +27,6 @@ if TYPE_CHECKING:
     import tensorflow as tf  # for type hints only
 
 __all__ = ["make_study_name", "get_study_summary", "monitor_name", "_with_cleanup"]
-logger = logging.getLogger(__name__)
 
 
 def make_study_name(model_creator: Callable[..., "tf.keras.Model"]) -> str:
