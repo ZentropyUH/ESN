@@ -68,7 +68,7 @@ class GraphInitializerBase(tf.keras.Initializer):
         if dims is None:
             raise ValueError("Rank of shape unknown at initialization time.")
         if len(dims) == 1:
-            rows = cols = int(dims[0])
+            rows = int(dims[0])
         elif len(dims) == 2:
             rows, cols = map(int, dims)
         else:
