@@ -51,7 +51,7 @@ class RidgeReadout(ReadOut):
     call(inputs)
         Forward pass: outputs = inputs @ kernel + bias.
     fit(X, y)
-        Compute the closed-form Ridge solution via SVD.
+        Compute the closed-form Ridge solution via Conjugate Gradient.
     alpha()
         Returns the current regularization parameter.
     alpha(value)
@@ -157,12 +157,8 @@ class RidgeReadout(ReadOut):
             outputs = tf.cast(outputs, input_dtype)
         return outputs
 
-    def _fit(self, X: tf.Tensor, y: tf.Tensor) -> tuple[tf.Tensor, tf.Tensor]:
-        alpha = tf.constant(self._alpha, dtype=tf.float64)
-        units = tf.constant(self.units, dtype=tf.int32)
-        max_iter = tf.constant(self._max_iter, dtype=tf.int32)
-        tol = tf.constant(self._tol, dtype=tf.float64)
-        return self.__class__._solve_ridge_cg(X, y, alpha, units, max_iter, tol)
+    def _fit(self, X: tf.Tensor, y: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
+        return self.__class__._solve_ridge_cg(X, y, self._alpha, self.units, self._max_iter, self._tol)
 
 
     @staticmethod
@@ -235,37 +231,43 @@ class RidgeReadout(ReadOut):
         ValueError
             If `alpha` is negative.
         """
-        X_mean = tf.reduce_mean(X, axis=0, keepdims=True)
-        y_mean = tf.reduce_mean(y, axis=0, keepdims=True)
-        Xc = X - X_mean
-        yc = y - y_mean
+        X_mean = tf.reduce_mean(X, axis=0, keepdims=True)  # (1, n_features)
+        y_mean = tf.reduce_mean(y, axis=0, keepdims=True)  # (1, n_units)
+        n = tf.cast(tf.shape(X)[0], tf.float64)
+
+        # Gram matrix of centered X: (X - μ_X)^T (X - μ_X) = X^T X - n * μ_X^T μ_X
+        XtX = tf.matmul(X, X, transpose_a=True) - n * tf.matmul(tf.transpose(X_mean), X_mean)
+
 
         def matvec(w):
-            # w: (n_features, n_units)
-            Xw = tf.matmul(Xc, w)  # (n_samples, n_units)
-            XtXw = tf.matmul(Xc, Xw, transpose_a=True)  # (n_features, n_units)
-            return XtXw + alpha * w
+            return tf.linalg.matmul(XtX, w, a_is_sparse=False) + alpha * w
 
         def cg(A, B, max_iter=max_iter, tol=tol):
             X = tf.zeros_like(B)
             R = B - A(X)
             P = R
-            Rs_old = tf.reduce_sum(R * R, axis=0, keepdims=True)
+            Rs_old = tf.reduce_sum(R * R, axis=0)
 
-            for _ in tf.range(max_iter):
+            def body(i, X, R, P, Rs_old):
                 AP = A(P)
-                alpha_cg = Rs_old / tf.reduce_sum(P * AP, axis=0, keepdims=True)
+                alpha_cg = Rs_old / tf.reduce_sum(P * AP, axis=0)
                 X = X + P * alpha_cg
                 R = R - AP * alpha_cg
-                Rs_new = tf.reduce_sum(R * R, axis=0, keepdims=True)
-                if tf.reduce_all(Rs_new < tol**2):
-                    break
+                # Rs_new = tf.reduce_sum(R * R, axis=0, keepdims=True)
+                Rs_new = tf.reduce_sum(tf.square(R), axis=0)
                 beta = Rs_new / Rs_old
                 P = R + P * beta
-                Rs_old = Rs_new
+                return i + 1, X, R, P, Rs_new
+
+            def cond(i, X, R, P, Rs_old):
+                return tf.logical_and(i < max_iter, tf.reduce_any(Rs_old >= tol**2))
+
+            _, X, _, _, _ = tf.while_loop(cond, body, [0, X, R, P, Rs_old])
+
             return X
 
-        rhs = tf.matmul(Xc, yc, transpose_a=True)  # (n_features, units)
+        rhs = tf.matmul(X, y, transpose_a=True) - n * tf.matmul(tf.transpose(X_mean), y_mean)
+
         coefs = cg(matvec, rhs)
 
         intercept = tf.reshape(y_mean - tf.matmul(X_mean, coefs), [units])

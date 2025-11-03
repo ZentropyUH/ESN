@@ -54,50 +54,36 @@ def _compute_errors(y_true: np.ndarray, y_pred: np.ndarray, metric: str = "rmse"
         Per-timestep errors. Shape: (B, T).
     """
     assert y_true.shape == y_pred.shape, "Shapes must match"
+    diff = y_pred - y_true
     if metric == "mse":
-        return np.mean((y_pred - y_true) ** 2, axis=2)
+        return np.mean((diff) ** 2, axis=2)
     if metric == "rmse":
-        return np.sqrt(np.mean((y_pred - y_true) ** 2, axis=2))
+        return np.sqrt(np.mean(diff ** 2, axis=2))
     if metric == "mae":
-        return np.mean(np.abs(y_pred - y_true), axis=2)
+        return np.mean(np.abs(diff), axis=2)
     if metric == "nrmse":
-        std_y = np.std(y_true, axis=2)
-        std_y = np.where(std_y == 0, 1.0, std_y)
-        return np.sqrt(np.mean((y_pred - y_true) ** 2, axis=2)) / std_y
+        scale = np.std(y_true, axis=(0, 1), keepdims=True)
+        scale[scale == 0] = 1.0
+        diff_n = diff / scale
+        return np.sqrt(np.mean(diff_n ** 2, axis=2))
     raise ValueError(f"Unknown metric '{metric}'.")
 
 
 def forecast_horizon_loss(
     y_true: np.ndarray,
     y_pred: np.ndarray,
-    metric: str = "nrmse",
+    metric: str = "rmse",          # changed default
     threshold: float = 0.2,
 ) -> float:
-    """Negative log of valid forecast horizon (to *minimise*).
-
-    This loss penalises the errors with an exponential decay, based on the Lyapunov exponent.
-    This is useful for chaotic systems, where the errors grow exponentially.
-
-    Parameters
-    ----------
-    y_true : np.ndarray
-        True values. Shape (B, T, D).
-    y_pred : np.ndarray
-        Predicted values. Shape (B, T, D).
-    metric : str, optional. Default: "nrmse"
-        Error metric to compute.
-    threshold : float, optional. Default: 0.2
-        Threshold for valid forecast horizon.
-
-    Returns
-    -------
-    float
-        Negative log of valid forecast horizon.
-    """
-    errors = _compute_errors(y_true, y_pred, metric)
-    geom_mean = gmean(errors, axis=0)
-    valid_len = int(np.sum(geom_mean < threshold))
-    return -np.log(valid_len) if valid_len > 0 else np.inf
+    """Negative log of the (contiguous) valid forecast horizon (minimise)."""
+    errors = _compute_errors(y_true, y_pred, metric)  # (B, T)
+    e_t = np.median(errors, axis=0)                   # robust across anchors
+    below = e_t < threshold
+    if not below[0]:
+        valid_len = 0
+    else:
+        valid_len = int(np.argmax(~below)) if (~below).any() else int(below.size)
+    return -float(np.log(valid_len + 1e-9))           # stable; larger horizon → more negative
 
 
 def lyapunov_weighted_loss(  # noqa: D401,E501
@@ -133,9 +119,10 @@ def lyapunov_weighted_loss(  # noqa: D401,E501
     """
     errors = _compute_errors(y_true, y_pred, metric)
     geom_mean = gmean(errors, axis=0)
-    timesteps = np.arange(geom_mean.shape[0])
-    weights = np.exp(-lle * timesteps * dt)
-    return np.sum(weights * geom_mean)
+    timesteps = np.arange(geom_mean.shape[0], dtype=float)
+    weights = np.exp(-lle * dt * timesteps)
+    weights /= np.sum(weights) + 1e-12
+    return float(np.sum(weights * geom_mean))
 
 
 def multi_step_loss(
@@ -193,11 +180,11 @@ def standard_loss(
     return np.mean(geom_mean)
 
 
-def expected_forecast_horizon(
+def expected_forecast_horizon_loss(
     y_true: np.ndarray,
     y_pred: np.ndarray,
     *,
-    metric: str = "rmse",
+    metric: str = "nrmse",
     threshold: float = 0.2,
     softness: float = 0.02,               # ~ 10 % of threshold is a good default
 ) -> float:
@@ -227,13 +214,17 @@ def expected_forecast_horizon(
     """
     # 1) per-timestep error, then geometric mean over the batch
     errors = _compute_errors(y_true, y_pred, metric)      # (B, T)
-    e_t = gmean(errors, axis=0)                           # (T,)
+    e_t = np.median(errors, axis=0)
 
     # 2) soft indicator of “good prediction” at each step
     good_t = expit((threshold - e_t) / softness)          # ∈ (0, 1)
 
     # 3) probability that all steps up to t are good (soft horizon survival)
-    surv_t = np.exp(np.cumsum(np.log(good_t)))              # (T,)
+    # surv_t = np.exp(np.cumsum(np.log(good_t)))              # (T,)
+
+    log_g = np.log(np.clip(good_t, 1e-12, 1.0))
+    surv_t = np.exp(np.cumsum(log_g))
+
 
     # 4) expected horizon length
     H = np.sum(surv_t)
@@ -242,12 +233,27 @@ def expected_forecast_horizon(
     return -float(H)
 
 
+def discounted_rmse_loss(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    *,
+    H50: int = 64,                 # half-life in steps
+    metric: str = "rmse",
+) -> float:
+    """Time-discounted per-step error with exponential half-life (minimise)."""
+    e = _compute_errors(y_true, y_pred, metric)       # (B, T)
+    e_t = np.mean(e, axis=0)                          # (T,)
+    gamma = 0.5 ** (1.0 / max(H50, 1))
+    w = gamma ** np.arange(1, e_t.shape[0] + 1)
+    return float(np.sum(w * e_t) / np.sum(w))
+
 LOSSES: dict[str, LossProtocol] = {
     "horizon": forecast_horizon_loss,
-    "lyap": lyapunov_weighted_loss,
+    "lyap_weighted": lyapunov_weighted_loss,
     "multi_step": multi_step_loss,
     "standard": standard_loss,
-    "efh": expected_forecast_horizon,
+    "efh": expected_forecast_horizon_loss,
+    "discounted_rmse": discounted_rmse_loss,
 }
 
 

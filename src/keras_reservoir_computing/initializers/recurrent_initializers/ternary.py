@@ -80,8 +80,19 @@ class TernaryInitializer(tf.keras.Initializer):
             raise ValueError("The sum of the probabilities must be 1")
 
     def __call__(self, shape, dtype=None):
+        dims = tf.TensorShape(shape).as_list()  # -> list[int|None]
+
+        if dims is None:
+            raise ValueError("Rank of shape unknown at initialization time.")
+        if len(dims) == 1:
+            rows = cols = int(dims[0])
+        elif len(dims) == 2:
+            rows, cols = map(int, dims)
+        else:
+            raise ValueError(f"Shape must be 1D or 2D, got {shape}")
+
         W_recurrent = self.rng.choice(
-            [-1, 0, 1], size=shape, p=[self.neg_p, self.zero_p, self.pos_p]
+            [-1, 0, 1], size=(rows, cols), p=[self.neg_p, self.zero_p, self.pos_p]
         )
         W_recurrent = tf.convert_to_tensor(W_recurrent, dtype=dtype)
 

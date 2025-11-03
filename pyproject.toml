@@ -1,24 +1,25 @@
 [build-system]
-requires = ["hatchling>=1.25", "hatch-vcs>=0.4"]   # hatch-vcs optional but recommended
+requires = [
+  "hatchling>=1.25",
+  "hatch-vcs>=0.4",
+] # hatch-vcs optional but recommended
 build-backend = "hatchling.build"
 
 [project]
+dynamic = ["version"]
 name = "keras_reservoir_computing"
 description = "A package for training and using Echo State Networks and Reservoir Computing in general."
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
 authors = [{ name = "Daniel Estevez", email = "kemossabee@gmail.com" }]
-urls = { Homepage = "https://github.com/ZentropyUH/ESN" }
 classifiers = [
   "Programming Language :: Python :: 3",
   "License :: OSI Approved :: MIT License",
-  "Operating System :: OS Independent"
+  "Operating System :: OS Independent",
 ]
 
 dependencies = [
-  "keras>=3.9,<4.0",
-  "tensorflow>=2.18,<2.19",
   "numpy>=2.0,<3.0",
   "scipy>=1.14,<2.0",
   "pandas>=2.2,<3.0",
@@ -27,13 +28,34 @@ dependencies = [
   "natsort>=8.4,<9.0",
   "rich>=14.0,<15.0",
   "netCDF4>=1.7,<2.0",
-  "xarray>=2025.1.1,<2026.0.0"
+  "xarray>=2025.1.1,<2026.0.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/ZentropyUH/ESN"
+
 [project.optional-dependencies]
+
+tf-cuda = ["tensorflow[and-cuda]>=2.18"]
+tf-cpu  = ["tensorflow>=2.18"]
+
 hyper = ["optuna>=3.6", "optuna-dashboard>=0.16"]
-viz = ["plotly>=5.24", "kaleido>=0.2", "ipywidgets>=8.1", "ipykernel>=6.29", "ipympl>=0.9"]
-all = ["keras_reservoir_computing[hyper,viz]"]
+viz = [
+  "plotly>=5.24",
+  "kaleido>=0.2",
+  "ipywidgets>=8.1",
+  "ipykernel>=6.29",
+  "ipympl>=0.9",
+]
+all = [
+  "optuna>=3.6",
+  "optuna-dashboard>=0.16",
+  "plotly>=5.24",
+  "kaleido>=0.2",
+  "ipywidgets>=8.1",
+  "ipykernel>=6.29",
+  "ipympl>=0.9",
+]
 
 # ---- uv-specific groups (dev tooling) ----
 [dependency-groups]
@@ -54,11 +76,7 @@ docs = [
 
 # ---------------- Hatch config ----------------
 [tool.hatch.build]
-include = [
-  "src/keras_reservoir_computing/**",
-  "README.md",
-  "LICENSE*",
-]
+include = ["src/keras_reservoir_computing/**", "README.md", "LICENSE*"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/keras_reservoir_computing"]
@@ -81,4 +99,3 @@ match-dir = '^src/'
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-

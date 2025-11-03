@@ -63,16 +63,18 @@ class GraphInitializerBase(tf.keras.Initializer):
         shape: Union[int, Tuple[int, int], List[int]],
         dtype: Optional[tf.dtypes.DType] = None,
     ) -> tf.Tensor:
-        if isinstance(shape, int):
-            shape = (shape, shape)
-        elif (not isinstance(shape, (tuple, list)) or len(shape) != 2) or shape[
-            0
-        ] != shape[1]:
-            raise ValueError("The shape of the adjacency matrix should be 2D.")
+        dims = tf.TensorShape(shape).as_list()  # -> list[int|None]
 
-        n = shape[0]
+        if dims is None:
+            raise ValueError("Rank of shape unknown at initialization time.")
+        if len(dims) == 1:
+            rows = int(dims[0])
+        elif len(dims) == 2:
+            rows, cols = map(int, dims)
+        else:
+            raise ValueError(f"Shape must be 1D or 2D, got {shape}")
 
-        adj = self._generate_adjacency_matrix(n)
+        adj = self._generate_adjacency_matrix(rows)
 
         if self.spectral_radius is not None:
             sr = spectral_radius_hybrid(adj)

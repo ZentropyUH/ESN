@@ -84,7 +84,6 @@ class BaseReservoir(tf.keras.layers.RNN):
             stateful=True,
             return_sequences=True,
             return_state=False,
-            trainable=False,
             **kwargs,
         )
         self.units = cell.units

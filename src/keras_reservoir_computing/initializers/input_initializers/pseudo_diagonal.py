@@ -17,14 +17,14 @@ class PseudoDiagonalInitializer(tf.keras.Initializer):
     Each node in the reservoir receives exactly one scalar input, and each input is connected
     to approximately `N/D` nodes, where `N` is the number of nodes (columns) and `D` is the
     number of inputs (rows). The non-zero elements of the matrix are sampled from a uniform
-    distribution in the range `[-sigma, sigma]`.
+    distribution in the range `[-input_scaling, input_scaling]`.
 
     Parameters
     ----------
-    sigma : float, optional
+    input_scaling : float, optional
         Input scaling factor. If None, the rescaling is disabled.
     binarize : bool, default=False
-        If True, the matrix values are binarized to `{-sigma, sigma}`.
+        If True, the matrix values are binarized to `{-input_scaling, input_scaling}`.
     seed : int, tf.random.Generator, or None, default=None
         Seed for random number generation.
 
@@ -36,7 +36,7 @@ class PseudoDiagonalInitializer(tf.keras.Initializer):
     Examples
     --------
     >>> from keras_reservoir_computing.initializers import PseudoDiagonalInitializer
-    >>> w_init = PseudoDiagonalInitializer(sigma=1, binarize=True, seed=42)
+    >>> w_init = PseudoDiagonalInitializer(input_scaling=1, binarize=True, seed=42)
     >>> w = w_init((5, 10))
     >>> print(w)
     # A 5x10 matrix with values in [-1, 1], two non-zero values per row.
@@ -77,7 +77,16 @@ class PseudoDiagonalInitializer(tf.keras.Initializer):
             The block-diagonal style matrix.
         """
 
-        rows, cols = shape
+        dims = tf.TensorShape(shape).as_list()  # -> list[int|None]
+
+        if dims is None:
+            raise ValueError("Rank of shape unknown at initialization time.")
+        if len(dims) == 1:
+            rows, cols = int(dims[0]), 1
+        elif len(dims) == 2:
+            rows, cols = map(int, dims)
+        else:
+            raise ValueError(f"Shape must be 1D or 2D, got {shape}")
         # We will build up indices and values for a tf.SparseTensor
 
         if rows == 0 or cols == 0:

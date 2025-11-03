@@ -58,8 +58,19 @@ class RandomInputInitializer(tf.keras.Initializer):
         tf.Tensor
             Random matrix with the specified shape.
         """
+        dims = tf.TensorShape(shape).as_list()  # -> list[int|None]
+
+        if dims is None:
+            raise ValueError("Rank of shape unknown at initialization time.")
+        if len(dims) == 1:
+            rows, cols = int(dims[0]), 1
+        elif len(dims) == 2:
+            rows, cols = map(int, dims)
+        else:
+            raise ValueError(f"Shape must be 1D or 2D, got {shape}")
+
         # Generate random values
-        W_in = self.rng.uniform(-1, 1, shape)
+        W_in = self.rng.uniform(-1, 1, (rows, cols))
 
         # Translate the following to numpy
         if self.input_scaling is not None:
