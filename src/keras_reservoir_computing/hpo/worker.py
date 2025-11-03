@@ -197,8 +197,8 @@ def _child_worker(
         for g in tf.config.list_physical_devices("GPU"):
             try:
                 tf.config.experimental.set_memory_growth(g, True)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug(f"Could not set memory growth for device {g}: {exc}")
 
         # Reconstruct model_creator
         model_creator = cp.loads(mc_blob)
