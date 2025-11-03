@@ -41,7 +41,6 @@ def multi_cycle(
 
     Examples
     --------
-    >>> G = make_smcr_digraph(n_per_cycle=5, k=3, weight=0.9)
     >>> G = multi_cycle(n=15, k=3, weight=0.9)
     (15, 15)
     >>> # Convert to dense recurrent matrix (node order is sorted by label):
