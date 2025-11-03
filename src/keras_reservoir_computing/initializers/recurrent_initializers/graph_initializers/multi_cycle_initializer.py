@@ -59,7 +59,7 @@ class MultiCycleGraphInitializer(GraphInitializerBase):
         Returns
         -------
         tf.Tensor
-            A 2D adjacency matrix representing the generated Barabasi-Albert graph.
+            A 2D adjacency matrix representing the generated multi-cycle graph.
         """
         adj = multi_cycle(
             n=n,
