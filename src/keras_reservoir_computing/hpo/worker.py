@@ -224,7 +224,7 @@ def _child_worker(
     finally:
         try:
             K.clear_session()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug(f"K.clear_session() failed during cleanup: {exc}")
 
 
