@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING, Any, Callable, Mapping, MutableMapping, Option
 if TYPE_CHECKING:
     import tensorflow as tf
 
+import os
+
 import optuna
 from optuna.pruners import MedianPruner
 from optuna.samplers import TPESampler
@@ -42,6 +44,7 @@ def run_hpo(
     monitor_params: Optional[Mapping[str, Mapping[str, Any]]] = None,
     clip_value: Optional[float] = None,
     prune_on_clip: bool = False,
+    n_workers: Optional[int] = None,
 ) -> optuna.Study:
     """Run an Optuna hyperparameter optimization study for reservoir models.
 
@@ -128,7 +131,8 @@ def run_hpo(
         Value to clip the monitor losses to. If None, no clipping is done.
     prune_on_clip : bool, default=False
         Whether to prune trials where any monitor loss is clipped. Otherwise, the trial is penalized by the clipped value.
-
+    n_workers : Optional[int], default=None
+        Number of workers to use for parallel optimization. If None, uses half the number of CPUs available.
     Returns
     -------
     optuna.Study
@@ -273,9 +277,14 @@ def run_hpo(
     if remaining > 0:
         logger.info(f"Starting optimization: {remaining} trials remaining")
         try:
+
+            workers = n_workers if n_workers is not None else max(1, (os.cpu_count() or 2) // 2)
+            logger.info(f"Parallel HPO: n_workers={workers}")
+
             study.optimize(
                 objective,
                 n_trials=remaining,
+                n_jobs=workers,
                 catch=(Exception,),
                 show_progress_bar=(verbosity > 0),
             )

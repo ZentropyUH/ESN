@@ -8,8 +8,13 @@ error handling, and communication with the main process.
 from __future__ import annotations
 
 import os
-
 os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
+
+# (Optional, but recommended to avoid CPU oversubscription per child)
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("TF_NUM_INTRAOP_THREADS", "1")
+os.environ.setdefault("TF_NUM_INTEROP_THREADS", "1")
+
 import logging
 import multiprocessing as mp
 from typing import TYPE_CHECKING, Any, List, Mapping, Optional
