@@ -18,7 +18,6 @@ Use this guide to pick the right building blocks.
 ## Readouts
 
 - `RidgeReadout`: Regularized linear regression. Prefer as default; tune `alpha`.
-- `MoorePenroseReadout`: Pseudo-inverse solution. Fast but can be less stable; good for quick experiments.
 
 ## Training
 

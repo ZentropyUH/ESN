@@ -10,7 +10,7 @@ KRC implements Reservoir Computing for Keras with a clear separation of concerns
 ## Architecture at a glance
 
 - `keras_reservoir_computing.layers.reservoirs` – Reservoirs and cells (e.g., `ESNReservoir`, `ESNCell`)
-- `keras_reservoir_computing.layers.readouts` – Trainable readouts (e.g., `RidgeReadout`, `MoorePenroseReadout`)
+- `keras_reservoir_computing.layers.readouts` – Trainable readouts (e.g., `RidgeReadout`)
 - `keras_reservoir_computing.models` – High-level model builders (`classic_ESN`, `Ott_ESN`, `headless_ESN`, `linear_ESN`)
 - `keras_reservoir_computing.training` – `ReservoirTrainer` for fitting readouts
 - `keras_reservoir_computing.forecasting` – `warmup_forecast` and helpers
