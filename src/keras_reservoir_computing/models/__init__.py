@@ -8,7 +8,8 @@ from .architectures import (
     classic_ESN,
     headless_ESN,
     linear_ESN,
+    ensemble_model,
 )
 
-__all__ = ["Ott_ESN", "classic_ESN", "headless_ESN", "linear_ESN"]
+__all__ = ["Ott_ESN", "classic_ESN", "headless_ESN", "linear_ESN", "ensemble_model"]
 
