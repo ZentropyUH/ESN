@@ -27,9 +27,6 @@ SelectiveExponentiation
 
 Readouts
 --------
-MoorePenroseReadout
-    Pseudoinverse-based linear readout with optional ridge-like regularization
-    ``alpha``; solved in closed form (internal float64 for stability).
 RidgeReadout
     L2-regularized linear readout solved with a conjugate-gradient routine;
     optionally trainable after fitting.
@@ -68,7 +65,6 @@ from .custom_layers import (
     SelectiveExponentiation,
 )
 from .readouts import (
-    MoorePenroseReadout,
     RidgeReadout,
 )
 from .reservoirs import ESNCell, ESNReservoir
@@ -86,7 +82,6 @@ __all__ += [
 ]
 
 __all__ += [
-    "MoorePenroseReadout",
     "RidgeReadout",
 ]
 
