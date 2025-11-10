@@ -3,6 +3,7 @@ from .chebyshev import ChebyshevInitializer
 from .chessboard import ChessboardInitializer
 from .dendrocycle_input import DendrocycleInputInitializer
 from .random_binary import RandomBinaryInitializer
+from .opposite_anchors import OppositeAnchorsInputInitializer
 from .pseudo_diagonal import PseudoDiagonalInitializer
 from .random_input import RandomInputInitializer
 
@@ -11,6 +12,7 @@ __all__ = [
     "ChebyshevInitializer",
     "ChessboardInitializer",
     "DendrocycleInputInitializer",
+    "OppositeAnchorsInputInitializer",
     "PseudoDiagonalInitializer",
     "RandomBinaryInitializer",
     "RandomInputInitializer",

@@ -20,6 +20,7 @@ Available input initializers
 - :class:`ChebyshevInitializer`
 - :class:`ChessboardInitializer`
 - :class:`DendrocycleInputInitializer`
+- :class:`OppositeAnchorsInputInitializer`
 - :class:`PseudoDiagonalInitializer`
 - :class:`RandomBinaryInitializer`
 - :class:`RandomInputInitializer`
@@ -36,6 +37,8 @@ Available recurrent initializers
 - :class:`MultiCycleGraphInitializer`
 - :class:`NewmanWattsStrogatzGraphInitializer`
 - :class:`RegularGraphInitializer`
+- :class:`RingChordGraphInitializer`
+- :class:`SimpleCycleJumpsGraphInitializer`
 - :class:`SpectralCascadeGraphInitializer`
 - :class:`RandomRecurrentInitializer`
 - :class:`TernaryInitializer`
@@ -47,6 +50,7 @@ from .input_initializers import (
     ChebyshevInitializer,
     ChessboardInitializer,
     DendrocycleInputInitializer,
+    OppositeAnchorsInputInitializer,
     PseudoDiagonalInitializer,
     RandomBinaryInitializer,
     RandomInputInitializer,
@@ -63,6 +67,7 @@ from .recurrent_initializers import (
     NewmanWattsStrogatzGraphInitializer,
     RandomRecurrentInitializer,
     RegularGraphInitializer,
+    RingChordGraphInitializer,
     SimpleCycleJumpsGraphInitializer,
     SpectralCascadeGraphInitializer,
     TernaryInitializer,
@@ -76,6 +81,7 @@ __all__ += [
     "ChebyshevInitializer",
     "ChessboardInitializer",
     "DendrocycleInputInitializer",
+    "OppositeAnchorsInputInitializer",
     "PseudoDiagonalInitializer",
     "RandomBinaryInitializer",
     "RandomInputInitializer",
@@ -92,6 +98,7 @@ __all__ += [
     "MultiCycleGraphInitializer",
     "NewmanWattsStrogatzGraphInitializer",
     "RegularGraphInitializer",
+    "RingChordGraphInitializer",
     "SimpleCycleJumpsGraphInitializer",
     "SpectralCascadeGraphInitializer",
     "RandomRecurrentInitializer",
