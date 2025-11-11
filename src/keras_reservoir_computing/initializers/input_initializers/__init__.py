@@ -6,6 +6,7 @@ from .random_binary import RandomBinaryInitializer
 from .opposite_anchors import OppositeAnchorsInputInitializer
 from .pseudo_diagonal import PseudoDiagonalInitializer
 from .random_input import RandomInputInitializer
+from .ring_window import RingWindowInputInitializer
 
 __all__ = [
     "BinaryBalancedInitializer",
@@ -16,6 +17,7 @@ __all__ = [
     "PseudoDiagonalInitializer",
     "RandomBinaryInitializer",
     "RandomInputInitializer",
+    "RingWindowInputInitializer",
 ]
 
 def __dir__() -> list[str]:
