@@ -1,5 +1,6 @@
 
 from .barabasi_albert_initializer import BarabasiAlbertGraphInitializer
+from .chord_dendrocycle_initializer import ChordDendrocycleGraphInitializer
 from .complete_initializer import CompleteGraphInitializer
 from .dendrocycle_initializer import DendrocycleGraphInitializer
 from .erdos_renyi_initializer import ErdosRenyiGraphInitializer
@@ -14,6 +15,7 @@ from .watts_strogatz_initializer import WattsStrogatzGraphInitializer
 
 __all__ = [
     "BarabasiAlbertGraphInitializer",
+    "ChordDendrocycleGraphInitializer",
     "CompleteGraphInitializer",
     "DendrocycleGraphInitializer",
     "ErdosRenyiGraphInitializer",

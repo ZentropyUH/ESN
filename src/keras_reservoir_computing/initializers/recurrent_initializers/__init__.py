@@ -2,6 +2,7 @@ from .connected_random import ConnectedRandomMatrixInitializer
 from .digital_chaos import DigitalChaosInitializer
 from .graph_initializers import (
     BarabasiAlbertGraphInitializer,
+    ChordDendrocycleGraphInitializer,
     CompleteGraphInitializer,
     DendrocycleGraphInitializer,
     ErdosRenyiGraphInitializer,
@@ -21,6 +22,7 @@ __all__ = [
     "ConnectedRandomMatrixInitializer",
     "DigitalChaosInitializer",
     "BarabasiAlbertGraphInitializer",
+    "ChordDendrocycleGraphInitializer",
     "CompleteGraphInitializer",
     "DendrocycleGraphInitializer",
     "ErdosRenyiGraphInitializer",

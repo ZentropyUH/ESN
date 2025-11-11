@@ -1,6 +1,7 @@
 from typing import List
 
 from .barabasi_albert import barabasi_albert
+from .chord_dendrocycle import dendrocycle_with_chords
 from .complete import complete
 from .connected_erdos_renyi import connected_erdos_renyi
 from .connected_watts_strogatz import connected_watts_strogatz
@@ -17,6 +18,7 @@ from .watts_strogatz import watts_strogatz
 
 __all__ = [
     "barabasi_albert",
+    "dendrocycle_with_chords",
     "complete",
     "connected_erdos_renyi",
     "connected_watts_strogatz",
