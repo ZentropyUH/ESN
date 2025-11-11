@@ -13,6 +13,9 @@ Recurrent initializers
 ----------------------
 Define the internal recurrent connection weights of the reservoir, determining the network's internal dynamics.
 
+Graph initializers
+------------------
+Define the adjacency matrices of the reservoir, controlling the network's topology.
 
 Available input initializers
 ----------------------------
@@ -24,10 +27,13 @@ Available input initializers
 - :class:`PseudoDiagonalInitializer`
 - :class:`RandomBinaryInitializer`
 - :class:`RandomInputInitializer`
+- :class:`RingWindowInputInitializer`
+
 
 Available recurrent initializers
 --------------------------------
 - :class:`BarabasiAlbertGraphInitializer`
+- :class:`ChordDendrocycleGraphInitializer`
 - :class:`CompleteGraphInitializer`
 - :class:`ConnectedRandomMatrixInitializer`
 - :class:`DendrocycleGraphInitializer`
@@ -54,9 +60,11 @@ from .input_initializers import (
     PseudoDiagonalInitializer,
     RandomBinaryInitializer,
     RandomInputInitializer,
+    RingWindowInputInitializer,
 )
 from .recurrent_initializers import (
     BarabasiAlbertGraphInitializer,
+    ChordDendrocycleGraphInitializer,
     CompleteGraphInitializer,
     ConnectedRandomMatrixInitializer,
     DendrocycleGraphInitializer,
@@ -85,10 +93,12 @@ __all__ += [
     "PseudoDiagonalInitializer",
     "RandomBinaryInitializer",
     "RandomInputInitializer",
+    "RingWindowInputInitializer",
 ]
 
 __all__ += [
     "BarabasiAlbertGraphInitializer",
+    "ChordDendrocycleGraphInitializer",
     "CompleteGraphInitializer",
     "ConnectedRandomMatrixInitializer",
     "DendrocycleGraphInitializer",
