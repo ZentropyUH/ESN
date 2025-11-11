@@ -49,6 +49,10 @@ Available recurrent initializers
 - :class:`RandomRecurrentInitializer`
 - :class:`TernaryInitializer`
 - :class:`WattsStrogatzGraphInitializer`
+
+Available bias initializers
+----------------------------
+- :class:`DCTOneBiasInitializer`
 """
 from . import input_initializers, recurrent_initializers
 from .input_initializers import (
@@ -81,6 +85,7 @@ from .recurrent_initializers import (
     TernaryInitializer,
     WattsStrogatzGraphInitializer,
 )
+from .bias_initializers import DCTOneBiasInitializer
 
 __all__ = ["input_initializers", "recurrent_initializers"]
 
@@ -114,6 +119,10 @@ __all__ += [
     "RandomRecurrentInitializer",
     "TernaryInitializer",
     "WattsStrogatzGraphInitializer",
+]
+
+__all__ += [
+    "DCTOneBiasInitializer",
 ]
 
 def __dir__() -> list[str]:
