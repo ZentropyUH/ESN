@@ -57,6 +57,7 @@ Available bias initializers
 from . import input_initializers, recurrent_initializers
 from .input_initializers import (
     BinaryBalancedInitializer,
+    ChainOfNeuronsInputInitializer,
     ChebyshevInitializer,
     ChessboardInitializer,
     DendrocycleInputInitializer,
@@ -91,6 +92,7 @@ __all__ = ["input_initializers", "recurrent_initializers"]
 
 __all__ += [
     "BinaryBalancedInitializer",
+    "ChainOfNeuronsInputInitializer",
     "ChebyshevInitializer",
     "ChessboardInitializer",
     "DendrocycleInputInitializer",

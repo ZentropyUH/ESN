@@ -1,4 +1,5 @@
 from .binary_balanced import BinaryBalancedInitializer
+from .chain_of_neurons_input import ChainOfNeuronsInputInitializer
 from .chebyshev import ChebyshevInitializer
 from .chessboard import ChessboardInitializer
 from .dendrocycle_input import DendrocycleInputInitializer
@@ -10,6 +11,7 @@ from .ring_window import RingWindowInputInitializer
 
 __all__ = [
     "BinaryBalancedInitializer",
+    "ChainOfNeuronsInputInitializer",
     "ChebyshevInitializer",
     "ChessboardInitializer",
     "DendrocycleInputInitializer",
