@@ -29,6 +29,7 @@ __all__: List[str] = ["ReservoirTrainer"]
 
 logger = logging.getLogger(__name__)
 
+
 def warm_forward_factory(model: tf.keras.Model) -> Callable:
     """
     Create a factory function for warm-forwarding through the model.
@@ -43,6 +44,7 @@ def warm_forward_factory(model: tf.keras.Model) -> Callable:
     performance on supported hardware.  Disable JIT by editing the
     decorator if XLA is not available in your environment.
     """
+
     @tf_function(reduce_retracing=True, jit_compile=True)
     def _warm_forward(warmup: tf.Tensor, data: tf.Tensor) -> tf.Tensor:
         """
@@ -62,8 +64,8 @@ def warm_forward_factory(model: tf.keras.Model) -> Callable:
         """
         model(warmup)  # state adaptation
         return model(data, training=False)
-    return _warm_forward
 
+    return _warm_forward
 
 
 class ReservoirTrainer:
@@ -134,13 +136,11 @@ class ReservoirTrainer:
             *input* (not its output!).
         """
         if layer_name in self._warm_forward_functions:
-            print("Using cached warm-forward function")
+            logger.debug("Using cached warm-forward function")
             return self._warm_forward_functions[layer_name]
 
         layer = next(
-            layer_obj
-            for layer_obj in self.readout_layers_list
-            if layer_obj.name == layer_name
+            layer_obj for layer_obj in self.readout_layers_list if layer_obj.name == layer_name
         )
         submodel = tf.keras.Model(
             inputs=self.model.input,
@@ -153,7 +153,6 @@ class ReservoirTrainer:
     def clear_cache(self):
         self._warm_forward_functions.clear()
         gc.collect()
-
 
     # ------------------------------------------------------------------
     # Public API

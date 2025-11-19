@@ -54,6 +54,7 @@ Available bias initializers
 ----------------------------
 - :class:`DCTOneBiasInitializer`
 """
+
 from . import input_initializers, recurrent_initializers
 from .input_initializers import (
     BinaryBalancedInitializer,
@@ -128,6 +129,7 @@ __all__ += [
 __all__ += [
     "DCTOneBiasInitializer",
 ]
+
 
 def __dir__() -> list[str]:
     return __all__

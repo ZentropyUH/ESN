@@ -139,9 +139,7 @@ class ChebyshevInitializer(tf.keras.Initializer):
         """
         # Validate k is in the chaotic regime
         if not (2.0 < k < 4.0):
-            raise ValueError(
-                f"Parameter k={k} must be in range (2, 4) for chaotic behavior"
-            )
+            raise ValueError(f"Parameter k={k} must be in range (2, 4) for chaotic behavior")
 
         self.p = p
         self.q = q
@@ -207,9 +205,7 @@ class ChebyshevInitializer(tf.keras.Initializer):
         # Initialize first column with sinusoidal mapping
         row_indices = np.arange(1, K + 1, dtype=np.float32)  # Correct indexing
         W = np.zeros((K, N), dtype=np.float32)
-        W[:, 0] = self.p * np.sin(
-            (row_indices / (K + 1)) * (np.pi / self.q)
-        )  # First column
+        W[:, 0] = self.p * np.sin((row_indices / (K + 1)) * (np.pi / self.q))  # First column
 
         # Apply Chebyshev recurrence **column-wise**
         for j in range(1, N):

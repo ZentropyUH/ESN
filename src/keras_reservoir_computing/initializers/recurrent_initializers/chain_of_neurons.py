@@ -2,6 +2,7 @@ import tensorflow as tf
 from typing import Union, Sequence
 import numpy as np
 
+
 @tf.keras.utils.register_keras_serializable(package="krc", name="ChainOfNeuronsInitializer")
 class ChainOfNeuronsInitializer(tf.keras.initializers.Initializer):
     """

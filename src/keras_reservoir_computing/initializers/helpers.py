@@ -101,9 +101,7 @@ def connected_graph(graph_func: Callable) -> Callable:
 
             # Ensure G is 2D NxN
             if len(G.shape) != 2 or G.shape[0] != G.shape[1]:
-                raise ValueError(
-                    f"Adjacency matrix must be 2D NxN, got shape {G.shape}."
-                )
+                raise ValueError(f"Adjacency matrix must be 2D NxN, got shape {G.shape}.")
 
             # Check connectivity
             n_components = connected_components(
@@ -120,7 +118,7 @@ def connected_graph(graph_func: Callable) -> Callable:
         warnings.warn(
             f"Could not generate a connected graph after {tries} tries. "
             f"Returning the last generated graph with {n_components} components.",
-            UserWarning
+            UserWarning,
         )
         return last_graph
 

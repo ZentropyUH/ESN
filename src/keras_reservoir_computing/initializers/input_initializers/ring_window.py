@@ -42,8 +42,8 @@ class RingWindowInputInitializer(tf.keras.Initializer):
         self,
         c: float,
         window: Union[int, float],
-        taper: str = "flat",           # {"flat","triangle","cosine"}
-        signed: str = "allpos",        # {"allpos","alt_ring","alt_inputs"}
+        taper: str = "flat",  # {"flat","triangle","cosine"}
+        signed: str = "allpos",  # {"allpos","alt_ring","alt_inputs"}
         gain: float = 1.0,
     ) -> None:
         if not (0 < c <= 1):
@@ -133,7 +133,7 @@ class RingWindowInputInitializer(tf.keras.Initializer):
             elif self.signed == "alt_ring":
                 signs = (1.0 - 2.0 * (cols_core % 2)).astype(np_dtype)
             else:  # "alt_inputs"
-                signs = (1.0 if (k % 2 == 0) else -1.0)
+                signs = 1.0 if (k % 2 == 0) else -1.0
 
             row_vals = row_vals * signs
             norm = float(np.linalg.norm(row_vals))

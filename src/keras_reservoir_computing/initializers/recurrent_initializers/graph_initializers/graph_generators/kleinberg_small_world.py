@@ -86,9 +86,7 @@ def kleinberg_small_world(
     # Add k long-range connections per node
     for i in range(n):
         for j in range(n):
-            candidates = [
-                (x, y) for x in range(n) for y in range(n) if (x, y) != (i, j)
-            ]
+            candidates = [(x, y) for x in range(n) for y in range(n) if (x, y) != (i, j)]
             distances = np.array(
                 [toroidal_manhattan(i, j, x, y) for (x, y) in candidates], dtype=float
             )
@@ -108,4 +106,3 @@ def kleinberg_small_world(
                     G.add_edge(target, (i, j), weight=weight)
 
     return G
-

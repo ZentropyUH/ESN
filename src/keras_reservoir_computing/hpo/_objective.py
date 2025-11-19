@@ -43,6 +43,7 @@ DEFAULT_PROCESS_TIMEOUT = int(os.environ.get("KRC_HPO_PROCESS_TIMEOUT", "7200"))
 # Objective builder
 # ------------------------------------------------------------------
 
+
 def build_objective(
     *,
     model_creator: Callable[..., "tf.keras.Model"],
@@ -84,6 +85,7 @@ def build_objective(
     Callable[[optuna.trial.Trial], float]
         The objective function for Optuna to optimize.
     """
+
     def objective(trial: optuna.trial.Trial) -> float:
         # 1) Hyperparameters
         params = search_space(trial)
@@ -227,7 +229,12 @@ def _run_in_fresh_process(
 
     # Get result from queue
     if q.empty():
-        return (float("inf"), None, "error", f"Child exited with code {p.exitcode} (no result in queue)")
+        return (
+            float("inf"),
+            None,
+            "error",
+            f"Child exited with code {p.exitcode} (no result in queue)",
+        )
 
     try:
         # Get result with a short timeout to avoid blocking forever
@@ -239,5 +246,3 @@ def _run_in_fresh_process(
     except Exception as exc:
         logger.error(f"Error retrieving result from queue: {exc}")
         return (float("inf"), None, "error", f"Failed to get result from queue: {exc}")
-
-

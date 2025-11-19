@@ -4,9 +4,7 @@ from .base import GraphInitializerBase
 from .graph_generators import ring_chord
 
 
-@tf.keras.utils.register_keras_serializable(
-    package="krc", name="RingChordGraphInitializer"
-)
+@tf.keras.utils.register_keras_serializable(package="krc", name="RingChordGraphInitializer")
 class RingChordGraphInitializer(GraphInitializerBase):
     """
     Initializer for adjacency matrices of ring-chord graphs.
@@ -27,6 +25,7 @@ class RingChordGraphInitializer(GraphInitializerBase):
     Tensor
         A 2D adjacency matrix of a ring-chord graph.
     """
+
     def __init__(
         self,
         L: int,
@@ -40,10 +39,7 @@ class RingChordGraphInitializer(GraphInitializerBase):
         self.alpha = alpha
         super().__init__(spectral_radius=spectral_radius, seed=seed)
 
-    def _generate_adjacency_matrix(
-        self,
-        n: int
-    ) -> tf.Tensor:
+    def _generate_adjacency_matrix(self, n: int) -> tf.Tensor:
         """
         Generate the adjacency matrix for a ring-chord graph.
 
@@ -83,4 +79,3 @@ class RingChordGraphInitializer(GraphInitializerBase):
 
         config.update(base_config)
         return config
-

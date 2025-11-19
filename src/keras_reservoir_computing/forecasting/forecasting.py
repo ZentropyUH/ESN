@@ -1,4 +1,4 @@
-import sys
+import logging
 import weakref
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
@@ -7,10 +7,14 @@ import tensorflow as tf
 from keras_reservoir_computing.layers.reservoirs.layers.base import BaseReservoir
 from keras_reservoir_computing.utils.tensorflow import tf_function
 
+logger = logging.getLogger(__name__)
+
 # -----------------------------------------------------------------------------
 # Module-level caches
 # -----------------------------------------------------------------------------
-_FORECAST_CACHE: "weakref.WeakKeyDictionary[tf.keras.Model, Dict[Tuple[bool, bool], Callable]]" = weakref.WeakKeyDictionary()
+_FORECAST_CACHE: "weakref.WeakKeyDictionary[tf.keras.Model, Dict[Tuple[bool, bool], Callable]]" = (
+    weakref.WeakKeyDictionary()
+)
 _PREDICT_CACHE: "weakref.WeakKeyDictionary[tf.keras.Model, Callable]" = weakref.WeakKeyDictionary()
 
 
@@ -101,7 +105,7 @@ def forecast_factory(
     key = (track_states, jit_compile)
     if key in model_cache:
         if show_progress:
-            print("Using cached forecast function")
+            logger.debug("Using cached forecast function")
         return model_cache[key]
 
     # capture info outside graph
@@ -134,18 +138,18 @@ def forecast_factory(
         )
 
         states_init, state_shape_invariants = (
-            _setup_state_arrays(reservoir_layers, horizon_t)
-            if track_states
-            else ({}, {})
+            _setup_state_arrays(reservoir_layers, horizon_t) if track_states else ({}, {})
         )
 
         def cond(t, *_):
             return t < horizon_t
 
         def body(t, feedback, outputs_ta, states_lv):
-            model_inputs = feedback if not external_inputs else [feedback] + [
-                tf.expand_dims(ext[:, t, :], axis=1) for ext in external_inputs
-            ]
+            model_inputs = (
+                feedback
+                if not external_inputs
+                else [feedback] + [tf.expand_dims(ext[:, t, :], axis=1) for ext in external_inputs]
+            )
             out_t = model(model_inputs, training=False)
             outputs_ta = outputs_ta.write(t, tf.squeeze(out_t, axis=1))
             new_feedback = tf.reshape(out_t, [batch_size, 1, features])
@@ -179,9 +183,7 @@ def forecast_factory(
         if track_states:
             states_history = {}
             for layer in reservoir_layers:
-                stacked = [
-                    tf.transpose(ta.stack(), [1, 0, 2]) for ta in states_out[layer.name]
-                ]
+                stacked = [tf.transpose(ta.stack(), [1, 0, 2]) for ta in states_out[layer.name]]
                 states_history[layer.name] = stacked
         else:
             states_history = {}
@@ -286,14 +288,15 @@ def warmup_forecast(
         trimmed_warmup_data = warmup_data[:, :-1, :]
         initial_feedback = warmup_data[:, -1:, :]
 
-
     if show_progress:
-        print("Warming up model with teacher-forced data…", file=sys.stderr, flush=True)
+        logger.info("Warming up model with teacher-forced data…")
     _ = predict_factory(model)(trimmed_warmup_data)
 
     if show_progress:
-        print(f"Running auto-regressive forecast for {horizon} steps…", file=sys.stderr, flush=True)
-    forecast_fn = forecast_factory(model, track_states=states, jit_compile=True, show_progress=show_progress)
+        logger.info(f"Running auto-regressive forecast for {horizon} steps…")
+    forecast_fn = forecast_factory(
+        model, track_states=states, jit_compile=True, show_progress=show_progress
+    )
 
     outputs, states_history = forecast_fn(
         initial_feedback=initial_feedback,
@@ -302,7 +305,7 @@ def warmup_forecast(
     )
 
     if show_progress:
-        print(f"Forecast completed - output shape {outputs.shape}", file=sys.stderr, flush=True)
+        logger.info(f"Forecast completed - output shape {outputs.shape}")
 
     return outputs, states_history
 
@@ -310,7 +313,7 @@ def warmup_forecast(
 def window_forecast(
     model: tf.keras.Model,
     data: Union[tf.Tensor, List[tf.Tensor]],
-    initial_warmup: Union[tf.Tensor, List[tf.Tensor]], # with external inputs or not
+    initial_warmup: Union[tf.Tensor, List[tf.Tensor]],  # with external inputs or not
     *,
     warmup_time: int,
     forecast_time: int,
@@ -402,7 +405,7 @@ def window_forecast(
             single_input = True
 
         time = tensors[0].shape[1]
-        n_chunks = (time + length - 1) // length # ceil(time / length)
+        n_chunks = (time + length - 1) // length  # ceil(time / length)
 
         result = []
         for i in range(n_chunks):
@@ -490,5 +493,6 @@ def window_forecast(
     # Optional: if you prefer tensor for callers/plots, convert pred_starts:
     # pred_starts = tf.constant(pred_starts, dtype=tf.int32)
     return outputs, states_windows, pred_starts
+
 
 __all__ = ["forecast_factory", "clear_forecast_cache", "warmup_forecast", "window_forecast"]

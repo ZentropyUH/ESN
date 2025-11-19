@@ -4,9 +4,7 @@ from .base import GraphInitializerBase
 from .graph_generators import connected_erdos_renyi
 
 
-@tf.keras.utils.register_keras_serializable(
-    package="krc", name="ErdosRenyiGraphInitializer"
-)
+@tf.keras.utils.register_keras_serializable(package="krc", name="ErdosRenyiGraphInitializer")
 class ErdosRenyiGraphInitializer(GraphInitializerBase):
     """
     Initializer for adjacency matrices of Erdos-Renyi random graphs.
@@ -39,9 +37,10 @@ class ErdosRenyiGraphInitializer(GraphInitializerBase):
     - The number of tries to ensure connectivity can be adjusted with the `tries` parameter.
     - The non-zero elements of the adjacency matrix are sampled as -1 or 1.
     """
+
     def __init__(
         self,
-        p: float=0.5,
+        p: float = 0.5,
         directed: bool = True,
         self_loops: bool = True,
         tries: int = 100,
@@ -54,10 +53,7 @@ class ErdosRenyiGraphInitializer(GraphInitializerBase):
         self.tries = tries
         super().__init__(spectral_radius=spectral_radius, seed=seed)
 
-    def _generate_adjacency_matrix(
-        self,
-        n: int
-    ) -> tf.Tensor:
+    def _generate_adjacency_matrix(self, n: int) -> tf.Tensor:
         """
         Generate the adjacency matrix for a connected Erdos-Renyi graph.
 
@@ -100,4 +96,3 @@ class ErdosRenyiGraphInitializer(GraphInitializerBase):
 
         config.update(base_config)
         return config
-

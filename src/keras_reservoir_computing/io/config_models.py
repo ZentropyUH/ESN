@@ -31,12 +31,10 @@ class LayerConfig(BaseModel):
     """
 
     class_name: str = Field(
-        ...,
-        description="The class name of the layer (e.g., 'krc>ESNReservoir')."
+        ..., description="The class name of the layer (e.g., 'krc>ESNReservoir')."
     )
     config: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Configuration dictionary for the layer."
+        default_factory=dict, description="Configuration dictionary for the layer."
     )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -47,10 +45,7 @@ class LayerConfig(BaseModel):
         Dict[str, Any]
             Dictionary representation of the configuration.
         """
-        return {
-            "class_name": self.class_name,
-            "config": self.config
-        }
+        return {"class_name": self.class_name, "config": self.config}
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "LayerConfig":
@@ -107,14 +102,10 @@ class ReservoirConfig(LayerConfig):
     """
 
     class_name: str = Field(
-        default="krc>ESNReservoir",
-        description="The class name of the reservoir layer."
+        default="krc>ESNReservoir", description="The class name of the reservoir layer."
     )
 
-    def update_config(
-        self,
-        **kwargs: Any
-    ) -> "ReservoirConfig":
+    def update_config(self, **kwargs: Any) -> "ReservoirConfig":
         """Update configuration with new values.
 
         This method creates a new ReservoirConfig with updated values.
@@ -137,10 +128,7 @@ class ReservoirConfig(LayerConfig):
                 new_config[key] = value
         return ReservoirConfig(class_name=self.class_name, config=new_config)
 
-    def override_config(
-        self,
-        **kwargs: Any
-    ) -> "ReservoirConfig":
+    def override_config(self, **kwargs: Any) -> "ReservoirConfig":
         """Override configuration with new values.
 
         This method creates a new ReservoirConfig with overridden values.
@@ -196,14 +184,10 @@ class ReadoutConfig(LayerConfig):
     """
 
     class_name: str = Field(
-        default="krc>RidgeReadout",
-        description="The class name of the readout layer."
+        default="krc>RidgeReadout", description="The class name of the readout layer."
     )
 
-    def update_config(
-        self,
-        **kwargs: Any
-    ) -> "ReadoutConfig":
+    def update_config(self, **kwargs: Any) -> "ReadoutConfig":
         """Update configuration with new values.
 
         This method creates a new ReadoutConfig with updated values.
@@ -226,10 +210,7 @@ class ReadoutConfig(LayerConfig):
                 new_config[key] = value
         return ReadoutConfig(class_name=self.class_name, config=new_config)
 
-    def override_config(
-        self,
-        **kwargs: Any
-    ) -> "ReadoutConfig":
+    def override_config(self, **kwargs: Any) -> "ReadoutConfig":
         """Override configuration with new values.
 
         This method creates a new ReadoutConfig with overridden values.
@@ -249,4 +230,3 @@ class ReadoutConfig(LayerConfig):
         for key, value in kwargs.items():
             new_config[key] = value
         return ReadoutConfig(class_name=self.class_name, config=new_config)
-

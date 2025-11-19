@@ -65,17 +65,14 @@ def _validate_config(cls, cfg: Dict, strict: bool = True) -> None:
     for name, param in sig.parameters.items():
         if name == "self":
             continue
-        if param.kind in (inspect.Parameter.VAR_POSITIONAL,
-                          inspect.Parameter.VAR_KEYWORD):
+        if param.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
             continue
         if name not in cfg and param.default is param.empty:
             raise ValueError(f"{cls.__name__} is missing required arg: {name}")
         if strict and name in cfg and param.annotation is not param.empty:
             expected = param.annotation
             if not _is_instance_of(cfg[name], expected):
-                raise TypeError(
-                    f"{cls.__name__}.{name} expects {expected}, got {type(cfg[name])}"
-                )
+                raise TypeError(f"{cls.__name__}.{name} expects {expected}, got {type(cfg[name])}")
 
 
 def load_default_config(name: str) -> Dict[str, Any]:
@@ -101,7 +98,9 @@ def load_default_config(name: str) -> Dict[str, Any]:
     config_path = resources.files("keras_reservoir_computing.io.defaults").joinpath(f"{name}.yaml")
     if not config_path.exists():
         # Try JSON as fallback
-        config_path = resources.files("keras_reservoir_computing.io.defaults").joinpath(f"{name}.json")
+        config_path = resources.files("keras_reservoir_computing.io.defaults").joinpath(
+            f"{name}.json"
+        )
         if not config_path.exists():
             raise FileNotFoundError(
                 f"Default config '{name}' not found in io/defaults directory. "
@@ -154,7 +153,9 @@ def load_config(source: Union[str, Dict[str, Any]]) -> Dict[str, Any]:
 # ---------------------------------------------------------------------
 # 2. Unified loader
 # ---------------------------------------------------------------------
-def load_object(config_or_path: Union[str, Dict[str, Any], LayerConfig], strict: bool = True) -> Any:
+def load_object(
+    config_or_path: Union[str, Dict[str, Any], LayerConfig], strict: bool = True
+) -> Any:
     """Deserialize and validate a Keras object (layer, initializer, optimizer, ...).
 
     Parameters
@@ -191,9 +192,7 @@ def load_object(config_or_path: Union[str, Dict[str, Any], LayerConfig], strict:
     try:
         obj = keras_deserialize(config)
     except Exception as e:
-        raise ValueError(
-            f"Failed to deserialize class '{config['class_name']}': {e}"
-        ) from e
+        raise ValueError(f"Failed to deserialize class '{config['class_name']}': {e}") from e
 
     _validate_config(obj.__class__, config.get("config", {}), strict=strict)
     return obj
@@ -203,7 +202,7 @@ def load_object(config_or_path: Union[str, Dict[str, Any], LayerConfig], strict:
 # 3. Configuration loaders with Pydantic validation
 # ---------------------------------------------------------------------
 def load_reservoir_config(
-    source: Optional[Union[str, Dict[str, Any], ReservoirConfig]] = None
+    source: Optional[Union[str, Dict[str, Any], ReservoirConfig]] = None,
 ) -> ReservoirConfig:
     """Load and validate a reservoir configuration.
 
@@ -234,7 +233,7 @@ def load_reservoir_config(
 
 
 def load_readout_config(
-    source: Optional[Union[str, Dict[str, Any], ReadoutConfig]] = None
+    source: Optional[Union[str, Dict[str, Any], ReadoutConfig]] = None,
 ) -> ReadoutConfig:
     """Load and validate a readout configuration.
 

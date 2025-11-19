@@ -7,9 +7,7 @@ import tensorflow as tf
 from keras_reservoir_computing.utils.tensorflow import create_tf_rng
 
 
-@tf.keras.utils.register_keras_serializable(
-    package="krc", name="PseudoDiagonalInitializer"
-)
+@tf.keras.utils.register_keras_serializable(package="krc", name="PseudoDiagonalInitializer")
 class PseudoDiagonalInitializer(tf.keras.Initializer):
     """
     An initializer that generates an input matrix connecting inputs to reservoir nodes.

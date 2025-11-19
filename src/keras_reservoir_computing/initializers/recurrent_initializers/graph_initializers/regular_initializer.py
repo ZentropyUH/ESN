@@ -4,9 +4,7 @@ from .base import GraphInitializerBase
 from .graph_generators import regular
 
 
-@tf.keras.utils.register_keras_serializable(
-    package="krc", name="RegularGraphInitializer"
-)
+@tf.keras.utils.register_keras_serializable(package="krc", name="RegularGraphInitializer")
 class RegularGraphInitializer(GraphInitializerBase):
     """
     Initializer for adjacency matrices of k-regular graphs.
@@ -37,9 +35,10 @@ class RegularGraphInitializer(GraphInitializerBase):
     -----
     - The non-zero elements of the adjacency matrix are sampled as -1 or 1 if `random_weights=False`. Otherwise, the weights are alternated between -1 and 1.
     """
+
     def __init__(
         self,
-        k: int=2,
+        k: int = 2,
         directed: bool = True,
         self_loops: bool = True,
         random_weights: bool = True,
@@ -52,10 +51,7 @@ class RegularGraphInitializer(GraphInitializerBase):
         self.random_weights = random_weights
         super().__init__(spectral_radius=spectral_radius, seed=seed)
 
-    def _generate_adjacency_matrix(
-        self,
-        n: int
-    ) -> tf.Tensor:
+    def _generate_adjacency_matrix(self, n: int) -> tf.Tensor:
         """
         Generate the adjacency matrix for a k-regular graph.
 
@@ -97,4 +93,3 @@ class RegularGraphInitializer(GraphInitializerBase):
 
         config.update(base_config)
         return config
-

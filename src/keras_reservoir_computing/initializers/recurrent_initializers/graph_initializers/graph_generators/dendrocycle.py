@@ -59,15 +59,14 @@ def dendrocycle(
     # --- 1. Compute node counts
     C = max(2, int(round(c * n)))  # cycle
     D = max(0, int(round(d * n)))  # dendritic
-    A = max(0, n - C - D)          # quiescent
+    A = max(0, n - C - D)  # quiescent
 
     # --- 2. Core cycle
     core_nodes = list(range(C))
     G.add_nodes_from(core_nodes, role="core")
 
     for i in range(C):
-        G.add_edge(core_nodes[i], core_nodes[(i + 1) % C],
-                   weight=core_weight)
+        G.add_edge(core_nodes[i], core_nodes[(i + 1) % C], weight=core_weight)
 
     # --- 3. Dendrites (uniformly distributed around the ring)
     dend_nodes = list(range(C, C + D))
@@ -102,9 +101,5 @@ def dendrocycle(
         for i in range(len(topo)):
             for j in range(i + 1, len(topo)):
                 if rng.random() < 0.1:
-                    G.add_edge(
-                        topo[i], topo[j],
-                        weight=quiescent_weight
-                    )
+                    G.add_edge(topo[i], topo[j], weight=quiescent_weight)
     return G
-

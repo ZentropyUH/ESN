@@ -34,5 +34,6 @@ __all__ = [
     "watts_strogatz",
 ]
 
+
 def __dir__() -> List[str]:
     return __all__

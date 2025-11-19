@@ -6,9 +6,7 @@ from .base import GraphInitializerBase
 from .graph_generators import dendrocycle_with_chords
 
 
-@tf.keras.utils.register_keras_serializable(
-    package="krc", name="ChordDendrocycleGraphInitializer"
-)
+@tf.keras.utils.register_keras_serializable(package="krc", name="ChordDendrocycleGraphInitializer")
 class ChordDendrocycleGraphInitializer(GraphInitializerBase):
     """
     Initializer for adjacency matrices of chord dendrocycles.
@@ -44,10 +42,11 @@ class ChordDendrocycleGraphInitializer(GraphInitializerBase):
         A 2D adjacency matrix of a chord dendrocycle graph.
 
     """
+
     def __init__(
         self,
-        c: float=0.5,
-        d: float=0.5,
+        c: float = 0.5,
+        d: float = 0.5,
         core_weight: float = 1.0,
         dendritic_weight: float = 1.0,
         quiescent_weight: float = 1.0,
@@ -67,10 +66,7 @@ class ChordDendrocycleGraphInitializer(GraphInitializerBase):
         self.alpha = alpha
         super().__init__(spectral_radius=spectral_radius, seed=seed)
 
-    def _generate_adjacency_matrix(
-        self,
-        n: int
-    ) -> tf.Tensor:
+    def _generate_adjacency_matrix(self, n: int) -> tf.Tensor:
         """
         Generate the adjacency matrix for a chord dendrocycle graph.
 
@@ -121,4 +117,3 @@ class ChordDendrocycleGraphInitializer(GraphInitializerBase):
 
         config.update(base_config)
         return config
-

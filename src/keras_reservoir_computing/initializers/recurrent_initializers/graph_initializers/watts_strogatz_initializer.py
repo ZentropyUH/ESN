@@ -4,9 +4,7 @@ from .base import GraphInitializerBase
 from .graph_generators import connected_watts_strogatz
 
 
-@tf.keras.utils.register_keras_serializable(
-    package="krc", name="WattsStrogatzGraphInitializer"
-)
+@tf.keras.utils.register_keras_serializable(package="krc", name="WattsStrogatzGraphInitializer")
 class WattsStrogatzGraphInitializer(GraphInitializerBase):
     """
     Initializer for adjacency matrices of Watts-Strogatz small-world graphs.
@@ -41,10 +39,11 @@ class WattsStrogatzGraphInitializer(GraphInitializerBase):
     - The number of tries to ensure connectivity can be adjusted with the `tries` parameter.
     - The non-zero elements of the adjacency matrix are sampled as -1 or 1.
     """
+
     def __init__(
         self,
-        k: int=4,
-        p: float=0.5,
+        k: int = 4,
+        p: float = 0.5,
         directed: bool = True,
         self_loops: bool = True,
         tries: int = 100,
@@ -58,9 +57,7 @@ class WattsStrogatzGraphInitializer(GraphInitializerBase):
         self.tries = tries
         super().__init__(spectral_radius=spectral_radius, seed=seed)
 
-    def _generate_adjacency_matrix(
-        self, n: int
-        ) -> tf.Tensor:
+    def _generate_adjacency_matrix(self, n: int) -> tf.Tensor:
         """
         Generate the adjacency matrix for a connected Watts-Strogatz graph.
 
@@ -105,4 +102,3 @@ class WattsStrogatzGraphInitializer(GraphInitializerBase):
 
         config.update(base_config)
         return config
-

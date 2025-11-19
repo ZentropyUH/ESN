@@ -81,10 +81,10 @@ def spectral_cascade(
                     # Self-loop if requested
                     if self_loops:
                         # weight = (-1)^global_i
-                        A_sub[i, j] = (-1)**(global_i)
+                        A_sub[i, j] = (-1) ** (global_i)
                 else:
                     # Normal edge in a "complete" sense
-                    w = (-1)**(global_i + global_j)
+                    w = (-1) ** (global_i + global_j)
                     A_sub[i, j] = w
 
         # 3) Desired spectral radius for this clique
@@ -103,14 +103,13 @@ def spectral_cascade(
             A_sub *= scale_factor
 
         # 5) Insert A_sub back into the global adjacency matrix A
-        A[offset:offset + k, offset:offset + k] = A_sub
+        A[offset : offset + k, offset : offset + k] = A_sub
 
         offset += k
 
     # 6) Build the final networkx Graph/DiGraph from adjacency
     G = Graph()
     G.add_nodes_from(range(n))
-
 
     # Mirror the upper/lower triangle
     A = np.triu(A) + np.triu(A, 1).T

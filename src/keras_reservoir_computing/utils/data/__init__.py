@@ -26,5 +26,6 @@ __all__ = [
     "load_data_dual",
 ]
 
+
 def __dir__():
     return __all__

@@ -37,10 +37,11 @@ class NewmanWattsStrogatzGraphInitializer(GraphInitializerBase):
     -----
     - The non-zero elements of the adjacency matrix are sampled as -1 or 1.
     """
+
     def __init__(
         self,
-        k: int=4,
-        p: float=0.5,
+        k: int = 4,
+        p: float = 0.5,
         directed: bool = True,
         self_loops: bool = True,
         spectral_radius: float = None,
@@ -52,9 +53,7 @@ class NewmanWattsStrogatzGraphInitializer(GraphInitializerBase):
         self.self_loops = self_loops
         super().__init__(spectral_radius=spectral_radius, seed=seed)
 
-    def _generate_adjacency_matrix(
-        self, n: int
-        ) -> tf.Tensor:
+    def _generate_adjacency_matrix(self, n: int) -> tf.Tensor:
         """
         Generate the adjacency matrix for a Newman-Watts-Strogatz graph.
 
@@ -97,4 +96,3 @@ class NewmanWattsStrogatzGraphInitializer(GraphInitializerBase):
 
         config.update(base_config)
         return config
-

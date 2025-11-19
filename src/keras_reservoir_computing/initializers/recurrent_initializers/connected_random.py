@@ -7,9 +7,7 @@ from scipy.sparse.csgraph import connected_components
 from keras_reservoir_computing.initializers.helpers import spectral_radius_hybrid
 
 
-@tf.keras.utils.register_keras_serializable(
-    package="krc", name="ConnectedRandomMatrixInitializer"
-)
+@tf.keras.utils.register_keras_serializable(package="krc", name="ConnectedRandomMatrixInitializer")
 class ConnectedRandomMatrixInitializer(tf.keras.Initializer):
     """
     Initializer for creating random matrices with guaranteed connectivity.
@@ -104,9 +102,7 @@ class ConnectedRandomMatrixInitializer(tf.keras.Initializer):
             dtype = tf.float32
 
         # Generate the matrix
-        matrix = self._random_connected_matrix(
-            rows, self.max_value, self.density, self.directed
-        )
+        matrix = self._random_connected_matrix(rows, self.max_value, self.density, self.directed)
 
         # Explicitly convert to float32 before tensor conversion
         matrix = matrix.astype(np.float32)
@@ -119,11 +115,14 @@ class ConnectedRandomMatrixInitializer(tf.keras.Initializer):
                     matrix = matrix * (self.spectral_radius / sr)
                 else:
                     tf.debugging.assert_greater(
-                        sr, 0.0, 
-                        message="Spectral radius calculation returned zero or negative value."
+                        sr,
+                        0.0,
+                        message="Spectral radius calculation returned zero or negative value.",
                     )
             except Exception as e:
-                tf.print(f"Warning: Spectral radius calculation failed. Using matrix without scaling. Error: {e}")
+                tf.print(
+                    f"Warning: Spectral radius calculation failed. Using matrix without scaling. Error: {e}"
+                )
 
         return matrix
 
@@ -140,9 +139,7 @@ class ConnectedRandomMatrixInitializer(tf.keras.Initializer):
 
         # Handle n=1 case
         if n == 1:
-            return np.array(
-                [[self._random_nonzero_value(a) if self.rng.random() < density else 0]]
-            )
+            return np.array([[self._random_nonzero_value(a) if self.rng.random() < density else 0]])
 
         # Calculate minimum edges needed for connectivity
         min_edges = n if directed else (n - 1)
@@ -153,9 +150,7 @@ class ConnectedRandomMatrixInitializer(tf.keras.Initializer):
         # Check if density is sufficient for connectivity
         min_density = min_edges / total_possible_edges
         if density < min_density:
-            raise ValueError(
-                f"Density must be at least {min_density:.6f} to ensure connectivity"
-            )
+            raise ValueError(f"Density must be at least {min_density:.6f} to ensure connectivity")
 
         # Generate matrix and ensure connectivity
         matrix = self._create_random_sparse_matrix(n, a, density, directed)
@@ -191,9 +186,7 @@ class ConnectedRandomMatrixInitializer(tf.keras.Initializer):
     def _ensure_connectivity(self, matrix, a, directed):
         """Ensure the matrix represents a connected graph while preserving density."""
         n = matrix.shape[0]
-        n_components = connected_components(
-            matrix, directed=directed, return_labels=False
-        )
+        n_components = connected_components(matrix, directed=directed, return_labels=False)
 
         if n_components == 1:
             return matrix  # Already connected
@@ -201,8 +194,7 @@ class ConnectedRandomMatrixInitializer(tf.keras.Initializer):
         # Get connected components and organize nodes by component
         _, labels = connected_components(matrix, directed=directed, return_labels=True)
         component_sets = [
-            set(i for i in range(n) if labels[i] == comp)
-            for comp in range(n_components)
+            set(i for i in range(n) if labels[i] == comp) for comp in range(n_components)
         ]
 
         # Add edges to connect components
@@ -232,12 +224,7 @@ class ConnectedRandomMatrixInitializer(tf.keras.Initializer):
                 temp_matrix = matrix.copy()
                 temp_matrix[i, j] = 0
 
-                if (
-                    connected_components(
-                        temp_matrix, directed=directed, return_labels=False
-                    )
-                    == 1
-                ):
+                if connected_components(temp_matrix, directed=directed, return_labels=False) == 1:
                     matrix[i, j] = 0
                     edges_added -= 1
                     if edges_added <= 0:

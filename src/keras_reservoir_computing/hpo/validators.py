@@ -11,7 +11,6 @@ if TYPE_CHECKING:
     import tensorflow as tf
 
 
-
 def _validate_data_dict(data: Mapping[str, Any], required_keys: List[str]) -> None:
     """Validate that all required keys are present in the data dictionary.
 
@@ -61,6 +60,7 @@ def _validate_tensor_shapes(data: Mapping[str, Any]) -> None:
             "This may cause issues during training."
         )
 
+
 def _infer_readout_targets(
     model: "tf.keras.Model",
     train_target: "tf.Tensor",
@@ -102,4 +102,3 @@ def _infer_readout_targets(
         f"Multiple ReadOut layers found: {[layer.name for layer in readouts]}. "
         "Provide a 'readout_targets' mapping in the data dictionary."
     )
-

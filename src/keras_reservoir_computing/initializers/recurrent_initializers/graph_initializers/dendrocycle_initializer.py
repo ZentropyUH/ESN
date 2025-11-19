@@ -4,9 +4,7 @@ from .base import GraphInitializerBase
 from .graph_generators import dendrocycle
 
 
-@tf.keras.utils.register_keras_serializable(
-    package="krc", name="DendrocycleGraphInitializer"
-)
+@tf.keras.utils.register_keras_serializable(package="krc", name="DendrocycleGraphInitializer")
 class DendrocycleGraphInitializer(GraphInitializerBase):
     """
     Initializer for adjacency matrices of dendro-cycles.
@@ -39,10 +37,11 @@ class DendrocycleGraphInitializer(GraphInitializerBase):
     -----
     - The non-zero elements of the adjacency matrix are sampled as -1 or 1.
     """
+
     def __init__(
         self,
-        c: float=0.5,
-        d: float=0.5,
+        c: float = 0.5,
+        d: float = 0.5,
         core_weight: float = 1.0,
         dendritic_weight: float = 1.0,
         quiescent_weight: float = 1.0,
@@ -56,10 +55,7 @@ class DendrocycleGraphInitializer(GraphInitializerBase):
         self.quiescent_weight = quiescent_weight
         super().__init__(spectral_radius=spectral_radius, seed=seed)
 
-    def _generate_adjacency_matrix(
-        self,
-        n: int
-    ) -> tf.Tensor:
+    def _generate_adjacency_matrix(self, n: int) -> tf.Tensor:
         """
         Generate the adjacency matrix for a dendro-cycle graph.
 
@@ -104,4 +100,3 @@ class DendrocycleGraphInitializer(GraphInitializerBase):
 
         config.update(base_config)
         return config
-

@@ -4,9 +4,7 @@ import numpy as np
 import tensorflow as tf
 
 
-@tf.keras.utils.register_keras_serializable(
-    package="krc", name="RandomBinaryInitializer"
-)
+@tf.keras.utils.register_keras_serializable(package="krc", name="RandomBinaryInitializer")
 class RandomBinaryInitializer(tf.keras.Initializer):
     """
     An initializer that generates a binary matrix with values in {-1, 1}.
@@ -41,6 +39,7 @@ class RandomBinaryInitializer(tf.keras.Initializer):
         self.seed = seed
         self.rng = np.random.default_rng(seed)
         self.input_scaling = input_scaling
+
     def __call__(self, shape: tuple, dtype=None) -> tf.Tensor:
         dims = tf.TensorShape(shape).as_list()  # -> list[int|None]
 

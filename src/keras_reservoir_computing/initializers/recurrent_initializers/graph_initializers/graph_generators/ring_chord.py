@@ -42,7 +42,7 @@ def ring_chord(
         Ls = list(L)
         if not Ls:
             raise ValueError("At least one delay L_k is required.")
-    if any(not (1 <= Lk <= n//2) for Lk in Ls):
+    if any(not (1 <= Lk <= n // 2) for Lk in Ls):
         raise ValueError("Each L_k must satisfy 1 <= L_k <= n//2.")
     if not (0 < alpha <= 1):
         raise ValueError(f"alpha must be in (0, 1]. Given alpha = {alpha}")
@@ -56,7 +56,7 @@ def ring_chord(
 
     # Backward chords with geometric weighting
     for k, Lk in enumerate(Ls):
-        wk = w * (alpha ** k)
+        wk = w * (alpha**k)
         if wk == 0.0:
             continue
         for i in range(n):

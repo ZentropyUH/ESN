@@ -58,4 +58,3 @@ def erdos_renyi(
     G.add_edges_from((u, v, {"weight": rng.choice([-1, 1])}) for u, v in selected_edges)
 
     return G
-

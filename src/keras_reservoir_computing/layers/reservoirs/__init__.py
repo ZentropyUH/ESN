@@ -6,5 +6,6 @@ __all__ = [
     "ESNReservoir",
 ]
 
+
 def __dir__() -> list[str]:
     return __all__

@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
+
 @tf.keras.utils.register_keras_serializable(package="krc", name="DCTOneBiasInitializer")
 class DCTOneBiasInitializer(tf.keras.initializers.Initializer):
     """
@@ -38,11 +39,8 @@ class DCTOneBiasInitializer(tf.keras.initializers.Initializer):
     - No randomness is used.
     - Recommended defaults: mu=0.1, gain=1.0.
     """
-    def __init__(
-        self, 
-        mu: float = 0.1, 
-        gain: float = 1.0
-    ):
+
+    def __init__(self, mu: float = 0.1, gain: float = 1.0):
         self.mu = float(mu)
         self.gain = float(gain)
 

@@ -2,9 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 
-@tf.keras.utils.register_keras_serializable(
-    package="krc", name="OppositeAnchorsInputInitializer"
-)
+@tf.keras.utils.register_keras_serializable(package="krc", name="OppositeAnchorsInputInitializer")
 class OppositeAnchorsInputInitializer(tf.keras.initializers.Initializer):
     """
 
@@ -48,7 +46,7 @@ class OppositeAnchorsInputInitializer(tf.keras.initializers.Initializer):
 
         w = np_dtype(self.gain / np.sqrt(2.0))
         B[np.arange(m), j0] = w
-        B[np.arange(m), j1] = -w # Consider putting here a negative sign.
+        B[np.arange(m), j1] = -w  # Consider putting here a negative sign.
 
         return tf.convert_to_tensor(B, dtype=tf_dtype)
 

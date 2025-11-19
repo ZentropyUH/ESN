@@ -24,6 +24,7 @@ Configurations are located in the ``io/defaults`` directory, saved as YAML/JSON 
 - ``reservoir``
 - ``readout``
 """
+
 from .config_models import (
     LayerConfig,
     ReadoutConfig,

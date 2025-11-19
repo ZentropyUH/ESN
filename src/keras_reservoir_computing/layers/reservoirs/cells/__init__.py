@@ -6,5 +6,6 @@ __all__ = [
     "ESNCell",
 ]
 
+
 def __dir__() -> list[str]:
     return __all__

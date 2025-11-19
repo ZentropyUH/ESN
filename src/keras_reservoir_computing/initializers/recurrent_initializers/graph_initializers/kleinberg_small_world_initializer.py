@@ -40,6 +40,7 @@ class KleinbergSmallWorldGraphInitializer(GraphInitializerBase):
     -----
     - The non-zero elements of the adjacency matrix are sampled as -1 or 1 if `weighted=False`. Otherwise, the weights are generated proportional to the distance to the power of `beta`.
     """
+
     def __init__(
         self,
         q: float = 2,
@@ -57,10 +58,7 @@ class KleinbergSmallWorldGraphInitializer(GraphInitializerBase):
         self.beta = beta
         super().__init__(spectral_radius=spectral_radius, seed=seed)
 
-    def _generate_adjacency_matrix(
-        self,
-        n: int
-    ) -> tf.Tensor:
+    def _generate_adjacency_matrix(self, n: int) -> tf.Tensor:
         """
         Generate the adjacency matrix for a Kleinberg small-world graph.
 
@@ -105,4 +103,3 @@ class KleinbergSmallWorldGraphInitializer(GraphInitializerBase):
 
         config.update(base_config)
         return config
-

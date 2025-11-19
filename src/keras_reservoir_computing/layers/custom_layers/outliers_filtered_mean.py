@@ -61,17 +61,13 @@ class OutliersFilteredMean(tf.keras.layers.Layer):
     (3, 5, 4)
     """
 
-    def __init__(
-        self, method: str = "z_score", threshold: float = 3.0, **kwargs
-    ) -> None:
+    def __init__(self, method: str = "z_score", threshold: float = 3.0, **kwargs) -> None:
         super().__init__(**kwargs)
         self.method = method
         self.threshold = threshold
 
         if self.method not in ["z_score", "iqr"]:
-            raise ValueError(
-                f"Unsupported method: {self.method}. Choose 'z_score' or 'iqr'."
-            )
+            raise ValueError(f"Unsupported method: {self.method}. Choose 'z_score' or 'iqr'.")
 
     def build(self, input_shape):
         # No trainable parameters to build
@@ -155,9 +151,7 @@ class OutliersFilteredMean(tf.keras.layers.Layer):
     def compute_output_shape(self, input_shape):
         # If input is a list, use one element’s shape (they all have the same shape)
         if isinstance(input_shape, list):
-            input_shape = input_shape[
-                0
-            ]  # Single tensor shape: (batch, timesteps, features)
+            input_shape = input_shape[0]  # Single tensor shape: (batch, timesteps, features)
 
         # Ensure it's the expected format (batch, timesteps, features) before returning
         return tf.TensorShape([input_shape[0], input_shape[1], input_shape[2]])

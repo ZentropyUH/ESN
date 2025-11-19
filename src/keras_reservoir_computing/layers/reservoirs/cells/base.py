@@ -135,9 +135,7 @@ class BaseCell(tf.keras.Layer, ABC):
         pass
 
     @abstractmethod
-    def call(
-        self, inputs: tf.Tensor, states: List[tf.Tensor]
-    ) -> Tuple[tf.Tensor, List[tf.Tensor]]:
+    def call(self, inputs: tf.Tensor, states: List[tf.Tensor]) -> Tuple[tf.Tensor, List[tf.Tensor]]:
         """
         Forward pass of one time step of the reservoir cell.
 
@@ -238,4 +236,3 @@ class BaseCell(tf.keras.Layer, ABC):
             }
         )
         return config
-

@@ -103,7 +103,7 @@ def _timeseries_base_plot(
         raise ValueError(f"Length of sample_labels must be {N}, got {len(sample_labels)}.")
     if len(feature_labels) != D:
         raise ValueError(f"Length of feature_labels must be {D}, got {len(feature_labels)}.")
-    
+
     if isinstance(xlabels, str):
         xlabels = [xlabels] * D
     elif len(xlabels) != D:
@@ -122,7 +122,11 @@ def _timeseries_base_plot(
             if N_new > 1 and not separate_axes:
                 label = f"{sample_labels[sample_idx]} - {feature_labels[feature_idx]}"
             else:
-                label = sample_labels[sample_idx] if (N_new > 1 and separate_axes) else feature_labels[feature_idx]
+                label = (
+                    sample_labels[sample_idx]
+                    if (N_new > 1 and separate_axes)
+                    else feature_labels[feature_idx]
+                )
 
             if data_transform is not None:
                 t, y_vals = data_transform(data[sample_idx, :, feature_idx], dt)
@@ -196,7 +200,7 @@ def _delay_transform(
         A tuple containing the delayed data and the data without delay.
     """
     delay_steps = int(delay_time / dt)
-    
+
     if data.ndim == 1:
         delayed_data = data[delay_steps:]
         data_without_delay = data[:-delay_steps]
@@ -204,7 +208,7 @@ def _delay_transform(
         # Handle 3D arrays (N, T, D)
         delayed_data = data[:, delay_steps:, :]
         data_without_delay = data[:, :-delay_steps, :]
-    
+
     return delayed_data, data_without_delay
 
 
@@ -235,7 +239,7 @@ def _relative_extremes(
             extrema = argrelmin(data)[0]
         else:
             raise ValueError("extreme_type must be either 'max' or 'min'.")
-        
+
         relative_extremes = data[extrema]
         return relative_extremes[:-1], relative_extremes[1:]
     else:
@@ -247,10 +251,10 @@ def _relative_extremes(
                     extrema = argrelmax(data[i, :, j])[0]
                 else:
                     extrema = argrelmin(data[i, :, j])[0]
-                
+
                 relative_extremes = data[i, extrema, j]
                 results.append((relative_extremes[:-1], relative_extremes[1:]))
-        
+
         # Stack results
         x = np.concatenate([r[0] for r in results])
         y = np.concatenate([r[1] for r in results])
@@ -281,15 +285,15 @@ def _poincare_section(
     """
     if data.ndim == 1:
         raise ValueError("Poincaré section requires at least 2D data.")
-    
+
     if data.ndim == 2:
         data = data[np.newaxis, ...]
-    
+
     N, T, D = data.shape
-    
+
     if D < 2:
         raise ValueError("Poincaré section requires at least 2D data.")
-    
+
     # Determine which dimension to use for the section
     if plane == "x=0":
         dim = 0
@@ -299,7 +303,7 @@ def _poincare_section(
         dim = 2
     else:
         raise ValueError(f"Invalid plane: {plane}")
-    
+
     crossings = []
     for i in range(N):
         # Find points where the trajectory crosses the plane
@@ -307,16 +311,16 @@ def _poincare_section(
             mask = (data[i, :-1, dim] <= 0) & (data[i, 1:, dim] > 0)
         else:
             mask = (data[i, :-1, dim] >= 0) & (data[i, 1:, dim] < 0)
-        
+
         # Get the points before and after crossing
         before = data[i, :-1][mask]
         after = data[i, 1:][mask]
         crossings.append((before, after))
-    
+
     # Stack results
     before_points = np.concatenate([c[0] for c in crossings])
     after_points = np.concatenate([c[1] for c in crossings])
-    
+
     return before_points, after_points
 
 
@@ -344,25 +348,27 @@ def _recurrence_plot(
         data = data[np.newaxis, ..., np.newaxis]
     elif data.ndim == 2:
         data = data[np.newaxis, ...]
-    
+
     N, T, D = data.shape
-    
+
     # Compute distance matrix for each sample
     recurrence_plots = []
     for i in range(N):
         if metric == "euclidean":
-            distances = np.sqrt(np.sum((data[i, :, np.newaxis] - data[i, np.newaxis, :])**2, axis=2))
+            distances = np.sqrt(
+                np.sum((data[i, :, np.newaxis] - data[i, np.newaxis, :]) ** 2, axis=2)
+            )
         elif metric == "manhattan":
             distances = np.sum(np.abs(data[i, :, np.newaxis] - data[i, np.newaxis, :]), axis=2)
         elif metric == "chebyshev":
             distances = np.max(np.abs(data[i, :, np.newaxis] - data[i, np.newaxis, :]), axis=2)
         else:
             raise ValueError(f"Invalid metric: {metric}")
-        
+
         # Create binary recurrence plot
         recurrence = distances <= threshold
         recurrence_plots.append(recurrence.astype(float))
-    
+
     return np.stack(recurrence_plots)
 
 
@@ -381,14 +387,18 @@ def scatter_2d(ax: plt.Axes, x: np.ndarray, y: np.ndarray, label: str, **kwargs)
     ax.scatter(x, y, label=label, **kwargs)
 
 
-def plot_3d(ax: plt.Axes, x: np.ndarray, y: np.ndarray, z: np.ndarray, label: str, **kwargs) -> None:
+def plot_3d(
+    ax: plt.Axes, x: np.ndarray, y: np.ndarray, z: np.ndarray, label: str, **kwargs
+) -> None:
     """
     Make a 3D plot on the given axis.
     """
     ax.plot(x, y, z, label=label, **kwargs)
 
 
-def scatter_3d(ax: plt.Axes, x: np.ndarray, y: np.ndarray, z: np.ndarray, label: str, **kwargs) -> None:
+def scatter_3d(
+    ax: plt.Axes, x: np.ndarray, y: np.ndarray, z: np.ndarray, label: str, **kwargs
+) -> None:
     """
     Make a 3D scatter plot on the given axis.
     """

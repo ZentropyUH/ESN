@@ -8,9 +8,7 @@ from keras_reservoir_computing.initializers.helpers import (
 )
 
 
-@tf.keras.utils.register_keras_serializable(
-    package="krc", name="GraphInitializerBase"
-)
+@tf.keras.utils.register_keras_serializable(package="krc", name="GraphInitializerBase")
 class GraphInitializerBase(tf.keras.Initializer):
     """
     Base class for initializers generating adjacency matrices for graph-based models.
@@ -45,6 +43,7 @@ class GraphInitializerBase(tf.keras.Initializer):
     This is an abstract base class and must be subclassed with a specific graph
     generation function implemented in `_generate_adjacency_matrix`.
     """
+
     def __init__(
         self,
         spectral_radius: Optional[float] = None,
@@ -114,9 +113,7 @@ class GraphInitializerBase(tf.keras.Initializer):
         NotImplementedError
             If the method is not implemented by a subclass.
         """
-        raise NotImplementedError(
-            "The adjacency matrix generation function is not implemented."
-        )
+        raise NotImplementedError("The adjacency matrix generation function is not implemented.")
 
     def get_config(self) -> dict:
         """
@@ -135,4 +132,3 @@ class GraphInitializerBase(tf.keras.Initializer):
         }  # seed and spectral_radius are handled here
         config.update(base_config)
         return config
-

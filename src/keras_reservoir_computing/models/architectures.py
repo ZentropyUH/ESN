@@ -84,7 +84,7 @@ def classic_ESN(
     -----
     The architecture is: Input Layer -> Reservoir -> Concatenate -> Readout Layer
                                      -------------->
-    
+
     Layer-specific parameters (activation, initializers, etc.) should be
     specified in the configuration dictionaries. The architecture function
     only sets architecture-specific parameters (like ``feedback_dim = features``)
@@ -134,9 +134,7 @@ def classic_ESN(
         readout_cfg = readout_cfg.update_config(dtype=dtype)
 
     # Create the input layer
-    input_layer = tf.keras.layers.Input(
-        shape=(None, features), batch_size=batch, dtype=dtype
-    )
+    input_layer = tf.keras.layers.Input(shape=(None, features), batch_size=batch, dtype=dtype)
 
     # Create reservoir layer
     reservoir = load_object(reservoir_cfg)(input_layer)
@@ -148,9 +146,7 @@ def classic_ESN(
     readout = load_object(readout_cfg)(concat)
 
     # Build and return model
-    model = tf.keras.Model(
-        inputs=input_layer, outputs=readout, name=name, dtype=dtype
-    )
+    model = tf.keras.Model(inputs=input_layer, outputs=readout, name=name, dtype=dtype)
     return model
 
 
@@ -268,30 +264,24 @@ def Ott_ESN(
         readout_cfg = readout_cfg.update_config(dtype=dtype)
 
     # Create input layer
-    feedback_layer = tf.keras.layers.Input(
-        shape=(None, features), batch_size=batch, dtype=dtype
-    )
+    feedback_layer = tf.keras.layers.Input(shape=(None, features), batch_size=batch, dtype=dtype)
 
     # Create reservoir layer
     reservoir = load_object(reservoir_cfg)(feedback_layer)
 
     # Augment reservoir output by squaring even-indexed units
-    selective_exponentiation = SelectiveExponentiation(
-        index=0, exponent=2.0, dtype=dtype
-    )(reservoir)
+    selective_exponentiation = SelectiveExponentiation(index=0, exponent=2.0, dtype=dtype)(
+        reservoir
+    )
 
     # Concatenate original input with augmented reservoir output
-    concat = tf.keras.layers.Concatenate(dtype=dtype)(
-        [feedback_layer, selective_exponentiation]
-    )
+    concat = tf.keras.layers.Concatenate(dtype=dtype)([feedback_layer, selective_exponentiation])
 
     # Create readout layer
     readout = load_object(readout_cfg)(concat)
 
     # Build and return model
-    model = tf.keras.Model(
-        inputs=feedback_layer, outputs=readout, name=name, dtype=dtype
-    )
+    model = tf.keras.Model(inputs=feedback_layer, outputs=readout, name=name, dtype=dtype)
     return model
 
 
@@ -389,17 +379,13 @@ def headless_ESN(
         reservoir_cfg = reservoir_cfg.update_config(dtype=dtype)
 
     # Create input layer
-    input_layer = tf.keras.layers.Input(
-        shape=(None, features), batch_size=batch, dtype=dtype
-    )
+    input_layer = tf.keras.layers.Input(shape=(None, features), batch_size=batch, dtype=dtype)
 
     # Create reservoir layer
     reservoir = load_object(reservoir_cfg)(input_layer)
 
     # Build and return model
-    model = tf.keras.Model(
-        inputs=input_layer, outputs=reservoir, name=name, dtype=dtype
-    )
+    model = tf.keras.Model(inputs=input_layer, outputs=reservoir, name=name, dtype=dtype)
     return model
 
 
@@ -500,17 +486,13 @@ def linear_ESN(
         reservoir_cfg = reservoir_cfg.update_config(dtype=dtype)
 
     # Create input layer
-    input_layer = tf.keras.layers.Input(
-        shape=(None, features), batch_size=batch, dtype=dtype
-    )
+    input_layer = tf.keras.layers.Input(shape=(None, features), batch_size=batch, dtype=dtype)
 
     # Create reservoir layer
     reservoir = load_object(reservoir_cfg)(input_layer)
 
     # Build and return model
-    model = tf.keras.Model(
-        inputs=input_layer, outputs=reservoir, name=name, dtype=dtype
-    )
+    model = tf.keras.Model(inputs=input_layer, outputs=reservoir, name=name, dtype=dtype)
     return model
 
 
@@ -570,16 +552,11 @@ def ensemble_model(
     ...     threshold=3.0
     ... )
     """
-    files = sorted(f for f in os.listdir(models_dir) if f.endswith(".keras"))[
-        :n_models
-    ]
+    files = sorted(f for f in os.listdir(models_dir) if f.endswith(".keras"))[:n_models]
     if not files:
         raise ValueError(f"No .keras models found in {models_dir!r}")
 
-    loaded = [
-        tf.keras.models.load_model(os.path.join(models_dir, f), compile=False)
-        for f in files
-    ]
+    loaded = [tf.keras.models.load_model(os.path.join(models_dir, f), compile=False) for f in files]
 
     input_shape = loaded[0].input_shape[1:]
     x = tf.keras.Input(shape=input_shape, name="ensemble_input", dtype=dtype)
@@ -589,7 +566,7 @@ def ensemble_model(
         model.name = model.name + f"__{i}"
         outputs.append(model(x))
 
-    y = OutliersFilteredMean(
-        name="merge_out", method=method, threshold=threshold, dtype=dtype
-    )(outputs)
+    y = OutliersFilteredMean(name="merge_out", method=method, threshold=threshold, dtype=dtype)(
+        outputs
+    )
     return tf.keras.Model(inputs=x, outputs=y, name="ensemble_model")

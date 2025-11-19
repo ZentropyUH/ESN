@@ -35,6 +35,7 @@ class RandomInputInitializer(tf.keras.Initializer):
     >>> matrix = initializer((10, 10))
     >>> print(matrix)
     """
+
     def __init__(
         self,
         input_scaling: Optional[float] = None,

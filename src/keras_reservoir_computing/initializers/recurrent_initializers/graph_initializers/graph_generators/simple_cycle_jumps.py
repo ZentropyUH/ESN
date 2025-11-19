@@ -6,12 +6,7 @@ from keras_reservoir_computing.initializers.helpers import (
 
 
 @to_tensor
-def simple_cycle_jumps(
-    n: int, 
-    l: int, 
-    r_c: float = 1.0, 
-    r_l: float = 0.5
-    ) -> DiGraph:
+def simple_cycle_jumps(n: int, jump_length: int, r_c: float = 1.0, r_l: float = 0.5) -> DiGraph:
     """
     Generate a directed cycle with bidirectional jumps.
 
@@ -19,7 +14,7 @@ def simple_cycle_jumps(
     ----------
     n : int
         Total number of nodes.
-    l : int
+    jump_length : int
         Jump step size.
     r_c : float
         Weight for cycle edges.
@@ -31,8 +26,8 @@ def simple_cycle_jumps(
     G : nx.DiGraph
         Directed graph with:
         - A directed cycle of n nodes (weight = r_c)
-        - Bidirectional jump edges every l nodes (weight = r_l)
-          until n - (n % l).
+        - Bidirectional jump edges every jump_length nodes (weight = r_l)
+          until n - (n % jump_length).
     """
     G = DiGraph()
     G.add_nodes_from(range(n))
@@ -42,9 +37,9 @@ def simple_cycle_jumps(
         G.add_edge(i, (i + 1) % n, weight=r_c)
 
     # Bidirectional jumps
-    limit = n - (n % l)
-    for i in range(0, limit, l):
-        j = (i + l) % n
+    limit = n - (n % jump_length)
+    for i in range(0, limit, jump_length):
+        j = (i + jump_length) % n
         G.add_edge(i, j, weight=r_l)
         G.add_edge(j, i, weight=r_l)
 

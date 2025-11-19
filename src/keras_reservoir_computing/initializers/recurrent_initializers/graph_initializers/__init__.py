@@ -1,4 +1,3 @@
-
 from .barabasi_albert_initializer import BarabasiAlbertGraphInitializer
 from .chord_dendrocycle_initializer import ChordDendrocycleGraphInitializer
 from .complete_initializer import CompleteGraphInitializer
@@ -28,6 +27,7 @@ __all__ = [
     "SpectralCascadeGraphInitializer",
     "WattsStrogatzGraphInitializer",
 ]
+
 
 def __dir__() -> list[str]:
     return __all__

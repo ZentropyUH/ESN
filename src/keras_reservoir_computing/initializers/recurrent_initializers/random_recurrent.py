@@ -40,6 +40,7 @@ class RandomRecurrentInitializer(tf.keras.Initializer):
     >>> matrix = initializer((10, 10))
     >>> print(matrix)
     """
+
     def __init__(
         self,
         density: float = 0.3,
@@ -101,12 +102,14 @@ class RandomRecurrentInitializer(tf.keras.Initializer):
                     W_r = W_r * (self.spectral_radius / sr)
                 else:
                     np.testing.assert_greater(
-                        sr, 0.0,
-                        err_msg="Spectral radius calculation returned zero or negative value."
+                        sr,
+                        0.0,
+                        err_msg="Spectral radius calculation returned zero or negative value.",
                     )
             except Exception as e:
-                print(f"Warning: Spectral radius calculation failed. Using matrix without scaling. Error: {e}")
-
+                print(
+                    f"Warning: Spectral radius calculation failed. Using matrix without scaling. Error: {e}"
+                )
 
         # Convert to tf.Tensor
         W_r = tf.convert_to_tensor(W_r)

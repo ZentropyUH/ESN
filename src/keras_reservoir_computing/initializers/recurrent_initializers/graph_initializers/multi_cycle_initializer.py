@@ -4,9 +4,7 @@ from .base import GraphInitializerBase
 from .graph_generators import multi_cycle
 
 
-@tf.keras.utils.register_keras_serializable(
-    package="krc", name="MultiCycleGraphInitializer"
-)
+@tf.keras.utils.register_keras_serializable(package="krc", name="MultiCycleGraphInitializer")
 class MultiCycleGraphInitializer(GraphInitializerBase):
     """
     Initializer for adjacency matrices of multi-cycle graphs.
@@ -33,10 +31,11 @@ class MultiCycleGraphInitializer(GraphInitializerBase):
     -----
     - The non-zero elements of the adjacency matrix are sampled as -1 or 1.
     """
+
     def __init__(
         self,
-        k: int=3,
-        weight: float=1.0,
+        k: int = 3,
+        weight: float = 1.0,
         spectral_radius: float = None,
         seed: int = None,
     ) -> None:
@@ -44,10 +43,7 @@ class MultiCycleGraphInitializer(GraphInitializerBase):
         self.weight = weight
         super().__init__(spectral_radius=spectral_radius, seed=seed)
 
-    def _generate_adjacency_matrix(
-        self,
-        n: int
-    ) -> tf.Tensor:
+    def _generate_adjacency_matrix(self, n: int) -> tf.Tensor:
         """
         Generate the adjacency matrix for a Barabasi-Albert graph.
 
@@ -85,4 +81,3 @@ class MultiCycleGraphInitializer(GraphInitializerBase):
 
         config.update(base_config)
         return config
-
