@@ -222,7 +222,9 @@ def predict_factory(model: tf.keras.Model) -> Callable:
         return _PREDICT_CACHE[model]
 
     @tf_function(reduce_retracing=True, jit_compile=True)
-    def _predict(data: Union[tf.Tensor, List[tf.Tensor], Tuple[tf.Tensor, ...]]) -> tf.Tensor:
+    def _predict(
+        data: Union[tf.Tensor, List[tf.Tensor], Tuple[tf.Tensor, ...]],
+    ) -> tf.Tensor:
         """
         Predict the output of the model.
         """
@@ -495,4 +497,9 @@ def window_forecast(
     return outputs, states_windows, pred_starts
 
 
-__all__ = ["forecast_factory", "clear_forecast_cache", "warmup_forecast", "window_forecast"]
+__all__ = [
+    "forecast_factory",
+    "clear_forecast_cache",
+    "warmup_forecast",
+    "window_forecast",
+]

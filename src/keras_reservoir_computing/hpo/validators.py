@@ -47,7 +47,14 @@ def _validate_tensor_shapes(data: Mapping[str, Any]) -> None:
     ValueError
         If tensor shapes are inconsistent.
     """
-    batch_keys = ["transient", "train", "train_target", "ftransient", "val", "val_target"]
+    batch_keys = [
+        "transient",
+        "train",
+        "train_target",
+        "ftransient",
+        "val",
+        "val_target",
+    ]
     batch_sizes: dict[str, int] = {}
     for key in batch_keys:
         if key in data:

@@ -96,7 +96,9 @@ def suppress_retracing_during_call(fn: Callable) -> Callable:
     return wrapper
 
 
-def create_tf_rng(seed: Optional[Union[int, tf.random.Generator]] = None) -> tf.random.Generator:
+def create_tf_rng(
+    seed: Optional[Union[int, tf.random.Generator]] = None,
+) -> tf.random.Generator:
     """
     Create and return a TensorFlow random number generator (RNG).
 

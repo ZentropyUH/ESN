@@ -180,7 +180,16 @@ def _run_in_fresh_process(
 
     p = ctx.Process(
         target=_child_worker,
-        args=(q, mc_blob, params, data, loss_fn, monitor_specs, clip_value, prune_on_clip),
+        args=(
+            q,
+            mc_blob,
+            params,
+            data,
+            loss_fn,
+            monitor_specs,
+            clip_value,
+            prune_on_clip,
+        ),
         daemon=False,
     )
     p.start()
@@ -221,7 +230,12 @@ def _run_in_fresh_process(
                 p.join()
         except Exception as exc:
             logger.error(f"Error terminating child process: {exc}")
-        return (float("inf"), None, "error", f"Child process exceeded timeout of {timeout}s")
+        return (
+            float("inf"),
+            None,
+            "error",
+            f"Child process exceeded timeout of {timeout}s",
+        )
 
     # Process finished (not alive), check exit code
     if p.exitcode != 0 and p.exitcode is not None:
@@ -242,7 +256,12 @@ def _run_in_fresh_process(
         return (value, attrs, status, msg)
     except queue.Empty:
         logger.error("Queue is empty or timeout waiting for result")
-        return (float("inf"), None, "error", "Timeout waiting for result from child process")
+        return (
+            float("inf"),
+            None,
+            "error",
+            "Timeout waiting for result from child process",
+        )
     except Exception as exc:
         logger.error(f"Error retrieving result from queue: {exc}")
         return (float("inf"), None, "error", f"Failed to get result from queue: {exc}")

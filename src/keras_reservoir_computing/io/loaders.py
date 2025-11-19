@@ -65,7 +65,10 @@ def _validate_config(cls, cfg: Dict, strict: bool = True) -> None:
     for name, param in sig.parameters.items():
         if name == "self":
             continue
-        if param.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
+        if param.kind in (
+            inspect.Parameter.VAR_POSITIONAL,
+            inspect.Parameter.VAR_KEYWORD,
+        ):
             continue
         if name not in cfg and param.default is param.empty:
             raise ValueError(f"{cls.__name__} is missing required arg: {name}")

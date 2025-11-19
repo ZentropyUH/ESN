@@ -6,7 +6,9 @@ from typing import Optional, Union, Generator
 import numpy as np
 
 
-def create_rng(seed: Optional[Union[int, np.random.Generator]] = None) -> np.random.Generator:
+def create_rng(
+    seed: Optional[Union[int, np.random.Generator]] = None,
+) -> np.random.Generator:
     """
     Create and return a NumPy random number generator (RNG).
 
