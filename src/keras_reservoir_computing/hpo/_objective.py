@@ -13,6 +13,7 @@ from __future__ import annotations
 import logging
 import multiprocessing as mp
 import os
+import queue
 from typing import TYPE_CHECKING, Any, Callable, List, Mapping, MutableMapping, Optional
 
 # Silence TF/absl logs in parent *and* child before any TF import happens.
@@ -32,6 +33,10 @@ if TYPE_CHECKING:
 
 __all__ = ["build_objective"]
 logger = logging.getLogger(__name__)
+
+# Default timeout for child process execution (in seconds)
+# Can be overridden via environment variable KRC_HPO_PROCESS_TIMEOUT
+DEFAULT_PROCESS_TIMEOUT = int(os.environ.get("KRC_HPO_PROCESS_TIMEOUT", "7200"))  # 2 hours default
 
 
 # ------------------------------------------------------------------
@@ -129,6 +134,7 @@ def _run_in_fresh_process(
     monitor_specs: Optional[List[tuple[str, LossProtocol]]],
     clip_value: Optional[float],
     prune_on_clip: bool,
+    timeout: Optional[float] = None,
 ) -> tuple[float, dict | None, str, Optional[str]]:
     """
     Run model creation + training + evaluation in a clean Python process.
@@ -149,6 +155,9 @@ def _run_in_fresh_process(
         Value to clip the monitor losses to. If None, no clipping is done.
     prune_on_clip : bool, default=False
         Whether to prune trials where any monitor loss is clipped. Otherwise, the trial is penalized by the clipped value.
+    timeout : Optional[float], default=None
+        Timeout in seconds for the child process. If None, uses DEFAULT_PROCESS_TIMEOUT.
+        If the process exceeds this timeout, it will be terminated.
 
     Returns
     -------
@@ -158,6 +167,9 @@ def _run_in_fresh_process(
     - status: "ok" | "pruned" | "error"
     - message: Optional[str]
     """
+    if timeout is None:
+        timeout = DEFAULT_PROCESS_TIMEOUT
+
     ctx = mp.get_context("spawn")
     q: mp.Queue = ctx.Queue()
 
@@ -170,12 +182,62 @@ def _run_in_fresh_process(
         daemon=False,
     )
     p.start()
-    p.join()
 
+    # Use join with timeout to prevent infinite hangs
+    p.join(timeout=timeout)
+
+    # Check if process is still alive (timed out)
+    if p.is_alive():
+        # Process timed out, but check queue first in case it finished but cleanup is hanging
+        if not q.empty():
+            try:
+                status, value, attrs, msg = q.get_nowait()
+                # We got a result, but process is still alive - might be stuck in cleanup
+                # Terminate it anyway for cleanup
+                logger.warning("Child process timed out but result available, terminating process")
+                try:
+                    p.terminate()
+                    p.join(timeout=5.0)
+                    if p.is_alive():
+                        p.kill()
+                        p.join()
+                except Exception:
+                    pass  # Ignore termination errors
+                return (value, attrs, status, msg)
+            except queue.Empty:
+                pass  # Queue is empty, proceed with timeout handling
+
+        # No result in queue, process truly timed out
+        logger.error(f"Child process exceeded timeout of {timeout}s, terminating")
+        try:
+            p.terminate()
+            # Give it a moment to terminate gracefully
+            p.join(timeout=5.0)
+            if p.is_alive():
+                # Force kill if still alive
+                p.kill()
+                p.join()
+        except Exception as exc:
+            logger.error(f"Error terminating child process: {exc}")
+        return (float("inf"), None, "error", f"Child process exceeded timeout of {timeout}s")
+
+    # Process finished (not alive), check exit code
+    if p.exitcode != 0 and p.exitcode is not None:
+        logger.warning(f"Child process exited with code {p.exitcode}")
+
+    # Get result from queue
     if q.empty():
-        return (float("inf"), None, "error", f"Child exited with code {p.exitcode}")
+        return (float("inf"), None, "error", f"Child exited with code {p.exitcode} (no result in queue)")
 
-    status, value, attrs, msg = q.get()
-    return (value, attrs, status, msg)
+    try:
+        # Get result with a short timeout to avoid blocking forever
+        status, value, attrs, msg = q.get(timeout=5.0)
+        return (value, attrs, status, msg)
+    except queue.Empty:
+        logger.error("Queue is empty or timeout waiting for result")
+        return (float("inf"), None, "error", "Timeout waiting for result from child process")
+    except Exception as exc:
+        logger.error(f"Error retrieving result from queue: {exc}")
+        return (float("inf"), None, "error", f"Failed to get result from queue: {exc}")
 
 
