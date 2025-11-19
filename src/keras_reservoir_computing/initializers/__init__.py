@@ -69,6 +69,7 @@ from .input_initializers import (
 )
 from .recurrent_initializers import (
     BarabasiAlbertGraphInitializer,
+    ChainOfNeuronsInitializer,
     ChordDendrocycleGraphInitializer,
     CompleteGraphInitializer,
     ConnectedRandomMatrixInitializer,
@@ -105,6 +106,7 @@ __all__ += [
 
 __all__ += [
     "BarabasiAlbertGraphInitializer",
+    "ChainOfNeuronsInitializer",
     "ChordDendrocycleGraphInitializer",
     "CompleteGraphInitializer",
     "ConnectedRandomMatrixInitializer",

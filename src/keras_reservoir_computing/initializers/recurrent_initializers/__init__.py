@@ -1,3 +1,4 @@
+from .chain_of_neurons import ChainOfNeuronsInitializer
 from .connected_random import ConnectedRandomMatrixInitializer
 from .digital_chaos import DigitalChaosInitializer
 from .graph_initializers import (
@@ -19,6 +20,7 @@ from .random_recurrent import RandomRecurrentInitializer
 from .ternary import TernaryInitializer
 
 __all__ = [
+    "ChainOfNeuronsInitializer",
     "ConnectedRandomMatrixInitializer",
     "DigitalChaosInitializer",
     "BarabasiAlbertGraphInitializer",
