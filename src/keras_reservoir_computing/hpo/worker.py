@@ -139,7 +139,7 @@ def _train_and_evaluate(
     train_target = data["train_target"]
     ftransient = data["ftransient"]
     val_data = data["val"]
-    external_inputs = data.get("external_inputs", None)
+    external_inputs = data.get("external_inputs", [])
 
     # 3) Targets per ReadOut
     if "readout_targets" in data:
