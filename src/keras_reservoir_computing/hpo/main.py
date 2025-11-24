@@ -2,7 +2,15 @@ from __future__ import annotations
 
 import logging
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable, Mapping, MutableMapping, Optional, Sequence
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Mapping,
+    MutableMapping,
+    Optional,
+    Sequence,
+)
 
 # Don’t import TF at runtime here; only for typing.
 if TYPE_CHECKING:
@@ -281,12 +289,18 @@ def run_hpo(
             workers = n_workers if n_workers is not None else max(1, (os.cpu_count() or 2) // 2)
             logger.info(f"Parallel HPO: n_workers={workers}")
 
+            # Disable progress bar when using parallel workers to avoid issues with
+            # Jupyter notebook widget updates from worker threads (tqdm/ipywidgets conflict)
+            show_progress = (verbosity > 0) and (workers == 1)
+            if workers > 1 and verbosity > 0:
+                logger.info("Progress bar disabled for parallel execution (Jupyter compatibility)")
+
             study.optimize(
                 objective,
                 n_trials=remaining,
                 n_jobs=workers,
                 catch=(Exception,),
-                show_progress_bar=(verbosity > 0),
+                show_progress_bar=show_progress,
             )
         except KeyboardInterrupt:
             logger.warning("Optimization interrupted by user")

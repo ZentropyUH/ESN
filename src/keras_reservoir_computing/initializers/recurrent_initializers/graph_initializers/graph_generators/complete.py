@@ -53,4 +53,3 @@ def complete(
             G.add_edge(i, i, weight=weight)
 
     return G
-

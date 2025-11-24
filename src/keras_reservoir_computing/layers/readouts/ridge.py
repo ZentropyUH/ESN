@@ -158,28 +158,29 @@ class RidgeReadout(ReadOut):
         return outputs
 
     def _fit(self, X: tf.Tensor, y: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
-        return self.__class__._solve_ridge_cg(X, y, self._alpha, self.units, self._max_iter, self._tol)
-
+        return self.__class__._solve_ridge_cg(
+            X, y, self._alpha, self.units, self._max_iter, self._tol
+        )
 
     @staticmethod
     @tf_function(
         input_signature=[
             tf.TensorSpec(shape=(None, None), dtype=tf.float64),  # X
             tf.TensorSpec(shape=(None, None), dtype=tf.float64),  # y
-            tf.TensorSpec(shape=(), dtype=tf.float64),            # alpha
-            tf.TensorSpec(shape=(), dtype=tf.int32),              # units
-            tf.TensorSpec(shape=(), dtype=tf.int32),              # max_iter
-            tf.TensorSpec(shape=(), dtype=tf.float64),            # tol
-            ]
-        )
+            tf.TensorSpec(shape=(), dtype=tf.float64),  # alpha
+            tf.TensorSpec(shape=(), dtype=tf.int32),  # units
+            tf.TensorSpec(shape=(), dtype=tf.int32),  # max_iter
+            tf.TensorSpec(shape=(), dtype=tf.float64),  # tol
+        ]
+    )
     def _solve_ridge_cg(
-        X: tf.Tensor, 
-        y: tf.Tensor, 
-        alpha: float, 
+        X: tf.Tensor,
+        y: tf.Tensor,
+        alpha: float,
         units: int,
         max_iter: int,
         tol: float,
-        ) -> Tuple[tf.Tensor, tf.Tensor]:
+    ) -> Tuple[tf.Tensor, tf.Tensor]:
         """
         Solve Ridge Regression using Conjugate Gradient for multiple outputs.
 
@@ -237,7 +238,6 @@ class RidgeReadout(ReadOut):
 
         # Gram matrix of centered X: (X - μ_X)^T (X - μ_X) = X^T X - n * μ_X^T μ_X
         XtX = tf.matmul(X, X, transpose_a=True) - n * tf.matmul(tf.transpose(X_mean), X_mean)
-
 
         def matvec(w):
             return tf.linalg.matmul(XtX, w, a_is_sparse=False) + alpha * w
@@ -320,6 +320,12 @@ class RidgeReadout(ReadOut):
         """
         config = super().get_config()
         config.update(
-            {"units": self.units, "alpha": self._alpha, "trainable": self.trainable, "max_iter": self._max_iter, "tol": self._tol}
+            {
+                "units": self.units,
+                "alpha": self._alpha,
+                "trainable": self.trainable,
+                "max_iter": self._max_iter,
+                "tol": self._tol,
+            }
         )
         return config

@@ -4,9 +4,7 @@ from .base import GraphInitializerBase
 from .graph_generators import barabasi_albert
 
 
-@tf.keras.utils.register_keras_serializable(
-    package="krc", name="BarabasiAlbertGraphInitializer"
-)
+@tf.keras.utils.register_keras_serializable(package="krc", name="BarabasiAlbertGraphInitializer")
 class BarabasiAlbertGraphInitializer(GraphInitializerBase):
     """
     Initializer for adjacency matrices of Barabasi-Albert scale-free graphs.
@@ -33,9 +31,10 @@ class BarabasiAlbertGraphInitializer(GraphInitializerBase):
     -----
     - The non-zero elements of the adjacency matrix are sampled as -1 or 1.
     """
+
     def __init__(
         self,
-        m: int=3,
+        m: int = 3,
         directed: bool = True,
         spectral_radius: float = None,
         seed: int = None,
@@ -44,10 +43,7 @@ class BarabasiAlbertGraphInitializer(GraphInitializerBase):
         self.directed = directed
         super().__init__(spectral_radius=spectral_radius, seed=seed)
 
-    def _generate_adjacency_matrix(
-        self,
-        n: int
-    ) -> tf.Tensor:
+    def _generate_adjacency_matrix(self, n: int) -> tf.Tensor:
         """
         Generate the adjacency matrix for a Barabasi-Albert graph.
 
@@ -86,4 +82,3 @@ class BarabasiAlbertGraphInitializer(GraphInitializerBase):
 
         config.update(base_config)
         return config
-

@@ -21,7 +21,11 @@ from typing import Optional, Tuple, Union
 import tensorflow as tf
 
 from keras_reservoir_computing.layers.reservoirs.layers.base import BaseReservoir
-from keras_reservoir_computing.utils.tensorflow import tf_function, create_tf_rng, suppress_retracing
+from keras_reservoir_computing.utils.tensorflow import (
+    tf_function,
+    create_tf_rng,
+    suppress_retracing,
+)
 
 
 def get_reservoir_states(model: tf.keras.Model) -> dict:
@@ -102,11 +106,7 @@ def set_reservoir_states(model: tf.keras.Model, states: dict) -> None:
     """
 
     # Check if the states are valid
-    layer_names = [
-        layer.name
-        for layer in model.layers
-        if isinstance(layer, BaseReservoir)
-    ]
+    layer_names = [layer.name for layer in model.layers if isinstance(layer, BaseReservoir)]
 
     if len(layer_names) == 0:
         return
@@ -154,7 +154,9 @@ def reset_reservoir_states(model: tf.keras.Model) -> None:
             layer.reset_states()
 
 
-def set_reservoir_random_states(model: tf.keras.Model, dist: str = "uniform", seed: Optional[int] = None) -> None:
+def set_reservoir_random_states(
+    model: tf.keras.Model, dist: str = "uniform", seed: Optional[int] = None
+) -> None:
     """
     Set the states of all reservoir layers in the model to random values.
 
@@ -193,7 +195,6 @@ def set_reservoir_random_states(model: tf.keras.Model, dist: str = "uniform", se
     for layer in model.layers:
         if isinstance(layer, BaseReservoir):
             layer.set_random_states(dist=dist, seed=rng)
-
 
 
 @tf_function
@@ -253,9 +254,7 @@ def harvest(
     if len(input_names) < 1:
         raise ValueError("Model must have at least one input (the feedback input).")
 
-    horizon = tf.reduce_min(
-        [tf.shape(feedback_seq)[1]] + [tf.shape(v)[1] for v in external_seqs]
-    )
+    horizon = tf.reduce_min([tf.shape(feedback_seq)[1]] + [tf.shape(v)[1] for v in external_seqs])
 
     external_input_count = len(input_names) - 1
     if len(external_seqs) != external_input_count:
@@ -281,9 +280,7 @@ def harvest(
     def body(t, states):
         model_inputs = [tf.expand_dims(feedback_seq[:, t, :], axis=1)]
         if external_seqs:
-            model_inputs.extend(
-                [tf.expand_dims(ext[:, t, :], axis=1) for ext in external_seqs]
-            )
+            model_inputs.extend([tf.expand_dims(ext[:, t, :], axis=1) for ext in external_seqs])
 
         model_inputs = model_inputs[0] if len(model_inputs) == 1 else model_inputs
 
@@ -294,9 +291,7 @@ def harvest(
 
         for layer in model.layers:
             if isinstance(layer, BaseReservoir):
-                for i, (st_ta, st) in enumerate(
-                    zip(states[layer.name], layer.get_states())
-                ):
+                for i, (st_ta, st) in enumerate(zip(states[layer.name], layer.get_states())):
                     states[layer.name][i] = st_ta.write(t, st)
 
         return t + 1, states
@@ -438,7 +433,6 @@ def esp_index(
        Available: http://arxiv.org/abs/1811.10892
     """
 
-
     input_dtype = feedback_seq.dtype
 
     # --- Prepare harvesting function ---
@@ -458,19 +452,18 @@ def esp_index(
 
         def collect_states():
 
-            inputs = [feedback_seq] + list(external_seqs) if len(external_seqs) > 0 else feedback_seq
+            inputs = (
+                [feedback_seq] + list(external_seqs) if len(external_seqs) > 0 else feedback_seq
+            )
 
             with suppress_retracing():
-                out = harvester_model.predict(
-                    inputs, verbose=0
-                )
+                out = harvester_model.predict(inputs, verbose=0)
             if len(monitored_layers) == 1:
                 out = [out]  # ensure list for consistency
-            return {
-                layer.name: [out[i]] for i, layer in enumerate(monitored_layers)
-            }
+            return {layer.name: [out[i]] for i, layer in enumerate(monitored_layers)}
 
     else:  # "full"
+
         def collect_states():
             return harvest(model, feedback_seq, external_seqs)
 
@@ -490,10 +483,7 @@ def esp_index(
     esp_history = None
     if history:
         esp_history = {
-            layer_name: [
-                tf.TensorArray(dtype=input_dtype, size=iterations)
-                for _ in states
-            ]
+            layer_name: [tf.TensorArray(dtype=input_dtype, size=iterations) for _ in states]
             for layer_name, states in base_orbit.items()
         }
 
@@ -521,25 +511,22 @@ def esp_index(
 
                 # Δi = average distance over timesteps and batch
                 delta = tf.reduce_mean(norms_over_time, axis=1)  # average per batch
-                delta = tf.reduce_mean(delta)                    # average over batches
+                delta = tf.reduce_mean(delta)  # average over batches
 
                 # Accumulate for ESP index
                 esp_indices[layer_name][state_idx] += tf.cast(delta, input_dtype)
 
                 # Save history if requested
                 if history:
-                    esp_history[layer_name][state_idx] = (
-                        esp_history[layer_name][state_idx]
-                        .write(iter_idx, tf.cast(norms_over_time, input_dtype))
+                    esp_history[layer_name][state_idx] = esp_history[layer_name][state_idx].write(
+                        iter_idx, tf.cast(norms_over_time, input_dtype)
                     )
     if verbose:
         print()  # newline after progress
 
     # --- Finalize indices by averaging over iterations ---
     for layer_name in esp_indices:
-        esp_indices[layer_name] = [
-            esp / iterations for esp in esp_indices[layer_name]
-        ]
+        esp_indices[layer_name] = [esp / iterations for esp in esp_indices[layer_name]]
 
     # --- Restore original states ---
     set_reservoir_states(model, current_states)
@@ -552,4 +539,3 @@ def esp_index(
             ]
 
     return (esp_indices, esp_history) if history else esp_indices
-

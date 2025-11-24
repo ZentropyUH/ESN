@@ -75,9 +75,7 @@ def compute_normalized_error(y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarr
         )
 
     # Compute reference scale per sample
-    ref_scale = np.linalg.norm(
-        np.sqrt(np.mean(y_true**2, axis=1)), axis=1, keepdims=True
-    )
+    ref_scale = np.linalg.norm(np.sqrt(np.mean(y_true**2, axis=1)), axis=1, keepdims=True)
 
     # Compute error norms
     diff = np.linalg.norm(y_pred - y_true, axis=2)

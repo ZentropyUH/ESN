@@ -28,6 +28,7 @@ def tf_function(*args, **kwargs) -> Callable[[Callable], Callable]:
         def decorator(func: Callable) -> Callable:
             wrapped = tf.function(func=func, **kwargs)
             return functools.wraps(wrapped=func)(wrapped)
+
         return decorator
 
 
@@ -86,15 +87,17 @@ def suppress_retracing_during_call(fn: Callable) -> Callable:
     -----
     This decorator is intender to be used with functions that trigger TensorFlow retracing warnings on their call.
     """
+
     @wraps(wrapped=fn)
     def wrapper(*args, **kwargs) -> Any:
         with suppress_retracing():
             return fn(*args, **kwargs)
+
     return wrapper
 
 
 def create_tf_rng(
-    seed: Optional[Union[int, tf.random.Generator]] = None
+    seed: Optional[Union[int, tf.random.Generator]] = None,
 ) -> tf.random.Generator:
     """
     Create and return a TensorFlow random number generator (RNG).
@@ -205,9 +208,7 @@ def rebuild_model_with_new_batch_size(
     # 2) Create new input layers with updated batch size
     #    Store them in `layer_outputs_map`.
     for layer_name, attrs in graph.nodes(data=True):
-        layer = attrs[
-    "layer_object"
-]
+        layer = attrs["layer_object"]
         if isinstance(layer, tf.keras.layers.InputLayer):
             # Build a new Input with the same shape except for batch_size
             # Typically layer.batch_shape is (old_batch_size, *rest_of_shape)
@@ -226,9 +227,7 @@ def rebuild_model_with_new_batch_size(
         if layer_name in layer_outputs_map:
             continue
 
-        layer = graph.nodes[layer_name][
-    "layer_object"
-]
+        layer = graph.nodes[layer_name]["layer_object"]
 
         # Gather the inbound tensors for this layer by looking up the parent layers
         parent_names = list(graph.predecessors(layer_name))
@@ -241,23 +240,17 @@ def rebuild_model_with_new_batch_size(
             # For each inbound node, check if those inbound layers match parent_names
             old_inbound_tensors = getattr(node, "input_tensors", [])
             # If the inbound layers to this node match the set of parents, we use it
-            old_inbound_layer_names = [
-                t._keras_history[0].name for t in old_inbound_tensors
-            ]
+            old_inbound_layer_names = [t._keras_history[0].name for t in old_inbound_tensors]
             # We do a quick check if these parents match exactly the parents we see in the graph
             # (or if it's a subset for multi-input).
             if set(old_inbound_layer_names) == set(parent_names):
                 # Use *this* node's input tensors
                 for t in old_inbound_tensors:
-                    parent_layer_name = t._keras_history[
-    0
-].name
+                    parent_layer_name = t._keras_history[0].name
                     parent_output = layer_outputs_map[parent_layer_name]
 
                     # If the parent layer had multiple outputs, we must pick the correct output index
-                    output_index = t._keras_history[
-    2
-]  # which output from parent layer
+                    output_index = t._keras_history[2]  # which output from parent layer
                     if isinstance(parent_output, (list, tuple)):
                         inbound_tensors.append(parent_output[output_index])
                     else:
@@ -291,13 +284,9 @@ def rebuild_model_with_new_batch_size(
     #    to the correct new output Tensor.
     new_model_outputs = []
     for old_out, out_name in zip(old_model.outputs, old_model.output_names):
-        parent_layer_of_output = old_out._keras_history[
-    0
-]  # the layer that created this tensor
+        parent_layer_of_output = old_out._keras_history[0]  # the layer that created this tensor
         parent_layer_name = parent_layer_of_output.name
-        parent_output_index = old_out._keras_history[
-    2
-]  # which output index from that layer
+        parent_output_index = old_out._keras_history[2]  # which output index from that layer
 
         new_parent_outputs = layer_outputs_map[parent_layer_name]
         if isinstance(new_parent_outputs, (list, tuple)):
@@ -316,13 +305,9 @@ def rebuild_model_with_new_batch_size(
 
     # If there's exactly one input, Keras expects a single tensor, not a list
     if len(new_model_inputs) == 1:
-        new_model_inputs = new_model_inputs[
-    0
-]
+        new_model_inputs = new_model_inputs[0]
     if len(new_model_outputs) == 1:
-        new_model_outputs = new_model_outputs[
-    0
-]
+        new_model_outputs = new_model_outputs[0]
 
     # 7) Construct the new model
     new_model = tf.keras.Model(inputs=new_model_inputs, outputs=new_model_outputs)
@@ -398,9 +383,7 @@ def insert_layer(
 
     # B. Recreate Input layers first (unchanged)
     for layer_name in sorted_layer_names:
-        layer_obj = graph.nodes[layer_name][
-    "layer_object"
-]
+        layer_obj = graph.nodes[layer_name]["layer_object"]
         if isinstance(layer_obj, tf.keras.layers.InputLayer):
 
             batch_shape = layer_obj.batch_shape
@@ -408,9 +391,7 @@ def insert_layer(
             # Create new Input
             new_input = tf.keras.Input(
                 shape=batch_shape[1:],
-                batch_size=batch_shape[
-    0
-],
+                batch_size=batch_shape[0],
                 name=layer_obj.name,
             )
             layer_outputs_map[layer_name] = new_input
@@ -460,21 +441,15 @@ def insert_layer(
         found = False
         for node in old_inbound_nodes:
             old_inbound_tensors = getattr(node, "input_tensors", [])
-            old_inbound_parents = [
-                t._keras_history[0].name for t in old_inbound_tensors
-            ]
+            old_inbound_parents = [t._keras_history[0].name for t in old_inbound_tensors]
             # If the set or list order matches, let's consider it a match
             # (some models might reorder, so we do a simple set check).
             if set(old_inbound_parents) == set(parent_names):
                 # We use these inbound_tensors
                 for t in old_inbound_tensors:
-                    parent_layer_name = t._keras_history[
-    0
-].name
+                    parent_layer_name = t._keras_history[0].name
                     parent_output = layer_outputs_map[parent_layer_name]
-                    output_index = t._keras_history[
-    2
-]  # index of the parent output
+                    output_index = t._keras_history[2]  # index of the parent output
                     if isinstance(parent_output, (list, tuple)):
                         inbound_tensors.append(parent_output[output_index])
                     else:
@@ -508,12 +483,8 @@ def insert_layer(
     # D. Identify the new model's outputs by referencing old_model.outputs
     new_model_outputs = []
     for old_out, out_name in zip(model.outputs, model.output_names):
-        parent_layer_of_output = old_out._keras_history[
-    0
-]
-        parent_output_index = old_out._keras_history[
-    2
-]
+        parent_layer_of_output = old_out._keras_history[0]
+        parent_output_index = old_out._keras_history[2]
 
         new_parent_outputs = layer_outputs_map[parent_layer_of_output.name]
         if isinstance(new_parent_outputs, (list, tuple)):
@@ -524,27 +495,21 @@ def insert_layer(
     # E. Collect the new inputs in the correct order
     new_model_inputs = []
     for old_in in model.inputs:
-        in_layer = old_in._keras_history[
-    0
-]  # InputLayer
+        in_layer = old_in._keras_history[0]  # InputLayer
         new_in = layer_outputs_map[in_layer.name]
         new_model_inputs.append(new_in)
 
     if len(new_model_inputs) == 1:
-        new_model_inputs = new_model_inputs[
-    0
-]
+        new_model_inputs = new_model_inputs[0]
     if len(new_model_outputs) == 1:
-        new_model_outputs = new_model_outputs[
-    0
-]
+        new_model_outputs = new_model_outputs[0]
 
     # F. Construct the new model
     new_model = tf.keras.Model(inputs=new_model_inputs, outputs=new_model_outputs)
 
     # G. Transfer weights, skipping the newly inserted layer
     for layer in new_model.layers:
-        if layer.name == new_layer_name:     # freshly inserted layer
+        if layer.name == new_layer_name:  # freshly inserted layer
             continue
         old_layer = model.get_layer(layer.name)
         layer.set_weights(old_layer.get_weights())

@@ -9,9 +9,7 @@ from keras_reservoir_computing.initializers.helpers import spectral_radius_hybri
 from .base import GraphInitializerBase
 
 
-@tf.keras.utils.register_keras_serializable(
-    package="krc", name="SpectralCascadeGraphInitializer"
-)
+@tf.keras.utils.register_keras_serializable(package="krc", name="SpectralCascadeGraphInitializer")
 class SpectralCascadeGraphInitializer(GraphInitializerBase):
     """
     Initializer for adjacency matrices composed of multiple disconnected cliques
@@ -32,6 +30,7 @@ class SpectralCascadeGraphInitializer(GraphInitializerBase):
     seed : int or None, optional
         Ignored. Present for compatibility.
     """
+
     def __init__(
         self,
         spectral_radius: float,
@@ -58,10 +57,7 @@ class SpectralCascadeGraphInitializer(GraphInitializerBase):
         # apply scaled per-clique spectral control
         return tf.convert_to_tensor(adj, dtype=dtype)
 
-    def _generate_adjacency_matrix(
-        self,
-        n: int
-    ) -> tf.Tensor:
+    def _generate_adjacency_matrix(self, n: int) -> tf.Tensor:
 
         D = 1 + 8 * n
         sqrt_D = isqrt(D)
@@ -96,7 +92,7 @@ class SpectralCascadeGraphInitializer(GraphInitializerBase):
             if current_r > 1e-14 and desired_r != 0:
                 A_sub *= desired_r / current_r
 
-            A[offset:offset + k, offset:offset + k] = A_sub
+            A[offset : offset + k, offset : offset + k] = A_sub
             offset += k
 
         A = np.triu(A) + np.triu(A, 1).T
@@ -110,4 +106,3 @@ class SpectralCascadeGraphInitializer(GraphInitializerBase):
         }
         config.update(base_config)
         return config
-

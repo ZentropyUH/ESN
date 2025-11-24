@@ -58,4 +58,3 @@ def connected_erdos_renyi(
             f"(Got p={p}, n={n})."
         )
     return erdos_renyi(n, p, directed, self_loops, seed)
-

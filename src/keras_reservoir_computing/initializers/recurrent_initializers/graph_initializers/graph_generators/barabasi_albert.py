@@ -79,4 +79,3 @@ def barabasi_albert(
         targets.extend(new_edges)
 
     return G
-

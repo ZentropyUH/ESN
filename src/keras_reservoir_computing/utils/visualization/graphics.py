@@ -11,8 +11,6 @@ from .helpers import (
     _recurrence_plot,
     plot_2d,
     scatter_2d,
-    plot_3d,
-    scatter_3d,
 )
 from functools import partial
 
@@ -304,28 +302,28 @@ def plot_recurrence(
     N = recurrence.shape[0]
     if figsize is None:
         figsize = (6, 6 * N)
-    
+
     fig, axes = plt.subplots(N, 1, figsize=figsize)
     axes = np.atleast_1d(axes)
-    
+
     if suptitle:
         fig.suptitle(suptitle, fontsize=14)
-    
+
     # Prepare default labels
     sample_labels = sample_labels or [f"Sample {i+1}" for i in range(N)]
     if len(sample_labels) != N:
         raise ValueError(f"Length of sample_labels must be {N}, got {len(sample_labels)}.")
-    
+
     # Plot each recurrence plot
     for i, ax in enumerate(axes):
         im = ax.imshow(recurrence[i], cmap=cmap, **kwargs)
         ax.set_title(sample_labels[i])
         ax.set_xlabel("Time")
         ax.set_ylabel("Time")
-    
+
     # Add colorbar
     fig.colorbar(im, ax=axes.ravel().tolist())
-    
+
     return list(axes)
 
 
@@ -560,9 +558,7 @@ def plot_heatmap(
     # Prepare default labels
     sample_labels = sample_labels or [f"Sample {i+1}" for i in range(N)]
     if len(sample_labels) != N:
-        raise ValueError(
-            f"Length of sample_labels must match N={N}, got {len(sample_labels)}."
-        )
+        raise ValueError(f"Length of sample_labels must match N={N}, got {len(sample_labels)}.")
 
     # Manage xlabels
     if isinstance(xlabels, str) or xlabels is None:
@@ -582,9 +578,7 @@ def plot_heatmap(
         # Limit total figure height to ~15
         figsize = (12, min(3 * N, 15))
 
-    fig, axes = plt.subplots(
-        nrows=N, ncols=1, figsize=figsize, sharex=True, sharey=True
-    )
+    fig, axes = plt.subplots(nrows=N, ncols=1, figsize=figsize, sharex=True, sharey=True)
     fig.subplots_adjust(hspace=0.4)
 
     # Scale time axis

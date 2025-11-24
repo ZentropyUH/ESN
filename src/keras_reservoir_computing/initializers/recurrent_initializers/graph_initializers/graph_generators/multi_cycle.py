@@ -4,6 +4,7 @@ from keras_reservoir_computing.initializers.helpers import (
     to_tensor,
 )
 
+
 @to_tensor
 def multi_cycle(
     n: int,

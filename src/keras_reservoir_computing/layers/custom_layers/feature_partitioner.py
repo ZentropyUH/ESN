@@ -96,12 +96,12 @@ class FeaturePartitioner(tf.keras.layers.Layer):
         tf.debugging.assert_equal(
             features % self.partitions,
             0,
-            message="Feature dimension must be divisible by number of partitions."
+            message="Feature dimension must be divisible by number of partitions.",
         )
         tf.debugging.assert_greater(
             features // self.partitions,
             self.overlap,
-            message="Overlap must be smaller than the length of each partition."
+            message="Overlap must be smaller than the length of each partition.",
         )
 
         # Width of each partition including overlap

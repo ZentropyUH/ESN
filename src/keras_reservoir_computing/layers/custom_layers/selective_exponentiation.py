@@ -3,9 +3,7 @@ from typing import Dict, List, Union
 import tensorflow as tf
 
 
-@tf.keras.utils.register_keras_serializable(
-    package="krc", name="SelectiveExponentiation"
-)
+@tf.keras.utils.register_keras_serializable(package="krc", name="SelectiveExponentiation")
 class SelectiveExponentiation(tf.keras.layers.Layer):
     r"""
     A Keras layer that exponentiates either the even or odd indices of the last dimension,
@@ -92,9 +90,7 @@ class SelectiveExponentiation(tf.keras.layers.Layer):
         output = tf.math.pow(masked, self.exponent) + unmasked
         return output
 
-    def compute_output_shape(
-        self, input_shape: Union[tf.TensorShape, List[int]]
-    ) -> tf.TensorShape:
+    def compute_output_shape(self, input_shape: Union[tf.TensorShape, List[int]]) -> tf.TensorShape:
         r"""
         Computes the output shape, which is the same as the input shape.
 

@@ -37,9 +37,7 @@ def load_csv(datapath: str) -> np.ndarray:
         T, D = data.shape
         data = data.reshape(1, T, D)
     elif data.ndim != 3:
-        raise ValueError(
-            f"CSV data has an unsupported shape {data.shape}. Expected 1D, 2D or 3D."
-        )
+        raise ValueError(f"CSV data has an unsupported shape {data.shape}. Expected 1D, 2D or 3D.")
 
     return data
 
@@ -80,9 +78,7 @@ def load_npz(datapath: str) -> np.ndarray:
         T, D = data.shape
         data = data.reshape(1, T, D)
     elif data.ndim != 3:
-        raise ValueError(
-            f"NPZ data has an unsupported shape {data.shape}. Expected 1D, 2D or 3D."
-        )
+        raise ValueError(f"NPZ data has an unsupported shape {data.shape}. Expected 1D, 2D or 3D.")
 
     return data
 
@@ -115,9 +111,7 @@ def load_npy(datapath: str) -> np.ndarray:
         T, D = data.shape
         data = data.reshape(1, T, D)
     elif data.ndim != 3:
-        raise ValueError(
-            f"NPY data has an unsupported shape {data.shape}. Expected 1D, 2D or 3D."
-        )
+        raise ValueError(f"NPY data has an unsupported shape {data.shape}. Expected 1D, 2D or 3D.")
 
     return data
 
@@ -150,9 +144,7 @@ def load_nc(datapath: str) -> np.ndarray:
         T, D = data.shape
         data = data.reshape(1, T, D)
     elif data.ndim != 3:
-        raise ValueError(
-            f"CSV data has an unsupported shape {data.shape}. Expected 1D, 2D or 3D."
-        )
+        raise ValueError(f"CSV data has an unsupported shape {data.shape}. Expected 1D, 2D or 3D.")
 
     return data
 
@@ -236,9 +228,7 @@ def list_files_only(directory: str) -> List[str]:
     List[str]
         A list of file names in the directory, excluding subdirectories.
     """
-    return [
-        f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f))
-    ]
+    return [f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f))]
 
 
 def load_file(datapath: str) -> np.ndarray:
@@ -363,9 +353,9 @@ def load_data(
     # Define data splits
     transient_data = data[:, :transient_length, :]
     train_data = data[:, transient_length:train_index, :]
-    train_target = data[:, transient_length + 1:train_index + 1, :]
+    train_target = data[:, transient_length + 1 : train_index + 1, :]
     ftransient = train_data[:, -transient_length:, :]
-    val_data = data[:, train_index:train_index + val_length, :]
+    val_data = data[:, train_index : train_index + val_length, :]
 
     # Optional normalization
     if normalize:
@@ -492,12 +482,12 @@ def load_data_dual(
 
     # TRAIN SPLITS
     transient_data = train_data_all[:, :transient_length, :]
-    train_data = train_data_all[:, transient_length:transient_length + train_length, :]
-    train_target = train_data_all[:, transient_length + 1:transient_length + train_length + 1, :]
+    train_data = train_data_all[:, transient_length : transient_length + train_length, :]
+    train_target = train_data_all[:, transient_length + 1 : transient_length + train_length + 1, :]
 
     # VAL SPLITS
     ftransient_data = val_data_all[:, :transient_length, :]
-    val_data = val_data_all[:, transient_length:transient_length + val_length, :]
+    val_data = val_data_all[:, transient_length : transient_length + val_length, :]
 
     if normalize:
         if normalization_method == "standard":
@@ -532,10 +522,7 @@ def load_data_dual(
     )
 
 
-
-def save_data(
-    data: np.ndarray, filename: str, savepath: str, format: str = "csv"
-) -> None:
+def save_data(data: np.ndarray, filename: str, savepath: str, format: str = "csv") -> None:
     """
     Save the data to the specified path in the chosen format.
 

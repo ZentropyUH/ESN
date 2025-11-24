@@ -13,6 +13,9 @@ Recurrent initializers
 ----------------------
 Define the internal recurrent connection weights of the reservoir, determining the network's internal dynamics.
 
+Graph initializers
+------------------
+Define the adjacency matrices of the reservoir, controlling the network's topology.
 
 Available input initializers
 ----------------------------
@@ -20,13 +23,17 @@ Available input initializers
 - :class:`ChebyshevInitializer`
 - :class:`ChessboardInitializer`
 - :class:`DendrocycleInputInitializer`
+- :class:`OppositeAnchorsInputInitializer`
 - :class:`PseudoDiagonalInitializer`
 - :class:`RandomBinaryInitializer`
 - :class:`RandomInputInitializer`
+- :class:`RingWindowInputInitializer`
+
 
 Available recurrent initializers
 --------------------------------
 - :class:`BarabasiAlbertGraphInitializer`
+- :class:`ChordDendrocycleGraphInitializer`
 - :class:`CompleteGraphInitializer`
 - :class:`ConnectedRandomMatrixInitializer`
 - :class:`DendrocycleGraphInitializer`
@@ -36,23 +43,35 @@ Available recurrent initializers
 - :class:`MultiCycleGraphInitializer`
 - :class:`NewmanWattsStrogatzGraphInitializer`
 - :class:`RegularGraphInitializer`
+- :class:`RingChordGraphInitializer`
+- :class:`SimpleCycleJumpsGraphInitializer`
 - :class:`SpectralCascadeGraphInitializer`
 - :class:`RandomRecurrentInitializer`
 - :class:`TernaryInitializer`
 - :class:`WattsStrogatzGraphInitializer`
+
+Available bias initializers
+----------------------------
+- :class:`DCTOneBiasInitializer`
 """
+
 from . import input_initializers, recurrent_initializers
 from .input_initializers import (
     BinaryBalancedInitializer,
+    ChainOfNeuronsInputInitializer,
     ChebyshevInitializer,
     ChessboardInitializer,
     DendrocycleInputInitializer,
+    OppositeAnchorsInputInitializer,
     PseudoDiagonalInitializer,
     RandomBinaryInitializer,
     RandomInputInitializer,
+    RingWindowInputInitializer,
 )
 from .recurrent_initializers import (
     BarabasiAlbertGraphInitializer,
+    ChainOfNeuronsInitializer,
+    ChordDendrocycleGraphInitializer,
     CompleteGraphInitializer,
     ConnectedRandomMatrixInitializer,
     DendrocycleGraphInitializer,
@@ -63,26 +82,33 @@ from .recurrent_initializers import (
     NewmanWattsStrogatzGraphInitializer,
     RandomRecurrentInitializer,
     RegularGraphInitializer,
+    RingChordGraphInitializer,
     SimpleCycleJumpsGraphInitializer,
     SpectralCascadeGraphInitializer,
     TernaryInitializer,
     WattsStrogatzGraphInitializer,
 )
+from .bias_initializers import DCTOneBiasInitializer
 
 __all__ = ["input_initializers", "recurrent_initializers"]
 
 __all__ += [
     "BinaryBalancedInitializer",
+    "ChainOfNeuronsInputInitializer",
     "ChebyshevInitializer",
     "ChessboardInitializer",
     "DendrocycleInputInitializer",
+    "OppositeAnchorsInputInitializer",
     "PseudoDiagonalInitializer",
     "RandomBinaryInitializer",
     "RandomInputInitializer",
+    "RingWindowInputInitializer",
 ]
 
 __all__ += [
     "BarabasiAlbertGraphInitializer",
+    "ChainOfNeuronsInitializer",
+    "ChordDendrocycleGraphInitializer",
     "CompleteGraphInitializer",
     "ConnectedRandomMatrixInitializer",
     "DendrocycleGraphInitializer",
@@ -92,12 +118,18 @@ __all__ += [
     "MultiCycleGraphInitializer",
     "NewmanWattsStrogatzGraphInitializer",
     "RegularGraphInitializer",
+    "RingChordGraphInitializer",
     "SimpleCycleJumpsGraphInitializer",
     "SpectralCascadeGraphInitializer",
     "RandomRecurrentInitializer",
     "TernaryInitializer",
     "WattsStrogatzGraphInitializer",
 ]
+
+__all__ += [
+    "DCTOneBiasInitializer",
+]
+
 
 def __dir__() -> list[str]:
     return __all__

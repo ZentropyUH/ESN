@@ -4,9 +4,11 @@ A TensorFlow/Keras implementation of reservoir computing with a focus on Echo St
 This library provides a flexible framework for creating, training, and evaluating reservoir computing models
 integrated with the Keras API.
 """
+
 from . import (
     analysis,
     callbacks,
+    exceptions,
     forecasting,
     hpo,
     initializers,
@@ -20,6 +22,7 @@ from . import (
 __all__ = [
     "analysis",
     "callbacks",
+    "exceptions",
     "forecasting",
     "hpo",
     "initializers",
@@ -29,6 +32,7 @@ __all__ = [
     "utils",
     "io",
 ]
+
 
 def __dir__() -> list[str]:
     return __all__

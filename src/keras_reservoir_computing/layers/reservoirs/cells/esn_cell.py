@@ -67,7 +67,7 @@ class ESNCell(BaseCell):
         self.feedback_bias_initializer = tf.keras.initializers.get(feedback_bias_initializer)
         self.kernel_initializer = tf.keras.initializers.get(kernel_initializer)
 
-    def build(self, input_shape: tuple):
+    def build(self, input_shape: tuple) -> None:
         """
         Build the cell's weights.
 
@@ -78,6 +78,11 @@ class ESNCell(BaseCell):
         ----------
         input_shape : tuple
             The input shape provided by Keras.
+
+        Raises
+        ------
+        ValueError
+            If input shape doesn't match expected feedback_dim + input_dim.
         """
 
         feedback_and_input_features = input_shape[-1]
@@ -128,7 +133,7 @@ class ESNCell(BaseCell):
 
         super().build(input_shape)
 
-    def call(self, inputs: tf.Tensor, states: List[tf.Tensor]):
+    def call(self, inputs: tf.Tensor, states: List[tf.Tensor]) -> tuple[tf.Tensor, List[tf.Tensor]]:
         """
         Process one step of the cell.
 
@@ -142,7 +147,7 @@ class ESNCell(BaseCell):
 
         Returns
         -------
-        tuple
+        tuple[tf.Tensor, List[tf.Tensor]]
             A tuple (next_state, [next_state]) containing the output and new states
         """
         # Get previous state x_{t}
@@ -157,15 +162,15 @@ class ESNCell(BaseCell):
         next_state = tf.matmul(feedback_part, self.W_fb) + self.b_fb
 
         if self.input_dim > 0:
-            # Compute input part 
+            # Compute input part
             # u_{t} * W_{in} + y_{t} * W_{fb} + b_{fb}
             next_state += tf.matmul(input_part, self.W_in)
 
-        # Compute recurrent part 
+        # Compute recurrent part
         # x_{t} * W_{kernel} + u_{t} * W_{in} + y_{t} * W_{fb} + b_{fb}
         next_state += tf.matmul(prev_state, self.W_kernel)
 
-        # Apply activation 
+        # Apply activation
         # f(x_{t} * W_{kernel} + u_{t} * W_{in} + y_{t} * W_{fb} + b_{fb})
         next_state = self.activation(next_state)
 
@@ -182,18 +187,12 @@ class ESNCell(BaseCell):
         config.update(
             {
                 "activation": tf.keras.activations.serialize(self.activation),
-                "input_initializer": tf.keras.initializers.serialize(
-                    self.input_initializer
-                ),
-                "feedback_initializer": tf.keras.initializers.serialize(
-                    self.feedback_initializer
-                ),
+                "input_initializer": tf.keras.initializers.serialize(self.input_initializer),
+                "feedback_initializer": tf.keras.initializers.serialize(self.feedback_initializer),
                 "feedback_bias_initializer": tf.keras.initializers.serialize(
                     self.feedback_bias_initializer
                 ),
-                "kernel_initializer": tf.keras.initializers.serialize(
-                    self.kernel_initializer
-                ),
+                "kernel_initializer": tf.keras.initializers.serialize(self.kernel_initializer),
             }
         )
         return config

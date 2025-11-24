@@ -27,7 +27,9 @@ __all__ = [
 class LossProtocol(Protocol):
     """Typing protocol for a loss callable."""
 
-    def __call__(self, y_true: np.ndarray, y_pred: np.ndarray, /, *args, **kwargs) -> float:  # noqa: D401,E501
+    def __call__(
+        self, y_true: np.ndarray, y_pred: np.ndarray, /, *args, **kwargs
+    ) -> float:  # noqa: D401,E501
         ...
 
 
@@ -35,7 +37,10 @@ class LossProtocol(Protocol):
 # Concrete loss implementations
 # ------------------------------------------------------------------
 
-def _compute_errors(y_true: np.ndarray, y_pred: np.ndarray, metric: str = "rmse") -> np.ndarray:  # noqa: D401,E501
+
+def _compute_errors(
+    y_true: np.ndarray, y_pred: np.ndarray, metric: str = "rmse"
+) -> np.ndarray:  # noqa: D401,E501
     """
     Compute per-timestep errors (B, T) for the requested metric.
 
@@ -58,32 +63,32 @@ def _compute_errors(y_true: np.ndarray, y_pred: np.ndarray, metric: str = "rmse"
     if metric == "mse":
         return np.mean((diff) ** 2, axis=2)
     if metric == "rmse":
-        return np.sqrt(np.mean(diff ** 2, axis=2))
+        return np.sqrt(np.mean(diff**2, axis=2))
     if metric == "mae":
         return np.mean(np.abs(diff), axis=2)
     if metric == "nrmse":
         scale = np.std(y_true, axis=(0, 1), keepdims=True)
         scale[scale == 0] = 1.0
         diff_n = diff / scale
-        return np.sqrt(np.mean(diff_n ** 2, axis=2))
+        return np.sqrt(np.mean(diff_n**2, axis=2))
     raise ValueError(f"Unknown metric '{metric}'.")
 
 
 def forecast_horizon_loss(
     y_true: np.ndarray,
     y_pred: np.ndarray,
-    metric: str = "rmse",          # changed default
+    metric: str = "rmse",  # changed default
     threshold: float = 0.2,
 ) -> float:
     """Negative log of the (contiguous) valid forecast horizon (minimise)."""
     errors = _compute_errors(y_true, y_pred, metric)  # (B, T)
-    e_t = np.median(errors, axis=0)                   # robust across anchors
+    e_t = np.median(errors, axis=0)  # robust across anchors
     below = e_t < threshold
     if not below[0]:
         valid_len = 0
     else:
         valid_len = int(np.argmax(~below)) if (~below).any() else int(below.size)
-    return -float(np.log(valid_len + 1e-9))           # stable; larger horizon → more negative
+    return -float(np.log(valid_len + 1e-9))  # stable; larger horizon → more negative
 
 
 def lyapunov_weighted_loss(  # noqa: D401,E501
@@ -186,7 +191,7 @@ def expected_forecast_horizon_loss(
     *,
     metric: str = "nrmse",
     threshold: float = 0.2,
-    softness: float = 0.02,               # ~ 10 % of threshold is a good default
+    softness: float = 0.02,  # ~ 10 % of threshold is a good default
 ) -> float:
     """
     Differentiable proxy for forecast-horizon.
@@ -213,18 +218,17 @@ def expected_forecast_horizon_loss(
     - This loss is equivalent to the expected horizon length, which is the sum of the survival probabilities.
     """
     # 1) per-timestep error, then geometric mean over the batch
-    errors = _compute_errors(y_true, y_pred, metric)      # (B, T)
+    errors = _compute_errors(y_true, y_pred, metric)  # (B, T)
     e_t = np.median(errors, axis=0)
 
     # 2) soft indicator of “good prediction” at each step
-    good_t = expit((threshold - e_t) / softness)          # ∈ (0, 1)
+    good_t = expit((threshold - e_t) / softness)  # ∈ (0, 1)
 
     # 3) probability that all steps up to t are good (soft horizon survival)
     # surv_t = np.exp(np.cumsum(np.log(good_t)))              # (T,)
 
     log_g = np.log(np.clip(good_t, 1e-12, 1.0))
     surv_t = np.exp(np.cumsum(log_g))
-
 
     # 4) expected horizon length
     H = np.sum(surv_t)
@@ -237,15 +241,16 @@ def discounted_rmse_loss(
     y_true: np.ndarray,
     y_pred: np.ndarray,
     *,
-    H50: int = 64,                 # half-life in steps
+    H50: int = 64,  # half-life in steps
     metric: str = "rmse",
 ) -> float:
     """Time-discounted per-step error with exponential half-life (minimise)."""
-    e = _compute_errors(y_true, y_pred, metric)       # (B, T)
-    e_t = np.mean(e, axis=0)                          # (T,)
+    e = _compute_errors(y_true, y_pred, metric)  # (B, T)
+    e_t = np.mean(e, axis=0)  # (T,)
     gamma = 0.5 ** (1.0 / max(H50, 1))
     w = gamma ** np.arange(1, e_t.shape[0] + 1)
     return float(np.sum(w * e_t) / np.sum(w))
+
 
 LOSSES: dict[str, LossProtocol] = {
     "horizon": forecast_horizon_loss,
@@ -267,5 +272,3 @@ def get_loss(key_or_callable: str | LossProtocol) -> LossProtocol:
     if not isinstance(key_or_callable, LossProtocol):  # type: ignore[arg-type]
         raise TypeError("Loss must be a str key or a LossProtocol-compatible callable.")
     return key_or_callable
-
-

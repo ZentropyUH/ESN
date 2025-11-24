@@ -4,9 +4,7 @@ from .base import GraphInitializerBase
 from .graph_generators import complete
 
 
-@tf.keras.utils.register_keras_serializable(
-    package="krc", name="CompleteGraphInitializer"
-)
+@tf.keras.utils.register_keras_serializable(package="krc", name="CompleteGraphInitializer")
 class CompleteGraphInitializer(GraphInitializerBase):
     """
     Initializer for adjacency matrices of complete graphs.
@@ -34,6 +32,7 @@ class CompleteGraphInitializer(GraphInitializerBase):
     - The non-zero elements of the adjacency matrix are sampled as -1 or 1 if `random_weights=False`. Otherwise, the weights are alternated between -1 and 1.
     - This is equivalent to a dense matrix with alternating -1 and 1 values.
     """
+
     def __init__(
         self,
         self_loops: bool = True,
@@ -45,10 +44,7 @@ class CompleteGraphInitializer(GraphInitializerBase):
         self.random_weights = random_weights
         super().__init__(spectral_radius=spectral_radius, seed=seed)
 
-    def _generate_adjacency_matrix(
-        self,
-        n: int
-    ) -> tf.Tensor:
+    def _generate_adjacency_matrix(self, n: int) -> tf.Tensor:
         """
         Generate the adjacency matrix for a complete graph.
 
@@ -85,4 +81,3 @@ class CompleteGraphInitializer(GraphInitializerBase):
 
         config.update(base_config)
         return config
-

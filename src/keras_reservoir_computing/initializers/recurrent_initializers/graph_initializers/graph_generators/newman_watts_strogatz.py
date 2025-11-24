@@ -82,4 +82,3 @@ def newman_watts_strogatz(
                     break
 
     return G
-

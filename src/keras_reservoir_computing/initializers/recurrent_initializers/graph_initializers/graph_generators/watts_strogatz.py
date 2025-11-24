@@ -88,4 +88,3 @@ def watts_strogatz(
                     break
 
     return G
-

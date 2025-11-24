@@ -5,9 +5,11 @@ This module provides the core machinery for running the model creation,
 training, and evaluation in a separate process. It handles memory management,
 error handling, and communication with the main process.
 """
+
 from __future__ import annotations
 
 import os
+
 os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
 
 # (Optional, but recommended to avoid CPU oversubscription per child)
@@ -39,12 +41,16 @@ if TYPE_CHECKING:
 class _AttrSink:
     def __init__(self) -> None:
         self.attrs: dict[str, Any] = {}
+
     def set_user_attr(self, k, v) -> None:
         self.attrs[k] = v
+
     def report(self, *_, **__) -> None:
         pass
+
     def should_prune(self) -> bool:
         return False
+
 
 def _log_monitors(
     trial: Optional[Trial],
@@ -73,7 +79,6 @@ def _log_monitors(
             trial.set_user_attr(name, v)
         except Exception as exc:
             logger.debug(f"Monitor '{name}' failed: {exc}")
-
 
 
 @_with_cleanup
@@ -226,5 +231,3 @@ def _child_worker(
             K.clear_session()
         except Exception as exc:
             logger.debug(f"K.clear_session() failed during cleanup: {exc}")
-
-

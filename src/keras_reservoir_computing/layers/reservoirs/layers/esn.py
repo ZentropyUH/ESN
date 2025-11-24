@@ -50,11 +50,11 @@ class ESNReservoir(BaseReservoir):
       feedback inputs. It can be used in two modes:
 
         1. **Feedback only**: The reservoir receives only the feedback input.
-        
+
         2. **Feedback + input**: The reservoir receives both feedback and
            external inputs, similar to a ``Concatenate`` layer.
 
-    - If two inputs are provided, the feedback input must be the first one, 
+    - If two inputs are provided, the feedback input must be the first one,
       and both must share the first two dimensions ``(batch_size, timesteps)``.
 
     - The ``feedback_dim`` and ``input_dim`` parameters are crucial for
@@ -68,6 +68,7 @@ class ESNReservoir(BaseReservoir):
     recurrent neural networks. German National Research Center for Information
     Technology GMD Technical Report, 148(34), 13.
     """
+
     def __init__(
         self,
         units: int,
@@ -133,8 +134,6 @@ class ESNReservoir(BaseReservoir):
     def kernel_initializer(self):
         return self.cell.kernel_initializer
 
-
-
     def get_config(self):
         base_config = super().get_config()
         config = {
@@ -143,19 +142,12 @@ class ESNReservoir(BaseReservoir):
             "input_dim": self.input_dim,
             "leak_rate": self.leak_rate,
             "activation": tf.keras.activations.serialize(self.activation),
-            "input_initializer": tf.keras.initializers.serialize(
-                self.input_initializer
-            ),
-            "feedback_initializer": tf.keras.initializers.serialize(
-                self.feedback_initializer
-            ),
+            "input_initializer": tf.keras.initializers.serialize(self.input_initializer),
+            "feedback_initializer": tf.keras.initializers.serialize(self.feedback_initializer),
             "feedback_bias_initializer": tf.keras.initializers.serialize(
                 self.feedback_bias_initializer
             ),
-            "kernel_initializer": tf.keras.initializers.serialize(
-                self.kernel_initializer
-            ),
+            "kernel_initializer": tf.keras.initializers.serialize(self.kernel_initializer),
         }
         del base_config["cell"]
         return {**base_config, **config}
-

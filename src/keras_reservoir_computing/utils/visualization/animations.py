@@ -96,9 +96,7 @@ def animate_trail(
         # Single sample: shape (T, D)
         data = data[np.newaxis, ...]  # Make it (1, T, D)
     elif ndim != 3:
-        raise ValueError(
-            f"Data must be 2D (T, D) or 3D (N, T, D). Received shape {data.shape}."
-        )
+        raise ValueError(f"Data must be 2D (T, D) or 3D (N, T, D). Received shape {data.shape}.")
 
     N, T, D = data.shape
     if D not in (2, 3):
@@ -211,9 +209,7 @@ def animate_trail(
             )
         else:
             (point_line,) = ax_i.plot([], [], "o", markersize=5)
-            (trail_line,) = ax_i.plot(
-                [], [], "-", label=sample_labels[i], alpha=0.7, linewidth=2
-            )
+            (trail_line,) = ax_i.plot([], [], "-", label=sample_labels[i], alpha=0.7, linewidth=2)
 
         points.append(point_line)
         trails.append(trail_line)
@@ -375,9 +371,7 @@ def animate_timeseries(
         # Single sample: (T, D)
         data = data[np.newaxis, ...]  # (1, T, D)
     elif ndim != 3:
-        raise ValueError(
-            f"Data must be 2D (T, D) or 3D (N, T, D). Got shape {data.shape}."
-        )
+        raise ValueError(f"Data must be 2D (T, D) or 3D (N, T, D). Got shape {data.shape}.")
 
     N, T, D = data.shape
 
@@ -388,9 +382,7 @@ def animate_timeseries(
     # Default labels for samples
     sample_labels = sample_labels or [f"Sample {i+1}" for i in range(N)]
     if len(sample_labels) != N:
-        raise ValueError(
-            f"Length of sample_labels ({len(sample_labels)}) must match N={N}."
-        )
+        raise ValueError(f"Length of sample_labels ({len(sample_labels)}) must match N={N}.")
 
     # Expand x/y labels
     if isinstance(xlabels, str):
@@ -506,9 +498,7 @@ def animate_timeseries(
                 fps=fps,
                 extra_args=["-threads", "0"],
             )
-            ani.save(
-                filename=savepath, writer=writer, progress_callback=progress_callback
-            )
+            ani.save(filename=savepath, writer=writer, progress_callback=progress_callback)
 
     return ani
 

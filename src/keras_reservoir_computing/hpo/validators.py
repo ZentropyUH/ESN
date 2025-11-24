@@ -11,7 +11,6 @@ if TYPE_CHECKING:
     import tensorflow as tf
 
 
-
 def _validate_data_dict(data: Mapping[str, Any], required_keys: List[str]) -> None:
     """Validate that all required keys are present in the data dictionary.
 
@@ -48,7 +47,14 @@ def _validate_tensor_shapes(data: Mapping[str, Any]) -> None:
     ValueError
         If tensor shapes are inconsistent.
     """
-    batch_keys = ["transient", "train", "train_target", "ftransient", "val", "val_target"]
+    batch_keys = [
+        "transient",
+        "train",
+        "train_target",
+        "ftransient",
+        "val",
+        "val_target",
+    ]
     batch_sizes: dict[str, int] = {}
     for key in batch_keys:
         if key in data:
@@ -60,6 +66,7 @@ def _validate_tensor_shapes(data: Mapping[str, Any]) -> None:
             f"Inconsistent batch sizes detected: {batch_sizes}. "
             "This may cause issues during training."
         )
+
 
 def _infer_readout_targets(
     model: "tf.keras.Model",
@@ -102,4 +109,3 @@ def _infer_readout_targets(
         f"Multiple ReadOut layers found: {[layer.name for layer in readouts]}. "
         "Provide a 'readout_targets' mapping in the data dictionary."
     )
-

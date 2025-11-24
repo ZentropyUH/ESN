@@ -126,9 +126,7 @@ class BaseReservoir(tf.keras.layers.RNN):
         """
         # validate number of states and shapes
         if len(states) != len(self.states):
-            raise ValueError(
-                "Number of states does not match the number of reservoir states."
-            )
+            raise ValueError("Number of states does not match the number of reservoir states.")
         for state, new_state in zip(self.states, states):
             if state.shape != new_state.shape:
                 raise ValueError(
@@ -152,17 +150,11 @@ class BaseReservoir(tf.keras.layers.RNN):
         rng = create_tf_rng(seed)
 
         if dist not in {"uniform", "normal"}:
-            raise ValueError(
-                f"Invalid distribution: {dist}. Should be 'uniform' or 'normal'."
-            )
+            raise ValueError(f"Invalid distribution: {dist}. Should be 'uniform' or 'normal'.")
 
-        for i in range(
-            len(self.states)
-        ):  # Ensures TensorFlow properly tracks assignment
+        for i in range(len(self.states)):  # Ensures TensorFlow properly tracks assignment
             if dist == "uniform":
-                self.states[i].assign(
-                    rng.uniform(self.states[i].shape, -1.0, 1.0)
-                )
+                self.states[i].assign(rng.uniform(self.states[i].shape, -1.0, 1.0))
             else:  # "normal"
                 self.states[i].assign(rng.normal(self.states[i].shape))
 

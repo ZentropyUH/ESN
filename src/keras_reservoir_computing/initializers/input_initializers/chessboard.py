@@ -4,9 +4,7 @@ import numpy as np
 import tensorflow as tf
 
 
-@tf.keras.utils.register_keras_serializable(
-    package="krc", name="ChessboardInitializer"
-)
+@tf.keras.utils.register_keras_serializable(package="krc", name="ChessboardInitializer")
 class ChessboardInitializer(tf.keras.Initializer):
     """
     An initializer that generates a chessboard pattern with values in {-1, 1}.
@@ -59,7 +57,6 @@ class ChessboardInitializer(tf.keras.Initializer):
         W = W.astype(dtype.as_numpy_dtype)
 
         return tf.convert_to_tensor(W, dtype=dtype)
-
 
     def get_config(self) -> dict:
         """

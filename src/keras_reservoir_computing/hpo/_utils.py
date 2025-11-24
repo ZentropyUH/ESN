@@ -13,7 +13,6 @@ from __future__ import annotations
 import functools
 import gc
 import inspect
-import logging
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable
@@ -113,11 +112,13 @@ def monitor_name(spec, base):
 # Memory management
 # ------------------------------------------------------------------
 
+
 def _cleanup() -> None:
     """Garbage collection and clear Keras session without importing TF at module import time."""
     gc.collect()
     # Import here to avoid TF import during module load.
     from keras import backend as K
+
     K.clear_session()
 
 
@@ -134,9 +135,11 @@ def _with_cleanup(fn: Callable) -> Callable:
     Callable
         The wrapped function.
     """
+
     def wrapper(*args, **kwargs):
         try:
             return fn(*args, **kwargs)
         finally:
             _cleanup()
+
     return wrapper

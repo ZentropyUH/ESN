@@ -2,6 +2,7 @@ import tensorflow as tf
 from typing import Union, Sequence
 import numpy as np
 
+
 @tf.keras.utils.register_keras_serializable(package="krc", name="SelectiveDropout")
 class SelectiveDropout(tf.keras.layers.Layer):
     """
@@ -54,7 +55,7 @@ class SelectiveDropout(tf.keras.layers.Layer):
 
         # Store original mask for serialization
         self._mask = list(mask)
-        
+
         # Convert mask to tensor and ensure it's a boolean tensor
         mask = tf.convert_to_tensor(mask, dtype=tf.bool)
 
@@ -88,7 +89,7 @@ class SelectiveDropout(tf.keras.layers.Layer):
             raise ValueError(
                 f"Mask size {self.mask.shape[0]} does not match feature dimension {feature_dim}"
             )
-            
+
         self.built = True
 
     def call(self, inputs: tf.Tensor) -> tf.Tensor:
@@ -108,10 +109,7 @@ class SelectiveDropout(tf.keras.layers.Layer):
         # Apply selective dropout
         return tf.where(self.mask, 0.0, inputs)
 
-
-    def compute_output_shape(
-        self, input_shape: tuple[int, int, int]
-    ) -> tuple[int, int, int]:
+    def compute_output_shape(self, input_shape: tuple[int, int, int]) -> tuple[int, int, int]:
         """
         Computes the output shape, which is identical to the input shape.
 

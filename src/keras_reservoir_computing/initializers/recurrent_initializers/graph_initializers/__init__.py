@@ -1,5 +1,5 @@
-
 from .barabasi_albert_initializer import BarabasiAlbertGraphInitializer
+from .chord_dendrocycle_initializer import ChordDendrocycleGraphInitializer
 from .complete_initializer import CompleteGraphInitializer
 from .dendrocycle_initializer import DendrocycleGraphInitializer
 from .erdos_renyi_initializer import ErdosRenyiGraphInitializer
@@ -7,12 +7,14 @@ from .kleinberg_small_world_initializer import KleinbergSmallWorldGraphInitializ
 from .multi_cycle_initializer import MultiCycleGraphInitializer
 from .newman_watts_strogatz_initializer import NewmanWattsStrogatzGraphInitializer
 from .regular_initializer import RegularGraphInitializer
+from .ring_chord_initializer import RingChordGraphInitializer
 from .simple_cycle_jumps_initializer import SimpleCycleJumpsGraphInitializer
 from .spectral_cascade_initializer import SpectralCascadeGraphInitializer
 from .watts_strogatz_initializer import WattsStrogatzGraphInitializer
 
 __all__ = [
     "BarabasiAlbertGraphInitializer",
+    "ChordDendrocycleGraphInitializer",
     "CompleteGraphInitializer",
     "DendrocycleGraphInitializer",
     "ErdosRenyiGraphInitializer",
@@ -20,10 +22,12 @@ __all__ = [
     "MultiCycleGraphInitializer",
     "NewmanWattsStrogatzGraphInitializer",
     "RegularGraphInitializer",
+    "RingChordGraphInitializer",
     "SimpleCycleJumpsGraphInitializer",
     "SpectralCascadeGraphInitializer",
     "WattsStrogatzGraphInitializer",
 ]
+
 
 def __dir__() -> list[str]:
     return __all__

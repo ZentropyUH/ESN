@@ -5,9 +5,7 @@ import numpy as np
 import tensorflow as tf
 
 
-@tf.keras.utils.register_keras_serializable(
-    package="krc", name="BinaryBalancedInitializer"
-)
+@tf.keras.utils.register_keras_serializable(package="krc", name="BinaryBalancedInitializer")
 class BinaryBalancedInitializer(tf.keras.Initializer):
     r"""
     Deterministic initializer that generates a **dense** input matrix with entries in ``{-1, +1}``,
@@ -89,8 +87,7 @@ class BinaryBalancedInitializer(tf.keras.Initializer):
         """Construct Sylvester Hadamard matrix H_L ∈ {+1, -1}^{L×L}, with L a power of 2."""
         H = np.array([[1]], dtype=np.int8)
         while H.shape[0] < L:
-            H = np.block([[H,  H],
-                          [H, -H]]).astype(np.int8)
+            H = np.block([[H, H], [H, -H]]).astype(np.int8)
         return H
 
     @staticmethod
